@@ -1,0 +1,56 @@
+# ──────────────────────────────────────────────────────────────────────
+# ArogyaRakshak — Docker Compose
+# ──────────────────────────────────────────────────────────────────────
+# Services:
+#   postgres  — PostgreSQL 16 with pgvector extension
+#   api       — FastAPI backend (depends on postgres)
+#   web       — Next.js 15 frontend dev server
+#
+# FAISS is a Python library used inside apps/api, not a standalone service.
+# ──────────────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL + pgvector ──────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-arogyarakshak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arogyarakshak}
+      POSTGRES_DB: ${POSTGRES_DB:-arogyarakshak}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-arogyarakshak}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI backend ────────────────────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Next.js frontend ──────────────────────────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
