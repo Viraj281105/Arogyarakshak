@@ -10,12 +10,12 @@ Phased for a 2–3 month build. Phases can overlap once Phase 0 clears — they'
 
 These block everything downstream. Nobody should start Phase 1 work until these are closed.
 
-- [ ] **[infra]** Scaffold the monorepo per Technical Documentation §9 (`apps/`, `packages/`, `data/`, `docs/`, `docker-compose.yml`)
-- [ ] **[infra]** Push `ArogyaRakshak_Technical_Documentation.md` and this backlog into `docs/`
-- [ ] **[billnyay] [orchestration]** Re-point Groq model from deprecated `llama3-70b` to `openai/gpt-oss-120b` — blocks every module that calls the LLM pipeline
-- [ ] **[data-qa]** Confirm with guide: can hackathon-built BillNyay code carry over directly, or must it be framed as new work?
-- [ ] **[data-qa]** Confirm SPPU Phase-I review date
-- [ ] **[data-qa]** Check whether PMJAY/MJPJAY/CGHS/NPPA source documents exist natively in Hindi/Marathi, or need LLM-generated translation — determines real scope of §5 work per data source
+- [x] **[infra]** Scaffold the monorepo per Technical Documentation §9 (`apps/`, `packages/`, `data/`, `docs/`, `docker-compose.yml`)
+- [x] **[infra]** Push `ArogyaRakshak_Technical_Documentation.md` and this backlog into `docs/`
+- [x] **[billnyay] [orchestration]** Re-point Groq model from deprecated `llama3-70b` to `openai/gpt-oss-120b` — blocks every module that calls the LLM pipeline
+- [x] **[data-qa]** Confirm with guide: can hackathon-built BillNyay code carry over directly, or must it be framed as new work?
+- [x] **[data-qa]** Confirm SPPU Phase-I review date
+- [x] **[data-qa]** Check whether PMJAY/MJPJAY/CGHS/NPPA source documents exist natively in Hindi/Marathi, or need LLM-generated translation — determines real scope of §5 work per data source
 
 ---
 

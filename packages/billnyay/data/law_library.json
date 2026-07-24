@@ -1,0 +1,32 @@
+[
+  {
+    "statute_name": "IRDAI Circular Ref: IRDAI/HLT/REG/CIR/194/09/2020",
+    "statute_text": "Standardization of Exclusion Clauses in Health Insurance Contracts: Insurers cannot deny claims under exclusions that are vague or non-specific. Prior approval or medical necessity justifications must be clearly established before rejecting claims.",
+    "jurisdiction": "IRDAI",
+    "category": "claims_exclusion"
+  },
+  {
+    "statute_name": "Consumer Protection Act, 2019 — Section 2(47)",
+    "statute_text": "Defines Unfair Trade Practice: Imposing unreasonable conditions, delayed claim processing without justifiable cause, or arbitrary reduction of claimed expenses constitutes unfair trade practice.",
+    "jurisdiction": "India Federal",
+    "category": "consumer_rights"
+  },
+  {
+    "statute_name": "IRDAI (Health Insurance) Regulations, 2016 — Regulation 27",
+    "statute_text": "Claim Settlement Timeline: Insurers must settle or reject claims within 30 days of receiving all necessary documents. Interest at 2% above the bank rate is payable for delayed payments.",
+    "jurisdiction": "IRDAI",
+    "category": "claim_settlement"
+  },
+  {
+    "statute_name": "CGHS Billing Guidelines & Package Rate Mandate",
+    "statute_text": "Empanelled hospitals cannot charge rates higher than prescribed CGHS package rates for beneficiaries. Overcharging beyond ceiling rates is subject to refund and penalty under MoHFW circulars.",
+    "jurisdiction": "MoHFW India",
+    "category": "hospital_overcharge"
+  },
+  {
+    "statute_name": "NPPA DPCO 2013 — Paragraph 14(1)",
+    "statute_text": "No manufacturer, distributor, or retailer shall sell any scheduled formulation at a price exceeding the ceiling price fixed by NPPA plus applicable GST. Overcharging attracts recovery with interest.",
+    "jurisdiction": "NPPA India",
+    "category": "medicine_pricing"
+  }
+]
