@@ -1,0 +1,3 @@
+discharge_year,gender,age_group,length_of_stay,diagnosis_code,diagnosis_description,procedure_code,procedure_description,total_charges,total_costs
+2024,M,30 to 49,3,I10,Essential (primary) hypertension,02100Z9,Coronary bypass,45000.0,32000.0
+2024,F,50 to 69,5,E11,Type 2 diabetes mellitus,03120Z9,Peripheral artery bypass,78000.0,51000.0

@@ -1,0 +1,3 @@
+patient_id,policy_type,total_claimed,total_allowed,denial_reason_code,denial_description,cghs_deviation_flag
+P-101,Gold,25000.0,21000.0,RARC-N29,Exceeds maximum allowable room limit,True
+P-102,Platinum,48000.0,45000.0,CARC-96,Non-covered procedure charges,False

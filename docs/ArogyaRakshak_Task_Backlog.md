@@ -138,6 +138,26 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 
 ---
 
+## Phase 4.5 — Evaluation & Metrics Integration Testing
+
+- [ ] **[billnyay] [data-qa]** Eval: Implement automated pipeline for calculating Procedure Extraction Accuracy (PEA) on BillNyay mock bills
+- [ ] **[billnyay] [data-qa]** Eval: Implement evaluation harness for Benchmark Mapping Accuracy (BMA) comparing hospital procedures to CGHS codes
+- [ ] **[billnyay] [data-qa]** Eval: Measure Billing Anomaly Precision, Recall, and F1-score on synthetic overcharged bill data
+- [ ] **[daavisetu] [data-qa]** Eval: Establish evaluation framework for DaaviSetu Policy Clause Retrieval Accuracy (PCRA) using RAG test sets
+- [ ] **[daavisetu] [data-qa]** Eval: Implement validation suite for DaaviSetu Claim Rejection Mapping Accuracy (CRMA)
+- [ ] **[billnyay] [data-qa]** Eval: Implement automated completeness scoring for generated IRDAI appeal drafts using a weighted checklist
+- [ ] **[dawacheck] [data-qa]** Eval: Implement testing harness for DawaCheck Medicine Recognition Accuracy comparing prescription OCR to ground truth
+- [ ] **[dawacheck] [data-qa]** Eval: Measure DawaCheck NPPA price mapping accuracy and price deviation detection rates
+- [ ] **[schemesetu] [data-qa]** Eval: Implement ranking evaluation (MRR - Mean Reciprocal Rank) for SchemeSetu recommendation engine
+- [ ] **[schemesetu] [data-qa]** Eval: Implement RAG precision and recall evaluation for SchemeSetu recommendations
+- [ ] **[kadi] [data-qa]** Eval: Build KADI integration metrics suite to measure Context Reuse Ratio (CRR) and Duplicate Processing Reduction (DPR)
+- [ ] **[kadi] [data-qa]** Eval: Implement testing harness for KADI Entity Resolution Accuracy (ERA) using fuzzy matched names
+- [ ] **[kadi] [data-qa]** Eval: Implement OCR benchmark suite calculating Word Error Rate (WER) and Character Error Rate (CER)
+- [ ] **[billnyay] [data-qa]** Eval: Develop validation suite to calculate AI Hallucination Rate and Grounding Scores on generated legal letters
+- [ ] **[infra]** Eval: Implement system-level latency monitoring to verify End-to-End Processing Time (< 10 seconds)
+
+---
+
 ## Phase 5 — Polish & submission prep
 
 - [ ] **[infra]** Deployment target decided and set up (college server / cloud free-tier / local demo)

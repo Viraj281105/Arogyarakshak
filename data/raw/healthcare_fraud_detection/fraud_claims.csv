@@ -1,0 +1,3 @@
+claim_id,provider_id,icd_10_diagnosis,cpt_procedure,is_fraud,fraud_reason
+CLM-01,PROV-77,J44.9,99214,0,
+CLM-02,PROV-92,M17.9,27447,1,Upcoding detected - procedure does not match severity level of diagnosis

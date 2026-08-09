@@ -142,6 +142,22 @@ ISSUES = [
     ("BillNyay: Design real-time billing anomalies visualization dashboard", "Implement responsive dashboards using HSL colors mapping deviations from the CGHS benchmark.", "module:billnyay,role:frontend,phase:5"),
     ("SchemeSetu: Develop eligibility RAG citation tracing UI", "Embed dynamic source citation views in Next.js enabling inline viewing of source PDF clauses.", "module:schemesetu,role:frontend,phase:5"),
     ("DaaviSetu: Design secure client-side document package encryption using Web Crypto API", "Ensure all download packages are encrypted client-side with patient-controlled passwords.", "module:daavisetu,role:infra,phase:5"),
+    # Evaluation & Testing Issues
+    ("Eval: Implement automated pipeline for calculating Procedure Extraction Accuracy (PEA) on BillNyay mock bills", "PEA = (Correctly Extracted Procedures / Total Procedures) * 100. Target: > 95%", "module:billnyay,role:data-qa,phase:4"),
+    ("Eval: Implement evaluation harness for Benchmark Mapping Accuracy (BMA) comparing hospital procedures to CGHS codes", "BMA = (Correctly Mapped Procedures / Total Extracted Procedures) * 100. Target: > 92%", "module:billnyay,role:data-qa,phase:4"),
+    ("Eval: Measure Billing Anomaly Precision, Recall, and F1-score on synthetic overcharged bill data", "Precision = TP / (TP+FP), Recall = TP / (TP+FN). Target: > 90%", "module:billnyay,role:data-qa,phase:4"),
+    ("Eval: Establish evaluation framework for DaaviSetu Policy Clause Retrieval Accuracy (PCRA) using RAG test sets", "PCRA = (Correctly Retrieved Clauses / Total Relevant Clauses) * 100. Target: > 90%", "module:daavisetu,role:data-qa,phase:4"),
+    ("Eval: Implement validation suite for DaaviSetu Claim Rejection Mapping Accuracy (CRMA)", "CRMA = (Correctly Mapped Rejection Reasons / Total Rejection Reasons) * 100. Target: > 90%", "module:daavisetu,role:data-qa,phase:4"),
+    ("Eval: Implement automated completeness scoring for generated IRDAI appeal drafts using a weighted checklist", "Check completeness of Appeal details: Patient Details (15%), Policy Info (20%), Clauses (30%), Justification (25%), References (10%)", "module:billnyay,role:data-qa,phase:4"),
+    ("Eval: Implement testing harness for DawaCheck Medicine Recognition Accuracy comparing prescription OCR to ground truth", "Medicine Recognition Accuracy = (Correctly Recognized Medicines / Total Medicines) * 100. Target: > 95%", "module:dawacheck,role:data-qa,phase:4"),
+    ("Eval: Measure DawaCheck NPPA price mapping accuracy and price deviation detection rates", "NPPA Accuracy = (Correctly Mapped Medicines / Total Medicines) * 100.", "module:dawacheck,role:data-qa,phase:4"),
+    ("Eval: Implement ranking evaluation (MRR - Mean Reciprocal Rank) for SchemeSetu recommendation engine", "MRR = (1/N) * sum(1/Rank_i) to evaluate ranking quality of schemes.", "module:schemesetu,role:data-qa,phase:4"),
+    ("Eval: Implement RAG precision and recall evaluation for SchemeSetu recommendations", "Recommendation Precision & Recall calculations on test database.", "module:schemesetu,role:data-qa,phase:4"),
+    ("Eval: Build KADI integration metrics suite to measure Context Reuse Ratio (CRR) and Duplicate Processing Reduction (DPR)", "CRR = (Reused Context Requests / Total Context Requests) * 100. DPR = ((Baseline Processing - Current Processing) / Baseline Processing) * 100.", "module:kadi,role:data-qa,phase:4"),
+    ("Eval: Implement testing harness for KADI Entity Resolution Accuracy (ERA) using fuzzy matched names", "ERA = (Correctly Merged Duplicate Entities / Total Duplicate Entities) * 100.", "module:kadi,role:data-qa,phase:4"),
+    ("Eval: Implement OCR benchmark suite calculating Word Error Rate (WER) and Character Error Rate (CER)", "Evaluate OCR digitization performance using Edit Distance against ground truth.", "module:kadi,role:data-qa,phase:4"),
+    ("Eval: Develop validation suite to calculate AI Hallucination Rate and Grounding Scores on generated legal letters", "Hallucination Rate < 2%, Grounding Score > 95%.", "module:billnyay,role:data-qa,phase:4"),
+    ("Eval: Implement system-level latency monitoring to verify End-to-End Processing Time (< 10 seconds)", "E2E processing time dashboard and metric collection hook.", "module:infra,role:infra,phase:4"),
 ]
 
 def run_command(cmd):

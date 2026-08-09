@@ -1,0 +1,3 @@
+policy_holder,insurer_name,sum_insured,room_rent_cap,maternity_coverage,co_payment_percentage
+Viraj Jadhao,Star Health,500000.0,Single Private AC,False,0.0
+Siddhesh Patil,HDFC Ergo,1000000.0,No Limit,True,10.0
