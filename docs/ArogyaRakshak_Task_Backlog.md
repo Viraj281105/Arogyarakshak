@@ -25,11 +25,13 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[kadi] [orchestration]** Design and migrate `cases` / `entities` / `case_entities` schema in Postgres
 - [ ] **[kadi] [orchestration]** Build the shared extraction agent (any document → common entity schema)
 - [ ] **[kadi] [infra]** Set up FAISS + pgvector indexes for Kadi's entity store
+- [ ] **[kadi] [data-qa]** Register for ABDM Developer Sandbox & complete initial HIU flow walkthrough
 
 ### Infra
 - [ ] **[infra]** Docker Compose: Postgres+pgvector, FAISS, FastAPI, Next.js services wired together
 - [ ] **[infra]** SSE streaming endpoint scaffold
 - [ ] **[infra]** Basic CI: lint + test on PR (GitHub Actions)
+- [ ] **[infra]** Configure monorepo build setup in Docker & setup local editable packages
 
 ### Data ingestion (can run in parallel across data sources)
 - [ ] **[billnyay] [data-qa]** CGHS rate schedule scraping/parsing into structured format
@@ -46,6 +48,9 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[billnyay] [orchestration]** Re-verify 5-agent pipeline (Auditor → Reviewer → Advisor → Drafter → QA Judge) against new stack
 - [ ] **[billnyay] [orchestration]** Integrate BillNyay with Kadi (write extracted entities, read shared context)
 - [ ] **[billnyay] [frontend]** Appeal PDF generation + download flow
+- [ ] **[billnyay] [orchestration]** Auto-draft IRDAI Bima Bharosa complaint packages
+- [ ] **[billnyay] [frontend]** Implement self-reported grievance tracker and portal deep-linking
+- [ ] **[billnyay] [frontend]** Add reminder nudges for IRDAI turnaround times
 
 ### SchemeSetu
 - [ ] **[schemesetu] [orchestration]** Build eligibility reasoning agent over PMJAY/MJPJAY RAG index
@@ -58,6 +63,11 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[dawacheck] [orchestration]** Brand ↔ generic active-ingredient mapping (shared dependency with Kadi entity resolution — see below, don't build twice)
 - [ ] **[dawacheck] [orchestration]** Integrate with Kadi
 
+### DaaviSetu (NEW)
+- [ ] **[daavisetu] [ocr-data]** Ingest blank insurance claim and pre-authorization form templates
+- [ ] **[daavisetu] [orchestration]** Map KADI patient context into cashless pre-authorization form schema
+- [ ] **[daavisetu] [frontend]** Output submission-ready package (PDF + structured summary) for user review
+
 ---
 
 ## Phase 3 — Entity resolution & cross-module integration
@@ -69,6 +79,8 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[kadi] [orchestration]** Auto-triggering: fire relevant module checks automatically when Kadi has enough context
 - [ ] **[kadi] [frontend]** Consent UI — per-case opt-in for cross-module data sharing
 - [ ] **[frontend]** Cross-module insight display (e.g. "you may also be eligible under SchemeSetu" surfaced from a BillNyay upload)
+- [ ] **[kadi] [orchestration]** ABDM: Connect pulled medical history with Kadi shared case context
+- [ ] **[daavisetu] [orchestration]** Integrate with Kadi context layer (read case entities to pre-fill claim forms)
 
 ---
 

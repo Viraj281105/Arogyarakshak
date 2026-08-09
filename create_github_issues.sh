@@ -18,6 +18,7 @@ create_label "module:kadi"        "0E8A16"
 create_label "module:billnyay"    "1D76DB"
 create_label "module:schemesetu"  "5319E7"
 create_label "module:dawacheck"   "B60205"
+create_label "module:daavisetu"   "D4C5F9"
 create_label "module:infra"       "FBCA04"
 create_label "module:frontend"    "C5DEF5"
 create_label "module:data-qa"     "D93F0B"
@@ -33,12 +34,20 @@ create_label "phase:3"            "7D7D7D"
 create_label "phase:4"            "9E9E9E"
 create_label "phase:5"            "BFBFBF"
 
-echo "==> Creating issues on $REPO"
+echo "==> Fetching existing issues..."
+EXISTING_ISSUES=$(gh issue list --repo "$REPO" --state all --limit 200 --json title --jq '.[].title' || echo "")
 
 create_issue () {
   local title="$1" body="$2" labels="$3"
-  gh issue create --repo "$REPO" --title "$title" --body "$body" --label "$labels"
+  if echo "$EXISTING_ISSUES" | grep -Fqx "$title" >/dev/null; then
+    echo "  -> Issue '$title' already exists, skipping."
+  else
+    echo "  -> Creating issue: '$title'"
+    gh issue create --repo "$REPO" --title "$title" --body "$body" --label "$labels"
+  fi
 }
+
+echo "==> Creating issues on $REPO..."
 
 # ---------------- Phase 0 — Blockers ----------------
 create_issue "Scaffold monorepo per Tech Doc §9" "apps/, packages/, data/, docs/, docker-compose.yml" "module:infra,role:infra,phase:0"
@@ -59,6 +68,8 @@ create_issue "CGHS rate schedule scraping/parsing" "Structured format ingestion.
 create_issue "PMJAY eligibility rules + empanelled hospital list ingestion" "" "module:schemesetu,role:data-qa,phase:1"
 create_issue "MJPJAY (Maharashtra) eligibility rules ingestion" "" "module:schemesetu,role:data-qa,phase:1"
 create_issue "NPPA Schedule-I ceiling price list ingestion" "~800-900 price-controlled drugs." "module:dawacheck,role:data-qa,phase:1"
+create_issue "Register for ABDM Developer Sandbox & complete initial HIU flow walkthrough" "Register at sandbox.abdm.gov.in and verify access to sandbox ABHA accounts." "module:kadi,role:data-qa,phase:1"
+create_issue "Configure monorepo build setup in Docker & setup local editable packages" "Define local packages in pyproject.toml files and update FastAPI Dockerfile to install them." "module:infra,role:infra,phase:1"
 
 # ---------------- Phase 2 — Module builds ----------------
 create_issue "Port hackathon OCR pipeline into packages/billnyay" "" "module:billnyay,role:ocr-data,phase:2"
@@ -72,6 +83,12 @@ create_issue "Medicine strip / prescription photo OCR" "" "module:dawacheck,role
 create_issue "MRP vs NPPA ceiling price benchmarking logic" "" "module:dawacheck,role:orchestration,phase:2"
 create_issue "Brand <-> generic active-ingredient mapping" "Shared dependency with Kadi entity resolution — build once." "module:dawacheck,role:orchestration,phase:2"
 create_issue "DawaCheck: integrate with Kadi" "" "module:dawacheck,role:orchestration,phase:2"
+create_issue "DaaviSetu: Ingest blank insurance claim and pre-authorization form templates" "Sourced from public insurer websites." "module:daavisetu,role:ocr-data,phase:2"
+create_issue "DaaviSetu: Map KADI patient context into cashless pre-authorization form schema" "Fills common insurer claim fields." "module:daavisetu,role:orchestration,phase:2"
+create_issue "DaaviSetu: Output submission-ready package (PDF + structured summary)" "Provides download link for review and manual submission." "module:daavisetu,role:frontend,phase:2"
+create_issue "BillNyay: Auto-draft IRDAI Bima Bharosa complaint packages" "Drafts compliant IRDAI grievance text in standard schema." "module:billnyay,role:orchestration,phase:2"
+create_issue "BillNyay: Implement self-reported grievance tracker and portal deep-linking" "Track grievance status and deep-link directly to Bima Bharosa portal." "module:billnyay,role:frontend,phase:2"
+create_issue "BillNyay: Add reminder nudges for IRDAI turnaround times" "Surfaces reminders when responses are due based on turnaround times." "module:billnyay,role:frontend,phase:2"
 
 # ---------------- Phase 3 — Entity resolution & integration ----------------
 create_issue "String similarity scoring" "Edit distance / token overlap." "module:kadi,role:orchestration,phase:3"
@@ -81,6 +98,8 @@ create_issue "Combine signals into confidence score + merge/ask/new-entity branc
 create_issue "Auto-triggering: fire module checks when Kadi has enough context" "" "module:kadi,role:orchestration,phase:3"
 create_issue "Consent UI — per-case opt-in for cross-module data sharing" "" "module:kadi,role:frontend,phase:3"
 create_issue "Cross-module insight display" "e.g. 'you may also be eligible under SchemeSetu' surfaced from a BillNyay upload." "module:frontend,role:frontend,phase:3"
+create_issue "ABDM: Connect pulled medical history with Kadi shared case context" "Parse ABHA sandbox-pulled clinical records into case context." "module:kadi,role:orchestration,phase:3"
+create_issue "DaaviSetu: Integrate with Kadi context layer" "Read case entities to pre-fill claim forms." "module:daavisetu,role:orchestration,phase:3"
 
 # ---------------- Phase 4 — Multilingual & QA ----------------
 create_issue "Build Devanagari OCR test set" "Real + synthetic self-donated documents." "module:data-qa,role:data-qa,phase:4"
@@ -95,4 +114,4 @@ create_issue "End-to-end demo flow polish" "One bill upload -> three module insi
 create_issue "Blackbook / final report drafting" "Once guide sign-off on final scope confirmed." "module:data-qa,role:data-qa,phase:5"
 create_issue "Ask guide if anything additional is expected" "Once core build is stable ahead of schedule." "phase:5"
 
-echo "==> Done. $(gh issue list --repo "$REPO" --limit 100 | wc -l) issues now open on $REPO"
+echo "==> Done. $(gh issue list --repo "$REPO" --limit 150 | wc -l) issues now open on $REPO"

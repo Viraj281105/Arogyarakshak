@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kadi"
+version = "0.1.0"
+description = "ArogyaRakshak Knowledge & AI Decision Intelligence layer"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "easyocr>=1.7.1",
+    "opencv-python-headless>=4.8.0.0",
+    "PyMuPDF>=1.23.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["kadi*"]

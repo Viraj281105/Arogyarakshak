@@ -7,10 +7,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY apps/api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy and install local packages
+COPY packages/ /app/packages/
+RUN pip install -e /app/packages/kadi \
+    -e /app/packages/billnyay \
+    -e /app/packages/schemesetu \
+    -e /app/packages/dawacheck \
+    -e /app/packages/daavisetu
+
+# Copy app code
+COPY apps/api/app/ /app/app/
 
 EXPOSE 8000
 
