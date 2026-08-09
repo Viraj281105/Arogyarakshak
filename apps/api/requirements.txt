@@ -2,3 +2,5 @@ fastapi==0.115.12
 uvicorn[standard]==0.34.3
 psycopg2-binary==2.9.10
 pydantic-settings==2.9.1
+sqlalchemy==2.0.38
+asyncpg==0.30.0

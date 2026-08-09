@@ -16,9 +16,13 @@ class Settings(BaseSettings):
 
     # --- Groq -----------------------------------------------------------------
     groq_model: str = "openai/gpt-oss-120b"
+    groq_api_key: str = ""
 
     # --- Database -------------------------------------------------------------
     database_url: str = "postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak"
+
+    # --- Security -------------------------------------------------------------
+    cors_origins: str = "*"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
