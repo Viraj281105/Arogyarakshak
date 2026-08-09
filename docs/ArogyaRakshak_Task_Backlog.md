@@ -1,6 +1,6 @@
 # ArogyaRakshak — Task Backlog
 
-Derived from `ArogyaRakshak_Technical_Documentation.md`. Each item below is sized to be one GitHub issue. Labels suggested per item: **module** (`kadi` / `billnyay` / `schemesetu` / `dawacheck` / `infra` / `frontend` / `data-qa`) and **role** (see Technical Documentation §10 — `orchestration`, `ocr-data`, `frontend`, `infra`, `data-qa`).
+Derived from `ArogyaRakshak_Technical_Documentation.md`. Each item below is sized to be one GitHub issue. Labels suggested per item: **module** (`kadi` / `billnyay` / `schemesetu` / `dawacheck` / `daavisetu` / `infra` / `frontend` / `data-qa`) and **role** (see Technical Documentation §10 — `orchestration`, `ocr-data`, `frontend`, `infra`, `data-qa`).
 
 Phased for a 2–3 month build. Phases can overlap once Phase 0 clears — they're sequenced by dependency, not by calendar week.
 
@@ -26,18 +26,24 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[kadi] [orchestration]** Build the shared extraction agent (any document → common entity schema)
 - [ ] **[kadi] [infra]** Set up FAISS + pgvector indexes for Kadi's entity store
 - [ ] **[kadi] [data-qa]** Register for ABDM Developer Sandbox & complete initial HIU flow walkthrough
+- [ ] **[kadi] [data-qa]** KADI: Develop ABDM M2/M3 Sandbox FHIR-compliant resource converter (HL7 FHIR JSON mapping)
 
 ### Infra
 - [ ] **[infra]** Docker Compose: Postgres+pgvector, FAISS, FastAPI, Next.js services wired together
 - [ ] **[infra]** SSE streaming endpoint scaffold
 - [ ] **[infra]** Basic CI: lint + test on PR (GitHub Actions)
 - [ ] **[infra]** Configure monorepo build setup in Docker & setup local editable packages
+- [ ] **[infra]** KADI: Develop Real-Time SSE patient document processing status stream
 
-### Data ingestion (can run in parallel across data sources)
+### Data Ingestion / Scraping
 - [ ] **[billnyay] [data-qa]** CGHS rate schedule scraping/parsing into structured format
 - [ ] **[schemesetu] [data-qa]** PMJAY eligibility rules + empanelled hospital list ingestion
 - [ ] **[schemesetu] [data-qa]** MJPJAY (Maharashtra) eligibility rules ingestion
+- [ ] **[schemesetu] [infra]** SchemeSetu: Implement local offline fallback embedding model (ONNX SentenceTransformers runtime)
+- [ ] **[schemesetu] [data-qa]** SchemeSetu: Create automated web-scraping crawler for real-time PMJAY circular/policy changes
 - [ ] **[dawacheck] [data-qa]** NPPA Schedule-I ceiling price list ingestion
+- [ ] **[dawacheck] [infra]** DawaCheck: Create database tables for brand-to-generic formulation mappings
+- [ ] **[dawacheck] [data-qa]** DawaCheck: Design automated NPPA Schedule-I PDF ceiling price list scraper and parser
 
 ---
 
@@ -51,22 +57,47 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[billnyay] [orchestration]** Auto-draft IRDAI Bima Bharosa complaint packages
 - [ ] **[billnyay] [frontend]** Implement self-reported grievance tracker and portal deep-linking
 - [ ] **[billnyay] [frontend]** Add reminder nudges for IRDAI turnaround times
+- [ ] **[billnyay] [orchestration]** BillNyay: Develop Auto-Audit heuristic engine matching ICD-10 codes with procedures to flag billing anomalies
+- [ ] **[billnyay] [orchestration]** BillNyay: Design Multi-Agent consensus voting protocol with dynamic weights
+- [ ] **[billnyay] [infra]** BillNyay: Implement IRDAI appeal letter PDF digital signature verification and hashing
+- [ ] **[billnyay] [infra]** BillNyay: Create Bima Bharosa automated form crawler for mock registrations
+- [ ] **[billnyay] [orchestration]** BillNyay: Design self-correcting appeal letter drafter feedback loops (Judge-to-Drafter auto-triggering)
+- [ ] **[billnyay] [data-qa]** BillNyay: Implement clinical guideline checks using National Formulary of India (NFI)
 
 ### SchemeSetu
 - [ ] **[schemesetu] [orchestration]** Build eligibility reasoning agent over PMJAY/MJPJAY RAG index
 - [ ] **[schemesetu] [frontend]** Intake form UI (income, location, category, medical need)
 - [ ] **[schemesetu] [orchestration]** Integrate with Kadi (read context from BillNyay/DawaCheck uploads)
+- [ ] **[schemesetu] [orchestration]** SchemeSetu: Build predictive future eligibility estimator using demographic trend lines
+- [ ] **[schemesetu] [orchestration]** SchemeSetu: Implement automatic Scheme-to-Scheme transition adviser (PMJAY ↔ MJPJAY)
 
 ### DawaCheck
 - [ ] **[dawacheck] [ocr-data]** Medicine strip / prescription photo OCR
 - [ ] **[dawacheck] [orchestration]** MRP vs NPPA ceiling price benchmarking logic
 - [ ] **[dawacheck] [orchestration]** Brand ↔ generic active-ingredient mapping (shared dependency with Kadi entity resolution — see below, don't build twice)
 - [ ] **[dawacheck] [orchestration]** Integrate with Kadi
+- [ ] **[dawacheck] [orchestration]** DawaCheck: Implement Fuzzy Matching Brand name to Generic Formulation (Double Metaphone)
+- [ ] **[dawacheck] [orchestration]** DawaCheck: Develop active-ingredient dosage normalization logic (dose proportionality matching)
+- [ ] **[dawacheck] [frontend]** DawaCheck: Integrate Jan Aushadhi Store APIs and geographic store search
+- [ ] **[dawacheck] [ocr-data]** DawaCheck: Implement medicine strip expiration and authenticity visual classification model
+- [ ] **[dawacheck] [data-qa]** DawaCheck: Develop real-time pricing variance statistics calculator (MRP vs Ceiling curves)
+- [ ] **[dawacheck] [ocr-data]** DawaCheck: Design pill shape and color verification model using OpenCV
 
 ### DaaviSetu (NEW)
 - [ ] **[daavisetu] [ocr-data]** Ingest blank insurance claim and pre-authorization form templates
 - [ ] **[daavisetu] [orchestration]** Map KADI patient context into cashless pre-authorization form schema
 - [ ] **[daavisetu] [frontend]** Output submission-ready package (PDF + structured summary) for user review
+- [ ] **[daavisetu] [ocr-data]** DaaviSetu: Ingest blank insurance claim and pre-authorization form templates for 5 major insurers
+- [ ] **[daavisetu] [orchestration]** DaaviSetu: Design JSON Schema definitions for universal claim form data mapping
+- [ ] **[daavisetu] [infra]** DaaviSetu: Implement automated PDF form-field coordinate mapping tool
+- [ ] **[daavisetu] [infra]** DaaviSetu: Build claim package assembler zipping pre-auth PDF and bill copies
+- [ ] **[daavisetu] [data-qa]** DaaviSetu: Implement OCR validation check on filled PDF fields prior to download
+- [ ] **[daavisetu] [frontend]** DaaviSetu: Develop claim pre-population progress tracker UI
+- [ ] **[daavisetu] [orchestration]** DaaviSetu: Implement automatic policy limit validation against estimated costs
+
+### Shared Context / OCR Hardening
+- [ ] **[kadi] [ocr-data]** KADI: Implement Self-Healing OCR Correction Loop (LLM-based spelling check)
+- [ ] **[kadi] [ocr-data]** KADI: Implement Multi-Modal Document Extraction using open vision models (LLaVA/Qwen-VL)
 
 ---
 
@@ -81,6 +112,14 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[frontend]** Cross-module insight display (e.g. "you may also be eligible under SchemeSetu" surfaced from a BillNyay upload)
 - [ ] **[kadi] [orchestration]** ABDM: Connect pulled medical history with Kadi shared case context
 - [ ] **[daavisetu] [orchestration]** Integrate with Kadi context layer (read case entities to pre-fill claim forms)
+- [ ] **[kadi] [ocr-data]** KADI: Implement Real-Time Clinical Named Entity Recognition utilizing localized BioBERT
+- [ ] **[kadi] [orchestration]** KADI: Develop Cross-Lingual Patient Semantic Knowledge Graph using GraphDB/Neo4j
+- [ ] **[kadi] [infra]** KADI: Design Federated Privacy-Preserving Case Context Sharing via Zero-Knowledge Proofs
+- [ ] **[kadi] [orchestration]** KADI: Build Self-Tuning Entity Resolution Confidence Thresholds using online RLHF
+- [ ] **[kadi] [orchestration]** KADI: Implement Cross-Script Soundex/Metaphone matching for Indian regional names
+- [ ] **[billnyay] [orchestration]** BillNyay: Implement predictive outcome estimation model for IRDAI appeals
+- [ ] **[dawacheck] [data-qa]** DawaCheck: Develop generic medicines awareness delivery statistics logging
+- [ ] **[schemesetu] [orchestration]** SchemeSetu: Design consent-bounded scheme recommendation triggers
 
 ---
 
@@ -91,6 +130,11 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[data-qa]** Terminology QA pass on generated appeal letters and scheme explanations (Hindi + Marathi)
 - [ ] **[frontend]** Trilingual UI pass across all screens (English/Hindi/Marathi)
 - [ ] **[billnyay/schemesetu/dawacheck] [orchestration]** LLM output generation in Hindi/Marathi per module (where source data is English-only, per Phase 0 finding)
+- [ ] **[kadi] [data-qa]** KADI: Design Differential Privacy noise addition for aggregate health statistics export
+- [ ] **[billnyay] [data-qa]** BillNyay: Develop Hindi & Marathi custom prompt injection sanitization layer for Devanagari
+- [ ] **[schemesetu] [orchestration]** SchemeSetu: Design automated regional dialect normalization agent
+- [ ] **[schemesetu] [data-qa]** SchemeSetu: Develop Devanagari-grounded RAG retrieval verification agent
+- [ ] **[dawacheck] [orchestration]** DawaCheck: Implement interactive prescription translator (parse abbreviations to instructions)
 
 ---
 
@@ -100,6 +144,10 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[frontend]** End-to-end demo flow polish (one bill upload → three module insights, for the live demo)
 - [ ] **[data-qa]** Blackbook / final report drafting (once guide sign-off on final scope confirmed)
 - [ ] **[all]** Ask guide if anything additional is expected, once core build is stable ahead of schedule
+- [ ] **[billnyay] [frontend]** BillNyay: Develop interactive conversational audit walkthrough UI
+- [ ] **[billnyay] [frontend]** BillNyay: Design real-time billing anomalies visualization dashboard (HSL colors)
+- [ ] **[schemesetu] [frontend]** SchemeSetu: Develop eligibility RAG citation tracing UI (inline PDF views)
+- [ ] **[daavisetu] [infra]** DaaviSetu: Design secure client-side document package encryption using Web Crypto API
 
 ---
 
