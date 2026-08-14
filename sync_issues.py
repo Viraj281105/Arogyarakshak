@@ -1,6 +1,8 @@
 import subprocess
 import sys
 import json
+import time
+import os
 
 REPO = "Viraj281105/Arogyarakshak"
 
@@ -23,7 +25,18 @@ LABELS = {
     "phase:2": "5C5C5C",
     "phase:3": "7D7D7D",
     "phase:4": "9E9E9E",
+    "phase:4.5": "B0B0B0",
     "phase:5": "BFBFBF",
+}
+
+MILESTONES = {
+    "phase:0": ("Phase 0 — Blockers", "Pre-requisite tasks blocking all other work"),
+    "phase:1": ("Phase 1 — Foundations", "Core data structures, DB schemas, Docker environment setup, and pipeline scraping"),
+    "phase:2": ("Phase 2 — Module builds", "Development of parallel microservice application modules (BillNyay, DawaCheck, SchemeSetu, DaaviSetu)"),
+    "phase:3": ("Phase 3 — Entity resolution & integration", "Integration of the shared KADI layer and cross-module context resolution"),
+    "phase:4": ("Phase 4 — Multilingual & QA", "Devanagari OCR parsing, local translation formatting, security sanitization"),
+    "phase:4.5": ("Phase 4.5 — Evaluation & Testing", "Calculations of quantitative evaluation metrics (PEA, BMA, PCRA, CRMA, etc.) against ground truths"),
+    "phase:5": ("Phase 5 — Polish & submission", "Final demo presentation prep, cloud deployment setup, and Blackbook thesis documentation"),
 }
 
 ISSUES = [
@@ -48,7 +61,6 @@ ISSUES = [
     ("NPPA Schedule-I ceiling price list ingestion", "~800-900 price-controlled drugs.", "module:dawacheck,role:data-qa,phase:1"),
     ("Register for ABDM Developer Sandbox & complete initial HIU flow walkthrough", "Register at sandbox.abdm.gov.in and verify access to sandbox ABHA accounts.", "module:kadi,role:data-qa,phase:1"),
     ("Configure monorepo build setup in Docker & setup local editable packages", "Define local packages in pyproject.toml files and update FastAPI Dockerfile to install them.", "module:infra,role:infra,phase:1"),
-    # Futuristic Phase 1 Issues
     ("KADI: Develop ABDM M2/M3 Sandbox FHIR-compliant resource converter", "Map sandbox clinical records into HL7 FHIR JSON objects for universal case ingestion.", "module:kadi,role:data-qa,phase:1"),
     ("KADI: Develop Real-Time SSE patient document processing status stream", "Provide live processing logs and progress bars directly to Next.js UI using Server-Sent Events.", "module:infra,role:infra,phase:1"),
     ("SchemeSetu: Implement local offline fallback embedding model", "Configure ONNX runtime for SentenceTransformers to allow offline semantic matching on edge nodes.", "module:schemesetu,role:infra,phase:1"),
@@ -74,7 +86,6 @@ ISSUES = [
     ("BillNyay: Auto-draft IRDAI Bima Bharosa complaint packages", "Drafts compliant IRDAI grievance text in standard schema.", "module:billnyay,role:orchestration,phase:2"),
     ("BillNyay: Implement self-reported grievance tracker and portal deep-linking", "Track grievance status and deep-link directly to Bima Bharosa portal.", "module:billnyay,role:frontend,phase:2"),
     ("BillNyay: Add reminder nudges for IRDAI turnaround times", "Surfaces reminders when responses are due based on turnaround times.", "module:billnyay,role:frontend,phase:2"),
-    # Futuristic Phase 2 Issues
     ("KADI: Implement Self-Healing OCR Correction Loop", "Deploy an LLM-based verification check to detect and correct spelling/syntax typos in raw OCR texts.", "module:kadi,role:ocr-data,phase:2"),
     ("KADI: Implement Multi-Modal Document Extraction using open vision models", "Parse handwritten doctors' notes, bills, and prescriptions utilizing visual-LLM (LLaVA/Qwen-VL) APIs.", "module:kadi,role:ocr-data,phase:2"),
     ("BillNyay: Develop Auto-Audit heuristic engine matching ICD-10 codes with procedures", "Automate compliance validation by flagging hospital bills with mismatched procedure-vs-diagnosis codes.", "module:billnyay,role:orchestration,phase:2"),
@@ -109,13 +120,12 @@ ISSUES = [
     ("Cross-module insight display", "e.g. 'you may also be eligible under SchemeSetu' surfaced from a BillNyay upload.", "module:frontend,role:frontend,phase:3"),
     ("ABDM: Connect pulled medical history with Kadi shared case context", "Parse ABHA sandbox-pulled clinical records into case context.", "module:kadi,role:orchestration,phase:3"),
     ("DaaviSetu: Integrate with Kadi context layer", "Read case entities to pre-fill claim forms.", "module:daavisetu,role:orchestration,phase:3"),
-    # Futuristic Phase 3 Issues
     ("KADI: Implement Real-Time Clinical Named Entity Recognition utilizing localized BioBERT", "Run local BioBERT models to extract detailed clinical findings and symptoms from case files.", "module:kadi,role:ocr-data,phase:3"),
     ("KADI: Develop Cross-Lingual Patient Semantic Knowledge Graph using GraphDB", "Wire Kadi entities into a graph structure linking hospital stays, procedures, and drugs.", "module:kadi,role:orchestration,phase:3"),
     ("KADI: Design Federated Privacy-Preserving Case Context Sharing via Zero-Knowledge Proofs", "Verify patient identity and consent parameters across nodes without decrypting case logs.", "module:kadi,role:infra,phase:3"),
     ("KADI: Build Self-Tuning Entity Resolution Confidence Thresholds using online RLHF", "Leverage doctor/patient feedback to fine-tune matching parameters dynamically.", "module:kadi,role:orchestration,phase:3"),
     ("KADI: Implement Cross-Script Soundex/Metaphone matching for Indian regional names", "Configure phonetic matching in IndicXlit to connect dialectic variations in Hindi/Marathi.", "module:kadi,role:orchestration,phase:3"),
-    ("BillNyay: Implement predictive outcome estimation model for IRDAI appeals", "Generate probability scorecards for IRDAI complaints based on historical dispute results.", "module:billnyay,role:orchestration,phase:3"),
+    ("BillNyay: Implement predictive outcome estimation model for IRDAI appeals", "Generate probability scorecards for IRDAI disputes based on historical dispute results.", "module:billnyay,role:orchestration,phase:3"),
     ("DawaCheck: Develop generic medicines awareness delivery statistics logging", "Store anonymous patient metrics detailing MRP pricing awareness to generate impact statistics.", "module:dawacheck,role:data-qa,phase:3"),
     ("SchemeSetu: Design consent-bounded scheme recommendation triggers", "Trigger background eligibility runs whenever case income data falls below defined thresholds.", "module:schemesetu,role:orchestration,phase:3"),
 
@@ -125,39 +135,38 @@ ISSUES = [
     ("Terminology QA pass on appeal letters & scheme explanations", "Hindi + Marathi.", "module:data-qa,role:data-qa,phase:4"),
     ("Trilingual UI pass across all screens", "English/Hindi/Marathi.", "module:frontend,role:frontend,phase:4"),
     ("LLM output generation in Hindi/Marathi per module", "Where source data is English-only, per Phase 0 finding.", "module:billnyay,module:schemesetu,module:dawacheck,role:orchestration,phase:4"),
-    # Futuristic Phase 4 Issues
     ("KADI: Design Differential Privacy noise addition for aggregate health statistics export", "Enable safe, anonymous medical statistical exports without exposing individual patient case records.", "module:kadi,role:data-qa,phase:4"),
     ("BillNyay: Develop Hindi & Marathi custom prompt injection sanitization layer for Devanagari", "Filter Devanagari text input strings to prevent prompt injections during local LLM translation.", "module:billnyay,role:data-qa,phase:4"),
     ("SchemeSetu: Design automated regional dialect normalization agent", "Map regional Marathi variations (e.g. Varhadi dialect) to standard Marathi scheme terminology.", "module:schemesetu,role:orchestration,phase:4"),
     ("SchemeSetu: Develop Devanagari-grounded RAG retrieval verification agent", "Validate that translated Marathi/Hindi citations map precisely to original English scheme parameters.", "module:schemesetu,role:data-qa,phase:4"),
     ("DawaCheck: Implement interactive prescription translator", "Parse shorthand doctor instructions (TDS, BD, QD) into local regional language prescriptions.", "module:dawacheck,role:orchestration,phase:4"),
 
+    # ---------------- Phase 4.5 — Evaluation & Testing ----------------
+    ("Eval: Implement automated pipeline for calculating Procedure Extraction Accuracy (PEA) on BillNyay mock bills", "PEA = (Correctly Extracted Procedures / Total Procedures) * 100. Target: > 95%", "module:billnyay,role:data-qa,phase:4.5"),
+    ("Eval: Implement evaluation harness for Benchmark Mapping Accuracy (BMA) comparing hospital procedures to CGHS codes", "BMA = (Correctly Mapped Procedures / Total Extracted Procedures) * 100. Target: > 92%", "module:billnyay,role:data-qa,phase:4.5"),
+    ("Eval: Measure Billing Anomaly Precision, Recall, and F1-score on synthetic overcharged bill data", "Precision = TP / (TP+FP), Recall = TP / (TP+FN). Target: > 90%", "module:billnyay,role:data-qa,phase:4.5"),
+    ("Eval: Establish evaluation framework for DaaviSetu Policy Clause Retrieval Accuracy (PCRA) using RAG test sets", "PCRA = (Correctly Retrieved Clauses / Total Relevant Clauses) * 100. Target: > 90%", "module:daavisetu,role:data-qa,phase:4.5"),
+    ("Eval: Implement validation suite for DaaviSetu Claim Rejection Mapping Accuracy (CRMA)", "CRMA = (Correctly Mapped Rejection Reasons / Total Rejection Reasons) * 100. Target: > 90%", "module:daavisetu,role:data-qa,phase:4.5"),
+    ("Eval: Implement automated completeness scoring for generated IRDAI appeal drafts using a weighted checklist", "Check completeness of Appeal details: Patient Details (15%), Policy Info (20%), Clauses (30%), Justification (25%), References (10%)", "module:billnyay,role:data-qa,phase:4.5"),
+    ("Eval: Implement testing harness for DawaCheck Medicine Recognition Accuracy comparing prescription OCR to ground truth", "Medicine Recognition Accuracy = (Correctly Recognized Medicines / Total Medicines) * 100. Target: > 95%", "module:dawacheck,role:data-qa,phase:4.5"),
+    ("Eval: Measure DawaCheck NPPA price mapping accuracy and price deviation detection rates", "NPPA Accuracy = (Correctly Mapped Medicines / Total Medicines) * 100.", "module:dawacheck,role:data-qa,phase:4.5"),
+    ("Eval: Implement ranking evaluation (MRR - Mean Reciprocal Rank) for SchemeSetu recommendation engine", "MRR = (1/N) * sum(1/Rank_i) to evaluate ranking quality of schemes.", "module:schemesetu,role:data-qa,phase:4.5"),
+    ("Eval: Implement RAG precision and recall evaluation for SchemeSetu recommendations", "Recommendation Precision & Recall calculations on test database.", "module:schemesetu,role:data-qa,phase:4.5"),
+    ("Eval: Build KADI integration metrics suite to measure Context Reuse Ratio (CRR) and Duplicate Processing Reduction (DPR)", "CRR = (Reused Context Requests / Total Context Requests) * 100. DPR = ((Baseline Processing - Current Processing) / Baseline Processing) * 100.", "module:kadi,role:data-qa,phase:4.5"),
+    ("Eval: Implement testing harness for KADI Entity Resolution Accuracy (ERA) using fuzzy matched names", "ERA = (Correctly Merged Duplicate Entities / Total Duplicate Entities) * 100.", "module:kadi,role:data-qa,phase:4.5"),
+    ("Eval: Implement OCR benchmark suite calculating Word Error Rate (WER) and Character Error Rate (CER)", "Evaluate OCR digitization performance using Edit Distance against ground truth.", "module:kadi,role:data-qa,phase:4.5"),
+    ("Eval: Develop validation suite to calculate AI Hallucination Rate and Grounding Scores on generated legal letters", "Hallucination Rate < 2%, Grounding Score > 95%.", "module:billnyay,role:data-qa,phase:4.5"),
+    ("Eval: Implement system-level latency monitoring to verify End-to-End Processing Time (< 10 seconds)", "E2E processing time dashboard and metric collection hook.", "module:infra,role:infra,phase:4.5"),
+
     # ---------------- Phase 5 — Polish & submission ----------------
     ("Decide & set up deployment target", "College server / cloud free-tier / local demo.", "module:infra,role:infra,phase:5"),
     ("End-to-end demo flow polish", "One bill upload -> three module insights, for the live demo.", "module:frontend,role:frontend,phase:5"),
     ("Blackbook / final report drafting", "Once guide sign-off on final scope confirmed.", "module:data-qa,role:data-qa,phase:5"),
     ("Ask guide if anything additional is expected", "Once core build is stable ahead of schedule.", "phase:5"),
-    # Futuristic Phase 5 Issues
     ("BillNyay: Develop interactive conversational audit walkthrough UI", "Enable a conversational interface in Next.js allowing patients to chat with the Judge agent.", "module:billnyay,role:frontend,phase:5"),
     ("BillNyay: Design real-time billing anomalies visualization dashboard", "Implement responsive dashboards using HSL colors mapping deviations from the CGHS benchmark.", "module:billnyay,role:frontend,phase:5"),
     ("SchemeSetu: Develop eligibility RAG citation tracing UI", "Embed dynamic source citation views in Next.js enabling inline viewing of source PDF clauses.", "module:schemesetu,role:frontend,phase:5"),
     ("DaaviSetu: Design secure client-side document package encryption using Web Crypto API", "Ensure all download packages are encrypted client-side with patient-controlled passwords.", "module:daavisetu,role:infra,phase:5"),
-    # Evaluation & Testing Issues
-    ("Eval: Implement automated pipeline for calculating Procedure Extraction Accuracy (PEA) on BillNyay mock bills", "PEA = (Correctly Extracted Procedures / Total Procedures) * 100. Target: > 95%", "module:billnyay,role:data-qa,phase:4"),
-    ("Eval: Implement evaluation harness for Benchmark Mapping Accuracy (BMA) comparing hospital procedures to CGHS codes", "BMA = (Correctly Mapped Procedures / Total Extracted Procedures) * 100. Target: > 92%", "module:billnyay,role:data-qa,phase:4"),
-    ("Eval: Measure Billing Anomaly Precision, Recall, and F1-score on synthetic overcharged bill data", "Precision = TP / (TP+FP), Recall = TP / (TP+FN). Target: > 90%", "module:billnyay,role:data-qa,phase:4"),
-    ("Eval: Establish evaluation framework for DaaviSetu Policy Clause Retrieval Accuracy (PCRA) using RAG test sets", "PCRA = (Correctly Retrieved Clauses / Total Relevant Clauses) * 100. Target: > 90%", "module:daavisetu,role:data-qa,phase:4"),
-    ("Eval: Implement validation suite for DaaviSetu Claim Rejection Mapping Accuracy (CRMA)", "CRMA = (Correctly Mapped Rejection Reasons / Total Rejection Reasons) * 100. Target: > 90%", "module:daavisetu,role:data-qa,phase:4"),
-    ("Eval: Implement automated completeness scoring for generated IRDAI appeal drafts using a weighted checklist", "Check completeness of Appeal details: Patient Details (15%), Policy Info (20%), Clauses (30%), Justification (25%), References (10%)", "module:billnyay,role:data-qa,phase:4"),
-    ("Eval: Implement testing harness for DawaCheck Medicine Recognition Accuracy comparing prescription OCR to ground truth", "Medicine Recognition Accuracy = (Correctly Recognized Medicines / Total Medicines) * 100. Target: > 95%", "module:dawacheck,role:data-qa,phase:4"),
-    ("Eval: Measure DawaCheck NPPA price mapping accuracy and price deviation detection rates", "NPPA Accuracy = (Correctly Mapped Medicines / Total Medicines) * 100.", "module:dawacheck,role:data-qa,phase:4"),
-    ("Eval: Implement ranking evaluation (MRR - Mean Reciprocal Rank) for SchemeSetu recommendation engine", "MRR = (1/N) * sum(1/Rank_i) to evaluate ranking quality of schemes.", "module:schemesetu,role:data-qa,phase:4"),
-    ("Eval: Implement RAG precision and recall evaluation for SchemeSetu recommendations", "Recommendation Precision & Recall calculations on test database.", "module:schemesetu,role:data-qa,phase:4"),
-    ("Eval: Build KADI integration metrics suite to measure Context Reuse Ratio (CRR) and Duplicate Processing Reduction (DPR)", "CRR = (Reused Context Requests / Total Context Requests) * 100. DPR = ((Baseline Processing - Current Processing) / Baseline Processing) * 100.", "module:kadi,role:data-qa,phase:4"),
-    ("Eval: Implement testing harness for KADI Entity Resolution Accuracy (ERA) using fuzzy matched names", "ERA = (Correctly Merged Duplicate Entities / Total Duplicate Entities) * 100.", "module:kadi,role:data-qa,phase:4"),
-    ("Eval: Implement OCR benchmark suite calculating Word Error Rate (WER) and Character Error Rate (CER)", "Evaluate OCR digitization performance using Edit Distance against ground truth.", "module:kadi,role:data-qa,phase:4"),
-    ("Eval: Develop validation suite to calculate AI Hallucination Rate and Grounding Scores on generated legal letters", "Hallucination Rate < 2%, Grounding Score > 95%.", "module:billnyay,role:data-qa,phase:4"),
-    ("Eval: Implement system-level latency monitoring to verify End-to-End Processing Time (< 10 seconds)", "E2E processing time dashboard and metric collection hook.", "module:infra,role:infra,phase:4"),
 ]
 
 def run_command(cmd):
@@ -165,7 +174,40 @@ def run_command(cmd):
     return result
 
 def main():
-    print(f"==> Creating labels on {REPO}...")
+    print("==> Ensuring Milestones Exist...")
+    existing_milestones = {}
+    
+    # Query existing milestones
+    res = run_command(f'gh api repos/{REPO}/milestones --json title,number')
+    if res.returncode == 0:
+        try:
+            m_list = json.loads(res.stdout)
+            existing_milestones = {m["title"]: m["number"] for m in m_list}
+            print("  Found existing milestones:", list(existing_milestones.keys()))
+        except Exception as e:
+            print("  Failed to parse milestones JSON:", e)
+    else:
+        print("  Could not fetch milestones from GitHub:", res.stderr.strip())
+
+    # Create missing milestones
+    for phase_key, (m_title, m_desc) in MILESTONES.items():
+        if m_title not in existing_milestones:
+            print(f"  Creating Milestone: '{m_title}'")
+            cmd = f'gh api repos/{REPO}/milestones -f title="{m_title}" -f description="{m_desc}"'
+            create_m_res = run_command(cmd)
+            if create_m_res.returncode == 0:
+                try:
+                    created_data = json.loads(create_m_res.stdout)
+                    existing_milestones[m_title] = created_data["number"]
+                    print(f"    Milestone '{m_title}' created successfully.")
+                except Exception as e:
+                    print("    Failed to parse milestone creation response:", e)
+            else:
+                print(f"    Failed to create Milestone '{m_title}':", create_m_res.stderr.strip())
+        else:
+            print(f"  Milestone '{m_title}' already exists.")
+
+    print("\n==> Creating labels on {REPO}...")
     for label, color in LABELS.items():
         cmd = f'gh label create "{label}" --color "{color}" --repo "{REPO}" --force'
         res = run_command(cmd)
@@ -174,30 +216,91 @@ def main():
         else:
             print(f"  Failed label '{label}': {res.stderr.strip()}")
 
-    print("==> Fetching existing issues...")
-    res = run_command(f'gh issue list --repo "{REPO}" --state all --limit 200 --json title')
-    existing_titles = set()
+    print("\n==> Fetching existing issues...")
+    res = run_command(f'gh issue list --repo "{REPO}" --state all --limit 200 --json number,title')
+    existing_issues = {}
     if res.returncode == 0:
         try:
             data = json.loads(res.stdout)
-            existing_titles = {item["title"] for item in data}
+            existing_issues = {item["title"]: item["number"] for item in data}
+            print(f"  Found {len(existing_issues)} existing issues on GitHub.")
         except Exception as e:
             print(f"  Error parsing issue JSON: {e}")
     else:
         print(f"  Failed to fetch issues: {res.stderr.strip()}")
 
-    print(f"==> Creating issues on {REPO}...")
-    for title, body, labels in ISSUES:
-        if title in existing_titles:
-            print(f"  -> Issue '{title}' already exists, skipping.")
+    print("\n==> Synchronizing Issues and Milestones...")
+    for title, summary, labels in ISSUES:
+        # Determine Phase and Milestone name
+        phase_label = "phase:1"  # fallback
+        module_name = "N/A"
+        role_name = "N/A"
+        
+        lbl_list = [l.strip() for l in labels.split(",")]
+        for lbl in lbl_list:
+            if lbl.startswith("phase:"):
+                phase_label = lbl
+            elif lbl.startswith("module:"):
+                module_name = lbl.replace("module:", "").upper()
+            elif lbl.startswith("role:"):
+                role_name = lbl.replace("role:", "").capitalize()
+
+        # Custom override for Eval phase label mapping
+        if "phase:4.5" in lbl_list:
+            phase_label = "phase:4.5"
+
+        milestone_title, milestone_desc = MILESTONES.get(phase_label, ("Phase 1 — Foundations", ""))
+
+        # Generate Detailed Body
+        body = (
+            f"# {title}\n\n"
+            f"## Objective\n"
+            f"{summary if summary else 'No abstract provided.'}\n\n"
+            f"## Context & Ownership\n"
+            f"- **Target Module**: `{module_name}` (ArogyaRakshak Microservice)\n"
+            f"- **Assigned Team Role**: `{role_name}`\n"
+            f"- **Target Phase Milestone**: `{milestone_title}`\n\n"
+            f"## Technical Implementation Guidelines\n"
+            f"- Must conform to patterns outlined in `ArogyaRakshak_Technical_Documentation.md`.\n"
+            f"- Implement loose coupling inside standalone folders in `packages/` or `apps/api/app/api/v1/endpoints/`.\n"
+            f"- Use database context parameters from the shared `KADI` layer where appropriate.\n\n"
+            f"## Acceptance Criteria\n"
+            f"- [ ] Feature implementation is modularized under the proper namespace prefix.\n"
+            f"- [ ] Code complies with standard Python typings and Pydantic schema constraints.\n"
+            f"- [ ] Endpoints / core algorithms are validated through local `pytest` scripts.\n"
+            f"- [ ] Zero regression or broken imports detected on dependent monorepo services.\n"
+        )
+
+        # Temporary file to store body content (prevents terminal argument length errors on Windows)
+        body_file = "temp_body.txt"
+        with open(body_file, "w", encoding="utf-8") as f:
+            f.write(body)
+
+        if title in existing_issues:
+            number = existing_issues[title]
+            print(f"  -> Updating Issue #{number}: '{title}' to Milestone '{milestone_title}'")
+            cmd = f'gh issue edit {number} --milestone "{milestone_title}" --body-file "{body_file}" --add-label "{labels}"'
+            edit_res = run_command(cmd)
+            if edit_res.returncode != 0:
+                print(f"     Failed to update issue #{number}: {edit_res.stderr.strip()}")
         else:
-            print(f"  -> Creating issue: '{title}'")
-            cmd = f'gh issue create --repo "{REPO}" --title "{title}" --body "{body}" --label "{labels}"'
+            print(f"  -> Creating new Issue: '{title}' in Milestone '{milestone_title}'")
+            cmd = f'gh issue create --repo "{REPO}" --title "{title}" --body-file "{body_file}" --label "{labels}" --milestone "{milestone_title}"'
             create_res = run_command(cmd)
             if create_res.returncode != 0:
                 print(f"     Failed to create issue: {create_res.stderr.strip()}")
+            
+            # Simple sleep to prevent GitHub API rate limit throttling
+            time.sleep(0.5)
 
-    print("==> Issue sync completed.")
+    # Clean up temp file
+    if os.path.exists(body_file):
+        try:
+            os.remove(body_file)
+        except:
+            pass
+
+    print("==> Issue and Milestone synchronization completed.")
 
 if __name__ == "__main__":
     main()
