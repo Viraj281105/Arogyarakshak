@@ -7,8 +7,11 @@ Handles case creation, document uploads (OCR parsing), and entity extraction/ret
 from typing import Any, Dict, List, Optional
 import uuid
 import logging
+import json
+import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -20,6 +23,10 @@ from kadi.ocr.ocr_parser import parse_document
 
 logger = logging.getLogger("arogyarakshak.api.kadi")
 router = APIRouter()
+
+# In-memory document processing status stream mapping
+processing_status: Dict[str, List[Dict[str, Any]]] = {}
+
 
 
 # --- Pydantic Schemas ---------------------------------------------------------
@@ -59,10 +66,15 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
     """Processes document upload in a background task, saving extracted entities."""
     logger.info(f"Background task starting: OCR parsing for case={case_id}, file={filename}")
     try:
-        # 1. OCR parsing via kadi package
+        # Step 1: OCR parsing
+        processing_status[case_id].append({"status": "ocr_start", "progress": 30, "log": "Running document OCR parser..."})
         parsed = parse_document(file_bytes=file_bytes, filename=filename)
         text = parsed.get("full_text_content", "")
         line_items = parsed.get("line_items", [])
+        
+        # Step 2: Extraction
+        processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting entities from parsed text..."})
+        await asyncio.sleep(0.5) # Simulate small latency
         
         async with db.begin_nested() if db.in_nested_transaction() else db as session:
             # 2. Retrieve case
@@ -70,8 +82,12 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
             case = result.scalar_one_or_none()
             if not case:
                 logger.error(f"Case {case_id} not found during background processing.")
+                processing_status[case_id].append({"status": "failed", "progress": 100, "log": "Failed: Case not found"})
                 return
 
+            # Step 3: Database write
+            processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
+            
             # 3. Create active entities
             entities_to_add = []
             total_cost = 0.0
@@ -106,9 +122,11 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
             session.add_all(entities_to_add)
             await session.commit()
             
+        processing_status[case_id].append({"status": "completed", "progress": 100, "log": "Document processed successfully."})
         logger.info(f"Background task succeeded for case={case_id}. Extracted {len(line_items)} items.")
     except Exception as e:
         logger.error(f"Background task failed for case={case_id}: {e}", exc_info=True)
+        processing_status[case_id].append({"status": "failed", "progress": 100, "log": f"Failed: {str(e)}"})
 
 
 # --- Route Implementations ----------------------------------------------------
@@ -148,6 +166,9 @@ async def upload_document(
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty document uploaded")
 
+    # Initialize status stream logs
+    processing_status[case_id] = [{"status": "upload_received", "progress": 10, "log": "Upload received. Queueing document extraction task..."}]
+
     # 3. Queue processing task
     background_tasks.add_task(
         process_document_background,
@@ -163,6 +184,24 @@ async def upload_document(
         "case_id": case_id,
         "filename": file.filename
     }
+
+
+@router.get("/cases/{case_id}/stream")
+async def stream_processing_status(case_id: str):
+    """Event stream route providing real-time document processing updates."""
+    async def event_generator():
+        last_index = 0
+        while True:
+            status_list = processing_status.get(case_id, [])
+            if last_index < len(status_list):
+                for item in status_list[last_index:]:
+                    yield f"data: {json.dumps(item)}\n\n"
+                last_index = len(status_list)
+                if status_list and status_list[-1].get("status") in ["completed", "failed"]:
+                    break
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetailResponse)
@@ -183,3 +222,4 @@ async def get_case(case_id: str, db: AsyncSession = Depends(get_db)):
         "case": case,
         "entities": entities
     }
+
