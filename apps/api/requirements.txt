@@ -5,4 +5,8 @@ pydantic-settings==2.9.1
 sqlalchemy==2.0.38
 asyncpg==0.30.0
 python-multipart==0.0.12
+aiosqlite==0.20.0
+httpx==0.27.0
+
+
 
