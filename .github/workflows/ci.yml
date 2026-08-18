@@ -42,7 +42,8 @@ jobs:
         pip install -e packages/schemesetu
         pip install -e packages/dawacheck
         pip install -e packages/daavisetu
-        pip install pytest pytest-asyncio aiosqlite
+        pip install pytest pytest-asyncio aiosqlite httpx
+
 
 
     - name: Run tests
