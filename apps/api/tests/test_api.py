@@ -22,6 +22,17 @@ def test_create_and_get_case():
     assert data["consent_opt_in"] is True
     
     case_id = data["id"]
+
+    # Upload document
+    files = {"file": ("bill.txt", b"Consultation: 200\nWard Stay: 1200\nTotal: 1400")}
+    upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
+    assert upload_res.status_code == 202
+    assert upload_res.json()["status"] == "processing"
+
+    # Test Stream
+    stream_res = client.get(f"/api/v1/kadi/cases/{case_id}/stream")
+    assert stream_res.status_code == 200
+    assert "text/event-stream" in stream_res.headers["content-type"]
     
     # Retrieve case
     get_response = client.get(f"/api/v1/kadi/cases/{case_id}")
@@ -29,6 +40,7 @@ def test_create_and_get_case():
     get_data = get_response.json()
     assert get_data["case"]["id"] == case_id
     assert isinstance(get_data["entities"], list)
+
 
 
 def test_dawacheck_benchmark():
