@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bimanyay"
+version = "0.1.0"
+description = "Insurance claim denial audit, IRDAI appeals, and statutory grievance SLA tracking"
+authors = [{ name = "Viraj Jadhao", email = "viraj.jadhao@example.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]

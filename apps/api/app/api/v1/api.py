@@ -6,7 +6,7 @@ Combines all sub-routers under /api/v1 prefix.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import kadi, billnyay, schemesetu, dawacheck, daavisetu
+from app.api.v1.endpoints import kadi, billnyay, schemesetu, dawacheck, daavisetu, bimanyay
 
 api_router = APIRouter()
 
@@ -15,3 +15,5 @@ api_router.include_router(billnyay.router, prefix="/billnyay", tags=["BillNyay (
 api_router.include_router(schemesetu.router, prefix="/schemesetu", tags=["SchemeSetu (Eligibilities)"])
 api_router.include_router(dawacheck.router, prefix="/dawacheck", tags=["DawaCheck (Medicine Pricing)"])
 api_router.include_router(daavisetu.router, prefix="/daavisetu", tags=["DaaviSetu (Claim Forms)"])
+api_router.include_router(bimanyay.router, prefix="/bimanyay", tags=["BimaNyay (Insurance Denials)"])
+

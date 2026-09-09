@@ -16,10 +16,11 @@ router = APIRouter()
 
 # --- Pydantic Schemas ---------------------------------------------------------
 class IntakeEligibilityRequest(BaseModel):
-    income: float = Field(..., description="Annual family income in INR", example=120000.0)
-    location_state: str = Field(..., description="State of residence", example="Maharashtra")
-    category: str = Field(default="General", description="Social category", example="OBC")
-    medical_need: str = Field(..., description="Medical procedure or diagnosis", example="Heart bypass")
+    income: float = Field(..., description="Annual family income in INR", json_schema_extra={"example": 120000.0})
+    location_state: str = Field(..., description="State of residence", json_schema_extra={"example": "Maharashtra"})
+    category: str = Field(default="General", description="Social category", json_schema_extra={"example": "OBC"})
+    medical_need: str = Field(..., description="Medical procedure or diagnosis", json_schema_extra={"example": "Heart bypass"})
+
 
 
 # --- Route Implementations ----------------------------------------------------

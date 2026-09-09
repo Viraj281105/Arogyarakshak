@@ -1,34 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ArogyaRakshak Web Client (`apps/web`)
+
+The patient-facing web frontend for **ArogyaRakshak**, built with **Next.js 15/16 App Router**, **React 19**, and **TypeScript**. Designed with trilingual accessibility (English, Hindi, Marathi) and real-time Server-Sent Events (SSE) streaming.
+
+---
+
+## Features
+- **Trilingual Scaffolding**: Built for plain-language accessibility across English, Hindi, and Marathi.
+- **Document Ingestion Interface**: Drag-and-drop file upload for hospital bills, prescriptions, and claim denial letters.
+- **Real-Time Audit Streaming**: Subscribes to backend SSE event streams to visualize multi-agent auditing steps live.
+- **Responsive Layout**: Designed for mobile and desktop screens.
+
+---
+
+## Directory Layout
+```text
+apps/web/
+├── app/
+│   ├── globals.css          # Design tokens, typography, and styling variables
+│   ├── layout.tsx           # Root layout with HTML metadata & header
+│   └── page.tsx             # Interactive dashboard and intake portal
+├── Dockerfile               # Node.js container definition
+├── package.json             # Dependencies and scripts
+└── tsconfig.json            # TypeScript configuration
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+ or 20+
+- npm (or yarn / pnpm)
 
+### Development
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Run local dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the client.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Building for Production
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Linting
+```bash
+npm run lint
+```

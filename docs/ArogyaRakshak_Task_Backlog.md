@@ -49,19 +49,15 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 
 ## Phase 2 — Module builds (parallel per module)
 
-### BillNyay
+### BillNyay (Hospital Bill Audit)
 - [ ] **[billnyay] [ocr-data]** Port existing hackathon OCR pipeline into monorepo `packages/billnyay`
-- [ ] **[billnyay] [orchestration]** Re-verify 5-agent pipeline (Auditor → Reviewer → Advisor → Drafter → QA Judge) against new stack
+- [ ] **[billnyay] [orchestration]** Re-verify 5-agent pipeline (Auditor → Reviewer → Advisor → Drafter → QA Judge) against CGHS benchmarks
 - [ ] **[billnyay] [orchestration]** Integrate BillNyay with Kadi (write extracted entities, read shared context)
-- [ ] **[billnyay] [frontend]** Appeal PDF generation + download flow
-- [ ] **[billnyay] [orchestration]** Auto-draft IRDAI Bima Bharosa complaint packages
-- [ ] **[billnyay] [frontend]** Implement self-reported grievance tracker and portal deep-linking
-- [ ] **[billnyay] [frontend]** Add reminder nudges for IRDAI turnaround times
+- [ ] **[billnyay] [frontend]** Hospital overcharge audit report + representation letter PDF download flow
 - [ ] **[billnyay] [orchestration]** BillNyay: Develop Auto-Audit heuristic engine matching ICD-10 codes with procedures to flag billing anomalies
 - [ ] **[billnyay] [orchestration]** BillNyay: Design Multi-Agent consensus voting protocol with dynamic weights
-- [ ] **[billnyay] [infra]** BillNyay: Implement IRDAI appeal letter PDF digital signature verification and hashing
-- [ ] **[billnyay] [infra]** BillNyay: Create Bima Bharosa automated form crawler for mock registrations
-- [ ] **[billnyay] [orchestration]** BillNyay: Design self-correcting appeal letter drafter feedback loops (Judge-to-Drafter auto-triggering)
+- [ ] **[billnyay] [infra]** BillNyay: Implement hospital representation letter PDF digital signature verification and hashing
+- [ ] **[billnyay] [orchestration]** BillNyay: Design self-correcting representation letter drafter feedback loops (Judge-to-Drafter auto-triggering)
 - [ ] **[billnyay] [data-qa]** BillNyay: Implement clinical guideline checks using National Formulary of India (NFI)
 
 ### SchemeSetu
@@ -95,6 +91,27 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[daavisetu] [frontend]** DaaviSetu: Develop claim pre-population progress tracker UI
 - [ ] **[daavisetu] [orchestration]** DaaviSetu: Implement automatic policy limit validation against estimated costs
 
+### BimaNyay (Insurance Denials & IRDAI Appeals)
+- [ ] **[bimanyay] [ocr-data]** Build OCR ingestion pipeline for insurance rejection letters and policy schedule documents
+- [ ] **[bimanyay] [orchestration]** Implement ClauseAuditorAgent matching repudiation codes against IRDAI 2024 Master Circular
+- [ ] **[bimanyay] [orchestration]** Implement ClinicalGroundsReviewer verifying medical necessity against discharge summaries
+- [ ] **[bimanyay] [orchestration]** Build 3-tier appeal draft engine (Insurer GRO, IRDAI Bima Bharosa, Ombudsman Form VI)
+- [ ] **[bimanyay] [infra]** Migrate `bimanyay_*` database tables and API endpoints (/api/v1/bimanyay)
+- [ ] **[bimanyay] [frontend]** Develop BimaNyay claim denial audit dashboard and Ombudsman Form VI export
+- [ ] **[bimanyay] [orchestration]** Implement self-reported Grievance SLA escalation tracker (15d GRO -> 15d Bima Bharosa -> 1y Ombudsman)
+- [ ] **[bimanyay] [data-qa]** Curate synthetic dataset of 25 insurance claim denial cases with ground-truth IRDAI circular citations
+
+### Mobile App (React Native / Expo — Fully Functional Suite)
+- [ ] **[mobile] [infra]** Scaffold Expo React Native app in `apps/mobile` with TypeScript and shared API client
+- [ ] **[mobile] [frontend]** Implement native edge-detection document scanner for camera bill and rejection letter capture
+- [ ] **[mobile] [frontend]** Mobile BillNyay: Hospital bill camera audit, CGHS benchmark comparison, and overcharge flags
+- [ ] **[mobile] [frontend]** Mobile DaaviSetu: Claim pre-auth & reimbursement auto-fill form wizard with PDF sharing
+- [ ] **[mobile] [frontend]** Mobile BimaNyay: Repudiation letter audit, 3-tier appeal generator, and SLA countdown alerts
+- [ ] **[mobile] [frontend]** Mobile SchemeSetu: 4-step eligibility intake questionnaire & empanelled hospital locator
+- [ ] **[mobile] [frontend]** Mobile DawaCheck: Medicine strip / prescription OCR scanner & Jan Aushadhi generic locator
+- [ ] **[mobile] [frontend]** Build plain-language trilingual card viewer (English, Hindi, Marathi) with audio prompt assistance
+- [ ] **[mobile] [frontend]** Build one-tap portal copy helper for Bima Bharosa 2,000-character complaint field
+
 ### Shared Context / OCR Hardening
 - [ ] **[kadi] [ocr-data]** KADI: Implement Self-Healing OCR Correction Loop (LLM-based spelling check)
 - [ ] **[kadi] [ocr-data]** KADI: Implement Multi-Modal Document Extraction using open vision models (LLaVA/Qwen-VL)
@@ -117,7 +134,7 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[kadi] [infra]** KADI: Design Federated Privacy-Preserving Case Context Sharing via Zero-Knowledge Proofs
 - [ ] **[kadi] [orchestration]** KADI: Build Self-Tuning Entity Resolution Confidence Thresholds using online RLHF
 - [ ] **[kadi] [orchestration]** KADI: Implement Cross-Script Soundex/Metaphone matching for Indian regional names
-- [ ] **[billnyay] [orchestration]** BillNyay: Implement predictive outcome estimation model for IRDAI appeals
+- [ ] **[bimanyay] [orchestration]** BimaNyay: Implement predictive outcome estimation model for IRDAI appeals
 - [ ] **[dawacheck] [data-qa]** DawaCheck: Develop generic medicines awareness delivery statistics logging
 - [ ] **[schemesetu] [orchestration]** SchemeSetu: Design consent-bounded scheme recommendation triggers
 
@@ -129,7 +146,7 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[data-qa]** Build labeled entity-pair dataset to tune entity-resolution confidence thresholds
 - [ ] **[data-qa]** Terminology QA pass on generated appeal letters and scheme explanations (Hindi + Marathi)
 - [ ] **[frontend]** Trilingual UI pass across all screens (English/Hindi/Marathi)
-- [ ] **[billnyay/schemesetu/dawacheck] [orchestration]** LLM output generation in Hindi/Marathi per module (where source data is English-only, per Phase 0 finding)
+- [ ] **[all-modules] [orchestration]** LLM output generation in Hindi/Marathi per module (where source data is English-only, per Phase 0 finding)
 - [ ] **[kadi] [data-qa]** KADI: Design Differential Privacy noise addition for aggregate health statistics export
 - [ ] **[billnyay] [data-qa]** BillNyay: Develop Hindi & Marathi custom prompt injection sanitization layer for Devanagari
 - [ ] **[schemesetu] [orchestration]** SchemeSetu: Design automated regional dialect normalization agent
@@ -143,9 +160,9 @@ These block everything downstream. Nobody should start Phase 1 work until these 
 - [ ] **[billnyay] [data-qa]** Eval: Implement automated pipeline for calculating Procedure Extraction Accuracy (PEA) on BillNyay mock bills
 - [ ] **[billnyay] [data-qa]** Eval: Implement evaluation harness for Benchmark Mapping Accuracy (BMA) comparing hospital procedures to CGHS codes
 - [ ] **[billnyay] [data-qa]** Eval: Measure Billing Anomaly Precision, Recall, and F1-score on synthetic overcharged bill data
-- [ ] **[daavisetu] [data-qa]** Eval: Establish evaluation framework for DaaviSetu Policy Clause Retrieval Accuracy (PCRA) using RAG test sets
-- [ ] **[daavisetu] [data-qa]** Eval: Implement validation suite for DaaviSetu Claim Rejection Mapping Accuracy (CRMA)
-- [ ] **[billnyay] [data-qa]** Eval: Implement automated completeness scoring for generated IRDAI appeal drafts using a weighted checklist
+- [ ] **[daavisetu] [data-qa]** Eval: Establish evaluation framework for DaaviSetu Claim Form Field Mapping Accuracy (CFMA) on insurer templates
+- [ ] **[bimanyay] [data-qa]** Eval: Implement validation suite for BimaNyay Claim Rejection Mapping Accuracy (CRMA) against IRDAI guidelines
+- [ ] **[bimanyay] [data-qa]** Eval: Implement automated completeness scoring for generated IRDAI appeal drafts using a weighted checklist
 - [ ] **[dawacheck] [data-qa]** Eval: Implement testing harness for DawaCheck Medicine Recognition Accuracy comparing prescription OCR to ground truth
 - [ ] **[dawacheck] [data-qa]** Eval: Measure DawaCheck NPPA price mapping accuracy and price deviation detection rates
 - [ ] **[schemesetu] [data-qa]** Eval: Implement ranking evaluation (MRR - Mean Reciprocal Rank) for SchemeSetu recommendation engine

@@ -1,0 +1,27 @@
+# ArogyaRakshak Codeowners
+# Every change must be reviewed by the core project maintainers
+
+# Global owners
+* @Viraj281105
+
+# Infrastructure and Root Configurations
+/docker-compose.yml @Viraj281105
+/.github/ @Viraj281105
+/.env.example @Viraj281105
+
+# Backend & Modules
+/apps/api/ @Viraj281105
+/packages/kadi/ @Viraj281105
+/packages/billnyay/ @Viraj281105
+/packages/daavisetu/ @Viraj281105
+/packages/bimanyay/ @Viraj281105
+/packages/schemesetu/ @Viraj281105
+/packages/dawacheck/ @Viraj281105
+
+# Frontend
+/apps/web/ @Viraj281105
+/apps/mobile/ @Viraj281105
+
+# Data & Docs
+/data/ @Viraj281105
+/docs/ @Viraj281105

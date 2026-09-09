@@ -16,8 +16,9 @@ router = APIRouter()
 
 # --- Pydantic Schemas ---------------------------------------------------------
 class BenchRequest(BaseModel):
-    brand_name: str = Field(..., description="Brand name of the medicine", example="Paracetamol 650mg")
-    mrp: float = Field(..., description="Maximum Retail Price (MRP) per tablet/unit", example=3.5)
+    brand_name: str = Field(..., description="Brand name of the medicine", json_schema_extra={"example": "Paracetamol 650mg"})
+    mrp: float = Field(..., description="Maximum Retail Price (MRP) per tablet/unit", json_schema_extra={"example": 3.5})
+
 
 
 # --- Route Implementations ----------------------------------------------------

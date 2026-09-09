@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ArogyaRakshak Documentation
+    url: https://github.com/Viraj281105/Arogyarakshak/blob/main/docs/README.md
+    about: Please consult our documentation before filing an issue.

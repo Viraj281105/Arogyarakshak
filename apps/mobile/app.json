@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "ArogyaRakshak",
+    "slug": "arogyarakshak-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0e17"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.arogyarakshak.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ArogyaRakshak requires camera access to scan hospital bills, medicine packaging, and insurance denial letters. Captured images are processed transiently in memory under our Zero-Retention (BYOD) policy."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0e17"
+      },
+      "package": "com.arogyarakshak.mobile",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ArogyaRakshak requires camera access to scan medical documents."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "scheme": "arogyarakshak"
+  }
+}
