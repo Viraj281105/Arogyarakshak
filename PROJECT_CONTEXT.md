@@ -177,6 +177,7 @@ Resolve remaining adversarial audit findings for Product Phase 1 across Kadi bac
 - [x] P2: CGHS rate schedule resolution made robust with `billnyay.__file__` package path lookup, verified by automated test (`len(CGHS_RATES) > 20`).
 - [x] P2: `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
 - [x] OCR: EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
+- [x] CI Dependency Fix: Added `reportlab>=4.0.0` to `packages/daavisetu/pyproject.toml`, `apps/api/requirements.txt`, and `.github/workflows/ci.yml` resolving CI runner `ModuleNotFoundError: No module named 'reportlab'`.
 - [x] Full regression validation suite executed: 36 backend tests, 17 mobile tests, 10 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
 
 ### Current Blockers
