@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "tsx --test"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -24,7 +25,9 @@
     "react-native-screens": "~4.4.0"
   },
   "devDependencies": {
+    "@types/prop-types": "^15.7.14",
     "@types/react": "~18.3.12",
+    "tsx": "^4.19.3",
     "typescript": "^5.3.3"
   },
   "private": true

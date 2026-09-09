@@ -16,7 +16,8 @@ RUN pip install -e /app/packages/kadi \
     -e /app/packages/billnyay \
     -e /app/packages/schemesetu \
     -e /app/packages/dawacheck \
-    -e /app/packages/daavisetu
+    -e /app/packages/daavisetu \
+    -e /app/packages/bimanyay
 
 # Copy app code
 COPY apps/api/app/ /app/app/

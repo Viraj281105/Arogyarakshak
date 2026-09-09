@@ -259,9 +259,9 @@ export default function Home() {
 
         {/* Active Module Panel */}
         <div role="tabpanel" id={`panel-${activeTab}`}>
-          {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} />}
+          {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={caseId} />}
           {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} />}
-          {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} />}
+          {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={caseId} />}
           {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} />}
           {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} />}
         </div>

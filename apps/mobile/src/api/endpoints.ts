@@ -2,59 +2,57 @@ import { apiClient } from './client';
 import {
   CaseResponse,
   UploadResponse,
-  BillNyayAuditRequest,
   BillNyayAuditResponse,
   DaaviSetuClaimRequest,
   DaaviSetuClaimResponse,
   BimaNyayAnalysisRequest,
   BimaNyayAnalysisResponse,
+  BimaNyayTimelineRequest,
+  BimaNyayTimelineResponse,
   SchemeSetuEligibilityRequest,
-  SchemeSetuEligibilityResponse,
+  SchemeResult,
   DawaCheckBenchmarkRequest,
   DawaCheckBenchmarkResponse,
 } from './types';
 
 /**
  * Domain Endpoint Mapping for ArogyaRakshak API Gateway
+ * Routes aligned with apps/api/app/api/v1/endpoints/
  */
 
 export const api = {
   // Shared Kadi Context Layer
   kadi: {
-    createCase: (data?: { user_id?: string; raw_text?: string }) =>
-      apiClient.post<CaseResponse>('/api/v1/kadi/cases', data),
+    createCase: (data?: { consent_opt_in?: boolean; user_id?: string; [key: string]: any }) =>
+      apiClient.post<CaseResponse>('/api/v1/kadi/cases', { consent_opt_in: true, ...data }),
 
     uploadDocument: async (
       caseId: string,
       fileBlobOrUri: Blob | { uri: string; name: string; type: string }
     ) => {
       const formData = new FormData();
-      formData.append('case_id', caseId);
-
       if ('uri' in fileBlobOrUri) {
-        // React Native specific file representation
         formData.append('file', fileBlobOrUri as any);
       } else {
         formData.append('file', fileBlobOrUri);
       }
-
-      return apiClient.post<UploadResponse>('/api/v1/kadi/upload', formData);
+      return apiClient.post<UploadResponse>(`/api/v1/kadi/cases/${caseId}/upload`, formData);
     },
 
     getCase: (caseId: string) =>
-      apiClient.get<CaseResponse>(`/api/v1/kadi/cases/${caseId}`),
+      apiClient.get<{ case: CaseResponse; entities: any[] }>(`/api/v1/kadi/cases/${caseId}`),
   },
 
   // BillNyay Hospital Bill Audit
   billnyay: {
-    audit: (data: BillNyayAuditRequest) =>
-      apiClient.post<BillNyayAuditResponse>('/api/v1/billnyay/audit', data),
+    audit: (caseId: string) =>
+      apiClient.post<BillNyayAuditResponse>(`/api/v1/billnyay/cases/${caseId}/audit`),
   },
 
   // DaaviSetu Cashless Pre-Auth & Claims
   daavisetu: {
-    submitClaim: (data: DaaviSetuClaimRequest) =>
-      apiClient.post<DaaviSetuClaimResponse>('/api/v1/daavisetu/claim', data),
+    submitClaim: (caseId: string, data: DaaviSetuClaimRequest) =>
+      apiClient.post<DaaviSetuClaimResponse>(`/api/v1/daavisetu/cases/${caseId}/claim`, data),
   },
 
   // BimaNyay Insurance Denial & Appeals
@@ -64,14 +62,14 @@ export const api = {
         `/api/v1/bimanyay/analyze?language=${encodeURIComponent(language)}`,
         data
       ),
-    getTimeline: (caseId: string) =>
-      apiClient.get<any>(`/api/v1/bimanyay/timeline/${caseId}`),
+    getTimeline: (data: BimaNyayTimelineRequest) =>
+      apiClient.post<BimaNyayTimelineResponse>('/api/v1/bimanyay/timeline', data),
   },
 
   // SchemeSetu Welfare Eligibility
   schemesetu: {
     checkEligibility: (data: SchemeSetuEligibilityRequest) =>
-      apiClient.post<SchemeSetuEligibilityResponse>('/api/v1/schemesetu/eligibility', data),
+      apiClient.post<SchemeResult[]>('/api/v1/schemesetu/eligibility', data),
   },
 
   // DawaCheck Medicine MRP & Generics

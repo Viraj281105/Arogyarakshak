@@ -5,6 +5,7 @@ Invokes LLM (Groq) to parse raw document text into normalized patient/clinical e
 """
 
 import os
+import re
 import json
 import logging
 import urllib.request
@@ -100,7 +101,6 @@ def run_heuristic_extraction_fallback(text: str) -> ExtractedEntities:
 
     # Identify lines with pricing
     lines = text.split("\n")
-    import re
     for line in lines:
         match = re.search(r"([A-Za-z\s0-9]+)[\s:]+₹?(\d+\.?\d*)", line)
         if match:
