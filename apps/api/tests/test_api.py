@@ -64,3 +64,41 @@ def test_schemesetu_eligibility():
     data = response.json()
     assert len(data) > 0
     assert data[0]["scheme_name"].startswith("PMJAY")
+
+
+def test_bimanyay_analyze():
+    payload = {
+        "policy_number": "POL-554433",
+        "insurer_name": "Star Health Insurance",
+        "policy_age_years": 6.5,
+        "claimed_amount": 180000.0,
+        "denied_or_deducted_amount": 180000.0,
+        "denial_category": "PED_NON_DISCLOSURE",
+        "denial_reason_raw": "Pre-existing condition non-disclosure at inception.",
+        "diagnosis": "Cardiovascular Stent Placement",
+    }
+    response = client.post("/api/v1/bimanyay/analyze", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_wrongful_denial"] is True
+    assert data["reversal_probability_score"] >= 0.90
+    assert len(data["regulatory_violations"]) > 0
+    assert "GRO" in data["level_1_gro_appeal"]
+    assert "bimabharosa" in data["level_2_bimabharosa_text"].lower() or len(data["level_2_bimabharosa_text"]) > 0
+
+
+def test_bimanyay_timeline():
+    payload = {
+        "insurer_name": "Care Health Insurance",
+        "date_initiated": "2026-03-01",
+        "claim_number": "CLM-9988",
+        "current_tier": "LEVEL_1_GRO",
+    }
+    response = client.post("/api/v1/bimanyay/timeline", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["insurer_name"] == "Care Health Insurance"
+    assert data["claim_number"] == "CLM-9988"
+    assert len(data["timeline_events"]) == 3
+    assert data["timeline_events"][0]["tier"] == "LEVEL_1_GRO"
+

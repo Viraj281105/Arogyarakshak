@@ -1,14 +1,41 @@
-# DawaCheck
+# DawaCheck (दवा चेक — "Medicine Check")
 
-**Medicine pricing verification** module for ArogyaRakshak. ("Dawa" = medicine)
+`packages/dawacheck` is the **medicine price benchmarking and generic alternative finder** for ArogyaRakshak.
 
-## Future Role
+---
 
-- Upload a medicine strip photo or prescription → OCR reads drug name/batch
-- Benchmark MRP against NPPA ceiling prices for Schedule-I formulations (~800–900 price-controlled drugs)
-- Flag overcharging → suggest generic substitutes
-- Deliberately scoped to Schedule-I only — the one segment with a clean, finite, government-published ground-truth price
-- DB table prefix: `dawacheck_` (e.g. `dawacheck_nppa_prices`)
-- API route prefix: `/api/dawacheck/...`
+## Capabilities & Architecture
 
-See [Technical Documentation §3](../docs/ArogyaRakshak_Technical_Documentation.md) for full design.
+DawaCheck protects consumers from pharmaceutical overcharging and promotes affordable generic medication:
+- **NPPA Schedule-I Price Auditing (`dawacheck/checker.py`)**:
+  - Benchmarks the Maximum Retail Price (MRP) printed on drug packaging against ceiling prices established by the **National Pharmaceutical Pricing Authority (NPPA)** under the Drugs (Prices Control) Order (DPCO).
+  - Flags any illegal overcharging above government-fixed price caps (~800–900 essential Schedule-I formulations).
+- **Brand-to-Generic Formulation Mapping**:
+  - Resolves branded commercial formulations to their active pharmaceutical ingredients (API) and standardized dosage strengths.
+  - Suggests low-cost bioequivalent generic substitutes available through the **Pradhan Mantri Bhartiya Janaushadhi Pariyojana (PMBJP)** network.
+
+---
+
+## Directory Structure
+```text
+packages/dawacheck/
+├── dawacheck/
+│   ├── checker.py           # NPPA price verification & generic suggestion logic
+│   └── __init__.py
+├── tests/
+│   └── test_dawacheck.py    # Price check test suite
+├── pyproject.toml
+└── README.md
+```
+
+---
+
+## Installation & Testing
+
+```bash
+# Install as editable package
+pip install -e .
+
+# Run DawaCheck unit tests
+python -m pytest tests/
+```

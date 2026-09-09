@@ -1,12 +1,50 @@
-# Kadi (कड़ी — "link")
+# Kadi (कड़ी — "Link")
 
-**Shared context layer** for ArogyaRakshak. Not a fourth module — infrastructure that all three modules (BillNyay, SchemeSetu, DawaCheck) depend on.
+`packages/kadi` is the **shared intelligence and context infrastructure** for ArogyaRakshak. It is not an isolated module, but the connective layer upon which all domain modules (`billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`) depend.
 
-## Future Role
+---
 
-- **Case & entity model**: `kadi_cases`, `kadi_entities`, `kadi_case_entities` tables anchoring all extracted data
-- **Shared extraction agent**: normalises any input document (bill, prescription, rejection letter) into a common entity schema
-- **Entity resolution pipeline**: string similarity + IndicXlit transliteration matching + IndicSBERT cross-lingual semantic matching → confidence-scored merge/ask-user/new-entity decisions
-- **Auto-triggering**: proactively fires other modules when enough context exists in the case
+## Capabilities & Architecture
 
-See [Technical Documentation §4](../docs/ArogyaRakshak_Technical_Documentation.md) for full design.
+- **Document Extraction (`kadi/extraction.py`)**:
+  - Ingests raw document text or OCR tokens.
+  - Normalizes patient name, age, gender, hospital details, diagnoses, procedures, line items, and medications into a structured schema.
+- **Shared OCR Engine (`kadi/ocr/ocr_parser.py`)**:
+  - Handles multi-format document parsing (bills, prescriptions, insurance schedules).
+  - Devanagari and Latin script text extraction.
+- **Vector Store & Indexing (`kadi/vector_store.py`)**:
+  - In-memory FAISS similarity indexes for sub-second entity matching and fast blocking.
+- **Entity Resolution (Cross-Script & Semantic)**:
+  - Surface string distance (Levenshtein / Token overlap)
+  - Phonetic transliteration matching via **IndicXlit** (`ai4bharat-transliteration`)
+  - Cross-lingual semantic similarity via **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`)
+
+---
+
+## Directory Structure
+```text
+packages/kadi/
+├── kadi/
+│   ├── extraction.py        # Extraction engine (LLM-grounded + heuristic normalization)
+│   ├── vector_store.py      # FAISS vector indexing implementation
+│   ├── ocr/
+│   │   ├── ocr_parser.py    # Optical character recognition parser
+│   │   └── tests/           # OCR parser test suite
+│   └── __init__.py          # Public package exports
+├── pyproject.toml           # Package configuration & build specification
+└── README.md
+```
+
+---
+
+## Installation & Testing
+
+```bash
+# Install as editable package
+pip install -e .
+
+# Run Kadi unit tests
+python -m pytest
+```
+
+For the complete architectural design, see the [Architecture Overview](../../docs/architecture/overview.md).
