@@ -13,14 +13,22 @@ from app.config import settings
 # In production settings.database_url could use postgresql://, but asyncpg requires postgresql+asyncpg://
 async_db_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
 
-# Enable connection pooling for production stability
+engine_kwargs = {
+    "future": True,
+    "pool_pre_ping": True,
+}
+if "sqlite" in async_db_url:
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 10,
+        "pool_recycle": 1800,
+    })
+
 engine = create_async_engine(
     async_db_url,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=1800,
-    pool_pre_ping=True,
-    future=True,
+    **engine_kwargs,
 )
 
 AsyncSessionLocal = async_sessionmaker(

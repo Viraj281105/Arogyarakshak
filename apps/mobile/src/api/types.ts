@@ -41,6 +41,9 @@ export interface BillNyayAuditResponse {
 export interface DaaviSetuClaimRequest {
   policy_number: string;
   patient_name: string;
+  hospital_name?: string;
+  treatment_plan?: string;
+  diagnosis?: string;
 }
 
 export interface DaaviSetuFormData {

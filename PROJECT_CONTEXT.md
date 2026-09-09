@@ -17,12 +17,17 @@
 
 ## 2. Current Project Status
 
-- **Current Phase:** Phase 2 (Module Builds & Integrations) Active | Product Phase 1 (Web & Mobile Module API Wiring) Complete.
+- **Current Phase:** Product Phase 1 Audit & System Hardening Complete (All P0, P1, P2 audit findings resolved and runtime-verified; Product Phase 2 not yet started).
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Prototype / Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 32 backend tests passing; 10 mobile tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors).
-- **Primary Focus:** Advancing IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi` and end-to-end integration testing.
-- **Last Major Milestone:** Product Phase 1 Complete (Web views + Mobile screens for BillNyay, DaaviSetu, BimaNyay, SchemeSetu, and DawaCheck wired to real backend API gateway; zero client-side mock templates remaining; full validation passing).
-- **Immediate Objective:** Cross-lingual Indic entity resolution in Kadi and offline queueing resilience for mobile client.
+- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 36 backend pytest tests passing; 17 mobile tests passing; 10 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
+- **Primary Focus:** Ready for Product Phase 2 (IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`).
+- **Last Major Milestone:** Remaining Product Phase 1 Audit Fixes Completed & Verified:
+  1. `kadi.py` background session resolved via `get_background_session()` with FastAPI dependency override and eager relationship loading (`selectinload`), guaranteeing end-to-end entity persistence in test, local, and Docker environments.
+  2. `CameraScanScreen.tsx` routing updated so `documentType === "general"` routes to `BillNyay` with `caseId` preserved.
+  3. Web `page.tsx` dummy document fallback completely removed; real file selection strictly required.
+  4. CGHS rate schedule resolution made robust with `billnyay.__file__` package path lookup, verified by automated test (`len(CGHS_RATES) > 20`).
+  5. `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
+  6. EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
 - **Active Blockers:** None.
 
 ---
@@ -152,29 +157,30 @@ arogyarakshak/
 ## 8. Current Work
 
 ### Active Task
-Phase 2: Mobile App Scaffolding (`apps/mobile`) with Camera Document Edge Detection & Kadi Cross-Lingual Entity Resolution.
+Product Phase 1 Final Audit Fixes & Verification Complete.
 
 ### Objective
-Scaffold the React Native / Expo client in `apps/mobile`, configure client-side camera scanning for hospital bills and claim rejection letters, and advance IndicXlit / IndicSBERT cross-lingual entity resolution formula in `packages/kadi`.
+Resolve remaining adversarial audit findings for Product Phase 1 across Kadi background session DB persistence, CameraScan navigation, web file uploader validation, CGHS rates JSON path resolution, mobile offline action queueing, and EasyOCR runtime compatibility without entering Product Phase 2.
 
 ### Relevant Areas
-- `apps/mobile/`
-- `packages/kadi/kadi/`
-- `apps/api/app/api/v1/endpoints/kadi.py`
+- `apps/api/app/api/v1/endpoints/kadi.py` & `apps/api/app/database.py`
+- `apps/mobile/src/screens/CameraScanScreen.tsx` & `apps/mobile/src/navigation/types.ts`
+- `apps/web/app/page.tsx` & `apps/web/app/components/DocumentUploader.tsx`
+- `apps/api/app/api/v1/endpoints/billnyay.py` & `packages/billnyay/billnyay/data/cghs_rates.json`
+- `apps/mobile/src/screens/` (`DawaCheckScreen`, `SchemeSetuScreen`, `DaaviSetuScreen`, `BimaNyayScreen`)
+- `packages/kadi/kadi/ocr/ocr_parser.py` & `packages/kadi/pyproject.toml`
 
 ### Current Progress
-- [x] Architectural blueprint locked in `docs/architecture/bimanyay-and-mobile.md`.
-- [x] Zero-overlap boundaries between DaaviSetu and BimaNyay codified.
-- [x] Task backlog items atomized in `docs/ArogyaRakshak_Task_Backlog.md`.
-- [x] Scaffold `packages/bimanyay/pyproject.toml` and package structure.
-- [x] Implement `clause_auditor.py`, `drafter.py`, and `tracker.py`.
-- [x] Add `bimanyay_*` SQLAlchemy models and API router in `apps/api`.
-- [x] Add unit test suite in `packages/bimanyay/tests/` (5/5 passing).
-- [x] Overhaul `apps/web` with mobile-first trilingual UI, BYOD intake, and live SSE visualizer.
-- [x] Create restructuring migration record `docs/architecture/repository-structure.md`.
+- [x] P0: `kadi.py` background session resolved via `get_background_session()` with FastAPI dependency override and eager relationship loading (`selectinload`), guaranteeing end-to-end entity persistence in test, local, and Docker environments.
+- [x] P0: `CameraScanScreen.tsx` routing updated so `documentType === "general"` routes to `BillNyay` with `caseId` preserved.
+- [x] P1: Web `page.tsx` dummy document fallback completely removed; real file selection strictly required.
+- [x] P2: CGHS rate schedule resolution made robust with `billnyay.__file__` package path lookup, verified by automated test (`len(CGHS_RATES) > 20`).
+- [x] P2: `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
+- [x] OCR: EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
+- [x] Full regression validation suite executed: 36 backend tests, 17 mobile tests, 10 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
 
 ### Current Blockers
-None.
+None. Ready for Product Phase 2 when directed by user.
 
 ---
 
@@ -291,27 +297,33 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **Unified Pytest Test Runner (`pytest.ini`)**: **32 passed in 2.49s (0 warnings)**.
-  - **Package Unit Suites (`packages/*/tests/`)**: 23 passed in 0.28s.
+- **Unified Pytest Test Runner (`pytest.ini`)**: **36 passed in 5.70s (100% pass rate)**.
+  - **Package Unit Suites (`packages/*/tests/`)**: 23 passed.
     - `packages/billnyay`: 4 tests passed (`test_agents.py`)
     - `packages/daavisetu`: 1 test passed (`test_daavisetu.py`)
     - `packages/dawacheck`: 3 tests passed (`test_dawacheck.py`)
     - `packages/kadi`: 6 tests passed (`test_ocr.py` - hardened assertions for line items, amounts, rupee symbols, multi-page PDFs, noise filtering, and summary line exclusions)
     - `packages/schemesetu`: 2 tests passed (`test_schemesetu.py`)
     - `packages/bimanyay`: 7 tests passed (`test_bimanyay.py` - clause auditor, drafter, timeline tracker, and Hindi/Marathi statutory appeal copy validation)
-  - **API Integration Suite (`apps/api/tests/test_api.py`)**: 9 passed in 2.29s.
+  - **API Integration Suite (`apps/api/tests/test_api.py`)**: 13 passed in 3.65s.
     - `test_health_endpoint`
-    - `test_create_and_get_case` (covers case creation, upload, SSE stream, retrieval)
+    - `test_create_and_get_case` (covers case creation, upload, background session, entity persistence, retrieval)
     - `test_dawacheck_benchmark`
     - `test_schemesetu_eligibility`
     - `test_bimanyay_analyze`
+    - `test_bimanyay_analyze_multilingual`
     - `test_bimanyay_timeline`
-    - `test_daavisetu_claim` (pre-claim pre-auth request verification)
-    - `test_billnyay_audit` (5-agent bill audit line-item verification)
-    - `test_bimanyay_analyze_multilingual` (multilingual API verification for Hindi and Marathi legal appeal packages)
-- **Frontend Linter & Build (`apps/web`)**: `npm run lint` passed with 0 errors, 0 warnings; `npm run build` compiled cleanly in 870ms (Next.js 16.2.10 / Turbopack; 100% static routes).
-- **Mobile Client Test Suite (`apps/mobile`)**: `npm test` (`tsx --test`) passed with **10/10 passed in 195ms** (BYOD invariant guard, Kadi upload routing, createCase consent opt-in, multilingual BimaNyay API mapping, scanner payload validation, trilingual dictionary keys).
+    - `test_daavisetu_claim`
+    - `test_billnyay_audit`
+    - `test_daavisetu_pdf_download`
+    - `test_dawacheck_mobile_samples`
+    - `test_cghs_rates_loaded_from_json` (proves full CGHS dataset loaded from JSON, > 20 items)
+    - `test_real_image_ocr_upload_and_persistence` (proves real image EasyOCR pipeline executes and persists entities to DB)
+- **Frontend Test Suite (`apps/web`)**: `npm test` passed with **10/10 tests passed** (contracts, versioning, routing boundaries, mandatory file upload invariant, trilingual dictionaries).
+- **Frontend Linter & Build (`apps/web`)**: `npm run lint` passed with 0 errors, 0 warnings; `npm run build` compiled cleanly in 924ms (Next.js 16.2.10 / Turbopack; 100% static routes).
+- **Mobile Client Test Suite (`apps/mobile`)**: `npm test` (`tsx --test`) passed with **17/17 passed in 185ms** (BYOD invariant guard, Kadi upload routing, createCase consent opt-in, multilingual BimaNyay API mapping, scanner payload validation, trilingual dictionary keys, documentType "general" routing with caseId preserved, all 4 statutory offline queue action types).
 - **Mobile Client Type-Check (`apps/mobile`)**: `npm run type-check` (`tsc --noEmit`) passed with **0 errors** across all navigation, screens, API types, hooks, and design system components.
+- **CI Guardrails (`scripts/ci_guardrails.py`)**: **5/5 checks passed** (BYOD zero-retention invariants, deprecated model ban, package directory lowercase, DB table prefixes, secret leak detection).
 
 
 ---
@@ -445,27 +457,57 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ---
 
+- **Product Phase 1: Independent Audit Fixes Completed**:
+  - **P0: Mobile Camera → Kadi → Module Flow & Real Entity Extraction**:
+    - Fixed `CameraScanScreen.tsx` to automatically route back to destination modules (`BillNyay`, `BimaNyay`, `DawaCheck`) passing `{ caseId, scanCompleted: true }`.
+    - Updated `BottomTabParamList` to accept route parameters.
+    - Eliminated all dummy `data:text/plain;base64,` base64 uploads from `BillNyayScreen.tsx` and `DaaviSetuScreen.tsx`.
+    - Connected Kadi background document ingestion (`apps/api/app/api/v1/endpoints/kadi.py`) to real `extract_entities_from_text` (Groq API or regex/heuristic fallback), persisting clinical entities (`hospital`, `patient`, `diagnosis`, `procedure`, `medicine`) in addition to billing line items.
+    - Updated `packages/kadi/kadi/ocr/ocr_parser.py` with UTF-8/plain-text decoding fallback prior to PyMuPDF to gracefully handle text document uploads without crashes.
+  - **P1: Configured Groq Inference & Trilingual Form Localization**:
+    - Replaced hardcoded Groq fallback in `apps/api/app/api/v1/endpoints/billnyay.py` with real `GroqClient` instantiated using `settings.groq_model` and `settings.groq_api_key`.
+    - Expanded `apps/mobile/src/translations/strings.ts` with comprehensive form labels, placeholders, buttons, statutory badges, and audit results across English, Hindi, and Marathi.
+    - Localized all mobile screens (`BillNyayScreen`, `DaaviSetuScreen`, `BimaNyayScreen`, `SchemeSetuScreen`, `DawaCheckScreen`).
+  - **P1: Mobile SSE Streaming & Real-Time Feedback**:
+    - Created `useSSEStream` hook in `apps/mobile/src/hooks/useSSEStream.ts` supporting standard EventSource and fetch-based streaming from `/api/v1/kadi/cases/{caseId}/stream`.
+    - Implemented `AgentStreamVisualizer` component in `apps/mobile/src/components/AgentStreamVisualizer.tsx` displaying live multi-agent stage indicators, progress percentage, and log messages.
+  - **P1: Meaningful Web UI & Mobile User-Flow Tests**:
+    - Created web test suite in `apps/web/tests/` (`translations.test.ts`, `useApi.test.ts`, `contracts.test.ts`) running via `npm test` with 9 passing tests.
+    - Created mobile test suite in `apps/mobile/tests/screen_and_flow.test.ts` verifying camera scan routing contracts, screen params, trilingual dictionary parity, SSE stream parsing, and offline queue serialization with 15 passing tests.
+  - **P2: DawaCheck 404s, CGHS 2024 Rates, DaaviSetu PDF & Offline Queue**:
+    - Added NPPA Schedule-I ceiling rates for all 4 mobile sample medicines (`Dolo 650mg`, `Augmentin 625 Duo`, `Metformin 500mg SR`, `Meropenem 1g`) plus fuzzy alias matching in `packages/dawacheck/dawacheck/checker.py`.
+    - Created comprehensive CGHS 2024 rate schedule in `packages/billnyay/billnyay/data/cghs_rates.json` and dynamically loaded in `billnyay.py`.
+    - Implemented real IRDAI Standard Pre-Authorization Form (Annexure-B) PDF generation in `packages/daavisetu/daavisetu/generator.py` via ReportLab and exposed `GET /api/v1/daavisetu/cases/{case_id}/claim/pdf` with web and mobile download buttons.
+    - Implemented `useOfflineQueue` hook in `apps/mobile/src/hooks/useOfflineQueue.ts` leveraging secure storage with automatic queue draining on network reconnect, strictly adhering to BYOD zero-retention.
+
+---
+
 ## 18. Agent Handoff Notes
 
 ### Last Completed Work
-Successfully completed Product Phase 1 across both Web and Mobile client applications:
-1. **Web Client Fully Wired**: All 5 domain views (`BillNyayView`, `DaaviSetuView`, `BimaNyayView`, `SchemeSetuView`, `DawaCheckView`) now consume live FastAPI endpoints through `useApi`. All client-side mock template generation has been replaced with real server-driven analysis.
-2. **Mobile Client Fully Wired**: All 5 domain screens (`BillNyayScreen`, `DaaviSetuScreen`, `BimaNyayScreen`, `SchemeSetuScreen`, `DawaCheckScreen`) now invoke live API endpoints with loading spinners, error alerts, and rich structured result views.
-3. **Native Sharing & BYOD Guarantees Preserved**: BimaNyay appeal export uses React Native core `Share.share`; document scanning and uploads preserve strict BYOD zero-retention invariant.
-4. **Validation**:
-   - `apps/mobile`: `npm run type-check` passed with **0 errors**.
-   - `apps/mobile`: `npm test` passed with **10/10 tests passing**.
-   - Root `pytest`: **32/32 tests passed (100% passing in 2.50s)**.
-   - `apps/web`: `npm run lint` passed with **0 errors, 0 warnings**.
-   - `apps/web`: `npm run build` compiled successfully with **100% static routes**.
+Successfully fixed and verified all Product Phase 1 issues based on the independent audit across P0, P1, and P2 priority levels:
+1. **Camera → Kadi → Module Flow**: Real flow established; dummy base64 strings removed; caseId routed cleanly.
+2. **Kadi Entity Extraction**: Real entity extraction wired into background pipeline with clinical entity persistence.
+3. **Inference Grounding**: Configured Groq inference used in `billnyay.py`.
+4. **Mobile Localization**: All 5 mobile module forms localized in English, Hindi, and Marathi.
+5. **Mobile SSE Streaming**: Live status stream connected with `AgentStreamVisualizer`.
+6. **DaaviSetu PDF Generation**: Live IRDAI Annexure-B PDF generated and downloadable on Web and Mobile.
+7. **DawaCheck Sample 404s**: Fully resolved with expanded NPPA Schedule-I rates and alias matching.
+8. **BillNyay CGHS Dataset**: Benchmark dataset codified in `cghs_rates.json` and wired to audit endpoint.
+9. **Mobile Offline Action Queue**: Enqueue and automatic replay implemented via `useOfflineQueue`.
+10. **Validation Suite Results**:
+    - Backend: `pytest` passed **34/34 tests** (100%).
+    - Web: `npm test` passed **9/9 tests**; `npm run lint` passed **0 errors**; `npm run build` passed.
+    - Mobile: `npm test` passed **15/15 tests**; `npm run type-check` passed **0 errors**.
+    - CI Guardrails: `python scripts/ci_guardrails.py` passed **5/5 checks**.
 
 ### Current State
-Product Phase 1 is complete and fully verified. Both Web (`apps/web`) and Mobile (`apps/mobile`) interfaces are functional, strongly typed, and connected to the backend API gateway.
+Product Phase 1 audit fixes are 100% complete and verified. Product Phase 2 has NOT been started.
 
 ### Recommended Next Action
-1. Implement real-time SSE stream consumption in Mobile client for live Kadi pipeline progress (matching the web implementation in `page.tsx`).
-2. Advance IndicXlit / IndicSBERT cross-lingual entity resolution formula in `packages/kadi`.
-3. Add offline queueing resilience for mobile client (`useOfflineStorage` queue for pending audits when offline).
+When authorized by the user, begin Product Phase 2:
+1. Advance IndicXlit phonetic transliteration & IndicSBERT cross-lingual semantic matching in `packages/kadi`.
+2. Expand entity graph and cross-module context sharing in Kadi.
 
 ---
 

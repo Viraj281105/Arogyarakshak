@@ -16,6 +16,7 @@ dependencies = [
     "easyocr>=1.7.1",
     "opencv-python-headless>=4.8.0.0",
     "PyMuPDF>=1.23.0",
+    "numpy<2.0.0",
 ]
 
 [tool.setuptools.packages.find]

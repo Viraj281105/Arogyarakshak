@@ -10,22 +10,51 @@ import logging
 import json
 import asyncio
 
+from contextlib import asynccontextmanager
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from app.database import get_db
+from app.database import get_db, AsyncSessionLocal
+from app.config import settings
 from app.models import KadiCase, KadiEntity
-# We can import ocr parser from kadi local package!
+# OCR parser and extraction agent from kadi shared layer
 from kadi.ocr.ocr_parser import parse_document
+from kadi.extraction import extract_entities_from_text
 
 logger = logging.getLogger("arogyarakshak.api.kadi")
 router = APIRouter()
 
 # In-memory document processing status stream mapping
 processing_status: Dict[str, List[Dict[str, Any]]] = {}
+
+
+@asynccontextmanager
+async def _wrap_session(session: AsyncSession):
+    yield session
+
+
+@asynccontextmanager
+async def get_background_session():
+    """Context manager for obtaining an async database session in background tasks.
+    Honors FastAPI dependency_overrides (e.g. in test suites) and falls back
+    to AsyncSessionLocal for local and production/Docker runs."""
+    from app.main import app as fastapi_app
+    override = fastapi_app.dependency_overrides.get(get_db)
+    if override:
+        async with asynccontextmanager(override)() as session:
+            yield session
+    else:
+        async with AsyncSessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
 
 
@@ -61,7 +90,7 @@ class CaseDetailResponse(BaseModel):
 
 
 # --- Async Helper Task --------------------------------------------------------
-async def process_document_background(case_id: str, file_bytes: bytes, filename: str, db: AsyncSession):
+async def process_document_background(case_id: str, file_bytes: bytes, filename: str, db: Optional[AsyncSession] = None):
     """Processes document upload in a background task, saving extracted entities."""
     logger.info(f"Background task starting: OCR parsing for case={case_id}, file={filename}")
     try:
@@ -71,28 +100,34 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
         text = parsed.get("full_text_content", "")
         line_items = parsed.get("line_items", [])
         
-        # Step 2: Extraction
-        processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting entities from parsed text..."})
-        await asyncio.sleep(0.5) # Simulate small latency
+        # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic fallback)
+        processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting clinical & billing entities with Kadi agent..."})
+        extracted = extract_entities_from_text(text, api_key=settings.groq_api_key, model=settings.groq_model)
         
-        async with db.begin_nested() if db.in_nested_transaction() else db as session:
-            # 2. Retrieve case
-            result = await session.execute(select(KadiCase).where(KadiCase.id == case_id))
+        # Step 3: Database write using dedicated session
+        processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
+
+        if db is not None and getattr(db, "is_active", False):
+            session_cm = _wrap_session(db)
+        else:
+            session_cm = get_background_session()
+
+        async with session_cm as session:
+            result = await session.execute(
+                select(KadiCase).options(selectinload(KadiCase.entities)).where(KadiCase.id == case_id)
+            )
             case = result.scalar_one_or_none()
             if not case:
                 logger.error(f"Case {case_id} not found during background processing.")
                 processing_status[case_id].append({"status": "failed", "progress": 100, "log": "Failed: Case not found"})
                 return
 
-            # Step 3: Database write
-            processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
-            
-            # 3. Create active entities
-            entities_to_add = []
+            entities_to_add: List[KadiEntity] = []
             total_cost = 0.0
-            
+
+            # 1. Billing line items from OCR
             for idx, item in enumerate(line_items):
-                entity_id = f"ENT-{uuid.uuid4().hex[:8]}"
+                entity_id = f"ENT-BILL-{uuid.uuid4().hex[:8]}"
                 entity = KadiEntity(
                     id=entity_id,
                     name=item["item"],
@@ -103,7 +138,67 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
                 entities_to_add.append(entity)
                 total_cost += item["charged"]
 
-            # Add general text block as an entity for reference
+            # 2. Structured clinical entities from extraction agent
+            if extracted.hospital_name:
+                entities_to_add.append(
+                    KadiEntity(
+                        id=f"ENT-HOSP-{uuid.uuid4().hex[:8]}",
+                        name=extracted.hospital_name,
+                        type="hospital",
+                        value=extracted.hospital_name,
+                        meta={"source_file": filename, "source": "kadi_extraction"},
+                    )
+                )
+
+            if extracted.patient_name:
+                entities_to_add.append(
+                    KadiEntity(
+                        id=f"ENT-PAT-{uuid.uuid4().hex[:8]}",
+                        name=extracted.patient_name,
+                        type="patient",
+                        value=extracted.patient_name,
+                        meta={"source_file": filename, "source": "kadi_extraction"},
+                    )
+                )
+
+            if extracted.diagnosis:
+                entities_to_add.append(
+                    KadiEntity(
+                        id=f"ENT-DIAG-{uuid.uuid4().hex[:8]}",
+                        name=extracted.diagnosis,
+                        type="diagnosis",
+                        value=extracted.diagnosis,
+                        meta={"source_file": filename, "source": "kadi_extraction"},
+                    )
+                )
+
+            for proc in extracted.procedures:
+                proc_name = proc.get("name")
+                if proc_name and not any(e.name == proc_name for e in entities_to_add):
+                    entities_to_add.append(
+                        KadiEntity(
+                            id=f"ENT-PROC-{uuid.uuid4().hex[:8]}",
+                            name=proc_name,
+                            type="procedure",
+                            value=str(proc.get("amount", 0.0)),
+                            meta=proc,
+                        )
+                    )
+
+            for med in extracted.medicines:
+                med_name = med.get("name")
+                if med_name:
+                    entities_to_add.append(
+                        KadiEntity(
+                            id=f"ENT-MED-{uuid.uuid4().hex[:8]}",
+                            name=med_name,
+                            type="medicine",
+                            value=str(med.get("cost", 0.0)),
+                            meta=med,
+                        )
+                    )
+
+            # Add general text excerpt
             text_entity = KadiEntity(
                 id=f"ENT-TEXT-{uuid.uuid4().hex[:8]}",
                 name="Document Text Excerpt",
@@ -115,14 +210,17 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
 
             # Link entities to case
             case.entities.extend(entities_to_add)
-            case.total_charged += total_cost
-            
+            if total_cost > 0:
+                case.total_charged += total_cost
+            elif extracted.total_amount and extracted.total_amount > 0:
+                case.total_charged += extracted.total_amount
+
             session.add(case)
             session.add_all(entities_to_add)
             await session.commit()
-            
-        processing_status[case_id].append({"status": "completed", "progress": 100, "log": "Document processed successfully."})
-        logger.info(f"Background task succeeded for case={case_id}. Extracted {len(line_items)} items.")
+
+        processing_status[case_id].append({"status": "completed", "progress": 100, "log": "Document processed successfully. Entities extracted."})
+        logger.info(f"Background task succeeded for case={case_id}. Extracted {len(entities_to_add)} entities.")
     except Exception as e:
         logger.error(f"Background task failed for case={case_id}: {e}", exc_info=True)
         processing_status[case_id].append({"status": "failed", "progress": 100, "log": f"Failed: {str(e)}"})
@@ -173,8 +271,7 @@ async def upload_document(
         process_document_background,
         case_id=case_id,
         file_bytes=file_bytes,
-        filename=file.filename,
-        db=db
+        filename=file.filename
     )
     
     return {

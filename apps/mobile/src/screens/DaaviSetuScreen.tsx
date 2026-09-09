@@ -1,48 +1,104 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Linking } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { ENV } from '../config/env';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type DaaviSetuRouteProp = RouteProp<BottomTabParamList, 'DaaviSetu'>;
 
 export const DaaviSetuScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<DaaviSetuRouteProp>();
   const { colors, spacing, typography } = useTheme();
   const { t } = useLanguage();
+  const { enqueueAction } = useOfflineQueue();
+  const { isOnline } = useNetworkStatus();
+  const m = t.modules.daavisetu;
 
   // Form state
   const [patientName, setPatientName] = useState('Viraj Jadhao');
   const [policyId, setPolicyId] = useState('POL-STAR-774411');
+  const [hospitalName, setHospitalName] = useState('Apollo Multi-Speciality Hospital, Mumbai');
+  const [treatmentPlan, setTreatmentPlan] = useState('Laparoscopic Appendectomy');
 
-  // Result state
+  // Case & Result state
+  const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DaaviSetuClaimResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offlineQueued, setOfflineQueued] = useState(false);
+
+  useEffect(() => {
+    if (route.params?.caseId) {
+      setCaseId(route.params.caseId || null);
+    }
+  }, [route.params?.caseId]);
 
   const handleGenerate = async () => {
     setLoading(true);
     setError(null);
+    setOfflineQueued(false);
+
+    let activeCaseId: string | null = caseId;
+    const claimData = {
+      policy_number: policyId,
+      patient_name: patientName,
+      hospital_name: hospitalName,
+      treatment_plan: treatmentPlan,
+    };
+
     try {
-      // 1. Create case (needed for DaaviSetu endpoint)
-      const caseRes = await api.kadi.createCase({ consent_opt_in: true });
+      if (!activeCaseId) {
+        // Initialize case session in Kadi without simulated dummy files
+        const caseRes = await api.kadi.createCase({ consent_opt_in: true });
+        activeCaseId = caseRes.id || caseRes.case_id || null;
+        setCaseId(activeCaseId);
+      }
 
-      // 2. Upload minimal document to populate case context
-      await api.kadi.uploadDocument(caseRes.id, {
-        uri: 'data:text/plain;base64,',
-        name: 'treatment.txt',
-        type: 'text/plain',
-      });
+      if (!activeCaseId) {
+        throw new Error('Unable to initialize active Kadi case session.');
+      }
 
-      // 3. Generate pre-auth package
-      const claimRes = await api.daavisetu.submitClaim(caseRes.id, {
-        policy_number: policyId,
-        patient_name: patientName,
-      });
+      // Generate pre-auth package with comprehensive form details
+      const claimRes = await api.daavisetu.submitClaim(activeCaseId, claimData);
       setResult(claimRes);
     } catch (err) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || 'Failed to generate pre-auth package.');
+      if (activeCaseId) {
+        await enqueueAction('SUBMIT_PREAUTH', {
+          caseId: activeCaseId,
+          claimData,
+        });
+        setOfflineQueued(true);
+      }
+      setError(
+        !isOnline
+          ? 'Device is offline. Pre-authorization request queued; will sync automatically when reconnected.'
+          : `${apiErr.message || 'Failed to generate pre-auth package.'}${activeCaseId ? ' (Queued for offline retry)' : ''}`
+      );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!caseId) return;
+    const pdfUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/pdf`;
+    try {
+      const supported = await Linking.canOpenURL(pdfUrl);
+      if (supported) {
+        await Linking.openURL(pdfUrl);
+      }
+    } catch (e) {
+      console.warn('Cannot open PDF URL:', e);
     }
   };
 
@@ -53,32 +109,66 @@ export const DaaviSetuScreen: React.FC = () => {
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary, fontSize: typography.sizes.xl }]}>
-          📋 {t.modules.daavisetu.title}
+          📋 {m.title}
         </Text>
-        <Badge label="Pre-Auth" variant="brand" />
+        <Badge label={m.statutory} variant="brand" />
       </View>
 
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
-        {t.modules.daavisetu.desc}
+        {m.desc}
       </Text>
 
       {/* Input Form */}
       <Card style={{ marginBottom: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, marginBottom: spacing.sm }]}>
-          Pre-Authorization Details
+          {m.cardTitle}
         </Text>
 
-        <TextInput style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]} placeholder="Patient Full Name" placeholderTextColor={colors.textMuted} value={patientName} onChangeText={setPatientName} />
-        <TextInput style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]} placeholder="Health Policy ID" placeholderTextColor={colors.textMuted} value={policyId} onChangeText={setPolicyId} />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.patientName}
+          placeholderTextColor={colors.textMuted}
+          value={patientName}
+          onChangeText={setPatientName}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.policyId}
+          placeholderTextColor={colors.textMuted}
+          value={policyId}
+          onChangeText={setPolicyId}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.hospitalName}
+          placeholderTextColor={colors.textMuted}
+          value={hospitalName}
+          onChangeText={setHospitalName}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.treatmentPlan}
+          placeholderTextColor={colors.textMuted}
+          value={treatmentPlan}
+          onChangeText={setTreatmentPlan}
+        />
 
         {error && <Text style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>⚠️ {error}</Text>}
 
-        <Button
-          title={loading ? 'Generating...' : '📄 Auto-Fill Pre-Authorization'}
-          onPress={handleGenerate}
-          variant="primary"
-          disabled={loading}
-        />
+        <View style={{ gap: spacing.xs, marginTop: spacing.xs }}>
+          <Button
+            title={loading ? m.generating : m.generateBtn}
+            onPress={handleGenerate}
+            variant="primary"
+            disabled={loading}
+          />
+
+          <Button
+            title="📷 Scan Admission / Policy Slip"
+            onPress={() => navigation.navigate('CameraScan', { documentType: 'general' })}
+            variant="outline"
+          />
+        </View>
       </Card>
 
       {/* Result */}
@@ -86,41 +176,51 @@ export const DaaviSetuScreen: React.FC = () => {
         <Card>
           <View style={[styles.row, { marginBottom: spacing.sm }]}>
             <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md, flex: 1 }}>
-              ✓ Generated Pre-Auth Package
+              {m.generatedTitle}
             </Text>
             <Badge label={result.claim_id} variant="info" />
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Patient:</Text>
+            <Text style={styles.fieldLabel}>{m.patient}</Text>
             <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>{result.form_data.patient_name}</Text>
           </View>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Policy:</Text>
+            <Text style={styles.fieldLabel}>{m.policy}</Text>
             <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>{result.form_data.policy_number}</Text>
           </View>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Hospital:</Text>
+            <Text style={styles.fieldLabel}>{m.hospital}</Text>
             <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>{result.form_data.hospital_name}</Text>
           </View>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Diagnosis:</Text>
+            <Text style={styles.fieldLabel}>{m.diagnosis}</Text>
             <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>{result.form_data.diagnosis}</Text>
           </View>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Treatment:</Text>
+            <Text style={styles.fieldLabel}>{m.treatment}</Text>
             <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>{result.form_data.treatment_plan}</Text>
           </View>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Cost:</Text>
+            <Text style={styles.fieldLabel}>{m.cost}</Text>
             <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>₹{result.form_data.estimated_cost.toLocaleString('en-IN')}</Text>
           </View>
 
           <View style={[styles.statusBar, { borderColor: '#22c55e' }]}>
             <Text style={{ color: '#22c55e', fontSize: 13 }}>
-              Status: {result.status === 'ready_for_review' ? '✓ Ready for Review' : result.status}
+              {m.status} {result.status === 'ready_for_review' ? `✓ ${m.readyForReview}` : result.status}
             </Text>
           </View>
+
+          {caseId && (
+            <View style={{ marginTop: spacing.sm }}>
+              <Button
+                title={m.downloadPdf}
+                onPress={handleDownloadPdf}
+                variant="outline"
+              />
+            </View>
+          )}
         </Card>
       )}
     </ScrollView>

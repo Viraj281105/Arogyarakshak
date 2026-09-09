@@ -36,9 +36,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!consentGiven) return;
-    const name = selectedFile ? selectedFile.name : "sample_hospital_bill.pdf";
-    onStartAudit(selectedFile, name);
+    if (!consentGiven || !selectedFile) return;
+    onStartAudit(selectedFile, selectedFile.name);
   };
 
 
@@ -155,7 +154,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={!consentGiven || isProcessing}
+            disabled={!consentGiven || !selectedFile || isProcessing}
           >
             {isProcessing ? (
               <>
