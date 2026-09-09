@@ -40,6 +40,10 @@ def test_create_and_get_case():
     get_data = get_response.json()
     assert get_data["case"]["id"] == case_id
     assert isinstance(get_data["entities"], list)
+    assert len(get_data["entities"]) >= 2
+    entity_names = [e["name"] for e in get_data["entities"]]
+    assert any("Consultation" in name for name in entity_names)
+    assert any("Ward Stay" in name for name in entity_names)
 
 
 
@@ -169,5 +173,93 @@ def test_billnyay_audit():
     assert "total_charged" in data
     assert "total_benchmark" in data
     assert isinstance(data["audit_items"], list)
+
+
+def test_daavisetu_pdf_download():
+    # 1. Create case
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    assert res_case.status_code == 201
+    case_id = res_case.json()["id"]
+
+    # 2. Upload treatment note
+    files = {"file": ("treatment.txt", b"Diagnosis: Appendicitis\nHospital: Apollo Hospital\nEstimated Cost: 45000")}
+    upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
+    assert upload_res.status_code == 202
+
+    # 3. Submit claim
+    claim_payload = {
+        "policy_number": "POL-STAR-774411",
+        "patient_name": "Viraj Jadhao",
+        "hospital_name": "Apollo Hospital",
+        "treatment_plan": "Laparoscopic Appendectomy",
+    }
+    claim_res = client.post(f"/api/v1/daavisetu/cases/{case_id}/claim", json=claim_payload)
+    assert claim_res.status_code == 200
+
+    # 4. Download PDF
+    pdf_res = client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf")
+    assert pdf_res.status_code == 200
+    assert pdf_res.headers["content-type"] == "application/pdf"
+    assert pdf_res.content.startswith(b"%PDF")
+
+
+def test_dawacheck_mobile_samples():
+    samples = [
+        ("Dolo 650mg Tablet", 33.5),
+        ("Augmentin 625 Duo Tablet", 220.0),
+        ("Metformin 500mg SR Tablet", 18.0),
+        ("Meropenem 1g Injection", 1850.0),
+    ]
+    for brand, mrp in samples:
+        res = client.post("/api/v1/dawacheck/benchmark", json={"brand_name": brand, "mrp": mrp})
+        assert res.status_code == 200
+        data = res.json()
+        assert data["nppa_ceiling_price"] > 0
+        assert data["active_ingredient"] != "Unknown"
+
+
+def test_cghs_rates_loaded_from_json():
+    """Proves the loaded CGHS dataset is the complete JSON dataset (> 20 items), not the 5-item fallback."""
+    from app.api.v1.endpoints.billnyay import CGHS_RATES
+    assert len(CGHS_RATES) > 20, f"Expected CGHS_RATES > 20 from JSON, got {len(CGHS_RATES)}"
+    assert "icu" in CGHS_RATES
+    assert "specialist consultation" in CGHS_RATES
+    assert "laparoscopic appendectomy" in CGHS_RATES
+
+
+def test_real_image_ocr_upload_and_persistence():
+    """Verifies that uploading a real image document executes EasyOCR, extracts entities, and persists them."""
+    import io
+    from PIL import Image, ImageDraw
+
+    # 1. Create patient case
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    assert res_case.status_code == 201
+    case_id = res_case.json()["id"]
+
+    # 2. Synthesize PNG bill image
+    img = Image.new("RGB", (600, 200), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.text((20, 30), "Hospital: Lifeline Clinic", fill=(0, 0, 0))
+    draw.text((20, 70), "Doctor Consultation: 500", fill=(0, 0, 0))
+    draw.text((20, 110), "Diagnostic Blood Test: 750", fill=(0, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    # 3. Upload image to Kadi upload endpoint
+    files = {"file": ("hospital_bill.png", png_bytes, "image/png")}
+    upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
+    assert upload_res.status_code == 202
+
+    # 4. Verify entities retrieved from DB
+    get_res = client.get(f"/api/v1/kadi/cases/{case_id}")
+    assert get_res.status_code == 200
+    case_data = get_res.json()
+    assert case_data["case"]["id"] == case_id
+    entities = case_data["entities"]
+    assert len(entities) > 0, "Expected entities to be extracted and persisted from real image OCR"
+
+
 
 

@@ -19,7 +19,15 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
     text = ""
     is_image = filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp"))
 
-    if is_image:
+    is_text = filename.lower().endswith((".txt", ".csv", ".json", ".log"))
+
+    if is_text:
+        try:
+            text = file_bytes.decode("utf-8", errors="ignore")
+        except Exception as e:
+            logger.warning(f"Text decoding fallback: {e}")
+            text = "Hospital Bill / Clinical Document text extraction."
+    elif is_image:
         try:
             import cv2
             import easyocr

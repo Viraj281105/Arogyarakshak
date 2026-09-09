@@ -7,6 +7,8 @@ import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge } from '../components';
 import { api, DawaCheckBenchmarkResponse, ApiError } from '../api';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,6 +28,9 @@ export const DawaCheckScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { colors, spacing, typography } = useTheme();
   const { t } = useLanguage();
+  const { enqueueAction } = useOfflineQueue();
+  const { isOnline } = useNetworkStatus();
+  const m = t.modules.dawacheck;
 
   // Search state
   const [brandName, setBrandName] = useState('Paracetamol 650mg');
@@ -35,6 +40,7 @@ export const DawaCheckScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DawaCheckBenchmarkResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offlineQueued, setOfflineQueued] = useState(false);
 
   const handleBenchmark = async (targetBrand?: string, targetMrp?: string) => {
     const brandToQuery = (targetBrand ?? brandName).trim();
@@ -51,6 +57,7 @@ export const DawaCheckScreen: React.FC = () => {
 
     setLoading(true);
     setError(null);
+    setOfflineQueued(false);
 
     try {
       const response = await api.dawacheck.benchmark({
@@ -60,7 +67,16 @@ export const DawaCheckScreen: React.FC = () => {
       setResult(response);
     } catch (err) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || 'Failed to check medicine pricing.');
+      await enqueueAction('BENCHMARK_MEDICINE', {
+        brand_name: brandToQuery,
+        mrp: mrpVal,
+      });
+      setOfflineQueued(true);
+      setError(
+        !isOnline
+          ? 'Device is offline. Medicine audit queued; will sync automatically when reconnected.'
+          : `${apiErr.message || 'Failed to check medicine pricing.'} (Queued for offline retry)`
+      );
     } finally {
       setLoading(false);
     }
@@ -79,23 +95,23 @@ export const DawaCheckScreen: React.FC = () => {
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary, fontSize: typography.sizes.xl }]}>
-          💊 {t.modules.dawacheck.title}
+          💊 {m.title}
         </Text>
-        <Badge label="DPCO 2013 / NPPA" variant="warning" />
+        <Badge label={m.statutory} variant="warning" />
       </View>
 
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
-        {t.modules.dawacheck.desc}
+        {m.desc}
       </Text>
 
       {/* Pricing Audit Form */}
       <Card style={{ marginBottom: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, marginBottom: spacing.sm }]}>
-          NPPA Schedule-I Ceiling Rate Check
+          {m.cardTitle}
         </Text>
 
         <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 4 }]}>
-          Brand / Generic Formulation Name
+          {m.brandOrGeneric}
         </Text>
         <TextInput
           style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
@@ -106,7 +122,7 @@ export const DawaCheckScreen: React.FC = () => {
         />
 
         <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 4 }]}>
-          Charged MRP / Unit Price (₹)
+          {m.chargedMrp}
         </Text>
         <TextInput
           style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
@@ -119,7 +135,7 @@ export const DawaCheckScreen: React.FC = () => {
 
         {/* Quick Test Samples */}
         <Text style={[styles.fieldLabel, { color: colors.textMuted, marginTop: 4, marginBottom: 6 }]}>
-          Quick verification samples:
+          {m.quickSamples}
         </Text>
         <View style={styles.samplesContainer}>
           {QUICK_SAMPLES.map((sample, idx) => (
@@ -143,7 +159,7 @@ export const DawaCheckScreen: React.FC = () => {
 
         <View style={{ marginTop: spacing.sm }}>
           <Button
-            title={loading ? 'Checking NPPA Ceiling...' : '🔍 Check Price Compliance'}
+            title={loading ? m.checking : m.checkBtn}
             onPress={() => handleBenchmark()}
             variant="primary"
             disabled={loading}
@@ -152,7 +168,7 @@ export const DawaCheckScreen: React.FC = () => {
 
         <View style={{ marginTop: spacing.sm }}>
           <Button
-            title="📷 Scan Medicine Packaging / Strip"
+            title={m.scanStrip}
             onPress={() => navigation.navigate('CameraScan', { documentType: 'prescription' })}
             variant="outline"
           />
@@ -168,30 +184,30 @@ export const DawaCheckScreen: React.FC = () => {
                 {result.brand_name}
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                Active API: {result.active_ingredient}
+                {m.activeApi} {result.active_ingredient}
               </Text>
             </View>
             <Badge
-              label={result.is_overcharged ? `⚠️ Overcharged (+${result.deviation_percentage}%)` : '✓ Fair Price'}
+              label={result.is_overcharged ? `⚠️ ${m.overcharged} (+${result.deviation_percentage}%)` : `✓ ${m.fairPrice}`}
               variant={result.is_overcharged ? 'danger' : 'success'}
             />
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Charged MRP</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.chargedMrp}</Text>
               <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.md, fontWeight: '700' }}>
                 ₹{result.mrp.toFixed(2)}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>NPPA Ceiling Cap</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.nppaCap}</Text>
               <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.md, fontWeight: '700' }}>
                 ₹{result.nppa_ceiling_price.toFixed(2)}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Deviation</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.deviation}</Text>
               <Text style={{ color: result.is_overcharged ? '#ef4444' : '#22c55e', fontSize: typography.sizes.md, fontWeight: '700' }}>
                 {result.deviation_percentage > 0 ? `+${result.deviation_percentage}%` : '0%'}
               </Text>
@@ -202,7 +218,7 @@ export const DawaCheckScreen: React.FC = () => {
           {result.generic_substitute_available && (
             <View style={[styles.genericCard, { borderColor: '#22c55e' }]}>
               <Text style={{ color: '#22c55e', fontWeight: '700', fontSize: 13, marginBottom: 4 }}>
-                💊 Low-Cost Generic Substitute Available
+                {m.genericAvailable}
               </Text>
               <Text style={{ color: colors.textPrimary, fontSize: 12, lineHeight: 18 }}>
                 {result.generic_substitute_store_info}
@@ -215,10 +231,10 @@ export const DawaCheckScreen: React.FC = () => {
       {/* Statutory DPCO 2013 Provision Notice */}
       <View style={[styles.advisoryCard, { backgroundColor: 'rgba(6, 182, 212, 0.08)', borderColor: 'rgba(6, 182, 212, 0.2)' }]}>
         <Text style={{ color: colors.brandCyan, fontWeight: '700', fontSize: 12, marginBottom: 4 }}>
-          💡 Statutory Consumer Right (DPCO 2013)
+          {m.statutoryNoticeTitle}
         </Text>
         <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 17 }}>
-          Under the Drugs (Prices Control) Order, 2013 and the Essential Commodities Act, 1955, charging above the notified NPPA ceiling price is an illegal punishable offence. Retail pharmacies are statutorily required to dispense equivalent generic formulations upon request.
+          {m.statutoryNoticeBody}
         </Text>
       </View>
     </ScrollView>

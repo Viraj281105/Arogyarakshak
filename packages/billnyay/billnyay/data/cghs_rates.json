@@ -1,0 +1,194 @@
+{
+  "version": "CGHS-2024-REVISED",
+  "rates": {
+    "consultation": {
+      "name": "OPD Consultation (General / Specialist)",
+      "benchmark_rate": 350.0,
+      "category": "Consultation",
+      "bundled": false,
+      "notes": "Revised CGHS 2024 consultation ceiling."
+    },
+    "specialist consultation": {
+      "name": "Specialist / Super-Specialist Consultation",
+      "benchmark_rate": 500.0,
+      "category": "Consultation",
+      "bundled": false,
+      "notes": "Super-specialist consultation ceiling."
+    },
+    "icu": {
+      "name": "ICU Charges (including nursing, monitoring, resident doctor)",
+      "benchmark_rate": 5400.0,
+      "category": "Room & Critical Care",
+      "bundled": false,
+      "notes": "CGHS NABH accredited ICU ceiling cap per 24 hours."
+    },
+    "icu day charges": {
+      "name": "ICU Day Charges (NABH)",
+      "benchmark_rate": 5400.0,
+      "category": "Room & Critical Care",
+      "bundled": false,
+      "notes": "Includes resident doctor and patient monitoring."
+    },
+    "ward stay": {
+      "name": "General Ward Bed Charges",
+      "benchmark_rate": 1500.0,
+      "category": "Room Tariff",
+      "bundled": false,
+      "notes": "General ward daily tariff cap."
+    },
+    "semi private ward": {
+      "name": "Semi-Private Ward Charges",
+      "benchmark_rate": 3000.0,
+      "category": "Room Tariff",
+      "bundled": false,
+      "notes": "Semi-private room ceiling cap."
+    },
+    "private ward": {
+      "name": "Single Private Room Charges",
+      "benchmark_rate": 4500.0,
+      "category": "Room Tariff",
+      "bundled": false,
+      "notes": "Single room ceiling cap."
+    },
+    "deluxe ward": {
+      "name": "Deluxe Room Charges",
+      "benchmark_rate": 4500.0,
+      "category": "Room Tariff",
+      "bundled": false,
+      "notes": "Room rent capping benchmark under IRDAI guidelines."
+    },
+    "nursing charges": {
+      "name": "Routine Nursing Charges",
+      "benchmark_rate": 0.0,
+      "category": "Nursing",
+      "bundled": true,
+      "notes": "Mandatorily bundled into room tariff under CGHS and IRDAI rules."
+    },
+    "syringe infusion pump": {
+      "name": "Syringe Infusion Pump Hire",
+      "benchmark_rate": 0.0,
+      "category": "Equipment",
+      "bundled": true,
+      "notes": "Infusion equipment is bundled into ICU day tariffs; unbundling is an irregularity."
+    },
+    "infusion pump": {
+      "name": "Infusion Pump Charges",
+      "benchmark_rate": 0.0,
+      "category": "Equipment",
+      "bundled": true,
+      "notes": "Bundled into critical care tariff."
+    },
+    "ppe": {
+      "name": "Disposable PPE Kit (per shift)",
+      "benchmark_rate": 650.0,
+      "category": "Consumables",
+      "bundled": false,
+      "notes": "CGHS / NPPA capped rate per standard shift kit."
+    },
+    "ppe kit": {
+      "name": "Disposable PPE Kit (per shift)",
+      "benchmark_rate": 650.0,
+      "category": "Consumables",
+      "bundled": false,
+      "notes": "CGHS / NPPA capped rate per standard shift kit."
+    },
+    "paracetamol iv": {
+      "name": "Paracetamol IV Infusion 100ml",
+      "benchmark_rate": 42.0,
+      "category": "Pharmacy",
+      "bundled": false,
+      "notes": "NPPA DPCO Schedule-I price ceiling."
+    },
+    "x-ray": {
+      "name": "Chest / General Digital X-Ray",
+      "benchmark_rate": 350.0,
+      "category": "Diagnostics",
+      "bundled": false,
+      "notes": "Standard 2-view digital radiography."
+    },
+    "blood test": {
+      "name": "Complete Blood Count (CBC) / Routine Panel",
+      "benchmark_rate": 250.0,
+      "category": "Pathology",
+      "bundled": false,
+      "notes": "Routine hematology automated panel."
+    },
+    "mri": {
+      "name": "MRI Scan (Brain / Spine without contrast)",
+      "benchmark_rate": 3500.0,
+      "category": "Radiology",
+      "bundled": false,
+      "notes": "Standard 1.5T/3T MRI study."
+    },
+    "ct scan": {
+      "name": "CT Scan (Brain / Abdomen without contrast)",
+      "benchmark_rate": 2000.0,
+      "category": "Radiology",
+      "bundled": false,
+      "notes": "Multi-slice helical CT."
+    },
+    "ultrasound": {
+      "name": "USG Whole Abdomen & Pelvis",
+      "benchmark_rate": 700.0,
+      "category": "Diagnostics",
+      "bundled": false,
+      "notes": "Diagnostic abdominal sonography."
+    },
+    "laparoscopic surgery": {
+      "name": "Laparoscopic Surgery (Appendectomy / Cholecystectomy)",
+      "benchmark_rate": 28000.0,
+      "category": "Surgical",
+      "bundled": false,
+      "notes": "Comprehensive procedure package including OT charges."
+    },
+    "laparoscopic appendectomy": {
+      "name": "Laparoscopic Appendectomy Package",
+      "benchmark_rate": 28000.0,
+      "category": "Surgical",
+      "bundled": false,
+      "notes": "NABH package rate."
+    },
+    "coronary angioplasty": {
+      "name": "PTCA Coronary Angioplasty (Single Stent)",
+      "benchmark_rate": 65000.0,
+      "category": "Cardiology",
+      "bundled": false,
+      "notes": "Procedure package excluding DES stent cost."
+    },
+    "coronary artery bypass": {
+      "name": "CABG (Heart Bypass Surgery)",
+      "benchmark_rate": 125000.0,
+      "category": "Cardiology",
+      "bundled": false,
+      "notes": "NABH elective bypass surgery package."
+    },
+    "cabg": {
+      "name": "CABG (Heart Bypass Surgery)",
+      "benchmark_rate": 125000.0,
+      "category": "Cardiology",
+      "bundled": false,
+      "notes": "NABH elective bypass surgery package."
+    },
+    "total knee replacement": {
+      "name": "Total Knee Replacement (Unilateral)",
+      "benchmark_rate": 95000.0,
+      "category": "Orthopedics",
+      "bundled": false,
+      "notes": "Package excluding NPPA-capped knee implant."
+    },
+    "cataract surgery": {
+      "name": "Cataract Surgery with Foldable IOL",
+      "benchmark_rate": 12000.0,
+      "category": "Ophthalmology",
+      "bundled": false,
+      "notes": "Phacoemulsification package."
+    },
+    "dialysis": {
+      "name": "Hemodialysis (single session)",
+      "benchmark_rate": 1800.0,
+      "category": "Nephrology",
+      "bundled": false,
+      "notes": "Per-session dialysis inclusive of consumables."
+    }
+  }
+}

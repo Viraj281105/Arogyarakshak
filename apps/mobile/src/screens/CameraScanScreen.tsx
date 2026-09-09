@@ -64,7 +64,27 @@ export const CameraScanScreen: React.FC = () => {
         });
       }
 
-      navigation.goBack();
+      if (documentType === 'bill' || documentType === 'general') {
+        (navigation as any).navigate('MainTabs', {
+          screen: 'BillNyay',
+          params: { caseId: result.caseId, scanCompleted: true },
+        });
+      } else if (documentType === 'denial') {
+        (navigation as any).navigate('MainTabs', {
+          screen: 'BimaNyay',
+          params: { caseId: result.caseId, scanCompleted: true },
+        });
+      } else if (documentType === 'prescription') {
+        (navigation as any).navigate('MainTabs', {
+          screen: 'DawaCheck',
+          params: { caseId: result.caseId, scanCompleted: true },
+        });
+      } else {
+        (navigation as any).navigate('MainTabs', {
+          screen: 'BillNyay',
+          params: { caseId: result.caseId, scanCompleted: true },
+        });
+      }
     } catch (err: any) {
       console.warn('[CameraScan] Upload failed:', err);
       setErrorMessage(err.message || 'Failed to upload document to Kadi layer');

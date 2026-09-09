@@ -56,7 +56,12 @@ export default function Home() {
   const t = translations[currentLang];
 
   const handleStartAudit = async (file: File | null, fileName: string) => {
-    setActiveFileName(fileName);
+    if (!file) {
+      setErrorMessage("Please select or drop a valid document file before starting the audit.");
+      return;
+    }
+
+    setActiveFileName(fileName || file.name);
     setIsProcessing(true);
     setPipelineStep(1);
     setErrorMessage(null);
@@ -83,16 +88,7 @@ export default function Home() {
 
       // 2. Upload document to /kadi/cases/{case_id}/upload
       const formData = new FormData();
-      if (file) {
-        formData.append("file", file);
-      } else {
-        const dummyContent = "Consultation: ₹500.00\nWard Stay: ₹2500.00\nTotal Bill: ₹3000.00";
-        formData.append(
-          "file",
-          new Blob([dummyContent], { type: "text/plain" }),
-          fileName || "sample_hospital_bill.txt"
-        );
-      }
+      formData.append("file", file);
 
       const uploadRes = await fetch(`${API_BASE}/api/v1/kadi/cases/${newCaseId}/upload`, {
         method: "POST",

@@ -1,57 +1,70 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge } from '../components';
+import { Card, Button, Badge, AgentStreamVisualizer } from '../components';
 import { api, BillNyayAuditResponse, ApiError } from '../api';
+import { useSSEStream } from '../hooks/useSSEStream';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type BillNyayRouteProp = RouteProp<BottomTabParamList, 'BillNyay'>;
 
 export const BillNyayScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<BillNyayRouteProp>();
   const { colors, spacing, typography } = useTheme();
   const { t } = useLanguage();
+  const m = t.modules.billnyay;
 
   const [loading, setLoading] = useState(false);
   const [auditResult, setAuditResult] = useState<BillNyayAuditResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [caseId, setCaseId] = useState<string | null>(null);
+  const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
 
-  const handleStartAudit = async () => {
+  const sse = useSSEStream(caseId || undefined);
+
+  useEffect(() => {
+    if (route.params?.caseId) {
+      setCaseId(route.params.caseId || null);
+      // Auto-trigger audit if coming directly from completed scan
+      if (route.params.scanCompleted) {
+        handleRunAudit(route.params.caseId);
+      }
+    }
+  }, [route.params?.caseId, route.params?.scanCompleted]);
+
+  const handleRunAudit = async (targetCaseId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Create case
-      const caseRes = await api.kadi.createCase({ consent_opt_in: true });
-      setCaseId(caseRes.id);
+      let activeId: string | null = targetCaseId || caseId;
+      if (!activeId) {
+        // Create a case session in Kadi if one does not exist
+        const caseRes = await api.kadi.createCase({ consent_opt_in: true });
+        activeId = caseRes.id || caseRes.case_id || null;
+        setCaseId(activeId);
+      }
 
-      // 2. Navigate to camera to capture bill, then audit
-      // For now, run a simulated upload and audit flow
-      const formData = new FormData();
-      formData.append('file', {
-        uri: 'data:text/plain;base64,Q29uc3VsdGF0aW9uOiA1MDAKV2FyZCBTdGF5OiAyNTAwClRvdGFsOiAzMDAw',
-        name: 'bill.txt',
-        type: 'text/plain',
-      } as any);
+      if (!activeId) {
+        throw new Error('Unable to initialize active Kadi case session.');
+      }
 
-      await api.kadi.uploadDocument(caseRes.id, {
-        uri: 'data:text/plain;base64,',
-        name: 'bill.txt',
-        type: 'text/plain',
-      });
-
-      // 3. Run audit
-      const result = await api.billnyay.audit(caseRes.id);
+      // Execute CGHS 2024 line-item benchmark audit
+      const result = await api.billnyay.audit(activeId);
       setAuditResult(result);
     } catch (err) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || 'Failed to run bill audit.');
+      setError(apiErr.message || 'Failed to run hospital bill audit.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenScanner = () => {
+    navigation.navigate('CameraScan', { documentType: 'bill' });
   };
 
   return (
@@ -61,21 +74,39 @@ export const BillNyayScreen: React.FC = () => {
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary, fontSize: typography.sizes.xl }]}>
-          ⚖️ {t.modules.billnyay.title}
+          ⚖️ {m.title}
         </Text>
-        <Badge label={t.modules.billnyay.statutory} variant="info" />
+        <Badge label={m.statutory} variant="info" />
       </View>
 
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-        {t.modules.billnyay.desc}
+        {m.desc}
       </Text>
+
+      {caseId && (
+        <View style={[styles.activeCaseNotice, { backgroundColor: 'rgba(6, 182, 212, 0.1)', borderColor: colors.brandCyan }]}>
+          <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.xs, fontWeight: '600' }}>
+            {m.activeCaseReady} (Case: {caseId.slice(0, 8)}...)
+          </Text>
+        </View>
+      )}
+
+      {caseId && (sse.isStreaming || sse.progress > 0) && (
+        <AgentStreamVisualizer
+          progress={sse.progress}
+          latestEvent={sse.latestEvent}
+          isStreaming={sse.isStreaming}
+          isCompleted={sse.isCompleted}
+          error={sse.error}
+        />
+      )}
 
       <Card style={{ marginVertical: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>
-          Hospital Discharge Bill Audit
+          {m.cardTitle}
         </Text>
         <Text style={[styles.cardBody, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginVertical: spacing.sm }]}>
-          Scan any IPD/OPD hospital bill to detect inflated room rent charges, unbundled surgical consumables, and tariff rates exceeding the official CGHS 2024 benchmarks.
+          {m.cardBody}
         </Text>
 
         {error && (
@@ -84,37 +115,45 @@ export const BillNyayScreen: React.FC = () => {
           </Text>
         )}
 
-        <Button
-          title={loading ? 'Auditing...' : t.modules.billnyay.cta}
-          onPress={handleStartAudit}
-          variant="primary"
-          style={{ marginTop: spacing.xs }}
-          disabled={loading}
-        />
+        <View style={{ gap: spacing.xs, marginTop: spacing.xs }}>
+          <Button
+            title={m.scanBillBtn}
+            onPress={handleOpenScanner}
+            variant="outline"
+            disabled={loading}
+          />
+
+          <Button
+            title={loading ? m.auditing : m.cta}
+            onPress={() => handleRunAudit()}
+            variant="primary"
+            disabled={loading}
+          />
+        </View>
       </Card>
 
       {/* Audit Results */}
       {auditResult && (
         <Card style={{ marginVertical: spacing.sm }}>
           <Text style={[styles.cardTitle, { color: colors.textPrimary, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
-            Audit Results
+            {m.auditResults}
           </Text>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Charged</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.charged}</Text>
               <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.md, fontWeight: '700' }}>
                 ₹{auditResult.total_charged.toLocaleString('en-IN')}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>CGHS Cap</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.cghsCap}</Text>
               <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.md, fontWeight: '700' }}>
                 ₹{auditResult.total_benchmark.toLocaleString('en-IN')}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Flagged</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.flagged}</Text>
               <Text style={{ color: '#ef4444', fontSize: typography.sizes.md, fontWeight: '700' }}>
                 {auditResult.deviations_count}
               </Text>
@@ -130,8 +169,8 @@ export const BillNyayScreen: React.FC = () => {
                 {item.item_name}
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-                Charged: ₹{item.charged} | CGHS: ₹{item.cghs_benchmark}
-                {item.is_deviation ? ` | +${item.deviation_percentage}%` : ' | ✓ Fair'}
+                {m.charged}: ₹{item.charged} | {m.cghsCap}: ₹{item.cghs_benchmark}
+                {item.is_deviation ? ` | +${item.deviation_percentage}%` : ` | ${m.fair}`}
               </Text>
             </View>
           ))}
@@ -147,6 +186,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   title: { fontWeight: '700' },
   desc: { lineHeight: 22 },
+  activeCaseNotice: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6, marginTop: 8 },
   cardTitle: { fontWeight: '600' },
   cardBody: { lineHeight: 20 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },

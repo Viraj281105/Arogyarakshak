@@ -83,7 +83,7 @@ jobs:
           pip install -e packages/bimanyay
           pip install -e packages/schemesetu
           pip install -e packages/dawacheck
-          pip install pytest pytest-asyncio pytest-cov aiosqlite httpx ruff
+          pip install pytest pytest-asyncio pytest-cov aiosqlite httpx ruff reportlab
 
       - name: Python Code Syntax & Lint Check (Ruff)
         run: |

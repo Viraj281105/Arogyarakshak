@@ -4,10 +4,15 @@ import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge } from '../components';
 import { api, SchemeResult, ApiError } from '../api';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export const SchemeSetuScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
   const { t } = useLanguage();
+  const { enqueueAction } = useOfflineQueue();
+  const { isOnline } = useNetworkStatus();
+  const m = t.modules.schemesetu;
 
   // Form state
   const [income, setIncome] = useState('120000');
@@ -19,21 +24,32 @@ export const SchemeSetuScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SchemeResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offlineQueued, setOfflineQueued] = useState(false);
 
   const handleCheck = async () => {
     setLoading(true);
     setError(null);
+    setOfflineQueued(false);
+
+    const payload = {
+      income: parseFloat(income) || 0,
+      location_state: state,
+      category,
+      medical_need: medicalNeed,
+    };
+
     try {
-      const data = await api.schemesetu.checkEligibility({
-        income: parseFloat(income) || 0,
-        location_state: state,
-        category,
-        medical_need: medicalNeed,
-      });
+      const data = await api.schemesetu.checkEligibility(payload);
       setResults(data);
     } catch (err) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || 'Failed to check eligibility.');
+      await enqueueAction('CHECK_SCHEME', payload);
+      setOfflineQueued(true);
+      setError(
+        !isOnline
+          ? 'Device is offline. Eligibility check queued; will sync automatically when reconnected.'
+          : `${apiErr.message || 'Failed to check eligibility.'} (Queued for offline retry)`
+      );
     } finally {
       setLoading(false);
     }
@@ -46,30 +62,55 @@ export const SchemeSetuScreen: React.FC = () => {
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary, fontSize: typography.sizes.xl }]}>
-          🏛️ {t.modules.schemesetu.title}
+          🏛️ {m.title}
         </Text>
-        <Badge label="PMJAY / MJPJAY" variant="success" />
+        <Badge label={m.statutory} variant="success" />
       </View>
 
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
-        {t.modules.schemesetu.desc}
+        {m.desc}
       </Text>
 
       {/* Input Form */}
       <Card style={{ marginBottom: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, marginBottom: spacing.sm }]}>
-          Eligibility Assessment
+          {m.cardTitle}
         </Text>
 
-        <TextInput style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]} placeholder="Annual Family Income (₹)" keyboardType="numeric" placeholderTextColor={colors.textMuted} value={income} onChangeText={setIncome} />
-        <TextInput style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]} placeholder="State of Residence" placeholderTextColor={colors.textMuted} value={state} onChangeText={setState} />
-        <TextInput style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]} placeholder="Social Category (General, SC, ST, OBC)" placeholderTextColor={colors.textMuted} value={category} onChangeText={setCategory} />
-        <TextInput style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]} placeholder="Required Medical Procedure" placeholderTextColor={colors.textMuted} value={medicalNeed} onChangeText={setMedicalNeed} />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.income}
+          keyboardType="numeric"
+          placeholderTextColor={colors.textMuted}
+          value={income}
+          onChangeText={setIncome}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.state}
+          placeholderTextColor={colors.textMuted}
+          value={state}
+          onChangeText={setState}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.category}
+          placeholderTextColor={colors.textMuted}
+          value={category}
+          onChangeText={setCategory}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.medicalNeed}
+          placeholderTextColor={colors.textMuted}
+          value={medicalNeed}
+          onChangeText={setMedicalNeed}
+        />
 
         {error && <Text style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>⚠️ {error}</Text>}
 
         <Button
-          title={loading ? 'Checking...' : '🔍 Check Scheme Eligibility'}
+          title={loading ? m.checking : m.checkBtn}
           onPress={handleCheck}
           variant="primary"
           disabled={loading}
@@ -86,7 +127,7 @@ export const SchemeSetuScreen: React.FC = () => {
                 {scheme.scheme_name}
               </Text>
               <Badge
-                label={isEligible ? `${(scheme.confidence_score * 100).toFixed(0)}% Match` : 'Not Eligible'}
+                label={isEligible ? `${(scheme.confidence_score * 100).toFixed(0)}% ${m.match}` : m.notEligible}
                 variant={isEligible ? 'success' : 'danger'}
               />
             </View>
@@ -98,7 +139,7 @@ export const SchemeSetuScreen: React.FC = () => {
             {isEligible && scheme.claim_guide_steps.length > 0 && (
               <View style={{ marginTop: spacing.xs }}>
                 <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13, marginBottom: 4 }}>
-                  How to Claim:
+                  {m.howToClaim}
                 </Text>
                 {scheme.claim_guide_steps.map((step, sIdx) => (
                   <Text key={sIdx} style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 18, paddingLeft: 8 }}>
@@ -113,7 +154,7 @@ export const SchemeSetuScreen: React.FC = () => {
 
       {results && results.length === 0 && (
         <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md }}>
-          No government health scheme matches found for the given criteria.
+          {m.noMatches}
         </Text>
       )}
     </ScrollView>

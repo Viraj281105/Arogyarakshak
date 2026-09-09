@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi } from "../../hooks/useApi";
+import { useApi, API_BASE } from "../../hooks/useApi";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -41,6 +41,8 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
       body: {
         policy_number: policyId,
         patient_name: patientName,
+        hospital_name: hospital,
+        treatment_plan: treatment,
       },
     });
   };
@@ -209,6 +211,15 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
             >
               📋 Copy Package Summary
             </button>
+            <a
+              href={`${API_BASE}/api/v1/daavisetu/cases/${caseId}/claim/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              📥 Download Form VI / Pre-Auth PDF
+            </a>
           </div>
         </div>
       )}

@@ -3,11 +3,11 @@ import { DocumentScanType } from '../services/scanner';
 
 export type BottomTabParamList = {
   Home: undefined;
-  BillNyay: undefined;
-  DaaviSetu: undefined;
-  BimaNyay: undefined;
+  BillNyay: { caseId?: string; scanCompleted?: boolean } | undefined;
+  DaaviSetu: { caseId?: string; scanCompleted?: boolean } | undefined;
+  BimaNyay: { caseId?: string; scanCompleted?: boolean } | undefined;
   SchemeSetu: undefined;
-  DawaCheck: undefined;
+  DawaCheck: { caseId?: string; scanCompleted?: boolean } | undefined;
 };
 
 export type RootStackParamList = {
