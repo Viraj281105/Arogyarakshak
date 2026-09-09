@@ -424,6 +424,16 @@ Phase 5: Submission & Demo Polish (FUTURE)
     - Replaced external clipboard dependency with native `Share.share` in `BimaNyayScreen.tsx` (zero additional native dependencies required).
     - Verified `apps/mobile`: `npm run type-check` (`tsc --noEmit` passed with 0 errors) and `npm test` (10/10 tests passed).
 
+- **CI/CD Pipeline Production Hardening (`.github/workflows/ci.yml` & `scripts/ci_guardrails.py`)**:
+  - Replaced basic 56-line test script with an enterprise multi-stage CI/CD pipeline featuring **6 parallel, specialized stages**:
+    1. **Architectural Invariants & Security Guard** (`governance-and-invariants`): Standalone Python scanner (`scripts/ci_guardrails.py`) validating BYOD zero-retention (zero persistent document directories), model grounding (prohibiting deprecated Groq models `llama3-70b` and `llama-3.3-70b-versatile`), lowercase monorepo package hygiene, database table prefix conventions (`kadi_*`, `billnyay_*`, etc.), and accidental API key leak prevention.
+    2. **Backend Integration & Domain Matrix** (`backend-ci`): PostgreSQL 16 + `pgvector` service container with health checks, pip caching, install of all 6 local packages (`kadi`, `billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`), Ruff static analysis, full pytest execution with term/XML coverage reporting, and coverage artifact upload.
+    3. **Web Client Production Gate** (`web-ci`): Node.js 20 with npm caching, Next.js build cache restoration, ESLint check (`npm run lint`), and Next.js 16 production build verification (`npm run build`).
+    4. **Mobile Client Production Gate** (`mobile-ci`): Node.js 20 with npm caching, TypeScript type-check (`npm run type-check`), and complete test suite execution (`npm test`).
+    5. **Docker Infrastructure Verification** (`docker-verification`): Docker Compose configuration validation (`docker compose config --quiet`), Buildx layer caching via GitHub Actions cache (`type=gha`), and dry-run container builds for `apps/api/Dockerfile` (fixed missing `bimanyay` package) and `apps/web/Dockerfile`.
+    6. **Unified Branch Protection Gate** (`ci-gate`): Aggregates all upstream job results into a rich markdown GitHub Step Summary table and outputs a single green checkmark for GitHub branch protection rule enforcement.
+  - Configured concurrency cancellation (`cancel-in-progress: true`) to automatically kill obsolete runs on branch updates and prevent compute exhaustion.
+
 ---
 
 ## 18. Agent Handoff Notes
