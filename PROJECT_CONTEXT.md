@@ -17,12 +17,12 @@
 
 ## 2. Current Project Status
 
-- **Current Phase:** Phase 2 (Module Builds & Integrations) Active | Mobile App Foundation Scaffolded.
+- **Current Phase:** Phase 2 (Module Builds & Integrations) Active | Product Phase 1 (Web & Mobile Module API Wiring) Complete.
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Prototype / Alpha (All 6 core modules implemented & verified; 32 automated tests passing; Next.js 16 production build passing; Mobile app TypeScript check passing).
-- **Primary Focus:** Connecting mobile camera intake to FastAPI Kadi `/api/v1/kadi/upload` endpoint and advancing IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`.
-- **Last Major Milestone:** Mobile App Foundation (`apps/mobile`) Scaffolding Complete (Expo SDK 52, React Native, TypeScript, Navigation, API Client, BYOD Document Scanner, and Trilingual Design System; `npm run type-check` passing with 0 errors).
-- **Immediate Objective:** Connect mobile camera document scan output to Kadi multipart upload endpoint.
+- **System Stability:** Functional Prototype / Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 32 backend tests passing; 10 mobile tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors).
+- **Primary Focus:** Advancing IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi` and end-to-end integration testing.
+- **Last Major Milestone:** Product Phase 1 Complete (Web views + Mobile screens for BillNyay, DaaviSetu, BimaNyay, SchemeSetu, and DawaCheck wired to real backend API gateway; zero client-side mock templates remaining; full validation passing).
+- **Immediate Objective:** Cross-lingual Indic entity resolution in Kadi and offline queueing resilience for mobile client.
 - **Active Blockers:** None.
 
 ---
@@ -309,7 +309,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
     - `test_daavisetu_claim` (pre-claim pre-auth request verification)
     - `test_billnyay_audit` (5-agent bill audit line-item verification)
     - `test_bimanyay_analyze_multilingual` (multilingual API verification for Hindi and Marathi legal appeal packages)
-- **Frontend Linter & Build (`apps/web`)**: `npm run lint` passed with 0 errors, 0 warnings; `npm run build` compiled cleanly in 865ms (Next.js 16.2.10 / Turbopack; 100% static routes).
+- **Frontend Linter & Build (`apps/web`)**: `npm run lint` passed with 0 errors, 0 warnings; `npm run build` compiled cleanly in 870ms (Next.js 16.2.10 / Turbopack; 100% static routes).
+- **Mobile Client Test Suite (`apps/mobile`)**: `npm test` (`tsx --test`) passed with **10/10 passed in 195ms** (BYOD invariant guard, Kadi upload routing, createCase consent opt-in, multilingual BimaNyay API mapping, scanner payload validation, trilingual dictionary keys).
 - **Mobile Client Type-Check (`apps/mobile`)**: `npm run type-check` (`tsc --noEmit`) passed with **0 errors** across all navigation, screens, API types, hooks, and design system components.
 
 
@@ -384,50 +385,68 @@ Phase 5: Submission & Demo Polish (FUTURE)
   - **GitHub Issue Tracking**:
     - Updated issues #122, #123, #126, and #127 with verification test logs and implementation details.
 
-- **Mobile App Foundation (`apps/mobile`) Scaffolded**:
+- **Mobile App Foundation (`apps/mobile`) Scaffolded & Foundation Gaps Closed**:
   - Scaffolded cross-platform mobile client with **Expo SDK 52**, **React Native 0.76 (New Architecture enabled)**, and strict **TypeScript** (`tsconfig.json` with `@/*` aliases).
   - Built **Design System** in `src/theme/` mirroring web app tokens: dark base (`#0a0e17`), light base (`#f8fafc`), brand cyan (`#06b6d4`), fluid typography, and strictly enforced 44px touch targets (`--min-touch-target: 44px` / WCAG 2.1 SC 2.5.5).
   - Implemented **Trilingual Dictionary** in `src/translations/` supporting English, Hindi (`हिंदी`), and Marathi (`मराठी`).
   - Built **React Navigation Foundation** in `src/navigation/` with `BottomTabNavigator` (Home, BillNyay, DaaviSetu, BimaNyay, SchemeSetu, DawaCheck) and `RootNavigator` with modal camera presentation.
   - Implemented **Shared API Gateway Client** in `src/api/` with timeouts, normalized error payloads, and strongly typed routes mapped to all 5 domain endpoints and Kadi context layer.
-  - Built **Camera Scanner Foundation & Viewfinder** in `src/screens/CameraScanScreen.tsx` and `src/services/scanner.ts` with framing guides, flash toggle, and strict **BYOD zero retention** (images processed transiently in memory and expunged after extraction).
-  - Implemented **Offline-First Architecture Hooks** in `src/hooks/`: `useNetworkStatus`, `useOfflineStorage` (with secure storage and BYOD guard against storing raw medical records on disk), and `OfflineBanner`.
+  - Built **Real `expo-camera` Hardware Capture** in `src/screens/CameraScanScreen.tsx` with native `CameraView`, `useCameraPermissions()` reactive permission card, flash toggle, high-resolution `takePictureAsync({ quality: 0.85 })`, and graceful simulator/headless fallback.
+  - Implemented **Kadi Case Creation & Multipart Ingestion Pipeline** in `src/services/scanner.ts` and `src/api/endpoints.ts`: `processScanAndUpload()` creates a case via `api.kadi.createCase({ consent_opt_in: true })` and posts multipart document data to `/api/v1/kadi/cases/{caseId}/upload`.
+  - Enforced strict **BYOD Zero-Retention Invariant**: raw documents exist only in transient memory during extraction and are immediately expunged; persistent offline storage explicitly rejects raw medical records.
+  - Implemented **Offline-First Architecture Hooks** in `src/hooks/`: `useNetworkStatus`, `useOfflineStorage` (with secure storage and BYOD guard), and `OfflineBanner`.
   - Scaffolded **Accessible UI Primitives** in `src/components/`: `Header` (with BYOD badge, language and theme toggles), `Button` (>= 44px), `Card`, `Badge`, and `OfflineBanner`.
   - Built **Foundational Screen Shells** in `src/screens/`: `HomeScreen`, `BillNyayScreen`, `DaaviSetuScreen`, `BimaNyayScreen`, `SchemeSetuScreen`, and `DawaCheckScreen`.
+  - Authored **Automated Mobile Test Suite** in `tests/`: 10 tests across 4 suites covering BYOD invariant guard, Kadi upload routing contracts, consent opt-in, multilingual BimaNyay API mapping, scanner payload validation, and trilingual dictionary integrity (`tsx --test tests/**/*.test.ts`).
   - Authored comprehensive developer documentation in `apps/mobile/README.md`.
-  - Created GitHub Issue [#134](https://github.com/Viraj281105/Arogyarakshak/issues/134) and commented on [#128](https://github.com/Viraj281105/Arogyarakshak/issues/128#issuecomment-5597749602).
-  - Validated with `npm run type-check` (`tsc --noEmit` passing with 0 errors).
+  - Created GitHub Issue [#134](https://github.com/Viraj281105/Arogyarakshak/issues/134) and documented verification results and gap closures in comment [#5599098873](https://github.com/Viraj281105/Arogyarakshak/issues/134#issuecomment-5599098873).
+  - Validated with `npm run type-check` (`tsc --noEmit` passing with 0 errors) and `npm test` (10/10 passed).
+
+- **Product Phase 1: Full-Stack Web & Mobile Module API Integration Complete**:
+  - **Universal Web Module Wiring (`apps/web`)**:
+    - Created unified `useApi` hook in `apps/web/app/hooks/useApi.ts` providing standardized async lifecycle handling (loading, error, data states, AbortController timeout).
+    - Updated `page.tsx` to pass active `caseId` across all module views.
+    - Replaced all static/client-side string templates in module views with live backend endpoints:
+      - `BillNyayView.tsx`: Calls `POST /api/v1/billnyay/cases/{caseId}/audit`, rendering live CGHS benchmark deviations, room rent capping, unbundled charges, and audit item breakdown.
+      - `DawaCheckView.tsx`: Calls `POST /api/v1/dawacheck/benchmark`, verifying brand MRP against NPPA Schedule-I ceiling rates and surfacing PMBJP Jan Aushadhi generic equivalents.
+      - `SchemeSetuView.tsx`: Calls `POST /api/v1/schemesetu/eligibility`, sending income, state, category, and medical procedure to retrieve PMJAY/MJPJAY eligibility scores and step-by-step claim guides.
+      - `BimaNyayView.tsx`: Calls `POST /api/v1/bimanyay/analyze` (with language parameter) and `POST /api/v1/bimanyay/timeline`, displaying regulatory violations, reversal probability, multi-tier appeal drafts (GRO, Bima Bharosa, Ombudsman), and statutory SLA tracking.
+      - `DaaviSetuView.tsx`: Calls `POST /api/v1/daavisetu/cases/{caseId}/claim`, retrieving auto-populated cashless pre-authorization claim packages.
+    - Verified `apps/web`: `npm run lint` (0 errors, 0 warnings) and `npm run build` (Next.js 16 production build succeeded).
+  - **Universal Mobile Module Wiring (`apps/mobile`)**:
+    - Aligned mobile API request/response types in `src/api/types.ts` and route bindings in `src/api/endpoints.ts` with FastAPI schemas.
+    - Implemented full API integration across all 5 mobile module screens:
+      - `BillNyayScreen.tsx`: Kadi case creation, document upload, and `api.billnyay.audit` execution with live charged vs CGHS benchmark stats.
+      - `BimaNyayScreen.tsx`: Policy repudiation intake form, `api.bimanyay.analyze` with trilingual support, 3-tier appeal tabs, native `Share.share` draft export, and SLA timeline.
+      - `DaaviSetuScreen.tsx`: Pre-auth form generation via `api.daavisetu.submitClaim` with live claim ID and field breakdown.
+      - `SchemeSetuScreen.tsx`: Demographics & procedure intake form, `api.schemesetu.checkEligibility` evaluation, match confidence badges, and claim guide steps.
+      - `DawaCheckScreen.tsx`: NPPA ceiling rate audit form via `api.dawacheck.benchmark`, quick sample pill selectors, generic substitute locator, and camera scan integration.
+    - Replaced external clipboard dependency with native `Share.share` in `BimaNyayScreen.tsx` (zero additional native dependencies required).
+    - Verified `apps/mobile`: `npm run type-check` (`tsc --noEmit` passed with 0 errors) and `npm test` (10/10 tests passed).
 
 ---
 
 ## 18. Agent Handoff Notes
 
 ### Last Completed Work
-Scaffolded and validated the complete cross-platform **Mobile App Foundation (`apps/mobile`)**:
-1. **Expo + React Native + TypeScript Architecture**: Initialized Expo SDK 52 with TypeScript path aliases (`@/*`), `app.json`, `package.json`, and `.env.example`.
-2. **Design System & Theming**: Dark/light palettes matching `apps/web/app/globals.css`, Devanagari typography, and >= 44px touch targets.
-3. **Trilingual Localization**: Native dictionary supporting English, Hindi, and Marathi across all headers, navigation tabs, scanner instructions, and badges.
-4. **React Navigation Hierarchy**: Bottom tabs for all 5 modules and root stack with modal camera presentation.
-5. **Shared API Gateway**: Fetch-based client with timeouts, request/response models matching FastAPI, and domain endpoint mappings.
-6. **Camera Scanner & BYOD Guard**: Viewfinder framing overlay and transient image payload preparation for Kadi upload without persistent disk writes.
-7. **Offline-First Hooks**: `useNetworkStatus`, `useOfflineStorage`, and non-intrusive `OfflineBanner`.
-8. **Validation & Living Memory**: `apps/mobile: npm run type-check` (0 errors), `pytest` (32 passed), `apps/web: npm run lint` (0 errors), `apps/web: npm run build` (Turbopack 971ms), created GitHub issue #134, and updated issue #128.
+Successfully completed Product Phase 1 across both Web and Mobile client applications:
+1. **Web Client Fully Wired**: All 5 domain views (`BillNyayView`, `DaaviSetuView`, `BimaNyayView`, `SchemeSetuView`, `DawaCheckView`) now consume live FastAPI endpoints through `useApi`. All client-side mock template generation has been replaced with real server-driven analysis.
+2. **Mobile Client Fully Wired**: All 5 domain screens (`BillNyayScreen`, `DaaviSetuScreen`, `BimaNyayScreen`, `SchemeSetuScreen`, `DawaCheckScreen`) now invoke live API endpoints with loading spinners, error alerts, and rich structured result views.
+3. **Native Sharing & BYOD Guarantees Preserved**: BimaNyay appeal export uses React Native core `Share.share`; document scanning and uploads preserve strict BYOD zero-retention invariant.
+4. **Validation**:
+   - `apps/mobile`: `npm run type-check` passed with **0 errors**.
+   - `apps/mobile`: `npm test` passed with **10/10 tests passing**.
+   - Root `pytest`: **32/32 tests passed (100% passing in 2.50s)**.
+   - `apps/web`: `npm run lint` passed with **0 errors, 0 warnings**.
+   - `apps/web`: `npm run build` compiled successfully with **100% static routes**.
 
 ### Current State
-Repository now contains both web (`apps/web`) and mobile (`apps/mobile`) client foundations connecting to the unified FastAPI gateway (`apps/api`) and shared domain packages (`packages/`). All 32 backend tests pass with 0 warnings. Web app builds cleanly with 0 lint errors. Mobile app passes strict TypeScript checking with 0 errors.
-
-### What Was Verified
-- `apps/mobile`: `npm run type-check` passed with **0 errors**.
-- Root `pytest`: 32 passed (100%, 0 warnings in 2.67s).
-- `cd apps/web && npm run lint`: 0 errors, 0 warnings.
-- `cd apps/web && npm run build`: Compiled successfully in Turbopack (0 errors, 100% static routes in 971ms).
-- Verified zero persistent document storage in filesystem (BYOD compliance).
-- GitHub issue #134 created and issue #128 commented.
+Product Phase 1 is complete and fully verified. Both Web (`apps/web`) and Mobile (`apps/mobile`) interfaces are functional, strongly typed, and connected to the backend API gateway.
 
 ### Recommended Next Action
-Advance Mobile Document Ingestion:
-1. Connect mobile `CameraScanScreen` output directly to FastAPI Kadi `/api/v1/kadi/upload` endpoint and subscribe to SSE case streams.
+1. Implement real-time SSE stream consumption in Mobile client for live Kadi pipeline progress (matching the web implementation in `page.tsx`).
 2. Advance IndicXlit / IndicSBERT cross-lingual entity resolution formula in `packages/kadi`.
+3. Add offline queueing resilience for mobile client (`useOfflineStorage` queue for pending audits when offline).
 
 ---
 

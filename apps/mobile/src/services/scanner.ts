@@ -1,3 +1,6 @@
+import { api } from '../api';
+import { UploadResponse } from '../api/types';
+
 /**
  * ArogyaRakshak Document Scanner Foundation Service
  * Provides camera permission checking, document boundary definitions,
@@ -43,6 +46,40 @@ export const scannerService = {
       uri: doc.uri,
       name: filename,
       type: doc.mimeType || 'image/jpeg',
+    };
+  },
+
+  /**
+   * Complete BYOD Intake Pipeline:
+   * 1. Validates transient document.
+   * 2. Initializes case session via api.kadi.createCase({ consent_opt_in: true }).
+   * 3. Uploads image to api.kadi.uploadDocument(caseId, payload).
+   * 4. Returns caseId and upload metadata without persisting to disk.
+   */
+  processScanAndUpload: async (
+    doc: ScannedDocument,
+    userId: string = 'mobile_patient'
+  ): Promise<{ caseId: string; uploadResponse: UploadResponse }> => {
+    const validation = scannerService.validateScan(doc);
+    if (!validation.valid) {
+      throw new Error(validation.reason || 'Invalid scan document');
+    }
+
+    const caseRes = await api.kadi.createCase({
+      consent_opt_in: true,
+      user_id: userId,
+    });
+    const caseId = caseRes.id || caseRes.case_id;
+    if (!caseId) {
+      throw new Error('Failed to retrieve case ID from Kadi layer');
+    }
+
+    const payload = scannerService.createUploadPayload(doc);
+    const uploadRes = await api.kadi.uploadDocument(caseId, payload);
+
+    return {
+      caseId,
+      uploadResponse: uploadRes,
     };
   },
 };
