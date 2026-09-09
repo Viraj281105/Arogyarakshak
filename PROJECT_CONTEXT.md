@@ -397,7 +397,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
   - Implemented **Offline-First Architecture Hooks** in `src/hooks/`: `useNetworkStatus`, `useOfflineStorage` (with secure storage and BYOD guard), and `OfflineBanner`.
   - Scaffolded **Accessible UI Primitives** in `src/components/`: `Header` (with BYOD badge, language and theme toggles), `Button` (>= 44px), `Card`, `Badge`, and `OfflineBanner`.
   - Built **Foundational Screen Shells** in `src/screens/`: `HomeScreen`, `BillNyayScreen`, `DaaviSetuScreen`, `BimaNyayScreen`, `SchemeSetuScreen`, and `DawaCheckScreen`.
-  - Authored **Automated Mobile Test Suite** in `tests/`: 10 tests across 4 suites covering BYOD invariant guard, Kadi upload routing contracts, consent opt-in, multilingual BimaNyay API mapping, scanner payload validation, and trilingual dictionary integrity (`tsx --test tests/**/*.test.ts`).
+  - Authored **Automated Mobile Test Suite** in `tests/`: 10 tests across 4 suites covering BYOD invariant guard, Kadi upload routing contracts, consent opt-in, multilingual BimaNyay API mapping, scanner payload validation, and trilingual dictionary integrity (`npm test` via native `tsx --test`).
   - Authored comprehensive developer documentation in `apps/mobile/README.md`.
   - Created GitHub Issue [#134](https://github.com/Viraj281105/Arogyarakshak/issues/134) and documented verification results and gap closures in comment [#5599098873](https://github.com/Viraj281105/Arogyarakshak/issues/134#issuecomment-5599098873).
   - Validated with `npm run type-check` (`tsc --noEmit` passing with 0 errors) and `npm test` (10/10 passed).
