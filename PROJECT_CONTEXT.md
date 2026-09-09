@@ -144,7 +144,7 @@ arogyarakshak/
 | **FastAPI Gateway & Models** | Complete | `apps/api/app/` | `apps/api/README.md` | Yes (`test_api.py`) |
 | **BimaNyay IRDAI Engine** | Complete | `packages/bimanyay/` | `packages/bimanyay/README.md` | Yes (`test_bimanyay.py`, `test_api.py`) |
 | **Mobile-First Trilingual Web App**| Complete | `apps/web/` | `docs/architecture/repository-structure.md` | Yes (`npm run lint`, `npm run build`) |
-| **ArogyaRakshak Mobile App** | Planned | `apps/mobile/` | `docs/BimaNyay_and_Mobile_Architecture.md` | Pending Scaffold |
+| **ArogyaRakshak Mobile App** | Complete | `apps/mobile/` | `docs/architecture/bimanyay-and-mobile.md` | Yes (`npm test`) |
 
 
 ---
@@ -163,7 +163,7 @@ Scaffold the React Native / Expo client in `apps/mobile`, configure client-side 
 - `apps/api/app/api/v1/endpoints/kadi.py`
 
 ### Current Progress
-- [x] Architectural blueprint locked in `docs/BimaNyay_and_Mobile_Architecture.md`.
+- [x] Architectural blueprint locked in `docs/architecture/bimanyay-and-mobile.md`.
 - [x] Zero-overlap boundaries between DaaviSetu and BimaNyay codified.
 - [x] Task backlog items atomized in `docs/ArogyaRakshak_Task_Backlog.md`.
 - [x] Scaffold `packages/bimanyay/pyproject.toml` and package structure.
@@ -331,7 +331,9 @@ Phase 5: Submission & Demo Polish (FUTURE)
 | **Troubleshooting Guide** | [`docs/development/troubleshooting.md`](docs/development/troubleshooting.md) |
 | **Environment Variables** | [`docs/configuration/environment-variables.md`](docs/configuration/environment-variables.md) |
 | **API Endpoints** | [`docs/api/overview.md`](docs/api/overview.md) |
-| **BimaNyay & Mobile Blueprint** | [`docs/BimaNyay_and_Mobile_Architecture.md`](docs/BimaNyay_and_Mobile_Architecture.md) |
+| **BimaNyay & Mobile Blueprint** | [`docs/architecture/bimanyay-and-mobile.md`](docs/architecture/bimanyay-and-mobile.md) |
+| **Agile Planning & Sprints** | [`docs/planning/weekly-sprint-playbook.md`](docs/planning/weekly-sprint-playbook.md) |
+| **Academic & Research Portfolio** | [`docs/academic/README.md`](docs/academic/README.md) |
 | **Task Backlog** | [`docs/ArogyaRakshak_Task_Backlog.md`](docs/ArogyaRakshak_Task_Backlog.md) |
 
 ---
@@ -339,6 +341,13 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ## 17. Recent Changes
 
 ### 2026-09-09
+- **Documentation Directory Restructuring & Modernization**:
+  - Restructured `docs/` into distinct engineering, planning, and academic directories (`architecture/`, `api/`, `configuration/`, `development/`, `planning/`, `academic/`).
+  - Pruned obsolete, duplicate, and unrelated assets (`IndiaAI_Student_User_Manual.docx.pdf`, empty `docs/final/`, legacy duplicate PDFs and outdated decks from `v1/` and `v2/`).
+  - Relocated and consolidated academic deliverables, presentations, viva defense notes, and research papers under `docs/academic/` with a comprehensive index.
+  - Organized sprint playbooks, team division strategy, and futuristic roadmap under `docs/planning/`.
+  - Moved BimaNyay and Mobile architecture specification to `docs/architecture/bimanyay-and-mobile.md` and diagrams to `docs/architecture/diagrams/`.
+  - Updated developer guides (`setup.md`, `testing.md`) to include `bimanyay` and `apps/mobile` testing (42 tests passing across backend and mobile).
 - **Repository Documentation & Agent Readiness Overhaul**:
   - Authored comprehensive root `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, and `.gitattributes`.
   - Created `.github` templates (Bug Report, Feature Request, PR Template, CODEOWNERS, `.github/AGENTS.md`).

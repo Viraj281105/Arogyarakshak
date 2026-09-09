@@ -46,7 +46,7 @@ An agent must **never** consider an implementation complete until the correspond
 
 ## 1. Ground Rules (Mandatory for Every AI Agent & Every Task)
 
-- **Source of Truth**: Read `PROJECT_CONTEXT.md`, `docs/v1/ArogyaRakshak_Technical_Documentation.md`, and `docs/ArogyaRakshak_Task_Backlog.md` before starting any task. These are the source of truth for architecture, naming, and scope — do not deviate from them without flagging it back first.
+- **Source of Truth**: Read `PROJECT_CONTEXT.md`, `docs/academic/reports/ArogyaRakshak_Technical_Documentation.md`, and `docs/ArogyaRakshak_Task_Backlog.md` before starting any task. These are the source of truth for architecture, naming, and scope — do not deviate from them without flagging it back first.
 - **Model Grounding**: Never call the Groq model `llama3-70b` or `llama-3.3-70b-versatile` — both are deprecated. Always read the model name from the `GROQ_MODEL` environment variable, default `openai/gpt-oss-120b`.
 - **Fixed Naming Conventions**:
   - Module package directories are strictly lowercase: `billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`, `kadi`.
