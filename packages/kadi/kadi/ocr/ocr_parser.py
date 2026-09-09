@@ -51,13 +51,33 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
         if match:
             item_name = match.group(1).strip()
             price = float(match.group(2))
-            if len(item_name) > 3 and item_name.lower() not in [
+            lower_name = item_name.lower()
+            summary_terms = {
                 "total",
                 "subtotal",
+                "sub total",
+                "sub-total",
+                "grand total",
+                "total bill",
+                "total amount",
+                "total charges",
+                "net total",
+                "net amount",
+                "net payable",
+                "amount payable",
+                "balance due",
                 "date",
                 "invoice",
                 "tax",
-            ]:
+                "gst",
+                "cgst",
+                "sgst",
+            }
+            is_summary = (
+                lower_name in summary_terms
+                or lower_name.startswith(("total bill", "total amount", "total charges", "grand total", "net total", "sub total", "sub-total"))
+            )
+            if len(item_name) > 3 and not is_summary:
                 items.append({"item": item_name, "charged": price})
 
     return {

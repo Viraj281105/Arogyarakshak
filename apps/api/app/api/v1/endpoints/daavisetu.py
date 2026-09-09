@@ -21,8 +21,9 @@ router = APIRouter()
 
 # --- Pydantic Schemas ---------------------------------------------------------
 class PreAuthFormRequest(BaseModel):
-    policy_number: str = Field(..., description="Insurance policy ID", example="POL77654")
-    patient_name: str = Field(..., description="Full name of the patient", example="Viraj Jadhao")
+    policy_number: str = Field(..., description="Insurance policy ID", json_schema_extra={"example": "POL77654"})
+    patient_name: str = Field(..., description="Full name of the patient", json_schema_extra={"example": "Viraj Jadhao"})
+
 
 
 # --- Route Implementations ----------------------------------------------------

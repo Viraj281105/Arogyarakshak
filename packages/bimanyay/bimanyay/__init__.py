@@ -20,15 +20,15 @@ from bimanyay.drafter import (
 from bimanyay.tracker import calculate_grievance_timeline
 
 
-def analyze_insurance_denial(input_data: ClaimDenialInput) -> DisputeAuditResult:
+def analyze_insurance_denial(input_data: ClaimDenialInput, language: str = "en") -> DisputeAuditResult:
     """
     End-to-end analysis of an insurance repudiation or deduction.
-    Audits clauses against IRDAI regulations and drafts 3-tier appeals.
+    Audits clauses against IRDAI regulations and drafts 3-tier appeals in English, Hindi, or Marathi.
     """
     is_wrongful, prob, grounds, violations = audit_claim_denial(input_data)
-    gro_letter = draft_gro_appeal_letter(input_data, grounds, violations)
-    bimabharosa_text = draft_bimabharosa_summary(input_data, grounds)
-    ombudsman_statement = draft_ombudsman_statement(input_data, grounds)
+    gro_letter = draft_gro_appeal_letter(input_data, grounds, violations, language=language)
+    bimabharosa_text = draft_bimabharosa_summary(input_data, grounds, language=language)
+    ombudsman_statement = draft_ombudsman_statement(input_data, grounds, language=language)
 
     return DisputeAuditResult(
         is_wrongful_denial=is_wrongful,

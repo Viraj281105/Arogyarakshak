@@ -12,7 +12,7 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -41,8 +41,7 @@ class CaseResponse(BaseModel):
     total_charged: float
     created_at: Any
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EntityResponse(BaseModel):
@@ -52,8 +51,8 @@ class EntityResponse(BaseModel):
     value: Optional[str]
     meta: Optional[Dict[str, Any]]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 
 class CaseDetailResponse(BaseModel):

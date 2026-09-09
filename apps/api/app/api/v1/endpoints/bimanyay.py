@@ -37,14 +37,15 @@ class TimelineRequest(BaseModel):
 @router.post("/analyze", response_model=DisputeAuditResult, status_code=status.HTTP_200_OK)
 async def analyze_denial(
     req: ClaimDenialInput,
+    language: str = "en",
     db: AsyncSession = Depends(get_db)
 ):
     """
     Audits an insurance claim repudiation or deduction against IRDAI regulations.
-    Generates 3-tier appeal documents: GRO, IRDAI Bima Bharosa, and Ombudsman.
+    Generates 3-tier appeal documents: GRO, IRDAI Bima Bharosa, and Ombudsman in English, Hindi, or Marathi.
     """
     try:
-        result = analyze_insurance_denial(req)
+        result = analyze_insurance_denial(req, language=language)
 
         # Persist audit record in database
         case_id = str(uuid.uuid4())

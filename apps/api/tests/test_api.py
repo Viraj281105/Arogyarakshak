@@ -87,6 +87,28 @@ def test_bimanyay_analyze():
     assert "bimabharosa" in data["level_2_bimabharosa_text"].lower() or len(data["level_2_bimabharosa_text"]) > 0
 
 
+def test_bimanyay_analyze_multilingual():
+    payload = {
+        "policy_number": "POL-MULTI-8877",
+        "insurer_name": "Star Health",
+        "policy_age_years": 6.0,
+        "claimed_amount": 150000.0,
+        "denied_or_deducted_amount": 150000.0,
+        "denial_category": "PED_NON_DISCLOSURE",
+        "denial_reason_raw": "Hypertension not disclosed",
+        "diagnosis": "Myocardial Infarction",
+    }
+    # Test Hindi
+    res_hi = client.post("/api/v1/bimanyay/analyze?language=hi", json=payload)
+    assert res_hi.status_code == 200
+    assert "शिकायत निवारण अधिकारी (GRO)" in res_hi.json()["level_1_gro_appeal"]
+
+    # Test Marathi
+    res_mr = client.post("/api/v1/bimanyay/analyze?language=mr", json=payload)
+    assert res_mr.status_code == 200
+    assert "तक्रार निवारण अधिकारी (GRO)" in res_mr.json()["level_1_gro_appeal"]
+
+
 def test_bimanyay_timeline():
     payload = {
         "insurer_name": "Care Health Insurance",
@@ -101,4 +123,51 @@ def test_bimanyay_timeline():
     assert data["claim_number"] == "CLM-9988"
     assert len(data["timeline_events"]) == 3
     assert data["timeline_events"][0]["tier"] == "LEVEL_1_GRO"
+
+
+def test_daavisetu_claim():
+    # 1. Create case
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    assert res_case.status_code == 201
+    case_id = res_case.json()["id"]
+
+    # 2. Upload document to populate case
+    files = {"file": ("treatment.txt", b"Procedure: Laparoscopic Appendectomy\nHospital: Apollo Hospital\nTotal: 45000")}
+    upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
+    assert upload_res.status_code == 202
+
+    # 3. Call DaaviSetu claim endpoint
+    payload = {
+        "policy_number": "POL-DAAVI-7766",
+        "patient_name": "Viraj Jadhao",
+    }
+    response = client.post(f"/api/v1/daavisetu/cases/{case_id}/claim", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["claim_id"].startswith("CLAIM-")
+    assert data["form_data"]["policy_number"] == "POL-DAAVI-7766"
+    assert data["form_data"]["patient_name"] == "Viraj Jadhao"
+    assert data["status"] == "ready_for_review"
+
+
+def test_billnyay_audit():
+    # 1. Create case
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    assert res_case.status_code == 201
+    case_id = res_case.json()["id"]
+
+    # 2. Upload document with line items
+    files = {"file": ("bill.txt", b"Consultation: 500\nWard Stay: 2500\nTotal: 3000")}
+    upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
+    assert upload_res.status_code == 202
+
+    # 3. Call BillNyay audit endpoint
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/audit")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["case_id"] == case_id
+    assert "total_charged" in data
+    assert "total_benchmark" in data
+    assert isinstance(data["audit_items"], list)
+
 

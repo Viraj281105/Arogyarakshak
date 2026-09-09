@@ -8,7 +8,7 @@ GROQ_MODEL defaults to "openai/gpt-oss-120b".  Never use deprecated model
 names (llama3-70b, llama-3.3-70b-versatile) — see AGENTS.md.
 """
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # --- Security -------------------------------------------------------------
     cors_origins: str = "*"
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()

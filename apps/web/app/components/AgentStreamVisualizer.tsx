@@ -9,12 +9,16 @@ interface AgentStreamVisualizerProps {
   currentLang: Language;
   currentStep: PipelineStep;
   activeFileName?: string;
+  caseId?: string;
+  liveLog?: string;
 }
 
 export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
   currentLang,
   currentStep,
   activeFileName,
+  caseId,
+  liveLog,
 }) => {
   const t = translations[currentLang];
 
@@ -38,11 +42,23 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
               [{activeFileName}]
             </span>
           )}
+          {caseId && (
+            <span style={{ fontSize: "0.75rem", color: "var(--brand-teal)", background: "rgba(20, 184, 166, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
+              {caseId}
+            </span>
+          )}
         </div>
         <span style={{ fontSize: "0.8rem", color: "var(--brand-emerald)" }}>
           {currentStep >= 4 ? "✓ Audit Completed" : `Pipeline Stage ${currentStep} of 4`}
         </span>
       </div>
+
+      {liveLog && (
+        <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.4rem", fontStyle: "italic" }}>
+          📡 {liveLog}
+        </div>
+      )}
+
 
       <div className="stream-steps">
         {steps.map((s) => {

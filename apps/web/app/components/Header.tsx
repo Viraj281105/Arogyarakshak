@@ -7,9 +7,16 @@ import { Language, translations } from "../translations";
 interface HeaderProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
+  currentTheme?: "dark" | "light";
+  onThemeToggle?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentLang, onLanguageChange }) => {
+export const Header: React.FC<HeaderProps> = ({
+  currentLang,
+  onLanguageChange,
+  currentTheme = "dark",
+  onThemeToggle,
+}) => {
   const t = translations[currentLang];
 
   return (
@@ -81,6 +88,18 @@ export const Header: React.FC<HeaderProps> = ({ currentLang, onLanguageChange })
               मराठी
             </button>
           </div>
+
+          {onThemeToggle && (
+            <button
+              type="button"
+              className="theme-toggle-btn"
+              onClick={onThemeToggle}
+              aria-label={currentTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              title={currentTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            >
+              {currentTheme === "dark" ? "☀️" : "🌙"}
+            </button>
+          )}
         </div>
       </div>
     </header>

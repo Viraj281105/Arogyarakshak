@@ -5,7 +5,7 @@ import { Language, translations } from "../translations";
 
 interface DocumentUploaderProps {
   currentLang: Language;
-  onStartAudit: (fileName: string) => void;
+  onStartAudit: (file: File | null, fileName: string) => void;
   isProcessing: boolean;
 }
 
@@ -38,8 +38,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     e.preventDefault();
     if (!consentGiven) return;
     const name = selectedFile ? selectedFile.name : "sample_hospital_bill.pdf";
-    onStartAudit(name);
+    onStartAudit(selectedFile, name);
   };
+
 
   return (
     <div className="card card-glass" style={{ marginBottom: "2rem" }}>
@@ -134,18 +135,18 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           </div>
         </div>
 
-        <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <label htmlFor="consent-checkbox" className="consent-wrapper">
           <input
             type="checkbox"
             id="consent-checkbox"
             checked={consentGiven}
             onChange={(e) => setConsentGiven(e.target.checked)}
-            style={{ width: "18px", height: "18px", accentColor: "var(--brand-cyan)" }}
+            style={{ width: "20px", height: "20px", minWidth: "20px", accentColor: "var(--brand-cyan)", cursor: "pointer" }}
           />
-          <label htmlFor="consent-checkbox" style={{ fontSize: "0.85rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+          <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             {t.upload.consentText}
-          </label>
-        </div>
+          </span>
+        </label>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
           <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>

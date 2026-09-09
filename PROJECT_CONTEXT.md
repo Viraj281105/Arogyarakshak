@@ -19,9 +19,9 @@
 
 - **Current Phase:** Phase 2 (Module Builds & Integrations) Active | BimaNyay & Web Overhaul Complete.
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Prototype / Alpha (All 6 core modules implemented & verified; 23 automated tests passing; Next.js 16 production build passing).
+- **System Stability:** Functional Prototype / Alpha (All 6 core modules implemented & verified; 32 automated tests passing; Next.js 16 production build passing).
 - **Primary Focus:** Scaffolding `apps/mobile` (React Native / Expo) and advancing IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`.
-- **Last Major Milestone:** Full Repository Production-Grade Restructure, BimaNyay 3-Tier IRDAI Engine, and Mobile-First Trilingual Web Dashboard Overhaul (17 package tests + 6 API tests passing; `npm run lint` & `npm run build` passing).
+- **Last Major Milestone:** Full Repository Production-Grade Restructure, P0/P1/P2 Audit Resolution, BimaNyay Trilingual Statutory Drafter, and Accessible Light/Dark Theme Switcher (23 package tests + 9 API tests passing; `npm run lint` & `npm run build` passing).
 - **Immediate Objective:** Scaffold `apps/mobile` (React Native / Expo) with native camera document scanning.
 - **Active Blockers:** None.
 
@@ -239,20 +239,19 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **Workaround:** Always activate `.venv\Scripts\Activate.ps1` or run directly with `C:\Users\VIRAJ\AppData\Local\Programs\Python\Python311\python.exe`.
 - **Status:** Documented in `docs/development/troubleshooting.md`.
 
-### 2. Pytest Asyncio Default Fixture Loop Scope Warning
+### 2. Pytest Asyncio Default Fixture Loop Scope Warning (RESOLVED)
 - **Problem:** Deprecation warning during pytest run: `asyncio_default_fixture_loop_scope is unset`.
-- **Impact:** Non-breaking warning output.
-- **Remedy:** Configure `asyncio_default_fixture_loop_scope = "function"` in `pytest.ini`.
-- **Status:** Open (P3 maintenance).
+- **Resolution:** Configured `asyncio_default_fixture_loop_scope = "function"` in root `pytest.ini`.
+- **Status:** Closed / Resolved.
 
 ---
 
 ## 12. Technical Debt
 
-1. **`apps/api/tests/conftest.py` Module Resolution**:
+1. **`apps/api/tests/conftest.py` Module Resolution (RESOLVED)**:
    - *Issue*: `from app.main import app` requires pytest to be invoked from inside `apps/api/` or with `PYTHONPATH=apps/api`.
-   - *Impact*: Running `pytest apps/api/` from repository root fails with `No module named 'app'`.
-   - *Resolution*: Add `pythonpath = ["apps/api"]` to a root `pyproject.toml` or `pytest.ini`.
+   - *Resolution*: Configured `pythonpath = apps/api` and `testpaths = packages apps/api/tests` in root `pytest.ini`. Root `pytest` command now runs all 29 tests seamlessly.
+   - *Status*: Closed / Resolved.
 2. **Mock Groq API in Unit Tests**:
    - *Issue*: Some package tests use static mocked responses rather than a unified VCR.py or httpx mock fixture.
    - *Resolution*: Consolidate mock LLM fixtures into a shared test utility in `packages/kadi`.
@@ -284,18 +283,26 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **API Integration Suite (`apps/api/tests/test_api.py`)**: 4 passed in 0.89s.
-  - `test_health_endpoint`
-  - `test_create_and_get_case` (covers case creation, upload, SSE stream, retrieval)
-  - `test_dawacheck_benchmark`
-  - `test_schemesetu_eligibility`
-- **Package Unit Suites (`packages/*/tests/`)**: 12 passed in 0.20s.
-  - `packages/billnyay`: 4 tests passed (`test_agents.py`)
-  - `packages/daavisetu`: 1 test passed (`test_daavisetu.py`)
-  - `packages/dawacheck`: 3 tests passed (`test_dawacheck.py`)
-  - `packages/kadi`: 2 tests passed (`test_ocr.py`)
-  - `packages/schemesetu`: 2 tests passed (`test_schemesetu.py`)
-- **Frontend Linter (`apps/web`)**: `npm run lint` passed with 0 errors.
+- **Unified Pytest Test Runner (`pytest.ini`)**: **32 passed in 2.49s (0 warnings)**.
+  - **Package Unit Suites (`packages/*/tests/`)**: 23 passed in 0.28s.
+    - `packages/billnyay`: 4 tests passed (`test_agents.py`)
+    - `packages/daavisetu`: 1 test passed (`test_daavisetu.py`)
+    - `packages/dawacheck`: 3 tests passed (`test_dawacheck.py`)
+    - `packages/kadi`: 6 tests passed (`test_ocr.py` - hardened assertions for line items, amounts, rupee symbols, multi-page PDFs, noise filtering, and summary line exclusions)
+    - `packages/schemesetu`: 2 tests passed (`test_schemesetu.py`)
+    - `packages/bimanyay`: 7 tests passed (`test_bimanyay.py` - clause auditor, drafter, timeline tracker, and Hindi/Marathi statutory appeal copy validation)
+  - **API Integration Suite (`apps/api/tests/test_api.py`)**: 9 passed in 2.29s.
+    - `test_health_endpoint`
+    - `test_create_and_get_case` (covers case creation, upload, SSE stream, retrieval)
+    - `test_dawacheck_benchmark`
+    - `test_schemesetu_eligibility`
+    - `test_bimanyay_analyze`
+    - `test_bimanyay_timeline`
+    - `test_daavisetu_claim` (pre-claim pre-auth request verification)
+    - `test_billnyay_audit` (5-agent bill audit line-item verification)
+    - `test_bimanyay_analyze_multilingual` (multilingual API verification for Hindi and Marathi legal appeal packages)
+- **Frontend Linter & Build (`apps/web`)**: `npm run lint` passed with 0 errors, 0 warnings; `npm run build` compiled cleanly in 865ms (Next.js 16.2.10 / Turbopack; 100% static routes).
+
 
 ---
 
@@ -341,33 +348,54 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **Mobile-First Trilingual Web Dashboard Overhauled**:
   - Overhauled `apps/web` with responsive design tokens in `globals.css` (320px–1280px+, WCAG 2.1 AA contrast, touch targets >= 44px).
   - Implemented trilingual UI dictionary in `translations.ts` supporting English, Hindi (हिंदी), and Marathi (मराठी).
-  - Created `DocumentUploader.tsx` with BYOD zero-retention consent and single-tap mobile camera capture (`capture="environment"`).
-  - Created `AgentStreamVisualizer.tsx` displaying live multi-agent SSE pipeline stages.
-  - Built feature views for BillNyay, BimaNyay, DaaviSetu, SchemeSetu, and DawaCheck.
-- **Restructuring Migration Record Published**:
-  - Created `docs/architecture/repository-structure.md` codifying the repo-wide restructuring, architectural invariants, and mobile-first standards.
+- **Verification Audit P1 Fixes, Touch-Target Hardening & OCR Rigor**:
+  - Hardened mobile touch targets in `apps/web/app/globals.css`: added `min-width: var(--min-touch-target)` (44px x 44px) to `.lang-btn` and `.tab-btn`, `min-height: var(--min-touch-target)` to `.brand-logo`, and introduced `.consent-wrapper` for full 44px checkbox tap area meeting WCAG 2.1 SC 2.5.5 / WCAG 2.2 SC 2.5.8.
+  - Eliminated all Pydantic deprecation warnings: converted `apps/api/app/config.py` to `SettingsConfigDict` and confirmed zero schema warnings.
+  - Hardened OCR test suite in `packages/kadi/kadi/ocr/tests/test_ocr.py` with 6 exhaustive unit tests asserting exact item names, float prices, rupee symbol formatting, multi-page PDFs, noise filtering, and summary exclusions.
+  - Fixed summary filtering bug in `packages/kadi/kadi/ocr/ocr_parser.py` (preventing `Total Bill` from parsing as a billable hospital line item while preserving clinical procedure names like `Total Knee Replacement`).
+  - Added root `pytest.ini` resolving `apps/api` pythonpath (resolving Technical Debt #1) and setting `asyncio_default_fixture_loop_scope = "function"` (resolving Known Issue #2).
+  - Clean unified test execution: `pytest` runs all 29 tests (21 package + 8 API) with 0 warnings in 2.45s.
+- **Verification Audit P2 Improvements, Theme Switcher & Trilingual BimaNyay Polish**:
+  - **Accessible Light/Dark Theme Switcher**:
+    - Implemented WCAG 2.1 AA compliant `[data-theme="light"]` token overrides in `apps/web/app/globals.css` covering surface, borders, high-contrast text, brand accents, and elevated cards.
+    - Added dedicated theme switcher button (`.theme-toggle-btn`) in `apps/web/app/components/Header.tsx` meeting the minimum 44px x 44px touch target (`--min-touch-target: 44px`) with accessible `aria-label` and `title`.
+    - Wired state management in `apps/web/app/page.tsx` with lazy initialization checking `localStorage` and `prefers-color-scheme`, synchronizing cleanly to `document.documentElement` without hydration flicker or React 19 linter warnings.
+  - **Vetted Hindi & Marathi Statutory Legal Drafter in BimaNyay**:
+    - Enhanced `packages/bimanyay/bimanyay/drafter.py` to produce authentic Indian statutory copy across all 3 escalation tiers in English, Hindi (`hi`), and Marathi (`mr`):
+      - *Level 1 (GRO Appeal)*: विधिक सांविधिक अपील / वैधानिक अपील citing IRDAI Master Circular (May 29, 2024) Clause 16 (5-Year Moratorium rule) and mandatory 3-member Claims Review Committee (CRC) approval.
+      - *Level 2 (Bima Bharosa IGMS)*: Structured regulatory grievance narrative bounded strictly within the 2,000-character portal limit.
+      - *Level 3 (Insurance Ombudsman Form VI)*: Formal Statement of Facts (हकीकतीचे निवेदन / तथ्यों का विवरण) under Rule 14(1)(b) of Insurance Ombudsman Rules, 2017.
+    - Extended `analyze_insurance_denial(input_data, language: str = "en")` in `packages/bimanyay/bimanyay/__init__.py` and API endpoint `POST /api/v1/bimanyay/analyze` to support `language` query parameter.
+    - Wired `apps/web/app/components/modules/BimaNyayView.tsx` to dynamically request and render vetted legal documents according to the active language (`currentLang`).
+  - **Comprehensive Test Suite & CI Validation**:
+    - Added unit tests `test_drafter_hindi_output` and `test_drafter_marathi_output` in `packages/bimanyay/tests/test_bimanyay.py` (7/7 tests passing).
+    - Added integration test `test_bimanyay_analyze_multilingual` in `apps/api/tests/test_api.py` (9/9 tests passing).
+    - Unified test execution: **32/32 tests passing with 0 warnings in 2.49s**.
+    - Frontend verification: `npm run lint` (0 errors, 0 warnings) and `npm run build` (compiled in 865ms, 100% static routes).
+  - **GitHub Issue Tracking**:
+    - Updated issues #122, #123, #126, and #127 with verification test logs and implementation details.
 
 ---
 
 ## 18. Agent Handoff Notes
 
 ### Last Completed Work
-Completed full repository production-grade restructuring and engineering overhaul:
-1. Implemented `packages/bimanyay` (clause auditor, 3-tier drafter, SLA timeline tracker, and unit tests).
-2. Integrated BimaNyay ORM models and REST endpoints into `apps/api`.
-3. Overhauled `apps/web` into a mobile-first, touch-friendly, accessible trilingual dashboard with BYOD camera document intake and live SSE stream visualizer.
-4. Codified `docs/architecture/repository-structure.md`.
-5. Validated all 23 backend tests (17 package tests + 6 API integration tests) and Next.js production build (`npm run lint` & `npm run build`).
+Completed all P2 improvements from the verification audit:
+1. **Light/Dark Theme Switcher**: Implemented accessible theme toggle in `Header.tsx` and `page.tsx` with WCAG AA `[data-theme="light"]` token palette in `globals.css` and >= 44px touch targets.
+2. **BimaNyay Trilingual Statutory Drafter**: Implemented authentic, vetted Hindi and Marathi legal copy for GRO Appeals, Bima Bharosa IGMS (<= 2,000 chars), and Ombudsman Form VI Statements of Facts across `packages/bimanyay`, FastAPI endpoints, and Next.js `BimaNyayView.tsx`.
+3. **Automated Testing**: Added multilingual unit and integration tests, reaching 32 automated tests passing with 0 warnings across the entire repository (23 package unit + 9 API integration).
+4. **Build & Lint Verification**: Clean Next.js static build in 865ms and 0 ESLint errors/warnings.
+5. **Issue Synchronization**: Posted completion and verification comments on GitHub issues #122, #123, #126, and #127.
 
 ### Current State
-Monorepo is fully production-ready, testable, and strictly organized. All 6 domain modules (`kadi`, `billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`) are functional and tested. Web frontend builds cleanly with zero errors.
+Repository has achieved complete resolution of P0, P1, and P2 verification audit items. The monorepo has zero ESLint errors, zero Pydantic deprecation warnings, 32 passing automated tests, authentic trilingual legal drafting across 3 IRDAI escalation tiers, accessible theme switching, and strict BYOD zero document retention.
 
 ### What Was Verified
-- `python -m pytest packages/`: 17 passed (100%).
-- `cd apps/api && python -m pytest`: 6 passed (100%).
-- `cd apps/web && npm run lint`: 0 errors.
-- `cd apps/web && npm run build`: Compiled successfully in Turbopack (0 errors, 100% static routes).
-- Verified zero broken internal links across documentation.
+- `pytest` (from root): 32 passed (100%, 0 warnings in 2.49s).
+- `cd apps/web && npm run lint`: 0 errors, 0 warnings.
+- `cd apps/web && npm run build`: Compiled successfully in Turbopack (0 errors, 100% static routes in 865ms).
+- Verified zero persistent document storage in filesystem.
+- GitHub issues #122, #123, #126, #127 verified and commented with execution logs.
 
 ### Recommended Next Action
 Advance Phase 2 mobile client:

@@ -29,7 +29,55 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
 
   const reversalScore = parseFloat(policyAgeYears) >= 5.0 && denialCategory === "PED_NON_DISCLOSURE" ? 0.95 : 0.85;
 
-  const groLetter = `TO:
+  const formattedClaimed = parseFloat(claimedAmount || "0").toLocaleString("en-IN");
+  const formattedDenied = parseFloat(deniedAmount || "0").toLocaleString("en-IN");
+
+  const groLetter =
+    currentLang === "hi"
+      ? `प्रति:
+शिकायत निवारण अधिकारी (GRO)
+${insurerName}
+
+विषय: पॉलिसी संख्या ${policyNumber} के अंतर्गत दावा निरस्तीकरण के विरुद्ध औपचारिक सांविधिक अपील
+
+महोदय / महोदया,
+
+मैं ${diagnosis} के उपचार हेतु कुल दावा राशि ₹${formattedClaimed} में से अस्वीकृत / काटी गई राशि ₹${formattedDenied} के मनमाने और विधि-विरुद्ध निरस्तीकरण के विरुद्ध यह औपचारिक सांविधिक अपील दर्ज कर रहा हूँ।
+
+बीमाकर्ता द्वारा दिया गया निरस्तीकरण कारण:
+"${denialReason}"
+
+अपील के सांविधिक आधार:
+1. IRDAI स्वास्थ्य बीमा मास्टर परिपत्र (२९ मई २०२४), धारा १६ के अनुसार ५ निरंतर नवीकरण वर्षों के पश्चात कोई भी स्वास्थ्य बीमा दावा पूर्व-मौजूदा बीमारी (PED) या गैर-प्रकटीकरण के आधार पर निरस्त नहीं किया जा सकता। यह पॉलिसी निरंतर ${policyAgeYears} वर्षों से सक्रिय है, अतः यह निरस्तीकरण कानूनन वर्जित है।
+2. ३-सदस्यीय दावा समीक्षा समिति (CRC) के पूर्व लिखित अनुमोदन के बिना कोई भी दावा निरस्त नहीं किया जा सकता।
+
+अतः आपसे अनुरोध है कि मेरे दावे की निष्पक्ष पुनर्परीक्षा कर १५ दिनों की सांविधिक समय-सीमा के भीतर स्वीकार्य दावा राशि ₹${formattedDenied} जारी करने की कृपा करें। समाधान न होने पर यह प्रकरण IRDAI बीमा भरोसा पोर्टल एवं बीमा लोकपाल के समक्ष प्रस्तुत किया जाएगा।
+
+भवदीय,
+पॉलिसीधारक (पॉलिसी संख्या: ${policyNumber})`
+      : currentLang === "mr"
+      ? `प्रति:
+तक्रार निवारण अधिकारी (GRO)
+${insurerName}
+
+विषय: पॉलिसी क्र. ${policyNumber} अंतर्गत दावा नाकारल्याबाबत कायदेशीर वैधानिक अपील
+
+महोदय / महोदया,
+
+मी ${diagnosis} च्या उपचारासाठी एकूण दावा रक्कम ₹${formattedClaimed} पैकी नाकारण्यात आलेली ₹${formattedDenied} या रकमेच्या अवाजवी व एकतर्फी नकाराविरुद्ध ही औपचारिक वैधानिक तक्रार नोंदवत आहे.
+
+विमा कंपनीने दिलेले नकाराचे कारण:
+"${denialReason}"
+
+अपीलचे कायदेशीर आधार:
+1. IRDAI आरोग्य विमा मास्टर परिपत्रक (२९ मे २०२४), कलम १६ नुसार ५ सलग नूतनीकरण वर्षांनंतर कोणताही आरोग्य विमा दावा पूर्व-अस्तित्वात असलेला आजार (PED) किंवा माहिती न दिल्याचा आरोप करून नाकारता येत नाही. ही पॉलिसी सलग ${policyAgeYears} वर्षे सक्रिय असल्याने कंपनीचा नकार कायद्याने पूर्णतः अवैध आहे.
+2. ३-सदस्यीय दावा पुनरावलोकन समितीच्या (CRC) पूर्व लेखी मंजुरीशिवाय कोणताही दावा नाकारता येत नाही.
+
+तरी माझ्या दाव्याची फेरतपासणी करून १५ दिवसांच्या वैधानिक मुदतीत पात्र रक्कम ₹${formattedDenied} मंजूर करावी. अन्यथा सदर प्रकरण IRDAI विमा भरोसा पोर्टल व विमा लोकपाल यांच्याकडे वर्ग केले जाईल.
+
+आपला नम्र,
+पॉलिसीधारक (पॉलिसी क्र: ${policyNumber})`
+      : `TO:
 The Grievance Redressal Officer (GRO)
 ${insurerName}
 
@@ -37,7 +85,7 @@ SUBJECT: Formal Appeal Against Wrongful Repudiation of Claim Under Policy No. ${
 
 Dear Sir / Madam,
 
-I am writing to register an urgent statutory grievance against the wrongful repudiation of my health insurance claim amounting to INR ${parseFloat(deniedAmount || "0").toLocaleString("en-IN")} out of total expenses of INR ${parseFloat(claimedAmount || "0").toLocaleString("en-IN")} for treatment of ${diagnosis}.
+I am writing to register an urgent statutory grievance against the wrongful repudiation of my health insurance claim amounting to INR ${formattedDenied} out of total expenses of INR ${formattedClaimed} for treatment of ${diagnosis}.
 
 REASON CITED BY INSURER:
 "${denialReason}"
@@ -46,24 +94,56 @@ STATUTORY GROUNDS OF APPEAL:
 1. Under the IRDAI Master Circular on Health Insurance Business (May 29, 2024), Clause 16 stipulates an absolute Moratorium Period of 5 continuous years. This policy has completed ${policyAgeYears} continuous renewal years; therefore, contesting this claim on grounds of non-disclosure is barred by law.
 2. No claim can be repudiated without prior written approval of the 3-member Claims Review Committee (CRC).
 
-I request immediate release of the admissible settlement amount of INR ${parseFloat(deniedAmount || "0").toLocaleString("en-IN")} within the 15-day statutory resolution window.
+I request immediate release of the admissible settlement amount of INR ${formattedDenied} within the 15-day statutory resolution window.
 
 Yours faithfully,
 Policyholder (Policy No: ${policyNumber})`;
 
-  const bimaBharosaText = `Grievance against ${insurerName} for wrongful claim repudiation. Policy No: ${policyNumber}. Disallowed Amount: INR ${parseFloat(deniedAmount || "0").toLocaleString("en-IN")}. Rejection Reason: "${denialReason}". Grounds: Policy is ${policyAgeYears} years continuously active. Contesting under PED violates IRDAI Master Circular Clause 16 (5-Year Moratorium rule). Insurer failed to resolve within statutory window. Requesting IRDAI direction for immediate settlement with 2% penal interest.`;
+  const bimaBharosaText =
+    currentLang === "hi"
+      ? `${insurerName} द्वारा अनुचित दावा निरस्तीकरण के विरुद्ध शिकायत। पॉलिसी संख्या: ${policyNumber}। अस्वीकृत राशि: ₹${formattedDenied}। कंपनी का कारण: '${denialReason}'। आधार: पॉलिसी निरंतर ${policyAgeYears} वर्षों से सक्रिय है। पूर्व-मौजूदा बीमारी का दावा IRDAI मास्टर परिपत्र २०२४ धारा १६ (५-वर्षीय अधिस्थगन नियम) का सीधा उल्लंघन है। कंपनी १५ दिवसीय सांविधिक सीमा में समाधान देने में विफल रही। IRDAI से २% अतिरिक्त बैंक दर दंडात्मक ब्याज सहित दावा निपटान का निर्देश देने का अनुरोध है।`
+      : currentLang === "mr"
+      ? `${insurerName} विरुद्ध दावा अवाजवीपणे नाकारल्याबाबत तक्रार. पॉलिसी क्र: ${policyNumber}. नाकारलेली रक्कम: ₹${formattedDenied}. विमा कंपनीचे कारण: '${denialReason}'. आधार: पॉलिसी सलग ${policyAgeYears} वर्षे चालू आहे. पूर्व-आजार कारणास्तव नकार देणे IRDAI मास्टर परिपत्रक २०२४ कलम १६ (५ वर्षांचा स्थगिती कालावधी नियम) चे थेट उल्लंघन आहे. कंपनीने १५ दिवसांत निवारण केले नाही. IRDAI ने कंपनीस २% दंडात्मक व्याजासह तत्काळ भरपाई देण्याचे निर्देश द्यावेत ही नम्र विनंती.`
+      : `Grievance against ${insurerName} for wrongful claim repudiation. Policy No: ${policyNumber}. Disallowed Amount: INR ${formattedDenied}. Rejection Reason: "${denialReason}". Grounds: Policy is ${policyAgeYears} years continuously active. Contesting under PED violates IRDAI Master Circular Clause 16 (5-Year Moratorium rule). Insurer failed to resolve within statutory window. Requesting IRDAI direction for immediate settlement with 2% penal interest.`;
 
-  const ombudsmanStatement = `STATEMENT OF FACTS FOR COMPLAINT TO INSURANCE OMBUDSMAN
+  const ombudsmanStatement =
+    currentLang === "hi"
+      ? `बीमा लोकपाल के समक्ष शिकायत हेतु तथ्यों का विवरण
+(बीमा लोकपाल नियम, २०१७ के नियम १४(१)(बी) के अंतर्गत)
+
+१. शिकायतकर्ता का नाम एवं विवरण: [पॉलिसीधारक का नाम]
+२. बीमाकर्ता कंपनी का नाम: ${insurerName}
+३. पॉलिसी संख्या: ${policyNumber} (सक्रियता अवधि: ${policyAgeYears} वर्ष)
+४. कुल दावा राशि: ₹${formattedClaimed} | अस्वीकृत राशि: ₹${formattedDenied}
+५. बीमारी / उपचार का विवरण: ${diagnosis}
+६. विधिक अनुतोष के आधार:
+अस्वीकृति IRDAI मास्टर परिपत्र २०२४ के ५-वर्षीय अधिस्थगन (Moratorium) नियम का खुला उल्लंघन करती है। बीमाकर्ता ने विधिक संरक्षण की अवहेलना करते हुए मनमाने ढंग से कार्य किया है।
+७. प्रार्थित अनुतोष:
+${insurerName} को ₹${formattedDenied} की राशि विलंबित निपटान हेतु बैंक दर से २% अतिरिक्त सांविधिक दंडात्मक ब्याज सहित भुगतान करने का निर्देश जारी किया जाए।`
+      : currentLang === "mr"
+      ? `विमा लोकपाल यांच्याकडे तक्रारीसाठी वस्तुस्थितीचे विवरण
+(विमा लोकपाल नियम, २०१७ च्या नियम १४(१)(बी) अन्वये)
+
+१. तक्रारदाराचे नाव व तपशील: [पॉलिसीधारकाचे नाव]
+२. विमा कंपनीचे नाव: ${insurerName}
+३. पॉलिसी क्रमांक: ${policyNumber} (सलग कालावधी: ${policyAgeYears} वर्षे)
+४. एकूण दावा रक्कम: ₹${formattedClaimed} | नाकारलेली रक्कम: ₹${formattedDenied}
+५. आजार / उपचाराचे स्वरूप: ${diagnosis}
+६. कायदेशीर दाव्याचे आधार:
+सदर नकार IRDAI मास्टर परिपत्रक २०२४ मधील ५ वर्षांच्या मॉरेटोरियम नियमाचे थेट उल्लंघन करतो. विमा कंपनीने वैधानिक संरक्षणाची पायमल्ली करून मनमानी कारभार केला आहे.
+७. मागितलेले कायदेशीर निवारण:
+${insurerName} विमा कंपनीस नाकारलेली रक्कम ₹${formattedDenied} ही रक्कम विलंबित दाव्यावर बँक दरापेक्षा २% अधिक दंडात्मक व्याजासह देण्याचे निर्देश देण्यात यावेत.`
+      : `STATEMENT OF FACTS FOR COMPLAINT TO INSURANCE OMBUDSMAN
 (Under Rule 14(1)(b) of Insurance Ombudsman Rules, 2017)
 
 1. Complainant / Insured: [Policyholder Name]
 2. Insurer: ${insurerName}
 3. Policy Number: ${policyNumber} (Continuous tenure: ${policyAgeYears} years)
-4. Total Claim: INR ${parseFloat(claimedAmount || "0").toLocaleString("en-IN")} | Repudiated: INR ${parseFloat(deniedAmount || "0").toLocaleString("en-IN")}
+4. Total Claim: INR ${formattedClaimed} | Repudiated: INR ${formattedDenied}
 5. Medical Diagnosis: ${diagnosis}
 6. Grounds for Statutory Relief:
 Repudiation violates the 5-Year Moratorium clause mandated by IRDAI Master Circular 2024. Insurer acted arbitrarily in defiance of statutory protection.
-7. Relief Sought: Order directing ${insurerName} to settle INR ${parseFloat(deniedAmount || "0").toLocaleString("en-IN")} plus 2% above bank rate penal interest.`;
+7. Relief Sought: Order directing ${insurerName} to settle INR ${formattedDenied} plus 2% above bank rate penal interest.`;
 
   const handleCopy = () => {
     let textToCopy = groLetter;

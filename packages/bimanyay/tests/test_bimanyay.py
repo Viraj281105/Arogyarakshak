@@ -105,3 +105,45 @@ def test_grievance_timeline_deadlines():
     assert timeline.timeline_events[1].deadline_date == "2026-03-31"
     assert timeline.timeline_events[2].tier == "LEVEL_3_OMBUDSMAN"
     assert timeline.timeline_events[2].deadline_date == "2027-03-01"
+
+
+def test_drafter_hindi_output():
+    payload = ClaimDenialInput(
+        policy_number="POL-HI-123456",
+        insurer_name="स्टार हेल्थ इंश्योरेंस",
+        policy_age_years=6.0,
+        claimed_amount=180000.0,
+        denied_or_deducted_amount=180000.0,
+        denial_category="PED_NON_DISCLOSURE",
+        denial_reason_raw="उच्च रक्तचाप का गैर-प्रकटीकरण",
+        diagnosis="हार्ट अटैक",
+    )
+    result = analyze_insurance_denial(payload, language="hi")
+    assert "प्रति:" in result.level_1_gro_appeal
+    assert "शिकायत निवारण अधिकारी (GRO)" in result.level_1_gro_appeal
+    assert "सांविधिक अपील" in result.level_1_gro_appeal
+    assert "स्टार हेल्थ इंश्योरेंस" in result.level_1_gro_appeal
+    assert len(result.level_2_bimabharosa_text) <= 2000
+    assert "बीमा भरोसा" in result.level_2_bimabharosa_text or "IRDAI" in result.level_2_bimabharosa_text
+    assert "बीमा लोकपाल के समक्ष शिकायत हेतु तथ्यों का विवरण" in result.level_3_ombudsman_grounds
+
+
+def test_drafter_marathi_output():
+    payload = ClaimDenialInput(
+        policy_number="POL-MR-987654",
+        insurer_name="केअर हेल्थ इन्शुरन्स",
+        policy_age_years=5.5,
+        claimed_amount=220000.0,
+        denied_or_deducted_amount=220000.0,
+        denial_category="PED_NON_DISCLOSURE",
+        denial_reason_raw="मधुमेहाची पूर्व माहिती लपविल्याचा आरोप",
+        diagnosis="बायपास सर्जरी",
+    )
+    result = analyze_insurance_denial(payload, language="mr")
+    assert "प्रति:" in result.level_1_gro_appeal
+    assert "तक्रार निवारण अधिकारी (GRO)" in result.level_1_gro_appeal
+    assert "वैधानिक अपील" in result.level_1_gro_appeal
+    assert "केअर हेल्थ इन्शुरन्स" in result.level_1_gro_appeal
+    assert len(result.level_2_bimabharosa_text) <= 2000
+    assert "विमा लोकपाल यांच्याकडे तक्रारीसाठी वस्तुस्थितीचे विवरण" in result.level_3_ombudsman_grounds
+
