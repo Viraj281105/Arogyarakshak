@@ -72,6 +72,7 @@ pip install -r apps/api/requirements.txt
 pip install -e packages/kadi
 pip install -e packages/billnyay
 pip install -e packages/daavisetu
+pip install -e packages/bimanyay
 pip install -e packages/schemesetu
 pip install -e packages/dawacheck
 
@@ -81,10 +82,18 @@ pip install pytest pytest-asyncio aiosqlite httpx
 
 ---
 
-## 5. Install Frontend Dependencies
+## 5. Install Client Dependencies
 
+### 5.1 Web Application (Next.js)
 ```bash
 cd apps/web
+npm install
+cd ../..
+```
+
+### 5.2 Mobile Application (React Native / Expo)
+```bash
+cd apps/mobile
 npm install
 cd ../..
 ```
@@ -117,6 +126,11 @@ docker-compose up --build
    cd apps/web
    npm run dev
    ```
+4. In another terminal, run the mobile development bundler:
+   ```bash
+   cd apps/mobile
+   npm run start
+   ```
 
 ---
 
@@ -128,11 +142,13 @@ curl http://localhost:8000/health
 # Expected output: {"status":"ok","version":"1.0.0"}
 ```
 
-Run test suite:
+Run test suites:
 ```bash
-# In apps/api
-python -m pytest tests/
+# Backend & domain package tests (32 tests)
+python -m pytest packages/ apps/api/tests/
 
-# In root
-python -m pytest packages/
+# Mobile client invariant & contract tests (10 tests)
+cd apps/mobile
+npm test
+cd ../..
 ```

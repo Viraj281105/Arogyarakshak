@@ -252,6 +252,7 @@ Explore our structured documentation in the [`docs/`](docs/) directory:
 - **[System Architecture Overview](docs/architecture/overview.md)**
 - **[Component Specifications & Non-Overlap Matrix](docs/architecture/components.md)**
 - **[Data Flow & SSE Streaming Protocol](docs/architecture/data-flow.md)**
+- **[BimaNyay & Mobile App Blueprint](docs/architecture/bimanyay-and-mobile.md)**
 - **[Architecture Decision Records (ADRs)](docs/architecture/decisions/)**
 - **[Developer Setup Guide](docs/development/setup.md)**
 - **[Git Workflow & Commit Standards](docs/development/workflow.md)**
@@ -259,7 +260,8 @@ Explore our structured documentation in the [`docs/`](docs/) directory:
 - **[Troubleshooting Guide](docs/development/troubleshooting.md)**
 - **[Environment Variables Reference](docs/configuration/environment-variables.md)**
 - **[REST API Reference](docs/api/overview.md)**
-- **[BimaNyay & Mobile App Blueprint](docs/BimaNyay_and_Mobile_Architecture.md)**
+- **[Agile Planning & Team Strategy](docs/planning/weekly-sprint-playbook.md)**
+- **[Academic & Research Portfolio](docs/academic/README.md)**
 - **[Project Task Backlog](docs/ArogyaRakshak_Task_Backlog.md)**
 
 ---

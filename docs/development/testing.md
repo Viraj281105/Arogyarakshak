@@ -12,13 +12,16 @@ The repository employs a multi-tiered testing strategy:
 tests/
 ├── Unit Tests (packages/*/tests/)
 │   ├── packages/billnyay/tests/test_agents.py     # 5-agent auditing chain tests
+│   ├── packages/bimanyay/tests/test_bimanyay.py   # Claim repudiation & IRDAI appeal tests
 │   ├── packages/daavisetu/tests/test_daavisetu.py # Pre-auth form generation tests
 │   ├── packages/dawacheck/tests/test_dawacheck.py # NPPA ceiling price tests
-│   ├── packages/kadi/kadi/ocr/tests/test_ocr.py  # OCR parser tests
+│   ├── packages/kadi/kadi/ocr/tests/test_ocr.py  # OCR parser & regex fallback tests
 │   └── packages/schemesetu/tests/test_schemesetu.py # PMJAY/MJPJAY rule tests
 ├── API Integration Tests (apps/api/tests/)
 │   ├── apps/api/tests/conftest.py                # Async SQLite fixture & mock client
 │   └── apps/api/tests/test_api.py                # Health, upload, stream & endpoints
+├── Mobile Client Tests (apps/mobile/src/__tests__/)
+│   └── apps/mobile/src/__tests__/scanner.test.ts # BYOD zero-retention invariant & API contract
 └── Evaluation Metrics (Phase 4.5)
     └── Formal ML & OCR benchmarks (PEA, BMA, CFMA, CRMA, WER/CER)
 ```
@@ -27,19 +30,24 @@ tests/
 
 ## 2. Test Commands
 
-### 2.1 Run All Tests Across Monorepo
+### 2.1 Run All Backend & Package Tests (32 Tests)
 ```bash
-# Run all package unit tests
-python -m pytest packages/
+# Run all package unit tests & API integration tests
+python -m pytest packages/ apps/api/tests/
+```
 
-# Run API integration tests
-cd apps/api
-python -m pytest tests/
+### 2.2 Run Mobile Client Tests (10 Tests)
+```bash
+cd apps/mobile
+npm test
 cd ../..
 ```
 
-### 2.2 Run Targeted Module Tests
+### 2.3 Run Targeted Module Tests
 ```bash
+# BimaNyay only
+python -m pytest packages/bimanyay/tests/
+
 # BillNyay only
 python -m pytest packages/billnyay/tests/
 
@@ -54,6 +62,9 @@ python -m pytest packages/daavisetu/tests/
 
 # Kadi OCR only
 python -m pytest packages/kadi/kadi/ocr/tests/
+
+# API Integration only
+python -m pytest apps/api/tests/
 ```
 
 ---
