@@ -42,14 +42,9 @@ export const BillNyayScreen: React.FC = () => {
     try {
       let activeId: string | null = targetCaseId || caseId;
       if (!activeId) {
-        // Create a case session in Kadi if one does not exist
-        const caseRes = await api.kadi.createCase({ consent_opt_in: true });
-        activeId = caseRes.id || caseRes.case_id || null;
-        setCaseId(activeId);
-      }
-
-      if (!activeId) {
-        throw new Error('Unable to initialize active Kadi case session.');
+        // A case is only ever created from the scan flow, where consent is captured.
+        // Creating one here would grant consent the patient never gave.
+        throw new Error(t.scanner.scanFirst);
       }
 
       // Execute CGHS 2024 line-item benchmark audit
@@ -160,20 +155,47 @@ export const BillNyayScreen: React.FC = () => {
             </View>
           </View>
 
-          {auditResult.audit_items.map((item, idx) => (
-            <View
-              key={idx}
-              style={[styles.auditItem, { borderColor: item.is_deviation ? '#ef4444' : '#22c55e', borderLeftWidth: 3 }]}
+          {auditResult.unmatched_count > 0 && (
+            <Text
+              style={{
+                color: '#f59e0b',
+                fontSize: typography.sizes.xs,
+                marginBottom: spacing.sm,
+              }}
             >
-              <Text style={{ color: colors.textPrimary, fontWeight: '600', marginBottom: 2 }}>
-                {item.item_name}
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-                {m.charged}: ₹{item.charged} | {m.cghsCap}: ₹{item.cghs_benchmark}
-                {item.is_deviation ? ` | +${item.deviation_percentage}%` : ` | ${m.fair}`}
-              </Text>
-            </View>
-          ))}
+              {m.unmatchedNotice
+                .replace('{count}', String(auditResult.unmatched_count))
+                .replace('{amount}', auditResult.unmatched_amount.toLocaleString('en-IN'))}
+            </Text>
+          )}
+
+          {auditResult.audit_items.map((item, idx) => {
+            // An item with no CGHS counterpart is unverified, not fair.
+            const benchmarked = item.benchmarked && item.cghs_benchmark !== null;
+            const borderColor = !benchmarked
+              ? '#f59e0b'
+              : item.is_deviation
+              ? '#ef4444'
+              : '#22c55e';
+            return (
+              <View
+                key={idx}
+                style={[styles.auditItem, { borderColor, borderLeftWidth: 3 }]}
+              >
+                <Text style={{ color: colors.textPrimary, fontWeight: '600', marginBottom: 2 }}>
+                  {item.item_name}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+                  {m.charged}: ₹{item.charged}
+                  {benchmarked
+                    ? ` | ${m.cghsCap}: ₹${item.cghs_benchmark}${
+                        item.is_deviation ? ` | +${item.deviation_percentage}%` : ` | ${m.fair}`
+                      }`
+                    : ` | ${m.notBenchmarked}`}
+                </Text>
+              </View>
+            );
+          })}
         </Card>
       )}
     </ScrollView>

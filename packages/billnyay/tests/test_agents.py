@@ -54,3 +54,178 @@ def test_run_judge_agent():
     assert result.status in ["approve", "needs_revision"]
     assert result.overall_score >= 0
     assert result.confidence_estimate == 0.90
+
+
+# ---------------------------------------------------------------------------
+# Barrister / Clinician / Regulatory agents.
+# These three had no coverage at all; the Barrister call site in the API was
+# broken for exactly that reason.
+# ---------------------------------------------------------------------------
+
+from billnyay.agents.auditor import StructuredDenial
+from billnyay.agents.barrister import run_barrister_agent, format_clinical_evidence
+from billnyay.agents.clinician import run_clinician_agent, ClinicalEvidence, EvidenceList
+from billnyay.agents.regulatory import run_regulatory_agent
+
+
+def _denial() -> StructuredDenial:
+    return StructuredDenial(
+        denial_code="DEN-4471",
+        insurer_reason_snippet="Hospitalisation deemed for investigation only.",
+        policy_clause_text="Section 4.1 excludes diagnostic admissions.",
+        procedure_denied="Laparoscopic Appendectomy",
+        confidence_score=0.9,
+        raw_evidence_chunks=[],
+    )
+
+
+def test_run_barrister_agent_accepts_pipeline_objects():
+    """Guards the exact signature the API endpoint uses.
+
+    The endpoint previously called this with denial_code=/procedure_denied= and no
+    client, raising TypeError and returning HTTP 500.
+    """
+    client = MockLLMClient(response_text="A" * 400)
+    evidence = EvidenceList(
+        root=[
+            ClinicalEvidence(
+                article_title="Standard of Care",
+                summary_of_finding="Procedure is medically necessary.",
+                pubmed_id="PMID:1",
+            )
+        ]
+    )
+    regulatory = {"legal_points": [{"statute": "IRDAI Circular", "summary": "Vague exclusions invalid."}]}
+
+    letter = run_barrister_agent(
+        client,
+        denial_details=_denial(),
+        clinical_evidence=evidence,
+        regulatory_evidence=regulatory,
+    )
+    assert letter is not None
+    assert len(letter) >= 400
+
+
+def test_run_barrister_agent_rejects_too_short_output():
+    letter = run_barrister_agent(
+        MockLLMClient(response_text="too short"),
+        denial_details=_denial(),
+        clinical_evidence=EvidenceList(root=[]),
+        regulatory_evidence={"legal_points": []},
+    )
+    assert letter is None
+
+
+def test_run_barrister_agent_passes_prose_mode_to_client():
+    """The Barrister must not ask the LLM for JSON — it emits a letter."""
+    captured = {}
+
+    class CapturingClient:
+        def generate(self, prompt, system="", **kwargs):
+            captured.update(kwargs)
+            captured["system"] = system
+            return "B" * 400
+
+    run_barrister_agent(
+        CapturingClient(),
+        denial_details=_denial(),
+        clinical_evidence=EvidenceList(root=[]),
+        regulatory_evidence={"legal_points": []},
+    )
+    assert captured["json_mode"] is False
+    assert "Barrister Agent" in captured["system"]
+
+
+def test_format_clinical_evidence_handles_evidence_list_and_empty():
+    evidence = EvidenceList(
+        root=[
+            ClinicalEvidence(
+                article_title="Trial X", summary_of_finding="Efficacy shown.", pubmed_id="PMID:99"
+            )
+        ]
+    )
+    formatted = format_clinical_evidence(evidence)
+    assert "Trial X" in formatted
+    assert "PMID:99" in formatted
+
+    # Must degrade to a usable sentence rather than raising.
+    assert format_clinical_evidence(EvidenceList(root=[])).strip().startswith("-")
+    assert format_clinical_evidence(None).strip().startswith("-")
+
+
+def test_run_clinician_agent_parses_valid_json():
+    payload = (
+        '{"root": [{"article_title": "Guideline A", '
+        '"summary_of_finding": "Necessary.", "pubmed_id": "PMID:5"}]}'
+    )
+    result = run_clinician_agent(MockLLMClient(response_text=payload), denial_details=_denial())
+    assert isinstance(result, EvidenceList)
+    assert result.root[0].article_title == "Guideline A"
+
+
+def test_run_clinician_agent_falls_back_on_garbage():
+    """Must always return usable evidence so the Barrister has something to cite."""
+    result = run_clinician_agent(MockLLMClient(response_text="not json at all"), denial_details=_denial())
+    assert isinstance(result, EvidenceList)
+    assert len(result.root) >= 1
+    assert "Laparoscopic Appendectomy" in result.root[0].article_title
+
+
+def test_run_regulatory_agent_returns_statutes():
+    result = run_regulatory_agent(denial_data=_denial().model_dump())
+    assert result["statute_count"] >= 1
+    assert len(result["legal_points"]) == result["statute_count"]
+    for point in result["legal_points"]:
+        assert point["statute"]
+        assert point["summary"]
+    # The query is echoed back so callers can see what was searched.
+    assert "laparoscopic appendectomy" in result["query_used"]
+
+
+def test_barrister_prompt_carries_all_upstream_agent_evidence():
+    """Proves the chain passes data, not just that it does not crash.
+
+    The API previously fed the Barrister hardcoded strings while the Clinician and
+    Regulatory agents were never invoked at all.
+    """
+    captured = {}
+
+    class CapturingClient:
+        def generate(self, prompt, system="", **kwargs):
+            captured["prompt"] = prompt
+            return "X" * 400
+
+    evidence = EvidenceList(
+        root=[
+            ClinicalEvidence(
+                article_title="Guideline A",
+                summary_of_finding="Medically necessary.",
+                pubmed_id="PMID:7",
+            )
+        ]
+    )
+    regulatory = {
+        "legal_points": [
+            {"statute": "IRDAI Master Circular", "summary": "Moratorium bar applies."}
+        ]
+    }
+
+    run_barrister_agent(
+        CapturingClient(),
+        denial_details=_denial(),
+        clinical_evidence=evidence,
+        regulatory_evidence=regulatory,
+    )
+
+    prompt = captured["prompt"]
+    # Auditor output
+    assert "DEN-4471" in prompt
+    assert "Laparoscopic Appendectomy" in prompt
+    assert "Section 4.1 excludes diagnostic admissions." in prompt
+    # Clinician output
+    assert "Guideline A" in prompt
+    assert "PMID:7" in prompt
+    # Regulatory output
+    assert "IRDAI Master Circular" in prompt
+    assert "Moratorium bar applies." in prompt

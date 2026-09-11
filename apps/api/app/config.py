@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     # --- Security -------------------------------------------------------------
     cors_origins: str = "*"
 
+    # --- Upload limits --------------------------------------------------------
+    # Documents are read fully into RAM for transient parsing, so an unbounded upload is
+    # a denial-of-service vector. 10 MB comfortably covers a scanned multi-page bill.
+    max_upload_bytes: int = 10 * 1024 * 1024
+
+    # --- Streaming ------------------------------------------------------------
+    # The SSE generator polls until the case completes; without a ceiling a request for
+    # an unknown case holds a connection open forever.
+    sse_timeout_seconds: int = 120
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

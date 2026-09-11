@@ -9,7 +9,16 @@ client = TestClient(app)
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "1.0.0"}
+
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["version"] == "1.0.0"
+
+    # Degraded-mode visibility: operators must be able to see whether the LLM path is
+    # actually reachable instead of discovering it from output quality.
+    assert "groq_configured" in data
+    assert isinstance(data["groq_configured"], bool)
+    assert data["groq_model"], "groq_model must be reported"
 
 
 def test_create_and_get_case():
@@ -263,3 +272,769 @@ def test_real_image_ocr_upload_and_persistence():
 
 
 
+# ---------------------------------------------------------------------------
+# BillNyay appeal pipeline (regression: endpoint previously returned HTTP 500
+# because run_barrister_agent was called with a mismatched signature).
+# ---------------------------------------------------------------------------
+
+DENIAL_DOC = (
+    b"Lifeline Multispeciality Hospital\n"
+    b"Claim Rejection Letter\n"
+    b"Denial Code: DEN-4471\n"
+    b"Reason: Hospitalisation deemed for investigation only.\n"
+    b"Policy Clause: Section 4.1 excludes diagnostic admissions.\n"
+    b"Procedure: Laparoscopic Appendectomy\n"
+    b"Consultation: 900\n"
+    b"Total Amount: 48200\n"
+)
+
+
+def _case_with_document(payload: bytes = DENIAL_DOC) -> str:
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    assert res_case.status_code == 201
+    case_id = res_case.json()["id"]
+    upload = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("denial.txt", payload)}
+    )
+    assert upload.status_code == 202
+    return case_id
+
+
+def test_billnyay_appeal_returns_letter_not_500():
+    """The 5-agent appeal pipeline must complete and return a prose letter."""
+    case_id = _case_with_document()
+
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert data["case_id"] == case_id
+
+    letter = data["appeal_letter"]
+    assert isinstance(letter, str)
+    assert len(letter) > 300, "Appeal letter is suspiciously short"
+
+    # Regression guard: the fallback client used to return the Auditor's JSON blob
+    # for every agent, so the "letter" came back as a JSON object.
+    assert not letter.lstrip().startswith("{"), "Appeal letter must be prose, not a JSON blob"
+    assert '"denial_code"' not in letter
+
+    # The letter must actually read as a statutory appeal.
+    lowered = letter.lower()
+    assert "irdai" in lowered
+    assert "appeal" in lowered
+
+
+def test_billnyay_appeal_scorecard_is_well_formed():
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    assert response.status_code == 200
+
+    data = response.json()
+    scorecard = data["scorecard"]
+
+    assert data["status"] in ("approve", "needs_revision")
+    assert scorecard["status"] == data["status"]
+    assert 0 <= scorecard["overall_score"] <= 100
+    assert 0.0 <= scorecard["confidence_estimate"] <= 1.0
+
+    subs = scorecard["sub_scores"]
+    for key in (
+        "factual_accuracy",
+        "citation_consistency",
+        "logical_adequacy",
+        "tone_professionalism",
+        "hallucination_risk",
+    ):
+        assert 0 <= subs[key] <= 100, f"sub_score {key} out of range"
+
+
+def test_billnyay_appeal_unknown_case_returns_404():
+    response = client.post("/api/v1/billnyay/cases/CASE-doesnotexist/appeal")
+    assert response.status_code == 404
+
+
+def test_billnyay_grievance_package():
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/grievance")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["case_id"] == case_id
+    assert "Bima Bharosa" in data["complaint_text"]
+    assert data["deep_link"].startswith("https://bimabharosa.irdai.gov.in")
+    assert data["bima_bharosa_fields"]["Insurer Category"] == "Health Insurance Company"
+
+
+def test_billnyay_grievance_unknown_case_returns_404():
+    response = client.post("/api/v1/billnyay/cases/CASE-doesnotexist/grievance")
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# BillNyay audit: three-state benchmarking.
+# Regression: unmatched items previously defaulted cghs_benchmark to the charged
+# amount, producing a 0% deviation and displaying to the patient as "Fair".
+# ---------------------------------------------------------------------------
+
+AUDIT_PROBE_BILL = (
+    b"Lifeline Multispeciality Hospital\n"
+    b"Patient Name: Ramesh Kulkarni\n"
+    b"Diagnosis: Acute Appendicitis\n"
+    b"Consultation: 900\n"
+    b"ICU: 18500\n"
+    b"Blood Test: 750\n"
+    b"Dolo 650: 33\n"
+    b"Total Amount: 20183\n"
+)
+
+
+def _audited_case(payload: bytes = AUDIT_PROBE_BILL):
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", payload)}
+    ).status_code == 202
+    res = client.post(f"/api/v1/billnyay/cases/{case_id}/audit")
+    assert res.status_code == 200, res.text
+    return case_id, res.json()
+
+
+def test_audit_captures_icu_line_and_full_bill_total():
+    """The ICU line used to be dropped; total_charged reported 1650 of a 20183 bill."""
+    _, data = _audited_case()
+    by_name = {i["item_name"]: i["charged"] for i in data["audit_items"]}
+
+    assert "ICU" in by_name, "ICU line must reach the audit"
+    assert by_name["ICU"] == 18500.0
+    assert by_name["Dolo 650"] == 33.0, "Dosage must not be read as the price"
+    assert "Total Amount" not in by_name, "Summary line must not be audited as a charge"
+    assert data["total_charged"] == 20183.0
+
+
+def test_unmatched_item_is_not_reported_as_fair():
+    """An item with no CGHS counterpart must be 'not_benchmarked', never 'fair'."""
+    _, data = _audited_case()
+    items = {i["item_name"]: i for i in data["audit_items"]}
+
+    dolo = items["Dolo 650"]
+    assert dolo["benchmarked"] is False
+    assert dolo["status"] == "not_benchmarked"
+    assert dolo["cghs_benchmark"] is None
+    assert dolo["is_deviation"] is False
+    # It must not masquerade as a verified-fair line.
+    assert dolo["status"] != "within_benchmark"
+
+
+def test_benchmarked_overcharges_still_flagged():
+    _, data = _audited_case()
+    items = {i["item_name"]: i for i in data["audit_items"]}
+
+    icu = items["ICU"]
+    assert icu["benchmarked"] is True
+    assert icu["status"] == "overcharged"
+    assert icu["cghs_benchmark"] == 5400.0
+    assert icu["is_deviation"] is True
+    assert icu["deviation_percentage"] > 200
+
+    consultation = items["Consultation"]
+    assert consultation["status"] == "overcharged"
+    assert consultation["cghs_benchmark"] == 350.0
+
+
+def test_audit_totals_separate_benchmarked_from_unmatched():
+    _, data = _audited_case()
+
+    assert data["unmatched_count"] == 1
+    assert data["unmatched_amount"] == 33.0
+    assert data["benchmarked_count"] == 3
+    assert data["benchmarked_charged"] == 20150.0
+    assert data["total_benchmark"] == 6000.0  # 350 + 5400 + 250
+
+    # Savings must be computed only over items that were actually compared.
+    assert data["potential_savings"] == 14150.0
+    assert data["potential_savings"] == data["benchmarked_charged"] - data["total_benchmark"]
+
+
+def test_audit_never_reports_negative_savings():
+    payload = b"Consultation: 100\n"
+    _, data = _audited_case(payload)
+    assert data["potential_savings"] >= 0.0
+
+
+def test_longest_cghs_key_wins():
+    """'ICU Day Charges' must match its own rate, not the shorter 'icu' key."""
+    from app.api.v1.endpoints.billnyay import CGHS_RATES, _match_cghs_rate
+
+    rate, bundled = _match_cghs_rate("icu day charges", CGHS_RATES)
+    assert rate == 5400.0
+    assert bundled is False
+
+    assert _match_cghs_rate("completely unknown item", CGHS_RATES) == (None, False)
+    assert _match_cghs_rate("", CGHS_RATES) == (None, False)
+
+
+def test_bundled_item_flagged_as_deviation():
+    payload = b"Nursing Charges: 1200\n"
+    _, data = _audited_case(payload)
+    item = data["audit_items"][0]
+    assert item["status"] == "bundled"
+    assert item["is_deviation"] is True
+
+
+# ---------------------------------------------------------------------------
+# Groq configuration visibility.
+# Regression: an unset GROQ_API_KEY silently downgraded every LLM path with no
+# operator- or caller-visible signal.
+# ---------------------------------------------------------------------------
+
+def test_health_reports_groq_state_matching_settings():
+    from app.config import settings
+
+    data = client.get("/health").json()
+    assert data["groq_configured"] is bool(settings.groq_api_key)
+    assert data["groq_model"] == settings.groq_model
+
+
+def test_appeal_reports_whether_letter_is_llm_backed():
+    from app.config import settings
+
+    case_id = _case_with_document()
+    data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
+
+    assert "llm_backed" in data
+    assert data["llm_backed"] is bool(settings.groq_api_key)
+
+
+def test_env_example_documents_groq_api_key():
+    """The Docker quickstart tells users to set GROQ_API_KEY; the template must list it."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[3]
+    env_example = (root / ".env.example").read_text(encoding="utf-8")
+    assert "GROQ_API_KEY" in env_example, ".env.example must document GROQ_API_KEY"
+
+
+def test_docker_compose_passes_groq_api_key_to_api():
+    """Without this the container can never reach Groq regardless of the user's .env."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[3]
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "GROQ_API_KEY" in compose, "docker-compose.yml must forward GROQ_API_KEY to the api service"
+
+
+def test_kadi_entities_are_clean_end_to_end():
+    """Full Kadi path: upload -> OCR -> extraction -> persistence.
+
+    Mirrors the live audit probe that produced hospital='Hospital\nPatient Name',
+    a 'Total Amount' procedure and a missing ICU line.
+    """
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", AUDIT_PROBE_BILL)}
+    ).status_code == 202
+
+    data = client.get(f"/api/v1/kadi/cases/{case_id}").json()
+    entities = data["entities"]
+    by_type = {}
+    for e in entities:
+        by_type.setdefault(e["type"], []).append(e)
+
+    hospital = by_type["hospital"][0]["name"]
+    assert hospital == "Lifeline Multispeciality Hospital"
+    assert "\n" not in hospital
+
+    # The patient's name is extracted in-memory but must NOT be persisted (ADR-003).
+    assert "patient" not in by_type, "patient name must not be persisted as an entity"
+    assert by_type["diagnosis"][0]["name"] == "Acute Appendicitis"
+
+    billing_names = {e["name"] for e in by_type["billing_item"]}
+    assert "ICU" in billing_names
+    assert "Total Amount" not in billing_names
+
+    # No entity of any type may be the document's summary row.
+    all_names = {e["name"] for e in entities}
+    assert "Total Amount" not in all_names
+
+    # The persisted case total must reflect the whole bill, not a fraction of it.
+    assert data["case"]["total_charged"] == 20183.0
+
+
+def test_unmatched_disclosure_invariant():
+    """The unmatched notice must appear exactly when the headline totals diverge.
+
+    Both clients show total_charged (whole bill) next to total_benchmark (benchmarked
+    subset only). Those cover different item sets whenever anything is unmatched, so the
+    coverage notice — gated on unmatched_count > 0 — must fire in precisely that case.
+    """
+    # Case A: every line benchmarked -> totals comparable, no notice needed.
+    _, matched = _audited_case(b"Consultation: 900\nBlood Test: 750\n")
+    assert matched["unmatched_count"] == 0
+    assert matched["total_charged"] == matched["benchmarked_charged"]
+
+    # Case B: an unmatched line -> totals diverge, notice must be triggerable.
+    _, mixed = _audited_case(AUDIT_PROBE_BILL)
+    assert mixed["unmatched_count"] > 0
+    assert mixed["total_charged"] != mixed["benchmarked_charged"]
+    assert (
+        mixed["total_charged"] - mixed["benchmarked_charged"] == mixed["unmatched_amount"]
+    ), "unmatched_amount must exactly account for the gap between the two totals"
+
+
+def test_audit_item_counts_reconcile():
+    """Every audited line is either benchmarked or unmatched — never both, never neither."""
+    _, data = _audited_case(AUDIT_PROBE_BILL)
+    assert data["benchmarked_count"] + data["unmatched_count"] == len(data["audit_items"])
+
+    for item in data["audit_items"]:
+        if item["benchmarked"]:
+            assert item["cghs_benchmark"] is not None
+            assert item["status"] != "not_benchmarked"
+        else:
+            assert item["cghs_benchmark"] is None
+            assert item["status"] == "not_benchmarked"
+            assert item["is_deviation"] is False
+
+
+# ---------------------------------------------------------------------------
+# DaaviSetu: submitted claim must survive POST -> persistence -> GET -> PDF.
+# Regression: the POST never persisted ClaimData, so the PDF download rebuilt a
+# different one, fabricating policy_number as POL-{case_id[:6]} and defaulting
+# patient_name to "Patient" — on a form the patient signs and files with an insurer.
+# ---------------------------------------------------------------------------
+
+CLAIM_DOC = (
+    b"Apollo Multi-Speciality Hospital\n"
+    b"Patient Name: Ramesh Kulkarni\n"
+    b"Diagnosis: Acute Appendicitis\n"
+    b"Consultation: 900\n"
+    b"ICU: 18500\n"
+)
+
+SUBMITTED_CLAIM = {
+    "policy_number": "POL-STAR-774411",
+    "patient_name": "Sunita Deshmukh",
+    "hospital_name": "Ruby Hall Clinic",
+    "diagnosis": "Acute Appendicitis (K35.8)",
+    "treatment_plan": "Laparoscopic Appendectomy",
+}
+
+
+def _pdf_text(pdf_bytes: bytes) -> str:
+    """Extracts PDF text with whitespace normalised (table cells wrap across lines)."""
+    import re as _re
+
+    import fitz
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    raw = "\n".join(page.get_text() for page in doc)
+    return _re.sub(r"\s+", " ", raw)
+
+
+def _case_with_submitted_claim(payload=None):
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", CLAIM_DOC)}
+    ).status_code == 202
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim", json=payload or SUBMITTED_CLAIM
+    )
+    assert res.status_code == 200, res.text
+    return case_id, res.json()
+
+
+def test_daavisetu_submitted_values_reach_the_pdf():
+    """Every submitted field must appear verbatim in the downloaded form."""
+    case_id, package = _case_with_submitted_claim()
+
+    pdf = client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf")
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"] == "application/pdf"
+    assert pdf.content.startswith(b"%PDF")
+
+    text = _pdf_text(pdf.content)
+    assert SUBMITTED_CLAIM["policy_number"] in text, "submitted policy number missing from PDF"
+    assert SUBMITTED_CLAIM["patient_name"] in text, "submitted patient name missing from PDF"
+    assert SUBMITTED_CLAIM["hospital_name"] in text
+    assert SUBMITTED_CLAIM["diagnosis"] in text
+    assert SUBMITTED_CLAIM["treatment_plan"] in text
+
+    # The claim reference on the form must match the one the POST handed back.
+    assert package["claim_id"] in text
+
+
+def test_daavisetu_pdf_contains_no_fabricated_values():
+    """The specific fabrications from the audit must not appear."""
+    case_id, _ = _case_with_submitted_claim()
+    text = _pdf_text(client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").content)
+
+    fabricated_policy = f"POL-{case_id.replace('CASE-', '')[:6]}"
+    assert fabricated_policy not in text, "synthesised policy number leaked into the PDF"
+
+    # "Patient" appears in static labels, so assert on the value cell specifically:
+    # the form must show the submitted name, not the placeholder.
+    assert "1. PATIENT FULL NAME Sunita Deshmukh" in text
+    assert "1. PATIENT FULL NAME Patient" not in text
+
+
+def test_daavisetu_estimated_cost_persisted_from_submission():
+    """Cost shown on the form is the one captured at submission time."""
+    case_id, package = _case_with_submitted_claim()
+    expected = package["form_data"]["estimated_cost"]
+    assert expected == 19400.0  # 900 + 18500 from CLAIM_DOC
+
+    text = _pdf_text(client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").content)
+    assert "INR 19,400.00" in text
+
+
+def test_daavisetu_claim_is_persisted_not_just_echoed():
+    """The claim row must exist in daavisetu_claims with the submitted values."""
+    import asyncio
+
+    from sqlalchemy import select as _select
+
+    from app.models import DaaviSetuClaim
+    from conftest import TestingSessionLocal
+
+    case_id, package = _case_with_submitted_claim()
+
+    async def fetch():
+        async with TestingSessionLocal() as session:
+            res = await session.execute(
+                _select(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id)
+            )
+            return res.scalar_one_or_none()
+
+    row = asyncio.run(fetch())
+    assert row is not None, "claim was not persisted"
+    assert row.id == package["claim_id"]
+    assert row.policy_number == SUBMITTED_CLAIM["policy_number"]
+    assert row.patient_name == SUBMITTED_CLAIM["patient_name"]
+    assert row.hospital_name == SUBMITTED_CLAIM["hospital_name"]
+    assert row.diagnosis == SUBMITTED_CLAIM["diagnosis"]
+    assert row.treatment_plan == SUBMITTED_CLAIM["treatment_plan"]
+    assert row.status == "ready_for_review"
+
+
+def test_daavisetu_pdf_requires_a_submitted_claim():
+    """Without a submission the API must refuse rather than invent a form."""
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+
+    res = client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf")
+    assert res.status_code == 409
+    assert "No pre-authorization claim" in res.json()["detail"]
+
+
+def test_daavisetu_pdf_unknown_case_returns_404():
+    res = client.get("/api/v1/daavisetu/cases/CASE-doesnotexist/claim/pdf")
+    assert res.status_code == 404
+
+
+def test_daavisetu_resubmission_updates_the_same_claim():
+    """Re-submitting must correct the stored form, not create a second one."""
+    import asyncio
+
+    from sqlalchemy import func, select as _select
+
+    from app.models import DaaviSetuClaim
+    from conftest import TestingSessionLocal
+
+    case_id, first = _case_with_submitted_claim()
+
+    corrected = dict(SUBMITTED_CLAIM)
+    corrected["policy_number"] = "POL-CARE-998877"
+    corrected["patient_name"] = "Sunita R Deshmukh"
+    second = client.post(f"/api/v1/daavisetu/cases/{case_id}/claim", json=corrected)
+    assert second.status_code == 200
+    assert second.json()["claim_id"] == first["claim_id"]
+
+    async def count_rows():
+        async with TestingSessionLocal() as session:
+            res = await session.execute(
+                _select(func.count()).select_from(DaaviSetuClaim).where(
+                    DaaviSetuClaim.case_id == case_id
+                )
+            )
+            return res.scalar_one()
+
+    assert asyncio.run(count_rows()) == 1, "re-submission created a duplicate claim"
+
+    text = _pdf_text(client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").content)
+    assert "POL-CARE-998877" in text
+    assert "Sunita R Deshmukh" in text
+    assert "POL-STAR-774411" not in text, "stale policy number still rendered"
+
+
+# ---------------------------------------------------------------------------
+# Privacy / retention (ADR-003).
+# Persisted records must hold de-identified clinical metadata only.
+# ---------------------------------------------------------------------------
+
+PII_BILL = (
+    b"Lifeline Multispeciality Hospital\n"
+    b"Patient Name: Ramesh Kulkarni\n"
+    b"Contact: 9876543210\n"
+    b"Email: ramesh.kulkarni@example.com\n"
+    b"Aadhaar: 1234 5678 9012\n"
+    b"Address: 12 MG Road, Pune\n"
+    b"Diagnosis: Acute Appendicitis\n"
+    b"Denial Code: DEN-4471\n"
+    b"Consultation: 900\n"
+    b"ICU: 18500\n"
+)
+
+
+def _uploaded_case(payload: bytes, consent: bool = True):
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": consent}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", payload)}
+    ).status_code == 202
+    return case_id
+
+
+def test_direct_identifiers_are_not_persisted():
+    """No stored entity value may contain the patient's name or contact details."""
+    case_id = _uploaded_case(PII_BILL)
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+
+    blob = " ".join(
+        f"{e['name']} {e['value'] or ''} {e['meta'] or ''}" for e in entities
+    )
+    for identifier in (
+        "Ramesh Kulkarni",
+        "9876543210",
+        "ramesh.kulkarni@example.com",
+        "1234 5678 9012",
+        "12 MG Road",
+    ):
+        assert identifier not in blob, f"direct identifier persisted: {identifier}"
+
+
+def test_clinical_and_billing_context_is_preserved():
+    """Redaction must not destroy the data the modules actually need."""
+    case_id = _uploaded_case(PII_BILL)
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    by_type = {}
+    for e in entities:
+        by_type.setdefault(e["type"], []).append(e)
+
+    assert by_type["diagnosis"][0]["name"] == "Acute Appendicitis"
+    assert by_type["hospital"][0]["name"] == "Lifeline Multispeciality Hospital"
+    assert {"Consultation", "ICU"} <= {e["name"] for e in by_type["billing_item"]}
+
+    excerpt = by_type["document_text"][0]["value"]
+    assert "DEN-4471" in excerpt, "denial code must survive redaction for the appeal agent"
+    assert "Acute Appendicitis" in excerpt
+    assert by_type["document_text"][0]["meta"]["redacted"] is True
+
+
+def test_document_excerpt_is_redacted_not_raw():
+    case_id = _uploaded_case(PII_BILL)
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    excerpt = next(e["value"] for e in entities if e["type"] == "document_text")
+
+    assert "Ramesh Kulkarni" not in excerpt
+    assert "[REDACTED]" in excerpt
+    # The field label is kept so downstream agents still see document structure.
+    assert "Patient Name:" in excerpt
+
+
+def test_appeal_still_works_on_redacted_excerpt():
+    """Redaction must not break the BillNyay pipeline that consumes the excerpt."""
+    case_id = _uploaded_case(PII_BILL)
+    res = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    assert res.status_code == 200
+    assert len(res.json()["appeal_letter"]) > 300
+
+
+# ---------------------------------------------------------------------------
+# Consent enforcement (ADR-003).
+# ---------------------------------------------------------------------------
+
+def test_consent_defaults_to_false_when_omitted():
+    """Consent must be opt-IN: omitting the field must not grant it."""
+    res = client.post("/api/v1/kadi/cases", json={})
+    assert res.status_code == 201
+    assert res.json()["consent_opt_in"] is False
+
+
+def test_consent_granted_allows_cross_module_access():
+    case_id = _uploaded_case(AUDIT_PROBE_BILL, consent=True)
+    assert client.post(f"/api/v1/billnyay/cases/{case_id}/audit").status_code == 200
+    assert client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").status_code == 200
+    assert client.post(f"/api/v1/billnyay/cases/{case_id}/grievance").status_code == 200
+
+
+def test_consent_denied_blocks_every_kadi_consuming_module():
+    """Without consent, no module may read this case's extracted context."""
+    case_id = _uploaded_case(AUDIT_PROBE_BILL, consent=False)
+
+    blocked = [
+        ("post", f"/api/v1/billnyay/cases/{case_id}/audit", None),
+        ("post", f"/api/v1/billnyay/cases/{case_id}/appeal", None),
+        ("post", f"/api/v1/billnyay/cases/{case_id}/grievance", None),
+        ("post", f"/api/v1/daavisetu/cases/{case_id}/claim",
+         {"policy_number": "POL-1", "patient_name": "A B"}),
+        ("get", f"/api/v1/daavisetu/cases/{case_id}/claim/pdf", None),
+    ]
+    for method, path, body in blocked:
+        res = client.post(path, json=body) if method == "post" else client.get(path)
+        assert res.status_code == 403, f"{path} returned {res.status_code}, expected 403"
+        assert "consent" in res.json()["detail"].lower()
+
+
+def test_consent_cannot_be_granted_by_the_module_request_body():
+    """Enforcement reads the persisted case, not anything the caller sends."""
+    case_id = _uploaded_case(AUDIT_PROBE_BILL, consent=False)
+
+    # A client trying to grant itself access on the module call must still be refused:
+    # the extra consent_opt_in field in the body must have no effect whatsoever.
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim",
+        json={
+            "policy_number": "POL-1",
+            "patient_name": "A B",
+            "consent_opt_in": True,
+        },
+    )
+    assert res.status_code == 403
+
+    # And the same for BillNyay, which takes no body at all.
+    assert client.post(
+        f"/api/v1/billnyay/cases/{case_id}/audit",
+        json={"consent_opt_in": True},
+    ).status_code == 403
+
+
+def test_consent_is_still_false_after_a_blocked_attempt():
+    case_id = _uploaded_case(AUDIT_PROBE_BILL, consent=False)
+    client.post(f"/api/v1/billnyay/cases/{case_id}/audit")
+    assert client.get(f"/api/v1/kadi/cases/{case_id}").json()["case"]["consent_opt_in"] is False
+
+
+def test_consent_missing_case_still_404_not_403():
+    """An unknown case must not be reported as a consent problem."""
+    assert client.post("/api/v1/billnyay/cases/CASE-nope/audit").status_code == 404
+    assert client.get("/api/v1/daavisetu/cases/CASE-nope/claim/pdf").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Security hardening.
+# ---------------------------------------------------------------------------
+
+def test_unhandled_errors_do_not_leak_internal_detail():
+    """500 bodies must carry a correlation id, never the exception text.
+
+    The audit reproduced a 500 whose body contained
+    "run_barrister_agent() missing 1 required positional argument: 'client'".
+    """
+    from fastapi import APIRouter
+
+    from app.main import app as fastapi_app
+
+    probe = APIRouter()
+
+    @probe.get("/__boom__")
+    async def boom():
+        raise RuntimeError("SECRET_INTERNAL_DETAIL_should_not_be_returned")
+
+    fastapi_app.include_router(probe)
+    try:
+        local = TestClient(fastapi_app, raise_server_exceptions=False)
+        res = local.get("/__boom__")
+        assert res.status_code == 500
+        body = res.json()
+        assert body["detail"] == "An unexpected server error occurred."
+        assert "SECRET_INTERNAL_DETAIL_should_not_be_returned" not in res.text
+        assert "RuntimeError" not in res.text
+        # An operator-traceable id replaces the leaked message.
+        assert len(body["error_id"]) == 12
+    finally:
+        fastapi_app.router.routes = [
+            r for r in fastapi_app.router.routes if getattr(r, "path", "") != "/__boom__"
+        ]
+
+
+def test_cors_does_not_pair_wildcard_origin_with_credentials():
+    """allow_credentials must be off whenever the origin list is a wildcard."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    from app.main import app as fastapi_app
+
+    cors = next(
+        m for m in fastapi_app.user_middleware if m.cls is CORSMiddleware
+    )
+    kwargs = cors.kwargs
+    if "*" in kwargs["allow_origins"]:
+        assert kwargs["allow_credentials"] is False, (
+            "wildcard origin with credentials lets any site issue credentialed requests"
+        )
+    assert "*" not in kwargs["allow_methods"], "methods must be an explicit allow-list"
+
+
+def test_upload_rejects_oversized_document():
+    from app.config import settings
+
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    oversized = b"x" * (settings.max_upload_bytes + 1024)
+
+    res = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("big.txt", oversized)}
+    )
+    assert res.status_code == 413
+    assert "upload limit" in res.json()["detail"]
+
+
+def test_upload_rejects_unsupported_file_type():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+
+    res = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("payload.exe", b"MZ\x90\x00binary")},
+    )
+    assert res.status_code == 415
+    assert "Unsupported document type" in res.json()["detail"]
+
+
+def test_upload_accepts_supported_types():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    res = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", b"ICU: 900\n")}
+    )
+    assert res.status_code == 202
+
+
+def test_upload_rejects_empty_document():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    res = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", b"")}
+    )
+    assert res.status_code == 400
+
+
+def test_status_map_is_bounded():
+    """The in-memory stream map must not grow without limit."""
+    from app.api.v1.endpoints.kadi import (
+        MAX_TRACKED_STATUS_CASES,
+        _evict_stale_status_entries,
+        processing_status,
+    )
+
+    processing_status.clear()
+    try:
+        for i in range(MAX_TRACKED_STATUS_CASES + 50):
+            processing_status[f"CASE-bulk-{i}"] = [
+                {"status": "completed", "progress": 100, "log": "done"}
+            ]
+        _evict_stale_status_entries()
+        assert len(processing_status) < MAX_TRACKED_STATUS_CASES
+    finally:
+        processing_status.clear()
+
+
+def test_sse_stream_has_a_bounded_timeout():
+    """An unknown case must not hold a connection open forever."""
+    from app.config import settings
+
+    assert settings.sse_timeout_seconds > 0
+    assert settings.sse_timeout_seconds <= 600

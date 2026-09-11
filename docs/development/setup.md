@@ -139,7 +139,7 @@ docker-compose up --build
 Verify the backend and database health check:
 ```bash
 curl http://localhost:8000/health
-# Expected output: {"status":"ok","version":"1.0.0"}
+# Expected output: {"status":"ok","version":"1.0.0","groq_configured":false,"groq_model":"openai/gpt-oss-120b"}
 ```
 
 Run test suites:

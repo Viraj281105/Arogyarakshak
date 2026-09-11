@@ -19,7 +19,7 @@
 
 - **Current Phase:** Product Phase 1 Audit & System Hardening Complete (All P0, P1, P2 audit findings resolved and runtime-verified; Product Phase 2 not yet started).
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 36 backend pytest tests passing; 17 mobile tests passing; 10 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
+- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 122 backend pytest tests passing; 23 mobile tests passing; 19 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
 - **Primary Focus:** Ready for Product Phase 2 (IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`).
 - **Last Major Milestone:** Remaining Product Phase 1 Audit Fixes Completed & Verified:
   1. `kadi.py` background session resolved via `get_background_session()` with FastAPI dependency override and eager relationship loading (`selectinload`), guaranteeing end-to-end entity persistence in test, local, and Docker environments.
@@ -138,12 +138,12 @@ arogyarakshak/
 | Feature | Status | Location | Documentation | Automated Tests |
 |---|---|---|---|---|
 | **Kadi Entity Extraction** | Complete | `packages/kadi/kadi/extraction.py` | `packages/kadi/README.md` | Yes (`test_api.py`) |
-| **Kadi Vector Store** | Complete | `packages/kadi/kadi/vector_store.py` | `docs/architecture/components.md` | Yes (`test_ocr.py`) |
+| **Kadi Vector Store** | Scaffold (not wired) | `packages/kadi/kadi/vector_store.py` | `docs/architecture/components.md` | No — contains no FAISS and is imported by no endpoint |
 | **Kadi OCR Engine** | Complete | `packages/kadi/kadi/ocr/ocr_parser.py` | `packages/kadi/README.md` | Yes (`test_ocr.py`) |
-| **BillNyay 5-Agent Pipeline** | Complete | `packages/billnyay/billnyay/agents/`| `packages/billnyay/README.md` | Yes (`test_agents.py`) |
+| **BillNyay 5-Agent Pipeline** | Complete (all 5 agents wired) | `packages/billnyay/billnyay/agents/`| `packages/billnyay/README.md` | Yes (`test_agents.py`, `test_api.py`) |
 | **DaaviSetu Pre-Auth Generator** | Complete | `packages/daavisetu/daavisetu/generator.py` | `packages/daavisetu/README.md` | Yes (`test_daavisetu.py`) |
-| **SchemeSetu RAG Agent** | Complete | `packages/schemesetu/schemesetu/agent.py` | `packages/schemesetu/README.md` | Yes (`test_schemesetu.py`) |
-| **SchemeSetu ONNX Fallback** | Complete | `packages/schemesetu/schemesetu/embeddings.py`| `packages/schemesetu/README.md` | Yes (`test_schemesetu.py`) |
+| **SchemeSetu Eligibility Agent** | Complete (rule-based, not RAG) | `packages/schemesetu/schemesetu/agent.py` | `packages/schemesetu/README.md` | Yes (`test_schemesetu.py`) |
+| **SchemeSetu Offline Embedder** | Scaffold (not wired) | `packages/schemesetu/schemesetu/embeddings.py`| `packages/schemesetu/README.md` | No — contains no ONNX code and is used by no endpoint |
 | **DawaCheck NPPA Benchmarking** | Complete | `packages/dawacheck/dawacheck/checker.py` | `packages/dawacheck/README.md` | Yes (`test_dawacheck.py`) |
 | **SSE Real-Time Stream** | Complete | `apps/api/app/api/v1/endpoints/kadi.py` | `docs/architecture/data-flow.md` | Yes (`test_api.py`) |
 | **FastAPI Gateway & Models** | Complete | `apps/api/app/` | `apps/api/README.md` | Yes (`test_api.py`) |
@@ -178,7 +178,7 @@ Resolve remaining adversarial audit findings for Product Phase 1 across Kadi bac
 - [x] P2: `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
 - [x] OCR: EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
 - [x] CI Dependency Fix: Added `reportlab>=4.0.0` to `packages/daavisetu/pyproject.toml`, `apps/api/requirements.txt`, and `.github/workflows/ci.yml` resolving CI runner `ModuleNotFoundError: No module named 'reportlab'`.
-- [x] Full regression validation suite executed: 36 backend tests, 17 mobile tests, 10 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
+- [x] Full regression validation suite executed: 122 backend tests, 23 mobile tests, 19 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
 
 ### Current Blockers
 None. Ready for Product Phase 2 when directed by user.
@@ -193,7 +193,7 @@ None. Ready for Product Phase 2 when directed by user.
 - [x] **Implement IRDAI 3-Tier Drafter**: Built appeal letter templates for Insurer GRO, IRDAI Bima Bharosa complaint narrative, and Ombudsman Form VI.
 - [x] **Implement Grievance SLA Tracker**: Built timeline engine calculating 15-day GRO, 15-day Bima Bharosa, and 1-year Ombudsman statutory deadlines.
 - [x] **Overhaul Web Frontend (`apps/web`)**: Built mobile-first (320px–1280px+), WCAG 2.1 AA trilingual dashboard with BYOD camera intake and live SSE stream.
-- [ ] **Scaffold Mobile App (`apps/mobile`)**: Initialize Expo React Native TypeScript project with camera document scanner (`react-native-document-scanner-plugin`).
+- [x] **Scaffold Mobile App (`apps/mobile`)**: Expo React Native TypeScript project with in-app camera document capture (issue #134, closed).
 
 ### P1 — High (Core Integration)
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
@@ -265,7 +265,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 1. **`apps/api/tests/conftest.py` Module Resolution (RESOLVED)**:
    - *Issue*: `from app.main import app` requires pytest to be invoked from inside `apps/api/` or with `PYTHONPATH=apps/api`.
-   - *Resolution*: Configured `pythonpath = apps/api` and `testpaths = packages apps/api/tests` in root `pytest.ini`. Root `pytest` command now runs all 29 tests seamlessly.
+   - *Resolution*: Configured `pythonpath = apps/api` and `testpaths = packages apps/api/tests` in root `pytest.ini`. Root `pytest` command now runs the whole backend suite seamlessly.
    - *Status*: Closed / Resolved.
 2. **Mock Groq API in Unit Tests**:
    - *Issue*: Some package tests use static mocked responses rather than a unified VCR.py or httpx mock fixture.
@@ -298,7 +298,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **Unified Pytest Test Runner (`pytest.ini`)**: **36 passed in 5.70s (100% pass rate)**.
+- **Unified Pytest Test Runner (`pytest.ini`)**: **122 passed (100% pass rate)**.
   - **Package Unit Suites (`packages/*/tests/`)**: 23 passed.
     - `packages/billnyay`: 4 tests passed (`test_agents.py`)
     - `packages/daavisetu`: 1 test passed (`test_daavisetu.py`)

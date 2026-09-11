@@ -21,12 +21,12 @@ Kadi (कड़ी — "link in a chain") is the shared intelligence and context
 3. **Entity Resolution Pipeline**:
    - Multi-signal similarity scoring:
      - Surface string similarity (Levenshtein / Token overlap)
-     - Phonetic / Cross-script transliteration: **IndicXlit** (`ai4bharat-transliteration`)
-     - Cross-lingual semantic similarity: **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`)
+     - Phonetic / Cross-script transliteration: **IndicXlit** (`ai4bharat-transliteration`) *(planned — not implemented)*
+     - Cross-lingual semantic similarity: **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`) *(planned — not implemented)*
    - Output branching: `High Confidence -> Merge`, `Medium Confidence -> Ask User`, `Low Confidence -> Create New Entity`.
 
 4. **Vector Store & In-Memory Indices**:
-   - `kadi/vector_store.py` manages FAISS indexes for lightning-fast blocking and similarity checks.
+   - `kadi/vector_store.py` is a scaffold for future FAISS/pgvector indexes. It contains no FAISS today and is imported by no endpoint.
 
 5. **Validation**:
    - Run tests from package root:

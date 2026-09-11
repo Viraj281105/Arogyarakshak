@@ -52,24 +52,30 @@ export const scannerService = {
   /**
    * Complete BYOD Intake Pipeline:
    * 1. Validates transient document.
-   * 2. Initializes case session via api.kadi.createCase({ consent_opt_in: true }).
+   * 2. Initializes case session with the caller-supplied consent decision.
    * 3. Uploads image to api.kadi.uploadDocument(caseId, payload).
    * 4. Returns caseId and upload metadata without persisting to disk.
    */
   processScanAndUpload: async (
     doc: ScannedDocument,
-    userId: string = 'mobile_patient'
+    options: { consent: boolean; userId?: string }
   ): Promise<{ caseId: string; uploadResponse: UploadResponse }> => {
     const validation = scannerService.validateScan(doc);
     if (!validation.valid) {
       throw new Error(validation.reason || 'Invalid scan document');
     }
 
+    if (!options?.consent) {
+      throw new Error(
+        'Consent is required before a document can be analysed. The case was not created.'
+      );
+    }
+
     const caseRes = await api.kadi.createCase({
-      consent_opt_in: true,
-      user_id: userId,
+      consent_opt_in: options.consent,
+      user_id: options.userId ?? 'mobile_patient',
     });
-    const caseId = caseRes.id || caseRes.case_id;
+    const caseId = caseRes.id;
     if (!caseId) {
       throw new Error('Failed to retrieve case ID from Kadi layer');
     }

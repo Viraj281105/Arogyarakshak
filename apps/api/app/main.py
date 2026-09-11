@@ -6,6 +6,7 @@ lifespan hooks, and versioned routing.
 """
 
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
@@ -28,7 +29,17 @@ async def lifespan(app: FastAPI):
     logger.info("ArogyaRakshak API starting up...")
     logger.info("GROQ_MODEL = %s", settings.groq_model)
     logger.info("DATABASE_URL = %s", settings.database_url)
-    
+
+    if settings.groq_api_key:
+        logger.info("GROQ_API_KEY is configured — LLM-backed extraction and drafting enabled.")
+    else:
+        logger.warning(
+            "GROQ_API_KEY is NOT configured. Running in DEGRADED mode: Kadi entity "
+            "extraction falls back to regex heuristics and BillNyay appeal letters are "
+            "templated rather than LLM-drafted. Set GROQ_API_KEY in .env to enable "
+            "full functionality."
+        )
+
     # Establish connection and create schemas on startup if they do not exist
     try:
         async with engine.begin() as conn:
@@ -49,13 +60,24 @@ app = FastAPI(
 )
 
 # --- CORS Middleware ----------------------------------------------------------
+# A wildcard origin combined with allow_credentials lets any site issue credentialed
+# cross-origin requests. Credentials are therefore enabled only when an explicit origin
+# allow-list is configured; the permissive default stays credential-free.
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+wildcard_origins = not origins or "*" in origins
+
+if wildcard_origins:
+    logger.warning(
+        "CORS_ORIGINS is a wildcard. Credentialed cross-origin requests are disabled. "
+        "Set CORS_ORIGINS to an explicit comma-separated list in production."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"] if wildcard_origins else origins,
+    allow_credentials=not wildcard_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
 
@@ -83,11 +105,22 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Catches unhandled errors to avoid leaking internal trace details."""
-    logger.error("Unhandled exception on %s: %s", request.url, exc, exc_info=True)
+    """Catches unhandled errors without leaking internal detail to the caller.
+
+    The exception text previously went back in the response body, disclosing internal
+    function names and parameters (e.g. the Barrister Agent TypeError). It is logged with
+    a correlation id instead, so operators can still find it.
+    """
+    error_id = uuid.uuid4().hex[:12]
+    logger.error(
+        "Unhandled exception [%s] on %s: %s", error_id, request.url, exc, exc_info=True
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "An unexpected server error occurred.", "message": str(exc)},
+        content={
+            "detail": "An unexpected server error occurred.",
+            "error_id": error_id,
+        },
     )
 
 
@@ -97,5 +130,15 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    """Health check endpoint — confirms the API is running."""
-    return {"status": "ok", "version": "1.0.0"}
+    """Health check endpoint — confirms the API is running and reports LLM availability.
+
+    `groq_configured` is false when GROQ_API_KEY is unset, meaning extraction and appeal
+    drafting are running on offline fallbacks. Operators need this to be visible rather
+    than buried in logs.
+    """
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "groq_configured": bool(settings.groq_api_key),
+        "groq_model": settings.groq_model,
+    }

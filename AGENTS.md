@@ -1,7 +1,8 @@
 # Agent Configuration & Operational Manual — ArogyaRakshak
 
 **Project Name:** "ArogyaRakshak (आरोग्यरक्षक)"  
-**Stack:** FastAPI + Next.js (App Router) + PostgreSQL/pgvector + FAISS + Groq API  
+**Stack:** FastAPI + Next.js (App Router) + PostgreSQL + Groq API  
+*(pgvector / FAISS similarity search is planned; `kadi/vector_store.py` is an unwired scaffold.)*  
 **Environment:** Monorepo (`apps/`, `packages/`, `data/`, `docs/`)  
 
 ---
@@ -83,7 +84,7 @@ arogyarakshak/
 │   │   └── tsconfig.json        # TypeScript configuration
 │   └── mobile/                  # React Native / Expo cross-platform mobile client (planned)
 ├── packages/                    # Independent domain logic libraries (installed via pip -e)
-│   ├── kadi/                    # Shared context: extraction, OCR, FAISS vector store
+│   ├── kadi/                    # Shared context: OCR, extraction, redaction, line-item parsing
 │   ├── billnyay/                # Hospital bill line-item audit vs CGHS benchmarks (5-agent chain)
 │   ├── daavisetu/               # Pre-claim cashless pre-authorization form filler
 │   ├── bimanyay/                # Post-denial insurance claim audit, IRDAI appeals & SLA tracker

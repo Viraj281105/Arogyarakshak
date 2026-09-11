@@ -29,6 +29,9 @@ export interface MobileTranslations {
     cameraPermissionMsg: string;
     grantPermission: string;
     transientMemoryNotice: string;
+    consentText: string;
+    consentRequired: string;
+    scanFirst: string;
   };
   modules: {
     billnyay: {
@@ -44,6 +47,8 @@ export interface MobileTranslations {
       cghsCap: string;
       flagged: string;
       fair: string;
+      notBenchmarked: string;
+      unmatchedNotice: string;
       scanBillBtn: string;
       activeCaseReady: string;
     };
@@ -174,6 +179,9 @@ export const translations: Record<Language, MobileTranslations> = {
       cameraPermissionMsg: 'ArogyaRakshak uses your camera to scan medical bills and denial letters. Images are processed transiently without permanent storage.',
       grantPermission: 'Allow Camera',
       transientMemoryNotice: 'BYOD Guard: Images expunged immediately after OCR extraction.',
+      consentText: 'I consent to transient analysis of this document.',
+      consentRequired: 'Please give consent before scanning.',
+      scanFirst: 'Scan a document first — consent is captured during the scan.',
     },
     modules: {
       billnyay: {
@@ -189,6 +197,8 @@ export const translations: Record<Language, MobileTranslations> = {
         cghsCap: 'CGHS Cap',
         flagged: 'Flagged',
         fair: '✓ Fair',
+        notBenchmarked: 'ⓘ Not benchmarked',
+        unmatchedNotice: '{count} item(s) totalling ₹{amount} have no CGHS benchmark and were NOT verified.',
         scanBillBtn: '📷 Scan Bill with Camera',
         activeCaseReady: 'Active case loaded from camera scan.',
       },
@@ -317,6 +327,9 @@ export const translations: Record<Language, MobileTranslations> = {
       cameraPermissionMsg: 'आरोग्यरक्षक मेडिकल बिलों को स्कैन करने के लिए कैमरे का उपयोग करता है। छवियां बिना स्थायी संचयन के अस्थायी रूप से संसाधित होती हैं।',
       grantPermission: 'अनुमति दें',
       transientMemoryNotice: 'BYOD सुरक्षा: ओसीआर निष्कर्षण के बाद छवियां तुरंत हटा दी जाती हैं।',
+      consentText: 'मैं इस दस्तावेज़ के अस्थायी विश्लेषण की सहमति देता हूँ।',
+      consentRequired: 'कृपया स्कैन करने से पहले सहमति दें।',
+      scanFirst: 'पहले दस्तावेज़ स्कैन करें — सहमति स्कैन के समय ली जाती है।',
     },
     modules: {
       billnyay: {
@@ -332,6 +345,8 @@ export const translations: Record<Language, MobileTranslations> = {
         cghsCap: 'सीजीएचएस सीमा',
         flagged: 'संदिग्ध दरें',
         fair: '✓ उचित दर',
+        notBenchmarked: 'ⓘ जाँच नहीं हुई',
+        unmatchedNotice: '{count} मदों (₹{amount}) के लिए CGHS मानक नहीं है, इनकी जाँच नहीं हुई।',
         scanBillBtn: '📷 कैमरे से बिल स्कैन करें',
         activeCaseReady: 'स्कैन से सक्रिय केस लोड हो गया है।',
       },
@@ -460,6 +475,9 @@ export const translations: Record<Language, MobileTranslations> = {
       cameraPermissionMsg: 'आरोग्यरक्षक वैद्यकीय बिले स्कॅन करण्यासाठी कॅमेरा वापरतो. चित्रे कायमस्वरूपी साठवणुकीशिवाय तात्पुरती तपासली जातात.',
       grantPermission: 'परवानगी द्या',
       transientMemoryNotice: 'BYOD सुरक्षा: ओसीआर प्रक्रियेनंतर चित्रे तात्काळ नष्ट केली जातात.',
+      consentText: 'मी या दस्तऐवजाच्या तात्पुरत्या विश्लेषणास संमती देतो.',
+      consentRequired: 'कृपया स्कॅन करण्यापूर्वी संमती द्या.',
+      scanFirst: 'आधी दस्तऐवज स्कॅन करा — संमती स्कॅनवेळी घेतली जाते.',
     },
     modules: {
       billnyay: {
@@ -475,6 +493,8 @@ export const translations: Record<Language, MobileTranslations> = {
         cghsCap: 'सीजीएचएस मर्यादा',
         flagged: 'जादा आकारणी',
         fair: '✓ योग्य दर',
+        notBenchmarked: 'ⓘ पडताळणी झाली नाही',
+        unmatchedNotice: '{count} नोंदींसाठी (₹{amount}) CGHS मानक नाही, त्यांची पडताळणी झाली नाही.',
         scanBillBtn: '📷 कॅमेऱ्याने बिल स्कॅन करा',
         activeCaseReady: 'स्कॅनवरून सक्रिय केस लोड झाली आहे.',
       },

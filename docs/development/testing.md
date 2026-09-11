@@ -21,7 +21,7 @@ tests/
 │   ├── apps/api/tests/conftest.py                # Async SQLite fixture & mock client
 │   └── apps/api/tests/test_api.py                # Health, upload, stream & endpoints
 ├── Mobile Client Tests (apps/mobile/src/__tests__/)
-│   └── apps/mobile/src/__tests__/scanner.test.ts # BYOD zero-retention invariant & API contract
+│   └── apps/mobile/tests/                       # BYOD, consent, scanner & contract tests
 └── Evaluation Metrics (Phase 4.5)
     └── Formal ML & OCR benchmarks (PEA, BMA, CFMA, CRMA, WER/CER)
 ```
@@ -30,13 +30,13 @@ tests/
 
 ## 2. Test Commands
 
-### 2.1 Run All Backend & Package Tests (32 Tests)
+### 2.1 Run All Backend & Package Tests (122 Tests)
 ```bash
 # Run all package unit tests & API integration tests
 python -m pytest packages/ apps/api/tests/
 ```
 
-### 2.2 Run Mobile Client Tests (10 Tests)
+### 2.2 Run Mobile Client Tests (23 Tests)
 ```bash
 cd apps/mobile
 npm test
@@ -71,9 +71,10 @@ python -m pytest apps/api/tests/
 
 ## 3. Fixtures & Isolation Strategy
 
-Integration tests in `apps/api/tests/conftest.py` use an in-memory **SQLite async engine (`sqlite+aiosqlite:///:memory:`)**:
+Integration tests in `apps/api/tests/conftest.py` use a file-backed **SQLite async engine (`sqlite+aiosqlite:///test_temp.db`)**, created and dropped around each test:
 - Tests execute in complete isolation without requiring an active PostgreSQL container.
-- All database schemas are automatically created in memory before each test and torn down after.
+- All database schemas are created before each test and dropped afterwards; the file is removed at teardown.
+- A file-backed database (rather than `:memory:`) is required so the background document-processing task sees the same data as the request that scheduled it.
 - FastAPI dependency overrides inject the test database session via `app.dependency_overrides[get_db]`.
 
 ---

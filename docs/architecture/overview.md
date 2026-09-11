@@ -31,15 +31,15 @@ flowchart TD
     subgraph SharedLayer ["Shared Infrastructure (packages/kadi)"]
         OCR["Shared OCR (Devanagari & Latin)"]
         Extraction["Entity Normalization Pipeline"]
-        Resolution["Entity Resolution (IndicXlit + IndicSBERT)"]
-        FAISS_Idx["FAISS In-Memory Vector Store"]
+        Resolution["Entity Normalisation &amp; De-identification"]
+        FAISS_Idx["Vector Store (planned)"]
     end
 
     subgraph DomainModules ["Domain Logic Modules (packages/)"]
         BillNyay["packages/billnyay<br/>(Hospital Bill Audit vs CGHS)"]
         DaaviSetu["packages/daavisetu<br/>(Pre-Auth & Claim Form Filler)"]
         BimaNyay["packages/bimanyay<br/>(Denial Appeal & Grievance Tracker)"]
-        SchemeSetu["packages/schemesetu<br/>(PMJAY/MJPJAY RAG Engine)"]
+        SchemeSetu["packages/schemesetu<br/>(PMJAY/MJPJAY Rules Engine)"]
         DawaCheck["packages/dawacheck<br/>(NPPA Price Benchmark & Generics)"]
     end
 
@@ -69,7 +69,7 @@ flowchart TD
 | **ASGI Server** | **Uvicorn** | `0.34.x` | Production-grade ASGI server with uvloop event loop. |
 | **ORM & Driver** | **SQLAlchemy + asyncpg** | `2.0.x` / `0.30.x` | Fully asynchronous relational database management. |
 | **Database** | **PostgreSQL + pgvector** | `pg16` | Relational persistence combined with native vector similarity searches. |
-| **Vector Index** | **FAISS** | — | Lightning-fast in-memory similarity matching for sub-second candidate blocking. |
+| **Vector Index** *(planned)* | **FAISS / pgvector** | — | Similarity matching for candidate blocking. Scaffold only — `kadi/vector_store.py` is not wired into any endpoint. |
 | **LLM Inference** | **Groq API** | Default: `openai/gpt-oss-120b` | High-throughput cloud inference engine. Deprecated Llama models are prohibited. |
 | **Transliteration** | **IndicXlit (AI4Bharat)**| — | Phonetic cross-script transliteration for Indian regional languages. |
 | **Cross-Lingual Embeddings** | **IndicSBERT (L3Cube)** | — | High-precision Hindi/Marathi/English semantic sentence similarity. |

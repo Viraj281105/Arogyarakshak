@@ -55,9 +55,18 @@ export default function Home() {
 
   const t = translations[currentLang];
 
-  const handleStartAudit = async (file: File | null, fileName: string) => {
+  const handleStartAudit = async (
+    file: File | null,
+    fileName: string,
+    consentGiven: boolean
+  ) => {
     if (!file) {
       setErrorMessage("Please select or drop a valid document file before starting the audit.");
+      return;
+    }
+
+    if (!consentGiven) {
+      setErrorMessage(t.upload.consentRequired);
       return;
     }
 
@@ -74,7 +83,7 @@ export default function Home() {
       const caseRes = await fetch(`${API_BASE}/api/v1/kadi/cases`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consent_opt_in: true }),
+        body: JSON.stringify({ consent_opt_in: consentGiven }),
       });
 
       if (!caseRes.ok) {

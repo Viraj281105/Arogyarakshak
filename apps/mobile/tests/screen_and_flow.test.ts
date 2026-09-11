@@ -2,6 +2,7 @@ import test, { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { translations, Language } from '../src/translations/strings';
 import { BottomTabParamList, RootStackParamList } from '../src/navigation/types';
+import { BillNyayAuditItem } from '../src/api/types';
 
 describe('Mobile Screen & Navigation Flow Architecture', () => {
   it('should verify BottomTabParamList supports caseId and scanCompleted for modules', () => {
@@ -175,5 +176,49 @@ describe('Mobile Offline Action Queue Invariants', () => {
     });
     assert.strictEqual(mockQueue.length, 4);
     assert.deepStrictEqual(mockQueue.map(a => a.type), supportedTypes);
+  });
+});
+
+describe('Mobile BillNyay Audit Result Contract', () => {
+  const languages: Language[] = ['en', 'hi', 'mr'];
+
+  it('should model an unbenchmarked item as unverified rather than fair', () => {
+    const unmatched: BillNyayAuditItem = {
+      item_name: 'Dolo 650',
+      charged: 33,
+      cghs_benchmark: null,
+      deviation_percentage: 0,
+      is_deviation: false,
+      benchmarked: false,
+      status: 'not_benchmarked',
+    };
+
+    // The exact rendering predicate used by BillNyayScreen.
+    const showsAsBenchmarked = unmatched.benchmarked && unmatched.cghs_benchmark !== null;
+    assert.strictEqual(showsAsBenchmarked, false);
+    assert.strictEqual(unmatched.status, 'not_benchmarked');
+  });
+
+  it('should still render a genuine within-benchmark item as fair', () => {
+    const fairItem: BillNyayAuditItem = {
+      item_name: 'Consultation',
+      charged: 300,
+      cghs_benchmark: 350,
+      deviation_percentage: 0,
+      is_deviation: false,
+      benchmarked: true,
+      status: 'within_benchmark',
+    };
+    const showsAsBenchmarked = fairItem.benchmarked && fairItem.cghs_benchmark !== null;
+    assert.strictEqual(showsAsBenchmarked, true);
+  });
+
+  it('should localize the not-benchmarked vocabulary in all 3 languages', () => {
+    languages.forEach((lang) => {
+      const m = translations[lang].modules.billnyay;
+      assert.ok(m.notBenchmarked && m.notBenchmarked.trim().length > 0, `notBenchmarked missing in ${lang}`);
+      assert.ok(m.unmatchedNotice.includes('{count}'), `unmatchedNotice lost {count} in ${lang}`);
+      assert.ok(m.unmatchedNotice.includes('{amount}'), `unmatchedNotice lost {amount} in ${lang}`);
+    });
   });
 });
