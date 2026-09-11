@@ -21,19 +21,33 @@ export interface UploadResponse {
 }
 
 // --- BillNyay ---
+export type BillNyayAuditItemStatus =
+  | 'overcharged'
+  | 'within_benchmark'
+  | 'bundled'
+  | 'not_benchmarked';
+
 export interface BillNyayAuditItem {
   item_name: string;
   charged: number;
-  cghs_benchmark: number;
+  // null when the item has no CGHS counterpart — must never be shown as "Fair".
+  cghs_benchmark: number | null;
   deviation_percentage: number;
   is_deviation: boolean;
+  benchmarked: boolean;
+  status: BillNyayAuditItemStatus;
 }
 
 export interface BillNyayAuditResponse {
   case_id: string;
   total_charged: number;
   total_benchmark: number;
+  benchmarked_charged: number;
+  potential_savings: number;
   deviations_count: number;
+  benchmarked_count: number;
+  unmatched_count: number;
+  unmatched_amount: number;
   audit_items: BillNyayAuditItem[];
 }
 

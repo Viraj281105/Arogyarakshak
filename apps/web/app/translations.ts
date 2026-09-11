@@ -44,6 +44,13 @@ export interface Translations {
       cghsCol: string;
       varianceCol: string;
       disputeGrounds: string;
+      notBenchmarked: string;
+      withinBenchmark: string;
+      notBenchmarkedBadge: string;
+      overchargedBadge: string;
+      bundledBadge: string;
+      fairBadge: string;
+      unmatchedNotice: string;
     };
     bimanyay: {
       title: string;
@@ -137,17 +144,17 @@ export const translations: Record<Language, Translations> = {
       browse: "Browse Files",
       cameraCapture: "Snap Photo / Camera",
       consentText: "I consent to transient algorithmic analysis under ArogyaRakshak's Zero-Retention Policy.",
-      processBtn: "Run Multi-Agent Audit",
-      processing: "Analyzing with Multi-Agent Pipeline...",
+      processBtn: "Extract Document Entities",
+      processing: "Running OCR & entity extraction...",
       zeroRetentionNotice: "No documents are stored on any persistent server disk. Conforms to DPDP Act 2023.",
     },
     stream: {
-      statusHeading: "Live Agent Pipeline Stream",
+      statusHeading: "Live Document Processing Stream",
       agentOrchestration: "Orchestrating autonomous agents across CGHS, NPPA & IRDAI benchmarks...",
-      stepOcr: "Document OCR & Devanagari Transliteration",
-      stepEntities: "Cross-Lingual Entity Resolution (IndicSBERT)",
-      stepAudit: "CGHS Rate Benchmark & Regulatory Clause Audit",
-      stepComplete: "Dossier & Statutory Grievance Package Ready",
+      stepOcr: "Document OCR & Text Extraction",
+      stepEntities: "Kadi Entity Extraction",
+      stepAudit: "Saving Extracted Entities",
+      stepComplete: "Extraction Complete — Ready for Module Audit",
     },
     modules: {
       billnyay: {
@@ -162,6 +169,13 @@ export const translations: Record<Language, Translations> = {
         cghsCol: "Statutory Benchmark",
         varianceCol: "Excess Surcharge",
         disputeGrounds: "Dispute Grounds: Overcharging violates Supreme Court Consumer Protection precedents and standardized CGHS tariff guidelines.",
+        notBenchmarked: "No CGHS benchmark",
+        withinBenchmark: "Within Benchmark",
+        notBenchmarkedBadge: "Not benchmarked",
+        overchargedBadge: "Overcharged",
+        bundledBadge: "Bundled — should not be billed separately",
+        fairBadge: "Fair",
+        unmatchedNotice: "{count} line item(s) totalling {amount} have no CGHS benchmark and were NOT verified. They are not confirmed fair — review them manually.",
       },
       bimanyay: {
         title: "BimaNyay — Insurance Denial & Grievance Engine",
@@ -258,12 +272,12 @@ export const translations: Record<Language, Translations> = {
       zeroRetentionNotice: "सर्वर डिस्क पर कोई दस्तावेज़ सुरक्षित नहीं रखा जाता। DPDP अधिनियम 2023 के अनुरूप।",
     },
     stream: {
-      statusHeading: "लाइव एजेंट पाइपलाइन स्थिति",
+      statusHeading: "लाइव दस्तावेज़ प्रोसेसिंग स्थिति",
       agentOrchestration: "CGHS, NPPA एवं IRDAI मानकों के आधार पर स्वायत्त विश्लेषण जारी...",
-      stepOcr: "दस्तावेज़ ओसीआर एवं देवनागरी लिप्यंतरण",
-      stepEntities: "क्रॉस-भाषाई मेडिकल एंटिटी पहचान (IndicSBERT)",
-      stepAudit: "CGHS दर एवं विनियामक खंड ऑडिट",
-      stepComplete: "विधिक अपील एवं शिकायत पत्र तैयार",
+      stepOcr: "दस्तावेज़ ओसीआर एवं टेक्स्ट निष्कर्षण",
+      stepEntities: "Kadi एंटिटी निष्कर्षण",
+      stepAudit: "निकाली गई एंटिटी सहेजी जा रही हैं",
+      stepComplete: "निष्कर्षण पूर्ण — मॉड्यूल ऑडिट के लिए तैयार",
     },
     modules: {
       billnyay: {
@@ -278,6 +292,13 @@ export const translations: Record<Language, Translations> = {
         cghsCol: "मानक दर",
         varianceCol: "अतिरिक्त राशि",
         disputeGrounds: "आपत्ति का आधार: अत्यधिक शुल्क सर्वोच्च न्यायालय के उपभोक्ता संरक्षण निर्णयों और CGHS नियमों का उल्लंघन करता है।",
+        notBenchmarked: "कोई CGHS मानक नहीं",
+        withinBenchmark: "मानक के भीतर",
+        notBenchmarkedBadge: "जाँच नहीं हुई",
+        overchargedBadge: "अधिक शुल्क",
+        bundledBadge: "पैकेज में शामिल — अलग से शुल्क नहीं",
+        fairBadge: "उचित",
+        unmatchedNotice: "{count} मद ({amount}) के लिए कोई CGHS मानक नहीं है, इनकी जाँच नहीं हुई। इन्हें उचित नहीं माना गया है — कृपया स्वयं जाँचें।",
       },
       bimanyay: {
         title: "बीमान्याय — बीमा अस्वीकृति ऑडिट एवं शिकायत निवारण",
@@ -374,12 +395,12 @@ export const translations: Record<Language, Translations> = {
       zeroRetentionNotice: "कोणताही डेटा सर्व्हर डिस्कवर साठवला जात नाही. DPDP कायदा 2023 चे पालन.",
     },
     stream: {
-      statusHeading: "थेट एजंट प्रणाली स्थिती",
+      statusHeading: "थेट दस्तऐवज प्रक्रिया स्थिती",
       agentOrchestration: "CGHS, NPPA आणि IRDAI मानकांनुसार तपासणी सुरू...",
-      stepOcr: "दस्तऐवज OCR आणि देवनागरी लिप्यंतरण",
-      stepEntities: "क्रॉस-भाषिक वैद्यकीय माहिती संकलन (IndicSBERT)",
-      stepAudit: "CGHS दर व कायदेशीर नियमांचे ऑडिट",
-      stepComplete: "कायदेशीर तक्रार व अपील संच तयार",
+      stepOcr: "दस्तऐवज OCR आणि मजकूर निष्कर्षण",
+      stepEntities: "Kadi माहिती निष्कर्षण",
+      stepAudit: "काढलेली माहिती जतन करत आहे",
+      stepComplete: "निष्कर्षण पूर्ण — मॉड्यूल ऑडिटसाठी सज्ज",
     },
     modules: {
       billnyay: {
@@ -394,6 +415,13 @@ export const translations: Record<Language, Translations> = {
         cghsCol: "शासकीय दर",
         varianceCol: "अतिरिक्त रक्कम",
         disputeGrounds: "तक्रारीचा आधार: जास्त दर आकारणी सर्वोच्च न्यायालयाच्या ग्राहक संरक्षण नियमांचा व CGHS दरांचा भंग करते.",
+        notBenchmarked: "CGHS मानक उपलब्ध नाही",
+        withinBenchmark: "मानकाच्या आत",
+        notBenchmarkedBadge: "पडताळणी झाली नाही",
+        overchargedBadge: "जादा आकारणी",
+        bundledBadge: "पॅकेजमध्ये समाविष्ट — वेगळे शुल्क नाही",
+        fairBadge: "योग्य",
+        unmatchedNotice: "{count} नोंदी ({amount}) साठी CGHS मानक नाही, त्यांची पडताळणी झालेली नाही. त्या योग्य ठरवलेल्या नाहीत — कृपया स्वतः तपासा.",
       },
       bimanyay: {
         title: "बीमान्याय — विमा दावा नकार तपासणी व निवारण",

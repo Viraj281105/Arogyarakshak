@@ -38,3 +38,92 @@ describe('Web Trilingual Localization Integrity', () => {
     });
   });
 });
+
+describe('Web UI Capability Claim Integrity', () => {
+  const languages: Language[] = ['en', 'hi', 'mr'];
+
+  // Capabilities that do not exist in the codebase. The upload pipeline runs
+  // OCR -> Kadi entity extraction -> DB write. It performs no transliteration, no
+  // IndicSBERT/IndicXlit entity resolution, no CGHS audit and no grievance packaging.
+  const unimplementedClaims = [
+    'IndicSBERT',
+    'IndicXlit',
+    'Transliteration',
+    'लिप्यंतरण',
+    'FAISS',
+  ];
+
+  test('pipeline stage labels must not advertise unimplemented capabilities', () => {
+    languages.forEach((lang) => {
+      const stream = translations[lang].stream;
+      const labels = [
+        stream.statusHeading,
+        stream.stepOcr,
+        stream.stepEntities,
+        stream.stepAudit,
+        stream.stepComplete,
+      ];
+      labels.forEach((label) => {
+        unimplementedClaims.forEach((claim) => {
+          assert.ok(
+            !label.toLowerCase().includes(claim.toLowerCase()),
+            `Stage label in "${lang}" claims unimplemented capability "${claim}": ${label}`
+          );
+        });
+      });
+    });
+  });
+
+  test('upload action labels must not claim a multi-agent audit runs on upload', () => {
+    languages.forEach((lang) => {
+      const upload = translations[lang].upload;
+      [upload.processBtn, upload.processing].forEach((label) => {
+        assert.ok(
+          !/multi-?agent/i.test(label),
+          `Upload label in "${lang}" claims a multi-agent audit on upload: ${label}`
+        );
+      });
+    });
+  });
+
+  test('every stage label is non-empty in all languages', () => {
+    languages.forEach((lang) => {
+      const stream = translations[lang].stream;
+      (['statusHeading', 'stepOcr', 'stepEntities', 'stepAudit', 'stepComplete'] as const).forEach(
+        (key) => {
+          assert.ok(
+            stream[key] && stream[key].trim().length > 0,
+            `Empty stream.${key} in ${lang}`
+          );
+        }
+      );
+    });
+  });
+
+  test('billnyay audit status vocabulary is fully localized', () => {
+    const keys = [
+      'notBenchmarked',
+      'withinBenchmark',
+      'notBenchmarkedBadge',
+      'overchargedBadge',
+      'bundledBadge',
+      'fairBadge',
+      'unmatchedNotice',
+    ] as const;
+
+    languages.forEach((lang) => {
+      const billnyay = translations[lang].modules.billnyay;
+      keys.forEach((key) => {
+        assert.ok(
+          billnyay[key] && billnyay[key].trim().length > 0,
+          `Missing billnyay.${key} in ${lang}`
+        );
+      });
+      // The notice must keep both interpolation placeholders.
+      assert.ok(
+        billnyay.unmatchedNotice.includes('{count}') && billnyay.unmatchedNotice.includes('{amount}'),
+        `unmatchedNotice in ${lang} lost its {count}/{amount} placeholders`
+      );
+    });
+  });
+});

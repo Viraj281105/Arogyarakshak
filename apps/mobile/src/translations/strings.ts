@@ -44,6 +44,8 @@ export interface MobileTranslations {
       cghsCap: string;
       flagged: string;
       fair: string;
+      notBenchmarked: string;
+      unmatchedNotice: string;
       scanBillBtn: string;
       activeCaseReady: string;
     };
@@ -189,6 +191,8 @@ export const translations: Record<Language, MobileTranslations> = {
         cghsCap: 'CGHS Cap',
         flagged: 'Flagged',
         fair: '✓ Fair',
+        notBenchmarked: 'ⓘ Not benchmarked',
+        unmatchedNotice: '{count} item(s) totalling ₹{amount} have no CGHS benchmark and were NOT verified.',
         scanBillBtn: '📷 Scan Bill with Camera',
         activeCaseReady: 'Active case loaded from camera scan.',
       },
@@ -332,6 +336,8 @@ export const translations: Record<Language, MobileTranslations> = {
         cghsCap: 'सीजीएचएस सीमा',
         flagged: 'संदिग्ध दरें',
         fair: '✓ उचित दर',
+        notBenchmarked: 'ⓘ जाँच नहीं हुई',
+        unmatchedNotice: '{count} मदों (₹{amount}) के लिए CGHS मानक नहीं है, इनकी जाँच नहीं हुई।',
         scanBillBtn: '📷 कैमरे से बिल स्कैन करें',
         activeCaseReady: 'स्कैन से सक्रिय केस लोड हो गया है।',
       },
@@ -475,6 +481,8 @@ export const translations: Record<Language, MobileTranslations> = {
         cghsCap: 'सीजीएचएस मर्यादा',
         flagged: 'जादा आकारणी',
         fair: '✓ योग्य दर',
+        notBenchmarked: 'ⓘ पडताळणी झाली नाही',
+        unmatchedNotice: '{count} नोंदींसाठी (₹{amount}) CGHS मानक नाही, त्यांची पडताळणी झाली नाही.',
         scanBillBtn: '📷 कॅमेऱ्याने बिल स्कॅन करा',
         activeCaseReady: 'स्कॅनवरून सक्रिय केस लोड झाली आहे.',
       },

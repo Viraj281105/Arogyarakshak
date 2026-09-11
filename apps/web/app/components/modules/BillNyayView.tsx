@@ -5,19 +5,33 @@ import { Language, translations } from "../../translations";
 import { useApi } from "../../hooks/useApi";
 
 // --- API Response Types (matching backend AuditResponse schema) ---
+type AuditItemStatus =
+  | "overcharged"
+  | "within_benchmark"
+  | "bundled"
+  | "not_benchmarked";
+
 interface AuditResultItem {
   item_name: string;
   charged: number;
-  cghs_benchmark: number;
+  // null when the item has no CGHS counterpart — it must never render as "Fair".
+  cghs_benchmark: number | null;
   deviation_percentage: number;
   is_deviation: boolean;
+  benchmarked: boolean;
+  status: AuditItemStatus;
 }
 
 interface AuditResponse {
   case_id: string;
   total_charged: number;
   total_benchmark: number;
+  benchmarked_charged: number;
+  potential_savings: number;
   deviations_count: number;
+  benchmarked_count: number;
+  unmatched_count: number;
+  unmatched_amount: number;
   audit_items: AuditResultItem[];
 }
 
@@ -131,10 +145,30 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId 
             <div className="stat-box">
               <div className="stat-label">{t.potentialSavings}</div>
               <div className="stat-val" style={{ color: "var(--status-danger)" }}>
-                ₹{(auditData.total_charged - auditData.total_benchmark).toLocaleString("en-IN")}
+                ₹{auditData.potential_savings.toLocaleString("en-IN")}
               </div>
             </div>
           </div>
+
+          {/* Coverage disclosure: the patient must be able to see how much of the
+              bill was actually compared against a benchmark. */}
+          {auditData.unmatched_count > 0 && (
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                marginBottom: "1.5rem",
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                borderRadius: "var(--radius-md)",
+                fontSize: "0.85rem",
+                color: "var(--status-warning)",
+              }}
+            >
+              ⓘ {t.unmatchedNotice
+                .replace("{count}", String(auditData.unmatched_count))
+                .replace("{amount}", `₹${auditData.unmatched_amount.toLocaleString("en-IN")}`)}
+            </div>
+          )}
 
           {auditData.audit_items.length > 0 ? (
             <>
@@ -153,25 +187,55 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId 
                     </tr>
                   </thead>
                   <tbody>
-                    {auditData.audit_items.map((row, idx) => (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: 600 }}>{row.item_name}</td>
-                        <td>₹{row.charged.toLocaleString("en-IN")}</td>
-                        <td style={{ color: "var(--brand-cyan)" }}>
-                          ₹{row.cghs_benchmark.toLocaleString("en-IN")}
-                        </td>
-                        <td style={{ color: row.is_deviation ? "var(--status-danger)" : "var(--status-success)", fontWeight: 700 }}>
-                          {row.is_deviation
-                            ? `+₹${(row.charged - row.cghs_benchmark).toLocaleString("en-IN")} (${row.deviation_percentage}%)`
-                            : "Within Benchmark"}
-                        </td>
-                        <td>
-                          <span className={`badge ${row.is_deviation ? "badge-danger" : "badge-success"}`}>
-                            {row.is_deviation ? `⚠️ Overcharged (${row.deviation_percentage}%)` : "✓ Fair"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {auditData.audit_items.map((row, idx) => {
+                      const benchmarked = row.benchmarked && row.cghs_benchmark !== null;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 600 }}>{row.item_name}</td>
+                          <td>₹{row.charged.toLocaleString("en-IN")}</td>
+                          <td style={{ color: benchmarked ? "var(--brand-cyan)" : "var(--text-secondary)" }}>
+                            {benchmarked
+                              ? `₹${(row.cghs_benchmark as number).toLocaleString("en-IN")}`
+                              : "—"}
+                          </td>
+                          <td
+                            style={{
+                              color: !benchmarked
+                                ? "var(--text-secondary)"
+                                : row.is_deviation
+                                ? "var(--status-danger)"
+                                : "var(--status-success)",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {!benchmarked
+                              ? t.notBenchmarked
+                              : row.is_deviation
+                              ? `+₹${(row.charged - (row.cghs_benchmark as number)).toLocaleString("en-IN")} (${row.deviation_percentage}%)`
+                              : t.withinBenchmark}
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                !benchmarked
+                                  ? "badge-warning"
+                                  : row.is_deviation
+                                  ? "badge-danger"
+                                  : "badge-success"
+                              }`}
+                            >
+                              {!benchmarked
+                                ? `ⓘ ${t.notBenchmarkedBadge}`
+                                : row.status === "bundled"
+                                ? `⚠️ ${t.bundledBadge}`
+                                : row.is_deviation
+                                ? `⚠️ ${t.overchargedBadge} (${row.deviation_percentage}%)`
+                                : `✓ ${t.fairBadge}`}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

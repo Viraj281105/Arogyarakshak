@@ -28,7 +28,17 @@ async def lifespan(app: FastAPI):
     logger.info("ArogyaRakshak API starting up...")
     logger.info("GROQ_MODEL = %s", settings.groq_model)
     logger.info("DATABASE_URL = %s", settings.database_url)
-    
+
+    if settings.groq_api_key:
+        logger.info("GROQ_API_KEY is configured — LLM-backed extraction and drafting enabled.")
+    else:
+        logger.warning(
+            "GROQ_API_KEY is NOT configured. Running in DEGRADED mode: Kadi entity "
+            "extraction falls back to regex heuristics and BillNyay appeal letters are "
+            "templated rather than LLM-drafted. Set GROQ_API_KEY in .env to enable "
+            "full functionality."
+        )
+
     # Establish connection and create schemas on startup if they do not exist
     try:
         async with engine.begin() as conn:
@@ -97,5 +107,15 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    """Health check endpoint — confirms the API is running."""
-    return {"status": "ok", "version": "1.0.0"}
+    """Health check endpoint — confirms the API is running and reports LLM availability.
+
+    `groq_configured` is false when GROQ_API_KEY is unset, meaning extraction and appeal
+    drafting are running on offline fallbacks. Operators need this to be visible rather
+    than buried in logs.
+    """
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "groq_configured": bool(settings.groq_api_key),
+        "groq_model": settings.groq_model,
+    }

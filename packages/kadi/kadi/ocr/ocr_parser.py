@@ -5,10 +5,10 @@ Parses hospital bills, prescriptions, or insurance rejection documents (PDF / Im
 extracting text, line items, amounts, and raw evidence chunks.
 """
 
-import io
 import logging
-import re
-from typing import Any, Dict, List
+from typing import Any, Dict
+
+from kadi.line_items import parse_line_items
 
 logger = logging.getLogger("Kadi.OCRParser")
 logger.setLevel(logging.INFO)
@@ -52,41 +52,9 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
             logger.warning(f"PyMuPDF parsing fallback: {e}")
             text = "Hospital Bill / Clinical Document text extraction."
 
-    items = []
-    lines = text.split("\n")
-    for line in lines:
-        match = re.search(r"([A-Za-z\s]+)[\s:]+₹?(\d+\.?\d*)", line)
-        if match:
-            item_name = match.group(1).strip()
-            price = float(match.group(2))
-            lower_name = item_name.lower()
-            summary_terms = {
-                "total",
-                "subtotal",
-                "sub total",
-                "sub-total",
-                "grand total",
-                "total bill",
-                "total amount",
-                "total charges",
-                "net total",
-                "net amount",
-                "net payable",
-                "amount payable",
-                "balance due",
-                "date",
-                "invoice",
-                "tax",
-                "gst",
-                "cgst",
-                "sgst",
-            }
-            is_summary = (
-                lower_name in summary_terms
-                or lower_name.startswith(("total bill", "total amount", "total charges", "grand total", "net total", "sub total", "sub-total"))
-            )
-            if len(item_name) > 3 and not is_summary:
-                items.append({"item": item_name, "charged": price})
+    # Line-item parsing lives in kadi.line_items so that this parser and the heuristic
+    # extraction fallback cannot produce conflicting rows for the same source line.
+    items = parse_line_items(text)
 
     return {
         "full_text_content": text.strip(),
