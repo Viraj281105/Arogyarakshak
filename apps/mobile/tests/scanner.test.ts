@@ -83,7 +83,10 @@ describe('Mobile Document Scanner Foundation', () => {
     };
 
     try {
-      const result = await scannerService.processScanAndUpload(doc, 'test_user');
+      const result = await scannerService.processScanAndUpload(doc, {
+        consent: true,
+        userId: 'test_user',
+      });
       assert.strictEqual(createCaseCalled, true);
       assert.strictEqual(uploadCalledWithCaseId, 'CASE-TEST-1234');
       assert.strictEqual(result.caseId, 'CASE-TEST-1234');
@@ -99,7 +102,7 @@ describe('Mobile Document Scanner Foundation', () => {
     const invalidDoc = { uri: '', documentType: 'bill' } as any;
     await assert.rejects(
       async () => {
-        await scannerService.processScanAndUpload(invalidDoc);
+        await scannerService.processScanAndUpload(invalidDoc, { consent: true });
       },
       {
         name: 'Error',

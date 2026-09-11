@@ -119,3 +119,34 @@ class BimaNyayTimelineEvent(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+
+
+class DaaviSetuClaim(Base):
+    """Pre-authorization claim submitted for a case.
+
+    The submitted form is the document the patient reviews and signs, so it must be
+    stored verbatim. Previously the POST returned the claim without persisting it and the
+    PDF download rebuilt a *different* ClaimData from Kadi entities, fabricating the
+    policy number and defaulting the patient name to "Patient".
+
+    One claim per case: `case_id` is unique, and re-submitting updates the same row.
+    """
+
+    __tablename__ = "daavisetu_claims"
+
+    id = Column(String, primary_key=True, index=True)  # claim_id, e.g. CLAIM-a1b2c3d4
+    case_id = Column(
+        String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+
+    # Submitted form fields — authoritative for PDF rendering.
+    policy_number = Column(String, nullable=False)
+    patient_name = Column(String, nullable=False)
+    hospital_name = Column(String, nullable=False)
+    diagnosis = Column(String, nullable=False)
+    estimated_cost = Column(Float, default=0.0)
+    treatment_plan = Column(String, nullable=False)
+
+    status = Column(String, default="ready_for_review")  # ready_for_review, completed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

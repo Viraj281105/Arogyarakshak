@@ -42,14 +42,9 @@ export const BillNyayScreen: React.FC = () => {
     try {
       let activeId: string | null = targetCaseId || caseId;
       if (!activeId) {
-        // Create a case session in Kadi if one does not exist
-        const caseRes = await api.kadi.createCase({ consent_opt_in: true });
-        activeId = caseRes.id || caseRes.case_id || null;
-        setCaseId(activeId);
-      }
-
-      if (!activeId) {
-        throw new Error('Unable to initialize active Kadi case session.');
+        // A case is only ever created from the scan flow, where consent is captured.
+        // Creating one here would grant consent the patient never gave.
+        throw new Error(t.scanner.scanFirst);
       }
 
       // Execute CGHS 2024 line-item benchmark audit

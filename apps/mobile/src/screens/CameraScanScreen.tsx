@@ -36,6 +36,8 @@ export const CameraScanScreen: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Opt-IN: the shutter stays disabled until the patient actively consents.
+  const [consentGiven, setConsentGiven] = useState(false);
 
   // Fallback for simulators or environments without physical camera
   const handleSimulatedFallback = async () => {
@@ -51,7 +53,9 @@ export const CameraScanScreen: React.FC = () => {
   const performUpload = async (scannedDoc: ScannedDocument) => {
     try {
       setUploadStatus('Creating secure case session in Kadi...');
-      const result = await scannerService.processScanAndUpload(scannedDoc);
+      const result = await scannerService.processScanAndUpload(scannedDoc, {
+        consent: consentGiven,
+      });
 
       setUploadStatus('Document uploaded. Expunging transient memory...');
 
@@ -95,6 +99,11 @@ export const CameraScanScreen: React.FC = () => {
   };
 
   const handleCapture = async () => {
+    if (!consentGiven) {
+      setErrorMessage(t.scanner.consentRequired);
+      return;
+    }
+
     if (isCapturing) return;
     setIsCapturing(true);
     setErrorMessage(null);
@@ -303,8 +312,30 @@ export const CameraScanScreen: React.FC = () => {
         </Text>
 
         <TouchableOpacity
+          onPress={() => setConsentGiven((prev) => !prev)}
+          accessible={true}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: consentGiven }}
+          accessibilityLabel={t.scanner.consentText}
+          style={styles.consentRow}
+        >
+          <View
+            style={[
+              styles.consentBox,
+              {
+                borderColor: colors.brandCyan,
+                backgroundColor: consentGiven ? colors.brandCyan : 'transparent',
+              },
+            ]}
+          />
+          <Text style={[styles.consentLabel, { fontSize: typography.sizes.xs }]}>
+            {t.scanner.consentText}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={handleCapture}
-          disabled={isCapturing}
+          disabled={isCapturing || !consentGiven}
           accessible={true}
           accessibilityRole="button"
           accessibilityLabel={t.scanner.capture}
@@ -313,6 +344,7 @@ export const CameraScanScreen: React.FC = () => {
             {
               borderColor: colors.brandCyan,
               backgroundColor: isCapturing ? colors.brandCyan : 'rgba(255, 255, 255, 0.25)',
+              opacity: consentGiven ? 1 : 0.4,
             },
           ]}
         >
@@ -452,6 +484,24 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 16,
+  },
+  consentBox: {
+    width: 18,
+    height: 18,
+    borderWidth: 2,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  consentLabel: {
+    color: '#cbd5e1',
+    flexShrink: 1,
   },
   shutterButton: {
     width: 72,

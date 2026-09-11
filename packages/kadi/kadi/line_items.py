@@ -151,6 +151,70 @@ _MEDICINE_HINTS = (
 
 _MIN_NAME_LENGTH = 4
 
+# Identity / contact fields. These carry digits and therefore match the line-item shape,
+# but they are not charges. Left unfiltered, "Contact: 9876543210" was persisted as a
+# billing item worth 9.8 billion rupees and "Aadhaar: 1234 5678 9012" leaked government-ID
+# digits into an entity name. Matched on the label before the first colon, so legitimate
+# lines such as "Doctor Consultation: 500" are unaffected.
+IDENTITY_TERMS = {
+    "patient",
+    "patient name",
+    "name",
+    "insured",
+    "insured name",
+    "attendant",
+    "guardian",
+    "contact",
+    "contact no",
+    "contact number",
+    "phone",
+    "phone no",
+    "mobile",
+    "mobile no",
+    "tel",
+    "telephone",
+    "email",
+    "e-mail",
+    "address",
+    "residence",
+    "city",
+    "pin",
+    "pincode",
+    "pin code",
+    "aadhaar",
+    "aadhar",
+    "uid",
+    "pan",
+    "uhid",
+    "mrn",
+    "age",
+    "dob",
+    "date of birth",
+    "gender",
+    "sex",
+    "policy no",
+    "policy number",
+    "claim no",
+    "claim number",
+    "registration no",
+    "reg no",
+    "ip no",
+    "opd no",
+    "room no",
+    "bed no",
+    "ward no",
+}
+
+# No single hospital bill line item reaches ten integer digits; a value that long is an
+# identifier (phone number, account number) that slipped through the label check.
+_MAX_AMOUNT_DIGITS = 10
+
+
+def is_identity_line(name: str) -> bool:
+    """True when the description labels an identity/contact field rather than a charge."""
+    label = name.split(":", 1)[0].strip().lower().rstrip(".-").strip()
+    return label in IDENTITY_TERMS
+
 
 def normalise_amount(raw: str) -> float:
     """Converts a captured amount such as ``"2,500.00"`` into a float."""
@@ -231,11 +295,15 @@ def parse_line_item(line: str) -> Optional[Dict[str, Any]]:
         return None
 
     name = match.group("name").strip().rstrip(":").strip()
-    if not name or is_noise_name(name) or is_summary_line(name):
+    if not name or is_noise_name(name) or is_summary_line(name) or is_identity_line(name):
+        return None
+
+    raw_amount = match.group("amount")
+    if len(raw_amount.replace(",", "").split(".")[0]) >= _MAX_AMOUNT_DIGITS:
         return None
 
     try:
-        charged = normalise_amount(match.group("amount"))
+        charged = normalise_amount(raw_amount)
     except ValueError:
         return None
 

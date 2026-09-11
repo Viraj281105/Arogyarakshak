@@ -2,6 +2,8 @@ import test, { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { api } from '../src/api/endpoints';
 import { apiClient } from '../src/api/client';
+import { scannerService } from '../src/services/scanner';
+import { translations, Language } from '../src/translations/strings';
 
 describe('BYOD Zero-Retention Invariant Guard', () => {
   it('should enforce rejection of raw document persistent storage attempts', async () => {
@@ -48,7 +50,7 @@ describe('Mobile API Gateway Contract Mapping', () => {
     }
   });
 
-  it('should route Kadi createCase with default consent_opt_in=true', async () => {
+  it('should send the caller-supplied consent value verbatim, never a default', async () => {
     const origPost = apiClient.post;
     let requestedEndpoint = '';
     let sentData: any = null;
@@ -65,11 +67,18 @@ describe('Mobile API Gateway Contract Mapping', () => {
     };
 
     try {
-      const res = await api.kadi.createCase({ user_id: 'mobile_user' });
+      const res = await api.kadi.createCase({
+        consent_opt_in: true,
+        user_id: 'mobile_user',
+      });
       assert.strictEqual(requestedEndpoint, '/api/v1/kadi/cases');
       assert.strictEqual(sentData.consent_opt_in, true);
       assert.strictEqual(sentData.user_id, 'mobile_user');
       assert.strictEqual(res.id, 'CASE-NEW');
+
+      // A declined consent must be transmitted as false, not silently upgraded.
+      await api.kadi.createCase({ consent_opt_in: false, user_id: 'mobile_user' });
+      assert.strictEqual(sentData.consent_opt_in, false);
     } finally {
       apiClient.post = origPost;
     }
@@ -105,5 +114,80 @@ describe('Mobile API Gateway Contract Mapping', () => {
     } finally {
       apiClient.post = origPost;
     }
+  });
+});
+
+describe('Mobile Consent Enforcement', () => {
+  const languages: Language[] = ['en', 'hi', 'mr'];
+
+  it('should refuse to create a case when consent is withheld', async () => {
+    let createCaseCalled = false;
+    const orig = api.kadi.createCase;
+    api.kadi.createCase = async (data: any) => {
+      createCaseCalled = true;
+      return { id: 'CASE-X', status: 'active', created_at: '' } as any;
+    };
+
+    const doc = {
+      uri: 'file:///tmp/bill.jpg',
+      mimeType: 'image/jpeg',
+      timestamp: Date.now(),
+      documentType: 'bill' as const,
+    };
+
+    try {
+      await assert.rejects(
+        async () => {
+          await scannerService.processScanAndUpload(doc, { consent: false });
+        },
+        (err: Error) => /[Cc]onsent is required/.test(err.message)
+      );
+      assert.strictEqual(
+        createCaseCalled,
+        false,
+        'no case may be created when consent is withheld'
+      );
+    } finally {
+      api.kadi.createCase = orig;
+    }
+  });
+
+  it('should propagate the granted consent value into the created case', async () => {
+    let sent: any = null;
+    const origCreate = api.kadi.createCase;
+    const origUpload = api.kadi.uploadDocument;
+    api.kadi.createCase = async (data: any) => {
+      sent = data;
+      return { id: 'CASE-Y', status: 'active', created_at: '' } as any;
+    };
+    api.kadi.uploadDocument = async (caseId: string) =>
+      ({ status: 'success', case_id: caseId, filename: 'f', message: 'ok' } as any);
+
+    const doc = {
+      uri: 'file:///tmp/bill.jpg',
+      mimeType: 'image/jpeg',
+      timestamp: Date.now(),
+      documentType: 'bill' as const,
+    };
+
+    try {
+      await scannerService.processScanAndUpload(doc, { consent: true });
+      assert.strictEqual(sent.consent_opt_in, true);
+    } finally {
+      api.kadi.createCase = origCreate;
+      api.kadi.uploadDocument = origUpload;
+    }
+  });
+
+  it('should localize the consent vocabulary in all 3 languages', () => {
+    languages.forEach((lang) => {
+      const s = translations[lang].scanner;
+      assert.ok(s.consentText && s.consentText.trim().length > 0, `consentText missing in ${lang}`);
+      assert.ok(
+        s.consentRequired && s.consentRequired.trim().length > 0,
+        `consentRequired missing in ${lang}`
+      );
+      assert.ok(s.scanFirst && s.scanFirst.trim().length > 0, `scanFirst missing in ${lang}`);
+    });
   });
 });

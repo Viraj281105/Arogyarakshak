@@ -3,10 +3,10 @@
  * Aligned strictly with FastAPI schemas in apps/api/app/api/v1/endpoints/
  */
 
+// Mirrors the backend CaseResponse exactly. `case_id` and `user_id` were previously
+// declared here but the API returns neither, so any code branching on them was dead.
 export interface CaseResponse {
   id: string;
-  case_id?: string;
-  user_id?: string;
   status: string;
   consent_opt_in: boolean;
   total_charged: number;

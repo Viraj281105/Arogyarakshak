@@ -14,7 +14,7 @@ SchemeSetu matches patients with public healthcare safety nets:
     - **MJPJAY** (Mahatma Jyotirao Phule Jan Arogya Yojana, Maharashtra state)
   - Outputs a plain-language eligibility determination and claim walkthrough.
 - **Offline Semantic Embeddings (`schemesetu/embeddings.py`)**:
-  - Employs an ONNX-runtime SentenceTransformer embedding pipeline for offline, local fallback semantic retrieval over scheme rules.
+  - An offline SentenceTransformer embedding fallback exists in `embeddings.py`, but it is **not wired into eligibility checking** and contains no ONNX runtime. Eligibility is currently deterministic rule matching.
 - **Empanelled Network Hospitals**:
   - Retrieves registered public and private hospitals empanelled under PMJAY and MJPJAY for the patient's district.
 
@@ -24,8 +24,8 @@ SchemeSetu matches patients with public healthcare safety nets:
 ```text
 packages/schemesetu/
 ├── schemesetu/
-│   ├── agent.py             # Rule matching and RAG reasoning agent
-│   ├── embeddings.py        # ONNX embedding runtime & similarity scoring
+│   ├── agent.py             # Deterministic income/state rule matching
+│   ├── embeddings.py        # Offline embedding scaffold (unwired)
 │   └── __init__.py
 ├── tests/
 │   └── test_schemesetu.py   # Eligibility evaluation test suite

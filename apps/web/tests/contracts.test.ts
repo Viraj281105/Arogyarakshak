@@ -1,5 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 describe('Web Domain Contracts and Routing Boundaries', () => {
   const domainEndpoints = [
@@ -58,5 +60,52 @@ describe('Web Domain Contracts and Routing Boundaries', () => {
     const fileResult = startAuditGuard({ name: 'real_hospital_bill.pdf' });
     assert.strictEqual(fileResult.success, true);
     assert.strictEqual(fileResult.fileName, 'real_hospital_bill.pdf');
+  });
+});
+
+describe('Web Consent Request Behaviour', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'app', 'page.tsx'),
+    'utf-8'
+  );
+  const uploader = readFileSync(
+    join(process.cwd(), 'app', 'components', 'DocumentUploader.tsx'),
+    'utf-8'
+  );
+
+  test('case creation must send the user consent value, never a hardcoded true', () => {
+    assert.ok(
+      !/consent_opt_in:\s*true/.test(source),
+      'page.tsx must not hardcode consent_opt_in: true'
+    );
+    assert.ok(
+      /consent_opt_in:\s*consentGiven/.test(source),
+      'page.tsx must send the actual consent value'
+    );
+  });
+
+  test('consent checkbox must default to unchecked (opt-in, not opt-out)', () => {
+    assert.ok(
+      /useState<boolean>\(false\)/.test(uploader),
+      'consent must default to false — a pre-ticked box is not consent'
+    );
+  });
+
+  test('upload must be blocked until consent is given', () => {
+    assert.ok(
+      /if \(!consentGiven \|\| !selectedFile\) return;/.test(uploader),
+      'submit handler must refuse without consent'
+    );
+    assert.ok(
+      /disabled=\{!consentGiven/.test(uploader),
+      'submit button must be disabled without consent'
+    );
+  });
+
+  test('consent must be forwarded to the audit handler', () => {
+    assert.ok(
+      /onStartAudit\(selectedFile, selectedFile\.name, consentGiven\)/.test(uploader),
+      'uploader must pass consent up to the caller'
+    );
   });
 });

@@ -130,3 +130,51 @@ def test_bare_number_not_treated_as_drug_strength_for_rooms():
     assert not looks_like_medicine("Ward 12")
     assert not looks_like_medicine("Bed 45")
     assert looks_like_medicine("Pan 40")
+
+
+# --- Identity / contact lines must never become billing items -----------------
+
+def test_identity_lines_are_not_charges():
+    """`Contact: 9876543210` was persisted as a Rs 9.8 billion billing item."""
+    assert parse_line_item("Contact: 9876543210") is None
+    assert parse_line_item("Mobile: 9876543210") is None
+    assert parse_line_item("Aadhaar: 1234 5678 9012") is None
+    assert parse_line_item("PAN: ABCDE1234F") is None
+    assert parse_line_item("Age: 42") is None
+    assert parse_line_item("Policy No: 774411") is None
+    assert parse_line_item("Room No: 302") is None
+    assert parse_line_item("UHID: 889900") is None
+
+
+def test_identity_filter_does_not_eat_real_charges():
+    """The label check must not swallow legitimate clinical lines."""
+    assert parse_line_item("Doctor Consultation: 500") == {
+        "item": "Doctor Consultation",
+        "charged": 500.0,
+    }
+    assert parse_line_item("Room Rent: 2500") == {"item": "Room Rent", "charged": 2500.0}
+    assert parse_line_item("Nursing Charges: 1200") == {
+        "item": "Nursing Charges",
+        "charged": 1200.0,
+    }
+
+
+def test_implausibly_long_amounts_rejected():
+    """A ten-digit 'amount' is an identifier, not a charge."""
+    assert parse_line_item("Consultation 9876543210") is None
+    assert parse_line_item("Consultation 987654321") is not None  # 9 digits still allowed
+
+
+def test_pii_bill_yields_only_clinical_charges():
+    text = (
+        "Lifeline Multispeciality Hospital\n"
+        "Patient Name: Ramesh Kulkarni\n"
+        "Contact: 9876543210\n"
+        "Aadhaar: 1234 5678 9012\n"
+        "Age: 42\n"
+        "Diagnosis: Acute Appendicitis\n"
+        "Consultation: 900\n"
+        "ICU: 18500\n"
+    )
+    items = {i["item"]: i["charged"] for i in parse_line_items(text)}
+    assert items == {"Consultation": 900.0, "ICU": 18500.0}

@@ -8,16 +8,17 @@
 
 - **Document Extraction (`kadi/extraction.py`)**:
   - Ingests raw document text or OCR tokens.
-  - Normalizes patient name, age, gender, hospital details, diagnoses, procedures, line items, and medications into a structured schema.
+  - Normalizes hospital details, diagnoses, procedures, line items, and medications into a structured schema.
+  - The patient name is extracted in memory for the active request only and is never persisted (see `redaction.py` and ADR-003).
 - **Shared OCR Engine (`kadi/ocr/ocr_parser.py`)**:
   - Handles multi-format document parsing (bills, prescriptions, insurance schedules).
   - Devanagari and Latin script text extraction.
 - **Vector Store & Indexing (`kadi/vector_store.py`)**:
-  - In-memory FAISS similarity indexes for sub-second entity matching and fast blocking.
+  - In-memory FAISS similarity indexes for sub-second entity matching and fast blocking. *(planned — not implemented)*
 - **Entity Resolution (Cross-Script & Semantic)**:
   - Surface string distance (Levenshtein / Token overlap)
-  - Phonetic transliteration matching via **IndicXlit** (`ai4bharat-transliteration`)
-  - Cross-lingual semantic similarity via **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`)
+  - Phonetic transliteration matching via **IndicXlit** (`ai4bharat-transliteration`) *(planned — not implemented)*
+  - Cross-lingual semantic similarity via **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`) *(planned — not implemented)*
 
 ---
 
@@ -26,7 +27,9 @@
 packages/kadi/
 ├── kadi/
 │   ├── extraction.py        # Extraction engine (LLM-grounded + heuristic normalization)
-│   ├── vector_store.py      # FAISS vector indexing implementation
+│   ├── vector_store.py      # Vector index scaffold (no FAISS yet; unwired)
+│   ├── redaction.py         # Direct-identifier removal before persistence
+│   ├── line_items.py        # Shared billing line-item parsing
 │   ├── ocr/
 │   │   ├── ocr_parser.py    # Optical character recognition parser
 │   │   └── tests/           # OCR parser test suite

@@ -1,6 +1,6 @@
 # Contributing to ArogyaRakshak (आरोग्यरक्षक)
 
-Thank you for your interest in contributing to **ArogyaRakshak**! This repository is a patient-facing decision-support monorepo built using FastAPI, Next.js, PostgreSQL/pgvector, FAISS, and Groq.
+Thank you for your interest in contributing to **ArogyaRakshak**! This repository is a patient-facing decision-support monorepo built using FastAPI, Next.js, PostgreSQL, and the Groq API.
 
 We welcome contributions from developers, healthcare researchers, data scientists, and UI/UX designers. Please take a few minutes to review these guidelines before getting started.
 
@@ -160,7 +160,7 @@ npm run lint
 With services running (via `docker-compose up` or local `uvicorn app.main:app --reload`):
 ```bash
 curl http://localhost:8000/health
-# Expected: {"status":"ok","version":"1.0.0"}
+# Expected: {"status":"ok","version":"1.0.0","groq_configured":false,"groq_model":"openai/gpt-oss-120b"}
 ```
 
 ---

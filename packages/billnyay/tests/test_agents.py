@@ -181,3 +181,51 @@ def test_run_regulatory_agent_returns_statutes():
         assert point["summary"]
     # The query is echoed back so callers can see what was searched.
     assert "laparoscopic appendectomy" in result["query_used"]
+
+
+def test_barrister_prompt_carries_all_upstream_agent_evidence():
+    """Proves the chain passes data, not just that it does not crash.
+
+    The API previously fed the Barrister hardcoded strings while the Clinician and
+    Regulatory agents were never invoked at all.
+    """
+    captured = {}
+
+    class CapturingClient:
+        def generate(self, prompt, system="", **kwargs):
+            captured["prompt"] = prompt
+            return "X" * 400
+
+    evidence = EvidenceList(
+        root=[
+            ClinicalEvidence(
+                article_title="Guideline A",
+                summary_of_finding="Medically necessary.",
+                pubmed_id="PMID:7",
+            )
+        ]
+    )
+    regulatory = {
+        "legal_points": [
+            {"statute": "IRDAI Master Circular", "summary": "Moratorium bar applies."}
+        ]
+    }
+
+    run_barrister_agent(
+        CapturingClient(),
+        denial_details=_denial(),
+        clinical_evidence=evidence,
+        regulatory_evidence=regulatory,
+    )
+
+    prompt = captured["prompt"]
+    # Auditor output
+    assert "DEN-4471" in prompt
+    assert "Laparoscopic Appendectomy" in prompt
+    assert "Section 4.1 excludes diagnostic admissions." in prompt
+    # Clinician output
+    assert "Guideline A" in prompt
+    assert "PMID:7" in prompt
+    # Regulatory output
+    assert "IRDAI Master Circular" in prompt
+    assert "Moratorium bar applies." in prompt

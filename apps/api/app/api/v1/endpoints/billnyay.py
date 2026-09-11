@@ -15,6 +15,7 @@ import os
 import json
 import urllib.request
 from app.config import settings
+from app.consent import require_case_consent
 from app.database import get_db
 from app.models import KadiCase, KadiEntity
 # Import billnyay modules
@@ -75,15 +76,15 @@ def _load_cghs_rates() -> Dict[str, Any]:
 CGHS_RATES = _load_cghs_rates()
 
 
-def _rate_of(entry: Any, default_bundled: bool = False):
+def _rate_of(entry: Any):
     """Normalises a CGHS rates entry into (benchmark_rate, is_bundled)."""
     if isinstance(entry, dict):
         rate = entry.get("benchmark_rate")
-        return (float(rate) if rate is not None else None), bool(entry.get("bundled", default_bundled))
+        return (float(rate) if rate is not None else None), bool(entry.get("bundled", False))
     try:
-        return float(entry), default_bundled
+        return float(entry), False
     except (TypeError, ValueError):
-        return None, default_bundled
+        return None, False
 
 
 def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
@@ -295,10 +296,7 @@ class GroqClientFallback:
 async def audit_bill(case_id: str, db: AsyncSession = Depends(get_db)):
     """Audits hospital bill items against CGHS rate schedules."""
     # 1. Fetch case
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+    await require_case_consent(case_id, db)
 
     # 2. Fetch billing entities
     entities_result = await db.execute(
@@ -392,10 +390,7 @@ async def audit_bill(case_id: str, db: AsyncSession = Depends(get_db)):
 async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
     """Runs the 5-agent pipeline to generate an IRDAI-compliant appeal letter."""
     # 1. Fetch case details
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+    await require_case_consent(case_id, db)
 
     # 2. Get billing and clinical texts
     entities_result = await db.execute(
@@ -468,10 +463,7 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
 @router.post("/cases/{case_id}/grievance", response_model=GrievanceResponse)
 async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
     """Auto-drafts an IRDAI Bima Bharosa portal complaint package."""
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+    case = await require_case_consent(case_id, db)
 
     complaint_text = (
         f"Grievance Complaint filed under Bima Bharosa.\n"

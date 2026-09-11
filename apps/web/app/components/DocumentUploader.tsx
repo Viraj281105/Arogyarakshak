@@ -5,7 +5,7 @@ import { Language, translations } from "../translations";
 
 interface DocumentUploaderProps {
   currentLang: Language;
-  onStartAudit: (file: File | null, fileName: string) => void;
+  onStartAudit: (file: File | null, fileName: string, consentGiven: boolean) => void;
   isProcessing: boolean;
 }
 
@@ -16,7 +16,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 }) => {
   const t = translations[currentLang];
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [consentGiven, setConsentGiven] = useState<boolean>(true);
+  // Opt-IN: a pre-ticked box is not consent. The value is forwarded to the caller so
+  // the case is created with the patient's actual choice, not a hardcoded true.
+  const [consentGiven, setConsentGiven] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,7 +39,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!consentGiven || !selectedFile) return;
-    onStartAudit(selectedFile, selectedFile.name);
+    onStartAudit(selectedFile, selectedFile.name, consentGiven);
   };
 
 

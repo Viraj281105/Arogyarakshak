@@ -5,6 +5,7 @@ Handles case creation, document uploads (OCR parsing), and entity extraction/ret
 """
 
 from typing import Any, Dict, List, Optional
+import os
 import uuid
 import logging
 import json
@@ -24,12 +25,51 @@ from app.models import KadiCase, KadiEntity
 # OCR parser and extraction agent from kadi shared layer
 from kadi.ocr.ocr_parser import parse_document
 from kadi.extraction import extract_entities_from_text
+from kadi.redaction import redact_pii
 
 logger = logging.getLogger("arogyarakshak.api.kadi")
 router = APIRouter()
 
-# In-memory document processing status stream mapping
+# In-memory document processing status stream mapping.
+# Single-process only: under multiple workers a stream may poll a different process.
 processing_status: Dict[str, List[Dict[str, Any]]] = {}
+
+# Upload allow-list. The parser dispatches on extension, so anything outside this set
+# would fall through to the generic placeholder path anyway.
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".bmp",
+    ".txt",
+    ".csv",
+}
+
+# Cap on tracked cases before the oldest entries are dropped.
+MAX_TRACKED_STATUS_CASES = 500
+
+
+def _evict_stale_status_entries() -> None:
+    """Bounds the in-memory status map.
+
+    It previously grew for the lifetime of the process, one entry per upload, with nothing
+    ever removed. Completed and failed streams are dropped first, then the oldest entries.
+    """
+    if len(processing_status) < MAX_TRACKED_STATUS_CASES:
+        return
+
+    finished = [
+        key
+        for key, events in processing_status.items()
+        if events and events[-1].get("status") in ("completed", "failed", "timeout")
+    ]
+    for key in finished:
+        processing_status.pop(key, None)
+
+    while len(processing_status) >= MAX_TRACKED_STATUS_CASES:
+        processing_status.pop(next(iter(processing_status)), None)
 
 
 @asynccontextmanager
@@ -150,16 +190,10 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
                     )
                 )
 
-            if extracted.patient_name:
-                entities_to_add.append(
-                    KadiEntity(
-                        id=f"ENT-PAT-{uuid.uuid4().hex[:8]}",
-                        name=extracted.patient_name,
-                        type="patient",
-                        value=extracted.patient_name,
-                        meta={"source_file": filename, "source": "kadi_extraction"},
-                    )
-                )
+            # The patient's name is deliberately NOT persisted. It is a direct identifier,
+            # ADR-003 limits stored records to de-identified clinical metadata, and no
+            # module reads it: DaaviSetu takes patient_name from its own request payload.
+            # It stays available in-memory to the extraction result for this request only.
 
             if extracted.diagnosis:
                 entities_to_add.append(
@@ -198,13 +232,16 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
                         )
                     )
 
-            # Add general text excerpt
+            # Document excerpt, with direct identifiers stripped. BillNyay's appeal
+            # pipeline reads this to recover denial codes, insurer reasons and policy
+            # clauses, so it cannot be dropped — but it must not retain the patient's
+            # name, contact details or government IDs.
             text_entity = KadiEntity(
                 id=f"ENT-TEXT-{uuid.uuid4().hex[:8]}",
                 name="Document Text Excerpt",
                 type="document_text",
-                value=text[:1000],
-                meta={"source_file": filename},
+                value=redact_pii(text)[:1000],
+                meta={"source_file": filename, "redacted": True},
             )
             entities_to_add.append(text_entity)
 
@@ -258,15 +295,39 @@ async def upload_document(
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # 2. Read bytes
-    file_bytes = await file.read()
+    # 2. Validate the declared document type before reading anything into memory.
+    filename = file.filename or ""
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                f"Unsupported document type '{extension or filename}'. Allowed: "
+                + ", ".join(sorted(ALLOWED_UPLOAD_EXTENSIONS))
+            ),
+        )
+
+    # 3. Read bytes, bounded. The whole document is held in RAM for transient parsing,
+    #    so an unbounded read is a denial-of-service vector.
+    file_bytes = await file.read(settings.max_upload_bytes + 1)
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty document uploaded")
+    if len(file_bytes) > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"Document exceeds the {settings.max_upload_bytes // (1024 * 1024)} MB "
+                "upload limit."
+            ),
+        )
+
+    # Bound the in-memory status map so repeated uploads cannot grow it without limit.
+    _evict_stale_status_entries()
 
     # Initialize status stream logs
     processing_status[case_id] = [{"status": "upload_received", "progress": 10, "log": "Upload received. Queueing document extraction task..."}]
 
-    # 3. Queue processing task
+    # 4. Queue processing task
     background_tasks.add_task(
         process_document_background,
         case_id=case_id,

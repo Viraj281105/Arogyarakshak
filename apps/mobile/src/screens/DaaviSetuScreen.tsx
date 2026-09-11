@@ -57,14 +57,9 @@ export const DaaviSetuScreen: React.FC = () => {
 
     try {
       if (!activeCaseId) {
-        // Initialize case session in Kadi without simulated dummy files
-        const caseRes = await api.kadi.createCase({ consent_opt_in: true });
-        activeCaseId = caseRes.id || caseRes.case_id || null;
-        setCaseId(activeCaseId);
-      }
-
-      if (!activeCaseId) {
-        throw new Error('Unable to initialize active Kadi case session.');
+        // A case is only ever created from the scan flow, where consent is captured.
+        // Creating one here would grant consent the patient never gave.
+        throw new Error(t.scanner.scanFirst);
       }
 
       // Generate pre-auth package with comprehensive form details

@@ -19,6 +19,7 @@ export interface Translations {
     browse: string;
     cameraCapture: string;
     consentText: string;
+    consentRequired: string;
     processBtn: string;
     processing: string;
     zeroRetentionNotice: string;
@@ -144,6 +145,7 @@ export const translations: Record<Language, Translations> = {
       browse: "Browse Files",
       cameraCapture: "Snap Photo / Camera",
       consentText: "I consent to transient algorithmic analysis under ArogyaRakshak's Zero-Retention Policy.",
+      consentRequired: "You must give consent before your document can be analysed.",
       processBtn: "Extract Document Entities",
       processing: "Running OCR & entity extraction...",
       zeroRetentionNotice: "No documents are stored on any persistent server disk. Conforms to DPDP Act 2023.",
@@ -267,6 +269,7 @@ export const translations: Record<Language, Translations> = {
       browse: "फ़ाइल चुनें",
       cameraCapture: "कैमरे से फोटो लें",
       consentText: "मैं आरोग्यरक्षक की शून्य-संचयन नीति के तहत अस्थायी विश्लेषण की सहमति देता हूँ।",
+      consentRequired: "आपके दस्तावेज़ के विश्लेषण से पहले आपकी सहमति आवश्यक है।",
       processBtn: "मल्टी-एजेंट ऑडिट शुरू करें",
       processing: "मल्टी-एजेंट पाइपलाइन द्वारा विश्लेषण जारी है...",
       zeroRetentionNotice: "सर्वर डिस्क पर कोई दस्तावेज़ सुरक्षित नहीं रखा जाता। DPDP अधिनियम 2023 के अनुरूप।",
@@ -390,6 +393,7 @@ export const translations: Record<Language, Translations> = {
       browse: "फाइल निवडा",
       cameraCapture: "कॅमेऱ्याने फोटो काढा",
       consentText: "मी आरोग्यरक्षकच्या शून्य-संचयन धोरणांतर्गत तात्पुरत्या विश्लेषणास संमती देतो.",
+      consentRequired: "तुमच्या दस्तऐवजाचे विश्लेषण करण्यापूर्वी तुमची संमती आवश्यक आहे.",
       processBtn: "मल्टी-एजंट ऑडिट सुरू करा",
       processing: "मल्टी-एजंट प्रणालीद्वारे तपासणी चालू आहे...",
       zeroRetentionNotice: "कोणताही डेटा सर्व्हर डिस्कवर साठवला जात नाही. DPDP कायदा 2023 चे पालन.",

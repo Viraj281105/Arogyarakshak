@@ -6,6 +6,7 @@ lifespan hooks, and versioned routing.
 """
 
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
@@ -59,13 +60,24 @@ app = FastAPI(
 )
 
 # --- CORS Middleware ----------------------------------------------------------
+# A wildcard origin combined with allow_credentials lets any site issue credentialed
+# cross-origin requests. Credentials are therefore enabled only when an explicit origin
+# allow-list is configured; the permissive default stays credential-free.
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+wildcard_origins = not origins or "*" in origins
+
+if wildcard_origins:
+    logger.warning(
+        "CORS_ORIGINS is a wildcard. Credentialed cross-origin requests are disabled. "
+        "Set CORS_ORIGINS to an explicit comma-separated list in production."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"] if wildcard_origins else origins,
+    allow_credentials=not wildcard_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
 
@@ -93,11 +105,22 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Catches unhandled errors to avoid leaking internal trace details."""
-    logger.error("Unhandled exception on %s: %s", request.url, exc, exc_info=True)
+    """Catches unhandled errors without leaking internal detail to the caller.
+
+    The exception text previously went back in the response body, disclosing internal
+    function names and parameters (e.g. the Barrister Agent TypeError). It is logged with
+    a correlation id instead, so operators can still find it.
+    """
+    error_id = uuid.uuid4().hex[:12]
+    logger.error(
+        "Unhandled exception [%s] on %s: %s", error_id, request.url, exc, exc_info=True
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "An unexpected server error occurred.", "message": str(exc)},
+        content={
+            "detail": "An unexpected server error occurred.",
+            "error_id": error_id,
+        },
     )
 
 

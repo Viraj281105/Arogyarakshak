@@ -60,7 +60,7 @@ flowchart TD
     subgraph KadiLayer ["Kadi Shared Intelligence Layer"]
         OCR["Multilingual OCR (Devanagari + Latin)"]
         Extract["Entity Normalization (ICD-10, Meds, Procedures)"]
-        Resolve["Entity Resolution (IndicXlit + IndicSBERT)"]
+        Resolve["Entity Normalisation & De-identification"]
     end
 
     Doc --> OCR --> Extract --> Resolve
@@ -77,8 +77,8 @@ flowchart TD
 | **[BillNyay](packages/billnyay)** | **Hospital Bill Audit** | **CGHS Rate Schedules** | Line-item overcharge audit report; formal overcharge dispute representation letter to hospital billing. |
 | **[DaaviSetu](packages/daavisetu)** | **Claim Application Automation** *(Pre-Claim)* | **Standard Insurer Templates** | Pre-populated cashless pre-authorization form; reimbursement claim package ready for portal submission. |
 | **[BimaNyay](packages/bimanyay)** | **Denial Disputes & Appeals** *(Post-Denial)* | **IRDAI 2024 Master Circular** | Legal audit of repudiation codes (5-yr moratorium, TAT breaches); 3-tier appeals (GRO, Bima Bharosa, Ombudsman Form VI); statutory SLA countdown tracker. |
-| **[SchemeSetu](packages/schemesetu)** | **Healthcare Scheme Advisor** | **PMJAY & MJPJAY Rules** | 4-question eligibility determination; benefit guides; nearby empanelled network hospital locator. |
-| **[DawaCheck](packages/dawacheck)** | **Medicine Pricing & Generics** | **NPPA Schedule-I Price Orders** | MRP overcharge detection against price caps; bioequivalent generic substitutes; nearest Jan Aushadhi store map. |
+| **[SchemeSetu](packages/schemesetu)** | **Healthcare Scheme Advisor** | **PMJAY & MJPJAY Rules** | Income/state eligibility determination and benefit guides. *(Empanelled-hospital locator not implemented.)* |
+| **[DawaCheck](packages/dawacheck)** | **Medicine Pricing & Generics** | **NPPA Schedule-I Price Orders** | MRP overcharge detection and generic substitute guidance. *(Backed by a small in-code ceiling table, not the full NPPA list; no store map.)* |
 
 ---
 
@@ -97,11 +97,11 @@ To preserve maintainability, no two modules perform overlapping tasks:
 ## 💻 Technology Stack
 
 - **Backend**: [FastAPI](https://fastapi.tiangolo.com) 0.115 with asynchronous request pipeline (`uvicorn`, `asyncpg`, `pydantic-settings`).
-- **Database & Search**: [PostgreSQL 16](https://www.postgresql.org) with [pgvector](https://github.com/pgvector/pgvector) extension, plus in-memory [FAISS](https://github.com/facebookresearch/faiss) similarity indexes.
+- **Database**: [PostgreSQL 16](https://www.postgresql.org). *(Planned: pgvector / FAISS similarity indexes — `packages/kadi/kadi/vector_store.py` is a scaffold and is not yet wired into any endpoint.)*
 - **LLM Reasoning**: [Groq Cloud](https://groq.com) high-speed inference engine (Default model: `openai/gpt-oss-120b`).
-- **Indic NLP**: **IndicXlit** (AI4Bharat phonetic transliteration) and **IndicSBERT** (L3Cube Pune multilingual embeddings).
+- **Indic NLP** *(planned, not implemented)*: **IndicXlit** transliteration and **IndicSBERT** embeddings for cross-lingual entity resolution — tracked in issues #29, #30.
 - **Web Frontend**: [Next.js 15/16](https://nextjs.org) App Router, React 19, TypeScript, Vanilla CSS design tokens.
-- **Mobile App**: [React Native](https://reactnative.dev) with Expo, native edge-detection document scanner.
+- **Mobile App**: [React Native](https://reactnative.dev) with Expo and an in-app camera document capture flow. *(Edge detection / auto-cropping is not implemented.)*
 - **Containerization**: Docker Compose v2.
 
 ---
@@ -119,11 +119,11 @@ arogyarakshak/
 │   ├── web/                     # Next.js 15 App Router web client
 │   └── mobile/                  # React Native / Expo cross-platform mobile application
 ├── packages/                    # Python domain libraries (installed via pip -e)
-│   ├── kadi/                    # Shared context: OCR, extraction, FAISS vector store
+│   ├── kadi/                    # Shared context: OCR, extraction, redaction, line-item parsing
 │   ├── billnyay/                # 5-agent hospital bill auditing chain
 │   ├── daavisetu/               # Claim pre-authorization form generator
 │   ├── bimanyay/                # Claim denial dispute analysis & IRDAI appeals
-│   ├── schemesetu/              # RAG eligibility agent & local embedding fallback
+│   ├── schemesetu/              # Rule-based eligibility agent
 │   └── dawacheck/               # NPPA Schedule-I medicine pricing & generic mapping
 ├── data/                        # Government rate schedules (CGHS) and raw benchmarks
 ├── docs/                        # Complete technical specifications, ADRs & guides
@@ -181,13 +181,12 @@ For rapid development without container builds, see the [Developer Setup Guide](
 Run unit and integration test suites:
 
 ```bash
-# Run all package unit tests (12 tests)
-python -m pytest packages/
+# Run all backend tests (packages + API integration): 122 tests
+python -m pytest
 
-# Run API integration tests (4 tests)
-cd apps/api
-python -m pytest tests/
-cd ../..
+# Web client tests (19) and mobile client tests (23)
+cd apps/web && npm test && cd ../..
+cd apps/mobile && npm test && cd ../..
 
 # Run frontend linting
 cd apps/web
@@ -227,9 +226,16 @@ See the full [Troubleshooting Guide](docs/development/troubleshooting.md) for de
 ## 🔒 Privacy & Zero-Retention BYOD Architecture
 
 ArogyaRakshak operates on a strict **Bring-Your-Own-Document (BYOD)** privacy principle:
-1. **No Persistent Document Storage**: Patient bills, discharge summaries, and prescriptions are processed strictly in transient memory (RAM) and immediately purged upon extraction completion.
-2. **Consent Boundary**: Cross-module data sharing through Kadi requires explicit per-case patient opt-in (`consent_opt_in`).
-3. **De-Identified Entities**: Persistent database records retain only de-identified clinical metadata (procedure codes, medicines, pricing line items) linked to an ephemeral session UUID.
+1. **No Persistent Document Storage**: Uploaded files are parsed in transient memory (RAM) and are never written to server disk. Upload size and type are bounded (10 MB; PDF/image/text).
+2. **Consent Boundary**: Cross-module data sharing through Kadi requires an explicit per-case opt-in (`consent_opt_in`, default `false`). It is enforced server-side from the stored case record: BillNyay and DaaviSetu return `403` without it, and a client cannot grant it by sending a flag on the module request.
+3. **Direct-Identifier Removal**: Persisted records hold clinical and billing metadata
+   (diagnosis, hospital, procedures, medicines, line items) linked to an ephemeral case UUID.
+   The patient's name is extracted in memory but never stored, and the retained document
+   excerpt is passed through `kadi.redaction` to strip names, phone numbers, email addresses,
+   Aadhaar/PAN identifiers and addresses.
+
+   **Scope limit:** this removes *direct* identifiers. It is not formal anonymisation — a
+   diagnosis combined with a hospital name may still be re-identifying in a small population.
 
 Read our full [Security Policy](SECURITY.md) and [ADR-003](docs/architecture/decisions/ADR-003-bring-your-own-document-privacy.md).
 

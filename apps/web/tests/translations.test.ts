@@ -127,3 +127,21 @@ describe('Web UI Capability Claim Integrity', () => {
     });
   });
 });
+
+describe('Web Consent Vocabulary', () => {
+  const languages: Language[] = ['en', 'hi', 'mr'];
+
+  test('consent strings are localized in all 3 languages', () => {
+    languages.forEach((lang) => {
+      const upload = translations[lang].upload;
+      assert.ok(
+        upload.consentText && upload.consentText.trim().length > 0,
+        `consentText missing in ${lang}`
+      );
+      assert.ok(
+        upload.consentRequired && upload.consentRequired.trim().length > 0,
+        `consentRequired missing in ${lang}`
+      );
+    });
+  });
+});

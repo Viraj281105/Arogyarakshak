@@ -23,8 +23,11 @@ import {
 export const api = {
   // Shared Kadi Context Layer
   kadi: {
-    createCase: (data?: { consent_opt_in?: boolean; user_id?: string; [key: string]: any }) =>
-      apiClient.post<CaseResponse>('/api/v1/kadi/cases', { consent_opt_in: true, ...data }),
+    // consent_opt_in is REQUIRED and never defaulted. The backend enforces the stored
+    // value, so silently sending `true` here would have granted consent on the
+    // patient's behalf without them ever being asked.
+    createCase: (data: { consent_opt_in: boolean; [key: string]: any }) =>
+      apiClient.post<CaseResponse>('/api/v1/kadi/cases', data),
 
     uploadDocument: async (
       caseId: string,

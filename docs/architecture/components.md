@@ -17,10 +17,11 @@ Kadi (कड़ी — "link in a chain") is the connective infrastructure that 
   - Billing line items (room rent, ICU, procedures, consultations, consumables).
 - **Phonetic & Cross-Script Entity Resolution**:
   - Catches spelling variations via edit distance and token overlap.
-  - Matches transliterated names across Latin and Devanagari scripts using **IndicXlit** (AI4Bharat).
-  - Matches cross-lingual translated medical concepts (e.g. *Fever* ↔ *बुखार*) using **IndicSBERT** (L3Cube).
+  - Matches transliterated names across Latin and Devanagari scripts using **IndicXlit** (AI4Bharat). *(planned — not implemented)*
+  - Matches cross-lingual translated medical concepts (e.g. *Fever* ↔ *बुखार*) using **IndicSBERT** (L3Cube). *(planned — not implemented)*
 - **Consent Boundary**: Enforces patient opt-in (`consent_opt_in`) before sharing extracted context across modules.
-- **In-Memory Vector Search**: Manages FAISS vector indexes (`kadi/vector_store.py`) for rapid blocking and nearest-neighbor search.
+- **In-Memory Vector Search** *(planned)*: `kadi/vector_store.py` is a scaffold for FAISS/pgvector indexes. It contains no FAISS and is not wired into any endpoint.
+- **Direct-Identifier Redaction**: `kadi/redaction.py` strips names, contact details and government IDs from any text retained after extraction (ADR-003).
 
 ---
 
@@ -77,7 +78,7 @@ SchemeSetu connects underprivileged citizens with public healthcare coverage.
 - **Eligibility Reasoning Agent**: Evaluates household income, ration card category (Yellow/Orange/White), and medical needs against:
   - **PMJAY** (Ayushman Bharat, national safety net up to ₹5 Lakh/family/year).
   - **MJPJAY** (Mahatma Jyotirao Phule Jan Arogya Yojana, Maharashtra state scheme).
-- **Local Embedding Fallback**: Implements an offline ONNX SentenceTransformer runtime (`schemesetu/embeddings.py`) for semantic rule retrieval without cloud API latency.
+- **Local Embedding Fallback** *(scaffold, unwired)*: `schemesetu/embeddings.py` provides an offline SentenceTransformer fallback. It contains no ONNX runtime and is not used by eligibility checking.
 - **Empanelled Hospital Directory**: Identifies nearby public and private hospitals empanelled under PMJAY and MJPJAY.
 
 ---

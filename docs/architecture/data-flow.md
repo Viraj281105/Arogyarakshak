@@ -63,8 +63,13 @@ To uphold patient privacy and HIPAA/DISHA data hygiene, patient records are gove
 [Raw Uploaded File Buffer immediately EXPLICITLY PURGED from Memory]
 ```
 
-- Raw binary files are **never written to the server's disk**.
-- Structured records in `kadi_entities` contain only de-identified clinical metadata (procedure codes, medicines, prices) linked to the transient `case_id`.
+- Raw binary files are **never written to the server's disk**, and uploads are bounded by size
+  and file type.
+- Records in `kadi_entities` hold clinical and billing metadata (diagnosis, hospital, procedures,
+  medicines, line items) linked to the `case_id`. The patient name is **not** persisted, and the
+  retained document excerpt is passed through `kadi.redaction.redact_pii`, which strips names,
+  phone numbers, emails, Aadhaar/PAN identifiers and addresses.
+- This removes *direct* identifiers only; it is not formal anonymisation.
 
 ---
 
@@ -82,18 +87,20 @@ Accept: text/event-stream
 Each message dispatched on the stream is a JSON payload adhering to this schema:
 ```json
 {
-  "case_id": "c7a8e241-789a-4f56-b8f1-8f567b4c91a0",
-  "stage": "clinical_review",
-  "progress": 65,
-  "message": "Validating procedural necessity against CGHS benchmarks...",
-  "timestamp": "2026-09-09T11:20:00Z"
+  "status": "extraction_start",
+  "progress": 60,
+  "log": "Extracting clinical & billing entities with Kadi agent..."
 }
 ```
 
 ### Event Pipeline Stages
-1. `document_received` (10%): Multipart file verified and loaded into transient RAM.
-2. `ocr_parsing` (25%): Devanagari / Latin tokens parsed from layout.
-3. `entity_extraction` (50%): Kadi normalizes patient data, procedure codes, and bills.
-4. `domain_auditing` (75%): Domain-specific multi-agent reasoning (BillNyay CGHS check or BimaNyay IRDAI audit).
-5. `completed` (100%): Output appeal packages and reports finalized for client consumption.
-6. `error`: Emitted with an explanatory error message if processing fails.
+1. `upload_received` (10%): Multipart file accepted and queued.
+2. `ocr_start` (30%): Text extracted from the document (PDF / image / plain text).
+3. `extraction_start` (60%): Kadi extracts clinical and billing entities.
+4. `database_write` (80%): De-identified entities persisted against the case.
+5. `completed` (100%): Processing finished.
+6. `failed` (100%): Processing failed; `log` carries the reason.
+7. `timeout` (100%): Stream exceeded `SSE_TIMEOUT_SECONDS` and was closed.
+
+Domain analysis (BillNyay audit/appeal, DaaviSetu claim) does **not** run on this stream — each
+is a separate client-initiated request after extraction completes.

@@ -15,7 +15,16 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `POSTGRES_PASSWORD` | No | `arogyarakshak` | Password for PostgreSQL container. Change in production! |
 | `POSTGRES_DB` | No | `arogyarakshak` | Database name for PostgreSQL. |
 | `CORS_ORIGINS` | No | `*` | Comma-separated list of allowed CORS origins. Example: `http://localhost:3000,https://arogyarakshak.in` |
-| `ENVIRONMENT` | No | `development` | Environment mode (`development`, `staging`, `production`). Controls error traceback verbosity. |
+| `MAX_UPLOAD_BYTES` | No | `10485760` (10 MB) | Maximum accepted document upload size. Larger uploads return `413`. |
+| `SSE_TIMEOUT_SECONDS` | No | `120` | Maximum lifetime of a `/stream` connection before it closes with a `timeout` event. |
+
+> **Note on CORS:** when `CORS_ORIGINS` is a wildcard (the default), credentialed cross-origin
+> requests are disabled automatically — a wildcard origin combined with credentials would let
+> any site issue authenticated requests. Set an explicit comma-separated origin list to enable
+> credentials.
+
+> Unhandled `500` responses return only `{"detail": ..., "error_id": ...}`. The exception text
+> is written to the API logs against that `error_id` and is never returned to the client.
 
 ---
 
@@ -36,6 +45,7 @@ Docker Compose automatically loads variables from `.env` in the root directory:
 environment:
   DATABASE_URL: ${DATABASE_URL:-postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak}
   GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
 ```
 
 ---

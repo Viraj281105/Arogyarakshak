@@ -91,3 +91,24 @@ def test_extraction_matches_ocr_parser_for_same_document():
     extracted.update({m["name"]: m["cost"] for m in result.medicines})
 
     assert ocr_items == extracted
+
+
+# --- Direct-identifier handling in the extraction fallback --------------------
+
+PII_TEXT = (
+    "Lifeline Multispeciality Hospital\n"
+    "Patient Name: Ramesh Kulkarni\n"
+    "Contact: 9876543210\n"
+    "Email: ramesh.kulkarni@example.com\n"
+    "Aadhaar: 1234 5678 9012\n"
+    "Diagnosis: Acute Appendicitis\n"
+    "Consultation: 900\n"
+)
+
+
+def test_identity_lines_do_not_become_procedures():
+    result = run_heuristic_extraction_fallback(PII_TEXT)
+    names = [p["name"] for p in result.procedures] + [m["name"] for m in result.medicines]
+    assert names == ["Consultation"]
+    for leaked in ("Contact", "Aadhaar", "Email", "Patient Name"):
+        assert not any(leaked.lower() in n.lower() for n in names)
