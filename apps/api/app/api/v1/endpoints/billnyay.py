@@ -143,11 +143,20 @@ class AuditResponse(BaseModel):
     audit_items: List[AuditResultItem]
 
 
+# Rendered into the appeal letter wherever a fact could not be extracted. Deliberately
+# reads as unknown rather than resembling a real reference.
+UNSPECIFIED_FIELD = "Not specified in the supplied documents"
+
+
 class AppealResponse(BaseModel):
     case_id: str
     appeal_letter: str
     scorecard: Dict[str, Any]
     status: str
+    # False when the Auditor could not extract denial facts from the uploaded document.
+    # The letter is then built on placeholders and the user must fill in the real denial
+    # code, insurer reason and policy clause before sending it.
+    denial_facts_extracted: bool = True
     # False when GROQ_API_KEY is unset: the letter is a static statutory template rather
     # than an LLM draft grounded in this case. Callers must be able to tell the two apart.
     llm_backed: bool
@@ -408,15 +417,17 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         client = GroqClientFallback()
 
     denial = run_auditor_agent(client=client, denial_text=combined_text)
+    denial_facts_extracted = denial is not None
     if denial is None:
-        # The Auditor could not produce a usable StructuredDenial. The downstream agents
-        # are typed against this model, so synthesise a neutral one rather than passing
-        # None through and losing the clinical/regulatory stages entirely.
+        # The Auditor could not extract denial facts. Downstream agents are typed against
+        # this model, so a neutral placeholder is supplied — but it must read as "unknown",
+        # never as a plausible-looking denial code. A letter quoting "DEN-DEFAULT" as the
+        # insurer's reference would be sent to a real insurer as though it were genuine.
         denial = StructuredDenial(
-            denial_code="DEN-DEFAULT",
-            insurer_reason_snippet="Coverage denied or bill overcharged.",
-            policy_clause_text="Not specified in the supplied documents.",
-            procedure_denied="Disputed Procedure",
+            denial_code=UNSPECIFIED_FIELD,
+            insurer_reason_snippet=UNSPECIFIED_FIELD,
+            policy_clause_text=UNSPECIFIED_FIELD,
+            procedure_denied=UNSPECIFIED_FIELD,
             confidence_score=0.0,
             raw_evidence_chunks=[],
         )
@@ -457,6 +468,7 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         scorecard=scorecard.model_dump(),
         status=scorecard.status,
         llm_backed=bool(settings.groq_api_key),
+        denial_facts_extracted=denial_facts_extracted,
     )
 
 

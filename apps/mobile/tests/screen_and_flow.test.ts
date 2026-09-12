@@ -3,6 +3,8 @@ import assert from 'node:assert';
 import { translations, Language } from '../src/translations/strings';
 import { BottomTabParamList, RootStackParamList } from '../src/navigation/types';
 import { BillNyayAuditItem } from '../src/api/types';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 describe('Mobile Screen & Navigation Flow Architecture', () => {
   it('should verify BottomTabParamList supports caseId and scanCompleted for modules', () => {
@@ -219,6 +221,46 @@ describe('Mobile BillNyay Audit Result Contract', () => {
       assert.ok(m.notBenchmarked && m.notBenchmarked.trim().length > 0, `notBenchmarked missing in ${lang}`);
       assert.ok(m.unmatchedNotice.includes('{count}'), `unmatchedNotice lost {count} in ${lang}`);
       assert.ok(m.unmatchedNotice.includes('{amount}'), `unmatchedNotice lost {amount} in ${lang}`);
+    });
+  });
+});
+
+describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
+  const screenDir = join(process.cwd(), 'src', 'screens');
+  const screens = [
+    'DaaviSetuScreen',
+    'BimaNyayScreen',
+    'SchemeSetuScreen',
+    'DawaCheckScreen',
+  ];
+
+  const forbidden = [
+    'Viraj Jadhao',
+    'POL-STAR-774411',
+    'POL-884422',
+    'Apollo Multi-Speciality Hospital',
+    'Star Health Insurance',
+    'Acute Myocardial Infarction',
+    'Heart bypass surgery (CABG)',
+    'Laparoscopic Appendectomy',
+    'Paracetamol 650mg',
+  ];
+
+  screens.forEach((screen) => {
+    it(`${screen} must not seed form state with sample identity or clinical data`, () => {
+      const src = readFileSync(join(screenDir, `${screen}.tsx`), 'utf-8');
+      const seeded = src
+        .split('\n')
+        .filter((line) => line.includes('useState(') && !line.trim().startsWith('//'));
+
+      seeded.forEach((line) => {
+        forbidden.forEach((value) => {
+          assert.ok(
+            !line.includes(value),
+            `${screen} seeds form state with "${value}": ${line.trim()}`
+          );
+        });
+      });
     });
   });
 });

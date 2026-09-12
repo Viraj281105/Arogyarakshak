@@ -12,6 +12,12 @@ logger = logging.getLogger("DawaCheck.Checker")
 logger.setLevel(logging.INFO)
 
 
+# Provenance for every benchmark returned. The reference table below is a curated subset
+# of NPPA Schedule-I, not the full ~800-formulation list, and callers must be able to say
+# so rather than presenting it as complete national price-control data.
+REFERENCE_SOURCE = "NPPA Schedule-I (curated subset)"
+
+
 class MedicineBenchmark(BaseModel):
     brand_name: str
     active_ingredient: str
@@ -21,6 +27,14 @@ class MedicineBenchmark(BaseModel):
     deviation_percentage: float
     generic_substitute_available: bool
     generic_substitute_store_info: str
+    data_source: str = Field(
+        REFERENCE_SOURCE,
+        description="Provenance of the ceiling price. The reference list is a subset, "
+        "so absence from it does not mean a medicine is uncontrolled.",
+    )
+    reference_entry_count: int = Field(
+        0, description="Number of formulations in the reference table used for this lookup."
+    )
 
 
 def benchmark_medicine(brand_name: str, mrp: float) -> Optional[MedicineBenchmark]:
@@ -99,7 +113,12 @@ def benchmark_medicine(brand_name: str, mrp: float) -> Optional[MedicineBenchmar
                 break
 
     if not matched_data:
-        logger.warning(f"[DawaCheck] '{brand_name}' not found in NPPA Schedule-I ceiling list.")
+        # Absent from the curated subset — NOT evidence that the drug is uncontrolled.
+        logger.warning(
+            "[DawaCheck] '%s' is not in the curated reference list (%d formulations).",
+            brand_name,
+            len(nppa_database),
+        )
         return None
 
     ceiling = matched_data["ceiling_price"]
@@ -113,11 +132,15 @@ def benchmark_medicine(brand_name: str, mrp: float) -> Optional[MedicineBenchmar
         nppa_ceiling_price=ceiling,
         is_overcharged=is_over,
         deviation_percentage=round(dev_percentage, 2),
-        generic_substitute_available=True,
+        # Derived, not asserted: only true when the reference entry actually records a
+        # generic equivalent for this formulation.
+        generic_substitute_available=bool(matched_data.get("generic_info")),
         generic_substitute_store_info=matched_data.get(
             "generic_info",
-            "A generic equivalent is available at your nearest Jan Aushadhi / PMBJP store."
+            "No generic equivalent is recorded for this formulation in the reference list.",
         ),
+        data_source=REFERENCE_SOURCE,
+        reference_entry_count=len(nppa_database),
     )
     
     logger.info(f"[DawaCheck] Benchmarked {brand_name}: Overcharged={benchmark.is_overcharged}")

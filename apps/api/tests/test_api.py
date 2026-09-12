@@ -62,7 +62,11 @@ def test_dawacheck_benchmark():
     assert response.status_code == 200
     data = response.json()
     assert data["brand_name"] == "paracetamol 650mg"
+    assert data["active_ingredient"] == "Paracetamol 650mg"
+    assert data["nppa_ceiling_price"] == 2.30
     assert data["is_overcharged"] is True
+    # 3.5 against a 2.30 ceiling is a 52.17% deviation.
+    assert data["deviation_percentage"] == 52.17
 
 
 def test_schemesetu_eligibility():
@@ -75,8 +79,14 @@ def test_schemesetu_eligibility():
     response = client.post("/api/v1/schemesetu/eligibility", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert len(data) > 0
-    assert data[0]["scheme_name"].startswith("PMJAY")
+
+    by_scheme = {s["scheme_name"].split(" ")[0]: s for s in data}
+    assert set(by_scheme) == {"PMJAY", "MJPJAY"}, "Maharashtra must yield both schemes"
+
+    # 1.2L is under the 2.5L PMJAY threshold but over the 1.5L MJPJAY threshold.
+    assert by_scheme["PMJAY"]["estimated_eligibility"] == "eligible"
+    assert by_scheme["PMJAY"]["claim_guide_steps"], "eligible schemes must carry next steps"
+    assert by_scheme["MJPJAY"]["estimated_eligibility"] == "eligible"
 
 
 def test_bimanyay_analyze():
@@ -149,18 +159,28 @@ def test_daavisetu_claim():
     upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
     assert upload_res.status_code == 202
 
-    # 3. Call DaaviSetu claim endpoint
+    # 3. Call DaaviSetu claim endpoint. Clinical fields must be supplied explicitly —
+    #    the endpoint no longer invents a diagnosis or treatment plan.
     payload = {
         "policy_number": "POL-DAAVI-7766",
-        "patient_name": "Viraj Jadhao",
+        "patient_name": "Rekha Nair",
+        "diagnosis": "Acute Appendicitis (K35.8)",
+        "treatment_plan": "Laparoscopic Appendectomy",
     }
     response = client.post(f"/api/v1/daavisetu/cases/{case_id}/claim", json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["claim_id"].startswith("CLAIM-")
-    assert data["form_data"]["policy_number"] == "POL-DAAVI-7766"
-    assert data["form_data"]["patient_name"] == "Viraj Jadhao"
     assert data["status"] == "ready_for_review"
+
+    # Every field must round-trip verbatim; hospital comes from the uploaded document.
+    form = data["form_data"]
+    assert form["policy_number"] == "POL-DAAVI-7766"
+    assert form["patient_name"] == "Rekha Nair"
+    assert form["diagnosis"] == "Acute Appendicitis (K35.8)"
+    assert form["treatment_plan"] == "Laparoscopic Appendectomy"
+    assert form["hospital_name"] == "Apollo Hospital"
+    assert form["estimated_cost"] == 45000.0
 
 
 def test_billnyay_audit():
@@ -174,14 +194,28 @@ def test_billnyay_audit():
     upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
     assert upload_res.status_code == 202
 
-    # 3. Call BillNyay audit endpoint
+    # 3. Call BillNyay audit endpoint and assert the actual numbers, not just the shape.
     response = client.post(f"/api/v1/billnyay/cases/{case_id}/audit")
     assert response.status_code == 200
     data = response.json()
     assert data["case_id"] == case_id
-    assert "total_charged" in data
-    assert "total_benchmark" in data
-    assert isinstance(data["audit_items"], list)
+
+    items = {i["item_name"]: i for i in data["audit_items"]}
+    assert set(items) == {"Consultation", "Ward Stay"}, "Total must not be audited as a charge"
+
+    assert items["Consultation"]["charged"] == 500.0
+    assert items["Consultation"]["cghs_benchmark"] == 350.0
+    assert items["Consultation"]["status"] == "overcharged"
+
+    assert items["Ward Stay"]["charged"] == 2500.0
+    assert items["Ward Stay"]["cghs_benchmark"] == 1500.0
+    assert items["Ward Stay"]["status"] == "overcharged"
+
+    assert data["total_charged"] == 3000.0
+    assert data["total_benchmark"] == 1850.0
+    assert data["potential_savings"] == 1150.0
+    assert data["deviations_count"] == 2
+    assert data["unmatched_count"] == 0
 
 
 def test_daavisetu_pdf_download():
@@ -1038,3 +1072,271 @@ def test_sse_stream_has_a_bounded_timeout():
 
     assert settings.sse_timeout_seconds > 0
     assert settings.sse_timeout_seconds <= 600
+
+
+# ---------------------------------------------------------------------------
+# Fabricated-data guards. Nothing user-facing may invent patient, policy,
+# clinical or financial values.
+# ---------------------------------------------------------------------------
+
+FABRICATIONS = [
+    "General Hospital",
+    "Discharged Patient Medical Recovery",
+    "General clinical medical observation",
+    "DEN-DEFAULT",
+    "Disputed Procedure",
+]
+
+
+def test_claim_refuses_rather_than_inventing_clinical_fields():
+    """A bare document must not yield an invented diagnosis/treatment/hospital/cost."""
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("note.txt", b"Some unstructured clinical note with no fields.\n")},
+    )
+
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim",
+        json={"policy_number": "POL-1", "patient_name": "Asha Rao"},
+    )
+    assert res.status_code == 422, res.text
+    detail = res.json()["detail"]
+    assert set(detail["missing_fields"]) == {
+        "hospital_name",
+        "diagnosis",
+        "treatment_plan",
+        "estimated_cost",
+    }
+    # And crucially: no claim was persisted from invented values.
+    assert client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").status_code == 409
+
+
+def test_claim_partial_gaps_are_named_precisely():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Hospital: Ruby Hall Clinic\nConsultation: 900\n")},
+    )
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim",
+        json={"policy_number": "POL-2", "patient_name": "Asha Rao"},
+    )
+    assert res.status_code == 422
+    # hospital and cost resolved from the document; only the clinical fields are missing.
+    assert set(res.json()["detail"]["missing_fields"]) == {"diagnosis", "treatment_plan"}
+
+
+def test_generated_pdf_contains_no_fabricated_placeholder_text():
+    case_id, _ = _case_with_submitted_claim()
+    text = _pdf_text(client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").content)
+    for phrase in FABRICATIONS:
+        assert phrase not in text, f"fabricated placeholder rendered on the form: {phrase}"
+
+
+def test_appeal_letter_contains_no_fake_denial_code():
+    """A letter sent to an insurer must not quote an invented reference like DEN-DEFAULT."""
+    case_id = _case_with_document()
+    data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
+    assert "DEN-DEFAULT" not in data["appeal_letter"]
+    assert "Disputed Procedure" not in data["appeal_letter"]
+    assert isinstance(data["denial_facts_extracted"], bool)
+
+
+def test_dawacheck_unknown_medicine_does_not_claim_it_is_uncontrolled():
+    res = client.post(
+        "/api/v1/dawacheck/benchmark", json={"brand_name": "Zyxwvu 999", "mrp": 100.0}
+    )
+    assert res.status_code == 404
+    detail = res.json()["detail"]
+    msg = detail["message"]
+    # The old message asserted absence from the NPPA list outright.
+    assert "not in ArogyaRakshak's reference price list" in msg
+    assert "does NOT mean" in msg
+    assert "subset" in msg
+    assert detail["data_source"]
+
+
+def test_dawacheck_result_declares_its_provenance():
+    res = client.post(
+        "/api/v1/dawacheck/benchmark", json={"brand_name": "Dolo 650", "mrp": 33.0}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["data_source"] == "NPPA Schedule-I (curated subset)"
+    assert data["reference_entry_count"] > 0
+    # Availability must be derived from the reference entry, not asserted unconditionally.
+    assert data["generic_substitute_available"] is True
+    assert data["generic_substitute_store_info"]
+
+
+def test_schemesetu_discloses_what_it_did_not_evaluate():
+    """Category and medical need are collected but never used — say so."""
+    res = client.post(
+        "/api/v1/schemesetu/eligibility",
+        json={
+            "income": 120000.0,
+            "location_state": "Maharashtra",
+            "category": "SC",
+            "medical_need": "CABG",
+        },
+    )
+    assert res.status_code == 200
+    for scheme in res.json():
+        assert scheme["is_provisional"] is True
+        assert "annual_income" in scheme["criteria_evaluated"]
+        assert "social_category" in scheme["criteria_not_evaluated"]
+        assert "medical_need" in scheme["criteria_not_evaluated"]
+
+
+def test_schemesetu_category_does_not_change_the_verdict_today():
+    """Guards against implying category was considered when it is ignored."""
+    base = {"income": 120000.0, "location_state": "Maharashtra", "medical_need": "CABG"}
+    sc = client.post("/api/v1/schemesetu/eligibility", json={**base, "category": "SC"}).json()
+    gen = client.post(
+        "/api/v1/schemesetu/eligibility", json={**base, "category": "General"}
+    ).json()
+    assert [s["estimated_eligibility"] for s in sc] == [
+        s["estimated_eligibility"] for s in gen
+    ], "category appears to affect the verdict — update criteria_not_evaluated if so"
+
+
+# ---------------------------------------------------------------------------
+# Silent data loss: an unreadable document must not report success.
+# ---------------------------------------------------------------------------
+
+def test_unreadable_document_is_reported_as_failed_not_completed():
+    """A corrupt PDF used to yield a placeholder body and a 'completed' stream."""
+    from app.api.v1.endpoints.kadi import processing_status
+
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    res = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("broken.pdf", b"%PDF-1.4 not actually a valid pdf")},
+    )
+    assert res.status_code == 202
+
+    events = processing_status.get(case_id, [])
+    assert events, "no processing events recorded"
+    final = events[-1]
+    assert final["status"] == "failed", f"expected failure, got {final['status']}"
+    assert "could not be read" in final["log"].lower()
+
+    # Nothing may be persisted from a document that was never read.
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    assert entities == []
+
+
+def test_failed_extraction_does_not_leak_exception_text_to_the_stream():
+    """The SSE log is rendered in the browser and must stay user-facing."""
+    from app.api.v1.endpoints.kadi import processing_status
+
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("broken.pdf", b"%PDF-1.4 garbage")},
+    )
+    log = processing_status[case_id][-1]["log"]
+    for leak in ("Traceback", "fitz", "PyMuPDF", "Exception", "code=7"):
+        assert leak not in log, f"internal detail leaked into the SSE log: {leak}"
+
+
+def test_readable_document_still_completes():
+    """The failure path must not swallow legitimate documents."""
+    from app.api.v1.endpoints.kadi import processing_status
+
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Consultation: 900\nICU: 18500\n")},
+    )
+    assert processing_status[case_id][-1]["status"] == "completed"
+    names = {e["name"] for e in client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]}
+    assert {"Consultation", "ICU"} <= names
+
+
+# ---------------------------------------------------------------------------
+# Cross-module integration: one document, four modules, values tracked through.
+# ---------------------------------------------------------------------------
+
+INTEGRATION_BILL = (
+    b"Ruby Hall Clinic\n"
+    b"Patient Name: Meera Iyer\n"
+    b"Diagnosis: Acute Cholecystitis\n"
+    b"Consultation: 900\n"
+    b"ICU: 18500\n"
+    b"Blood Test: 750\n"
+    b"Dolo 650: 33\n"
+    b"Total Amount: 20183\n"
+)
+
+
+def test_end_to_end_document_drives_every_module_consistently():
+    """One upload must produce consistent numbers across Kadi, BillNyay and DaaviSetu."""
+    # 1. Consent + upload
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", INTEGRATION_BILL)},
+    ).status_code == 202
+
+    # 2. Kadi: clinical metadata retained, identifier dropped
+    case = client.get(f"/api/v1/kadi/cases/{case_id}").json()
+    by_type = {}
+    for e in case["entities"]:
+        by_type.setdefault(e["type"], []).append(e["name"])
+
+    assert by_type["hospital"] == ["Ruby Hall Clinic"]
+    assert by_type["diagnosis"] == ["Acute Cholecystitis"]
+    assert "patient" not in by_type
+    assert set(by_type["billing_item"]) == {"Consultation", "ICU", "Blood Test", "Dolo 650"}
+    assert case["case"]["total_charged"] == 20183.0
+
+    # 3. BillNyay: the audit total must equal the sum Kadi persisted
+    audit = client.post(f"/api/v1/billnyay/cases/{case_id}/audit").json()
+    assert audit["total_charged"] == case["case"]["total_charged"]
+    assert audit["benchmarked_charged"] + audit["unmatched_amount"] == audit["total_charged"]
+    assert audit["unmatched_count"] == 1  # Dolo 650 has no CGHS counterpart
+
+    # 4. DaaviSetu: hospital/diagnosis/cost flow from Kadi without being re-invented
+    claim = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim",
+        json={
+            "policy_number": "POL-INT-4242",
+            "patient_name": "Meera Iyer",
+            "treatment_plan": "Laparoscopic Cholecystectomy",
+        },
+    )
+    assert claim.status_code == 200, claim.text
+    form = claim.json()["form_data"]
+    assert form["hospital_name"] == "Ruby Hall Clinic"
+    assert form["diagnosis"] == "Acute Cholecystitis"
+    assert form["estimated_cost"] == case["case"]["total_charged"]
+
+    # 5. The rendered PDF must carry exactly those values
+    pdf = client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf")
+    assert pdf.status_code == 200
+    text = _pdf_text(pdf.content)
+    assert "POL-INT-4242" in text
+    assert "Meera Iyer" in text
+    assert "Ruby Hall Clinic" in text
+    assert "Acute Cholecystitis" in text
+    assert "Laparoscopic Cholecystectomy" in text
+    assert "INR 20,183.00" in text
+
+
+def test_end_to_end_is_blocked_without_consent_at_every_stage():
+    """The same document with consent withheld must reach no module."""
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": False}).json()["id"]
+    client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", INTEGRATION_BILL)},
+    )
+
+    # Extraction still runs (it is the patient's own document), but no module may read it.
+    assert client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"], "extraction should still occur"
+    assert client.post(f"/api/v1/billnyay/cases/{case_id}/audit").status_code == 403
+    assert client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim",
+        json={"policy_number": "P", "patient_name": "N"},
+    ).status_code == 403

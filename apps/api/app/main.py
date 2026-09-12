@@ -95,12 +95,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Catches standard HTTP exceptions."""
+    """Catches deliberate HTTP errors and returns them unchanged.
+
+    `detail` may be a string or a structured object (e.g. a list of missing fields).
+    `message` is only populated for string details — stringifying a dict produced a Python
+    repr in the response body.
+    """
     logger.warning("HTTP %d error on %s: %s", exc.status_code, request.url, exc.detail)
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail, "message": str(exc.detail)},
-    )
+    content = {"detail": exc.detail}
+    if isinstance(exc.detail, str):
+        content["message"] = exc.detail
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 @app.exception_handler(Exception)

@@ -14,6 +14,9 @@ interface MedicineBenchmarkResponse {
   deviation_percentage: number;
   generic_substitute_available: boolean;
   generic_substitute_store_info: string;
+  /** Provenance — the reference list is a curated subset of NPPA Schedule-I. */
+  data_source: string;
+  reference_entry_count: number;
 }
 
 interface DawaCheckViewProps {
@@ -23,8 +26,10 @@ interface DawaCheckViewProps {
 export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => {
   const t = translations[currentLang].modules.dawacheck;
   const api = useApi<MedicineBenchmarkResponse>();
-  const [brandName, setBrandName] = useState("Paracetamol 650mg");
-  const [mrp, setMrp] = useState("3.5");
+  // The MRP drives an "overcharged" verdict, so it must be the price the user actually
+  // paid — never a sample value they might submit unchanged.
+  const [brandName, setBrandName] = useState("");
+  const [mrp, setMrp] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async () => {
@@ -94,7 +99,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
           type="button"
           className="btn btn-primary"
           onClick={handleSearch}
-          disabled={api.loading}
+          disabled={api.loading || !brandName.trim() || !mrp.trim()}
         >
           {api.loading ? "Checking..." : `🔍 ${t.searchBtn}`}
         </button>

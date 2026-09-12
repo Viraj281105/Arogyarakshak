@@ -109,3 +109,57 @@ describe('Web Consent Request Behaviour', () => {
     );
   });
 });
+
+describe('Web Forms Must Not Pre-Fill Fabricated Data', () => {
+  const moduleDir = join(process.cwd(), 'app', 'components', 'modules');
+  const views = ['DaaviSetuView', 'BimaNyayView', 'SchemeSetuView', 'DawaCheckView'];
+
+  // Values previously hardcoded into form state. A user who submitted without editing
+  // generated a determination — and a persisted pre-auth form — about a fabricated person.
+  const forbidden = [
+    'Viraj Jadhao',
+    'POL-STAR-774411',
+    'POL-884422',
+    'Apollo Multi-Speciality Hospital',
+    'Star Health & Allied Insurance',
+    'Acute Myocardial Infarction',
+    'Heart bypass surgery (CABG)',
+    'Laparoscopic Appendectomy',
+    'Paracetamol 650mg',
+  ];
+
+  views.forEach((view) => {
+    test(`${view} must not seed form state with sample identity or clinical data`, () => {
+      const src = readFileSync(join(moduleDir, `${view}.tsx`), 'utf-8');
+      const seeded = src
+        .split('\n')
+        .filter((line) => line.includes('useState(') && !line.trim().startsWith('//'));
+
+      seeded.forEach((line) => {
+        forbidden.forEach((value) => {
+          assert.ok(
+            !line.includes(value),
+            `${view} seeds form state with "${value}": ${line.trim()}`
+          );
+        });
+      });
+    });
+  });
+
+  test('DaaviSetu requires patient name and policy before submitting', () => {
+    const src = readFileSync(join(moduleDir, 'DaaviSetuView.tsx'), 'utf-8');
+    assert.ok(
+      /!patientName\.trim\(\) \|\| !policyId\.trim\(\)/.test(src),
+      'submit must be blocked until identity fields are supplied'
+    );
+  });
+
+  test('BimaNyay requires a complete dossier before drafting a legal appeal', () => {
+    const src = readFileSync(join(moduleDir, 'BimaNyayView.tsx'), 'utf-8');
+    assert.ok(/bimaNyayFormComplete/.test(src), 'completeness guard missing');
+    assert.ok(
+      /disabled=\{isLoading \|\| !bimaNyayFormComplete\}/.test(src),
+      'analyze button must be disabled while the dossier is incomplete'
+    );
+  });
+});

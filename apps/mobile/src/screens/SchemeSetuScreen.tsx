@@ -15,10 +15,12 @@ export const SchemeSetuScreen: React.FC = () => {
   const m = t.modules.schemesetu;
 
   // Form state
-  const [income, setIncome] = useState('120000');
-  const [state, setState] = useState('Maharashtra');
+  // Empty by default: pre-filled values were submitted verbatim by users who did not
+  // edit them, producing determinations about a fabricated person.
+  const [income, setIncome] = useState('');
+  const [state, setState] = useState('');
   const [category, setCategory] = useState('General');
-  const [medicalNeed, setMedicalNeed] = useState('Heart bypass surgery (CABG)');
+  const [medicalNeed, setMedicalNeed] = useState('');
 
   // Result state
   const [loading, setLoading] = useState(false);

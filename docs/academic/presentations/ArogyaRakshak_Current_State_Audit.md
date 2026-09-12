@@ -881,6 +881,168 @@ compiler caught both, which is why the signature was made required rather than o
    Now documented as unwired rather than deleted.
 6. **Evaluation harness (#102–#116) still absent** — 15 open metric issues, no implementation.
 
+---
+
+## 15. Correctness & Production-Readiness Batch (2026-09-12)
+
+Covers generated-output integrity, module data integrity, API robustness, the Kadi
+pipeline, client screens, test quality and CI enforcement.
+
+### 15.1 Fabricated data in user-facing outputs
+
+**The §13 DaaviSetu fix made the problem durable rather than solving it.** Persisting the
+submitted claim was correct, but the *submission* path still invented values — so
+fabrications were now stored and rendered onto the signed form:
+
+```python
+hospital  = hospital  or "General Hospital"
+diagnosis = diagnosis or "Discharged Patient Medical Recovery"   # invented diagnosis
+treatment = treatment or "General clinical medical observation"
+estimated_cost = case.total_charged if case.total_charged > 0 else 45000.0
+```
+
+**Worse, both clients pre-filled every form with a plausible fake identity.** A user who
+pressed Generate without editing submitted — and persisted — a pre-authorization form for
+`"Viraj Jadhao"` with policy `"POL-STAR-774411"` at `"Apollo Multi-Speciality Hospital"`.
+BimaNyay pre-filled a policy number, insurer, ₹180,000 claim amounts, a denial reason and
+a diagnosis, all feeding a legal appeal letter.
+
+| Fix | Location |
+|---|---|
+| Field resolution is now request → extracted entity → **422**, with no invented third tier | `apps/api/.../daavisetu.py` |
+| `estimated_cost` accepted explicitly; falls back to the audited case total, never to ₹45,000 | same |
+| Appeal placeholders `DEN-DEFAULT` / `Disputed Procedure` replaced with `"Not specified in the supplied documents"`, plus a `denial_facts_extracted` flag | `apps/api/.../billnyay.py` |
+| All 8 client forms emptied; placeholders added; submit gated on required fields | 4 web views, 4 mobile screens |
+
+Verified live:
+
+```
+claim with no resolvable data -> HTTP 422
+missing: ['hospital_name', 'diagnosis', 'treatment_plan', 'estimated_cost']
+pdf before valid claim        -> HTTP 409
+```
+
+### 15.2 Module data integrity
+
+| Module | Issue | Fix |
+|---|---|---|
+| DawaCheck | 404 said the drug was *"not found in NPPA Schedule-I ceiling price list"* — asserting national price-control status from a **7-entry** in-code table | Message now states the reference list is a curated subset and that absence "does NOT mean" the medicine is uncontrolled |
+| DawaCheck | `generic_substitute_available=True` asserted unconditionally | Derived from whether the reference entry records a generic |
+| DawaCheck | No provenance on an authoritative-looking price | Added `data_source` + `reference_entry_count` |
+| SchemeSetu | `category` and `medical_need` collected, transmitted, then **ignored** (0 references) while the verdict read as complete | Added `criteria_evaluated`, `criteria_not_evaluated`, `is_provisional` |
+| SchemeSetu | `confidence_score` constants presented as statistical confidence | Documented as a heuristic prior for the matched rule branch |
+
+### 15.3 API robustness — three leaks that bypassed the §14 fix
+
+The global handler was fixed in §14, but three call sites bypassed it entirely:
+
+1. `bimanyay.py:72` — `HTTPException(500, detail=f"...{str(e)}")`
+2. `bimanyay.py:118` — same pattern
+3. `kadi.py` background task — streamed `f"Failed: {str(e)}"` over **SSE into the browser**
+
+All three now log against a correlation id and return/stream a safe message. The
+`StarletteHTTPException` handler no longer stringifies structured details into `message`
+(it produced a Python `repr` in the body for dict details).
+
+Verified: a corrupt PDF streams `'The PDF could not be read.'` with no `Traceback`,
+`fitz`, `PyMuPDF` or `code=7` in the payload.
+
+### 15.4 Kadi pipeline
+
+**Silent data loss (the most consequential find).** `parse_document` caught every parse
+failure and substituted the sentence `"Hospital Bill / Clinical Document text
+extraction."` as though it were the document body. The pipeline then persisted entities
+from that placeholder, marked the stream **`completed`**, and told the user "Document
+processed successfully" — on a document it had never read. The user then saw an empty
+audit and had no way to know extraction had failed.
+
+`parse_document` now returns `extraction_ok` / `extraction_error`, derives line items only
+from real text, and the background task halts and marks the stream `failed`. Verified: a
+corrupt PDF yields `status='failed'` and **0 entities persisted** (previously 1 bogus
+`document_text` entity and a "completed" stream).
+
+**Parser inconsistency.** `_find_hospital_name` substring-matched `"clinic"`, so any line
+containing the word **"clinical"** became the facility name — `"Some unstructured clinical
+note"` was returned as the hospital and would have been printed on a pre-auth form. Now
+word-boundary matched; real names (`Ruby Hall Clinic`, `Apollo Medical Centre`) still
+resolve. This was found *by* a regression test, not by inspection.
+
+**Shared logic.** Confirmed genuinely shared: a repo-wide scan found no duplicated
+line-item regex outside `kadi/line_items.py`. Both the OCR stage and the extraction
+fallback call it.
+
+### 15.5 Clients
+
+- All 8 forms de-fabricated (§15.1) with submit guards.
+- New backend disclosure fields wired into both clients' types: `criteria_not_evaluated`,
+  `is_provisional`, `data_source`, `reference_entry_count`, `estimated_cost`.
+- DaaviSetu web gained a diagnosis input; blank optional fields are omitted from the
+  request so the API can fall back to extracted entities rather than storing `""`.
+- **Mobile runtime remains unverified** — no emulator was launched. Mobile changes are
+  verified by `tsc --noEmit` and unit tests only.
+
+### 15.6 Test quality
+
+Weak shape-only assertions replaced with value-level ones:
+
+| Test | Was | Now |
+|---|---|---|
+| `test_billnyay_audit` | `"total_charged" in data` | exact per-item charges, benchmarks, statuses, and totals (3000 / 1850 / 1150) |
+| `test_schemesetu_eligibility` | `len(data) > 0` | both schemes present with asserted verdicts |
+| `test_dawacheck_benchmark` | `is_overcharged is True` | ceiling 2.30 and deviation 52.17% |
+| `test_daavisetu_claim` | 2 fields echoed | all 6 fields round-trip, hospital sourced from the document |
+| `test_parse_document_pdf_fallback` | asserted the placeholder sentence | asserts failure is *signalled* |
+
+Two cross-module integration tests added: one document driving Kadi → BillNyay →
+DaaviSetu → PDF with values tracked through every stage, and the same document proving
+consent blocks every module.
+
+### 15.7 CI
+
+**Web tests never ran in CI.** `web-ci` executed `npm ci`, `lint`, `build` only — the
+(now 25) web tests were dead weight. Added an explicit test step. Also pinned `tsx` as a
+devDependency; the test script previously relied on `npx tsx` fetching the runner at
+execution time, which `npm ci` does not guarantee.
+
+### 15.8 Verification
+
+| Suite | Before batch | After |
+|---|---|---|
+| Backend pytest | 122 | **139** |
+| Web | 19 | **25** |
+| Mobile | 23 | **27** |
+| **Total** | **164** | **191** |
+| Web `tsc` / lint / build | clean | clean |
+| Mobile `tsc --noEmit` | 0 errors | 0 errors |
+| Ruff (CI selection) | clean | clean |
+| CI guardrails | 5/5 | **5/5** |
+| `docker compose config` | exit 0 | exit 0 |
+| Web `npm audit` | 0 | **0** |
+| Cross-runtime contracts | consistent | **10/10 consistent** |
+
+**27 tests added.** No test weakened. Three existing tests were updated because they
+encoded behaviour now deliberately changed — each became stricter:
+`test_daavisetu_claim` (relied on an invented diagnosis), `test_parse_document_pdf_fallback`
+(asserted the placeholder-on-failure), and `test_billnyay_audit`/`test_schemesetu_eligibility`/
+`test_dawacheck_benchmark` (shape-only → value-level).
+
+**Dead code:** one import (`HTTPException` in `bimanyay.py`) became unused through this
+batch's changes and was removed. The remaining Ruff `F401`/`F841` findings were verified
+pre-existing in files this batch did not touch and were left alone.
+
+### 15.9 Remaining issues
+
+1. **Mobile dependencies — 30 advisories (1 critical, 11 high).** Still requires Expo SDK
+   52 → 57; no non-major fix exists.
+2. **No authentication.** Case data remains retrievable by id alone.
+3. **`processing_status` is single-process.** Bounded, but multi-worker needs Redis/DB.
+4. **Mobile runtime unverified.** No emulator run in any session to date.
+5. **SchemeSetu remains income/state only.** Now disclosed rather than fixed — evaluating
+   category and SECC status is a feature, deliberately out of scope.
+6. **DawaCheck reference list is 7 formulations** against a stated 800–900. Now disclosed
+   via `data_source`; ingestion is issue #16.
+7. **Evaluation harness (#102–#116) still absent.**
+
 ## Appendix A — Verification Commands
 
 ```bash

@@ -147,6 +147,10 @@ jobs:
         working-directory: apps/web
         run: npm run lint
 
+      - name: Run Web Unit & Contract Test Suite
+        working-directory: apps/web
+        run: npm test
+
       - name: Compile Next.js Production Build
         working-directory: apps/web
         run: npm run build

@@ -19,7 +19,7 @@
 
 - **Current Phase:** Product Phase 1 Audit & System Hardening Complete (All P0, P1, P2 audit findings resolved and runtime-verified; Product Phase 2 not yet started).
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 122 backend pytest tests passing; 23 mobile tests passing; 19 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
+- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 139 backend pytest tests passing; 27 mobile tests passing; 25 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
 - **Primary Focus:** Ready for Product Phase 2 (IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`).
 - **Last Major Milestone:** Remaining Product Phase 1 Audit Fixes Completed & Verified:
   1. `kadi.py` background session resolved via `get_background_session()` with FastAPI dependency override and eager relationship loading (`selectinload`), guaranteeing end-to-end entity persistence in test, local, and Docker environments.
@@ -178,7 +178,7 @@ Resolve remaining adversarial audit findings for Product Phase 1 across Kadi bac
 - [x] P2: `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
 - [x] OCR: EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
 - [x] CI Dependency Fix: Added `reportlab>=4.0.0` to `packages/daavisetu/pyproject.toml`, `apps/api/requirements.txt`, and `.github/workflows/ci.yml` resolving CI runner `ModuleNotFoundError: No module named 'reportlab'`.
-- [x] Full regression validation suite executed: 122 backend tests, 23 mobile tests, 19 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
+- [x] Full regression validation suite executed: 139 backend tests, 27 mobile tests, 25 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
 
 ### Current Blockers
 None. Ready for Product Phase 2 when directed by user.
@@ -298,7 +298,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **Unified Pytest Test Runner (`pytest.ini`)**: **122 passed (100% pass rate)**.
+- **Unified Pytest Test Runner (`pytest.ini`)**: **139 passed (100% pass rate)**.
   - **Package Unit Suites (`packages/*/tests/`)**: 23 passed.
     - `packages/billnyay`: 4 tests passed (`test_agents.py`)
     - `packages/daavisetu`: 1 test passed (`test_daavisetu.py`)

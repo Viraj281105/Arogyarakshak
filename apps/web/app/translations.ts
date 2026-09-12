@@ -87,6 +87,10 @@ export interface Translations {
       policyId: string;
       hospital: string;
       treatment: string;
+      diagnosis: string;
+      patientNamePlaceholder: string;
+      policyIdPlaceholder: string;
+      optionalFromDocument: string;
       generateBtn: string;
       preAuthSummary: string;
       downloadPackage: string;
@@ -210,6 +214,10 @@ export const translations: Record<Language, Translations> = {
         title: "DaaviSetu — Cashless Pre-Authorization Automation",
         desc: "Rapid cashless pre-authorization form generation conforming to standardized IRDAI claim formats.",
         patientName: "Patient Full Name",
+        diagnosis: "Clinical Diagnosis",
+        patientNamePlaceholder: "Enter the patient's full name",
+        policyIdPlaceholder: "Enter the policy number",
+        optionalFromDocument: "Leave blank to use the uploaded document",
         policyId: "Health Policy ID",
         hospital: "Hospital / Provider Name",
         treatment: "Planned Procedure / Surgery",
@@ -334,6 +342,10 @@ export const translations: Record<Language, Translations> = {
         title: "दावेसेतु — कैशलेस प्री-ऑथराइजेशन ऑटोमेशन",
         desc: "IRDAI मानकीकृत प्रारूप में कैशलेस अस्पताल भर्ती प्री-ऑथराइजेशन फॉर्म स्वतः भरना।",
         patientName: "मरीज का पूरा नाम",
+        diagnosis: "नैदानिक निदान",
+        patientNamePlaceholder: "रोगी का पूरा नाम दर्ज करें",
+        policyIdPlaceholder: "पॉलिसी नंबर दर्ज करें",
+        optionalFromDocument: "दस्तावेज़ से लेने के लिए खाली छोड़ें",
         policyId: "स्वास्थ्य पॉलिसी नंबर",
         hospital: "अस्पताल का नाम",
         treatment: "उपचार / प्रक्रिया",
@@ -458,6 +470,10 @@ export const translations: Record<Language, Translations> = {
         title: "दावेसेतु — कॅशलेस प्री-ऑथरायझेशन ऑटोमेशन",
         desc: "IRDAI मानकीकृत स्वरूपात कॅशलेस रुग्णालय भरती प्री-ऑथरायझेशन फॉर्म त्वरित तयार करणे.",
         patientName: "रुग्णाचे संपूर्ण नाव",
+        diagnosis: "वैद्यकीय निदान",
+        patientNamePlaceholder: "रुग्णाचे पूर्ण नाव भरा",
+        policyIdPlaceholder: "पॉलिसी क्रमांक भरा",
+        optionalFromDocument: "दस्तऐवजातून घेण्यासाठी रिकामे ठेवा",
         policyId: "आरोग्य विमा क्रमांक",
         hospital: "रुग्णालयाचे नाव",
         treatment: "उपचार / शस्त्रक्रिया",

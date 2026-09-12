@@ -86,6 +86,14 @@ def extract_entities_from_text(text: str, api_key: Optional[str] = None, model: 
 # (the cause of hospital names such as "Hospital\nPatient Name").
 _HOSPITAL_KEYWORDS = ("hospital", "clinic", "medical center", "medical centre", "nursing home", "healthcare")
 
+# Word-boundary matcher. Plain substring matching made every line containing "clinical"
+# (e.g. "unstructured clinical note") match the keyword "clinic" and become the facility
+# name — garbage that then appeared as the hospital on a pre-authorization form.
+_HOSPITAL_KEYWORD_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(k) for k in _HOSPITAL_KEYWORDS) + r")\b",
+    re.IGNORECASE,
+)
+
 _PATIENT_RE = re.compile(
     r"^[^\S\n]*(?:patient(?:[^\S\n]*name)?|name[^\S\n]*of[^\S\n]*patient)[^\S\n]*[:\-][^\S\n]*(?P<value>[^\n]+)$",
     re.IGNORECASE | re.MULTILINE,
@@ -125,7 +133,7 @@ def _find_hospital_name(text: str) -> Optional[str]:
         if not candidate or len(candidate) > 120:
             continue
         lowered = candidate.lower()
-        if any(keyword in lowered for keyword in _HOSPITAL_KEYWORDS):
+        if _HOSPITAL_KEYWORD_RE.search(candidate):
             # Skip lines that are really labelled fields for something else.
             if re.match(r"^\s*(patient|diagnosis|date|invoice|bill)\b", lowered):
                 continue

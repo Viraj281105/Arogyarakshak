@@ -23,11 +23,28 @@ router = APIRouter()
 
 # --- Pydantic Schemas ---------------------------------------------------------
 class PreAuthFormRequest(BaseModel):
-    policy_number: str = Field(..., description="Insurance policy ID", json_schema_extra={"example": "POL77654"})
-    patient_name: str = Field(..., description="Full name of the patient", json_schema_extra={"example": "Viraj Jadhao"})
-    hospital_name: Optional[str] = Field(None, description="Network hospital name", json_schema_extra={"example": "Apollo Hospital"})
-    diagnosis: Optional[str] = Field(None, description="Clinical diagnosis or ICD-10 code", json_schema_extra={"example": "Appendicitis"})
-    treatment_plan: Optional[str] = Field(None, description="Proposed surgical/medical procedure", json_schema_extra={"example": "Laparoscopic Appendectomy"})
+    """Pre-authorization intake.
+
+    Optional fields fall back to entities extracted from the case, never to invented
+    values. If a field resolves to nothing the request is rejected with 422.
+    """
+
+    policy_number: str = Field(..., min_length=1, description="Insurance policy ID")
+    patient_name: str = Field(..., min_length=1, description="Full name of the patient")
+    hospital_name: Optional[str] = Field(None, description="Network hospital name")
+    diagnosis: Optional[str] = Field(None, description="Clinical diagnosis or ICD-10 code")
+    treatment_plan: Optional[str] = Field(None, description="Proposed surgical/medical procedure")
+    estimated_cost: Optional[float] = Field(
+        None, ge=0, description="Estimated treatment cost; defaults to the audited case total"
+    )
+
+
+def _first_entity(entities, entity_type: str) -> Optional[str]:
+    """Returns the first extracted entity name of a given type, if any."""
+    for entity in entities:
+        if entity.type == entity_type and entity.name:
+            return entity.name
+    return None
 
 
 
@@ -43,27 +60,46 @@ async def generate_pre_auth_form(
     # 1. Fetch case
     case = await require_case_consent(case_id, db)
 
-    # 2. Gather procedure/hospital entities (fallback to generic defaults if not present)
+    # 2. Gather entities extracted from this case's uploaded documents.
     entities_result = await db.execute(
         select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id)
     )
     entities = entities_result.scalars().all()
     
-    hospital = req.hospital_name
-    diagnosis = req.diagnosis
-    treatment = req.treatment_plan
+    # Resolve each field: caller-supplied value, else an entity actually extracted from
+    # the uploaded document. There is no third tier — a pre-authorization form is filed
+    # with an insurer, so an invented hospital, diagnosis, treatment or cost is worse than
+    # refusing to generate the form.
+    hospital = req.hospital_name or _first_entity(entities, "hospital")
+    diagnosis = req.diagnosis or _first_entity(entities, "diagnosis")
+    treatment = req.treatment_plan or _first_entity(entities, "procedure")
 
-    for entity in entities:
-        if not hospital and entity.type == "hospital":
-            hospital = entity.name
-        elif not treatment and entity.type == "procedure":
-            treatment = entity.name
-        elif not diagnosis and entity.type == "diagnosis":
-            diagnosis = entity.name
+    estimated_cost = req.estimated_cost
+    if estimated_cost is None and case.total_charged > 0:
+        estimated_cost = case.total_charged
 
-    hospital = hospital or "General Hospital"
-    diagnosis = diagnosis or "Discharged Patient Medical Recovery"
-    treatment = treatment or "General clinical medical observation"
+    missing = [
+        name
+        for name, value in (
+            ("hospital_name", hospital),
+            ("diagnosis", diagnosis),
+            ("treatment_plan", treatment),
+            ("estimated_cost", estimated_cost),
+        )
+        if not value
+    ]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Cannot generate a pre-authorization form: these fields were neither "
+                    "supplied nor found in the uploaded document. Provide them explicitly "
+                    "rather than accepting a default."
+                ),
+                "missing_fields": missing,
+            },
+        )
 
     # 3. Create input and execute daavisetu claim generation
     claim_input = ClaimData(
@@ -71,7 +107,7 @@ async def generate_pre_auth_form(
         patient_name=req.patient_name,
         hospital_name=hospital,
         diagnosis=diagnosis,
-        estimated_cost=case.total_charged if case.total_charged > 0 else 45000.0,
+        estimated_cost=estimated_cost,
         treatment_plan=treatment,
     )
     

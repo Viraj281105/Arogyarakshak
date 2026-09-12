@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 # Import dawacheck packages
-from dawacheck.checker import benchmark_medicine, MedicineBenchmark
+from dawacheck.checker import REFERENCE_SOURCE, benchmark_medicine, MedicineBenchmark
 
 router = APIRouter()
 
@@ -28,8 +28,19 @@ async def check_medicine_pricing(req: BenchRequest):
     """Checks medicine MRP against NPPA Schedule-I ceiling price list."""
     benchmark = benchmark_medicine(brand_name=req.brand_name, mrp=req.mrp)
     if not benchmark:
+        # Do not imply the medicine is uncontrolled — it is simply absent from the curated
+        # reference subset this build ships with.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Medicine brand '{req.brand_name}' not found in NPPA Schedule-I ceiling price list."
+            detail={
+                "message": (
+                    f"'{req.brand_name}' is not in ArogyaRakshak's reference price list. "
+                    "This does NOT mean the medicine is exempt from price control — the "
+                    "reference list is a curated subset of NPPA Schedule-I, not the full "
+                    "notified list. Check the NPPA portal before drawing any conclusion."
+                ),
+                "brand_name": req.brand_name,
+                "data_source": REFERENCE_SOURCE,
+            },
         )
     return benchmark
