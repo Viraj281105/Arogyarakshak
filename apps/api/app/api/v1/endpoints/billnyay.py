@@ -8,7 +8,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -37,6 +37,7 @@ from billnyay.agents.icd_audit import audit_icd_procedure_consistency, ICDProced
 from billnyay.tools.pdf_compiler import compile_appeal_packet_bytes
 from billnyay.tools.pdf_integrity import compute_sha256, sign_document, verify_signature
 from billnyay.tools.bima_bharosa_crawler import check_registration_status_mock, RegistrationStatusResult
+from billnyay.outcome import OutcomeEstimate, OutcomeQuery, estimate_outcome, load_registered_dataset
 
 logger = logging.getLogger("arogyarakshak.api.billnyay")
 router = APIRouter()
@@ -343,10 +344,16 @@ class GroqClientFallback:
 @router.post("/cases/{case_id}/audit", response_model=AuditResponse)
 async def audit_bill(case_id: str, db: AsyncSession = Depends(get_db)):
     """Audits hospital bill items against CGHS rate schedules."""
-    # 1. Fetch case
     await require_case_consent(case_id, db)
+    return await build_case_audit(case_id, db)
 
-    # 2. Fetch billing entities
+
+async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
+    """CGHS audit of a case's billing items.
+
+    Shared by the route above and Kadi's auto-triggers (app.auto_triggers, #32) so both
+    always compute the same result. Callers must enforce consent first.
+    """
     entities_result = await db.execute(
         select(KadiEntity).join(KadiCase.entities)
         .where(KadiCase.id == case_id)
@@ -615,7 +622,11 @@ async def audit_icd_procedure(case_id: str, db: AsyncSession = Depends(get_db)):
     diagnosis's ICD-10 code (#64), using a curated reference subset — see
     billnyay.agents.icd_audit for its coverage and honesty caveats."""
     await require_case_consent(case_id, db)
+    return await build_case_icd_audit(case_id, db)
 
+
+async def build_case_icd_audit(case_id: str, db: AsyncSession) -> ICDProcedureAuditItem:
+    """Shared by the route above and Kadi's auto-triggers (#32). Callers enforce consent."""
     diagnosis_result = await db.execute(
         select(KadiEntity).join(KadiCase.entities)
         .where(KadiCase.id == case_id, KadiEntity.type == "diagnosis")
@@ -630,6 +641,25 @@ async def audit_icd_procedure(case_id: str, db: AsyncSession = Depends(get_db)):
     procedures_billed = [e.name for e in procedure_result.scalars().all() if e.name]
 
     return audit_icd_procedure_consistency(diagnosis_text, procedures_billed)
+
+
+class OutcomeEstimateRequest(BaseModel):
+    dispute_category: str = Field(..., min_length=1, max_length=64, json_schema_extra={"example": "PED_NON_DISCLOSURE"})
+    forum: Literal["insurer_grievance", "insurance_ombudsman", "consumer_commission"] = "insurance_ombudsman"
+
+
+@router.post("/outcome-estimate", response_model=OutcomeEstimate)
+async def estimate_dispute_outcome(req: OutcomeEstimateRequest):
+    """Historical outcome base rate for a dispute category (#90).
+
+    Returns a probability only when a cited, non-synthetic historical dataset with enough
+    decided disputes is registered (billnyay/data/dispute_outcomes). None exists today, so
+    the status is INSUFFICIENT_EVIDENCE. Request-body only; reads no case context.
+    """
+    return estimate_outcome(
+        OutcomeQuery(dispute_category=req.dispute_category, forum=req.forum),
+        load_registered_dataset(),
+    )
 
 
 @router.get("/grievance/registration-status", response_model=RegistrationStatusResult)

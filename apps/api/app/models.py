@@ -5,7 +5,19 @@ Database tables for Kadi shared context (cases and entities).
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Float, Boolean, ForeignKey, Table, JSON, LargeBinary
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    Float,
+    Boolean,
+    ForeignKey,
+    Integer,
+    Table,
+    JSON,
+    LargeBinary,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -54,6 +66,107 @@ class KadiEntity(Base):
 
     # Relationships
     cases = relationship("KadiCase", secondary=kadi_case_entities, back_populates="entities")
+
+
+class KadiCaseDocument(Base):
+    """Fingerprint of a document already ingested into a case (duplicate-upload guard).
+
+    Re-uploading the same bill used to duplicate every entity and add its total to
+    `total_charged` a second time. Only the SHA-256 digest and the extension are stored —
+    never the file, its text or its name, which could itself identify the patient (ADR-003).
+    """
+
+    __tablename__ = "kadi_case_documents"
+    __table_args__ = (UniqueConstraint("case_id", "sha256", name="uq_kadi_case_document_digest"),)
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    sha256 = Column(String(64), nullable=False)
+    extension = Column(String, nullable=True)
+    source = Column(String, nullable=False, default="upload")  # upload | abdm_fhir
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KadiResolutionDecision(Base):
+    """An entity-resolution decision that needs (or received) a human answer (#31, #88).
+
+    One row per MERGE (status `auto_merged`) and per ASK (status `pending`). NEW decisions
+    are not stored. `mention_payload` keeps the merged mention's name/value/meta so an
+    automatic merge can be split back out if the user says it was wrong.
+    """
+
+    __tablename__ = "kadi_resolution_decisions"
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_type = Column(String, nullable=False, index=True)
+    action = Column(String, nullable=False)  # MERGE | ASK
+    # auto_merged | pending | confirmed | rejected | split
+    status = Column(String, nullable=False, index=True)
+    source = Column(String, nullable=False, default="upload")  # upload | abdm_fhir
+    mention_entity_id = Column(String, nullable=True)  # the separately kept entity (ASK only)
+    candidate_entity_id = Column(String, nullable=False)
+    candidate_name = Column(String, nullable=False)
+    mention_payload = Column(JSON, nullable=False)
+    confidence = Column(Float, nullable=False)
+    signals = Column(JSON, nullable=False)
+    reasons = Column(JSON, nullable=False)
+    thresholds = Column(JSON, nullable=False)
+    feedback_same_entity = Column(Boolean, nullable=True)
+    feedback_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KadiThresholdCalibration(Base):
+    """Snapshot of a feedback recalibration attempt (#88). Aggregate numbers only."""
+
+    __tablename__ = "kadi_threshold_calibrations"
+
+    id = Column(String, primary_key=True, index=True)
+    scope = Column(String, nullable=False, index=True)  # entity type, or "all_types"
+    status = Column(String, nullable=False)  # CALIBRATED | INSUFFICIENT_EVIDENCE
+    merge_threshold = Column(Float, nullable=False)
+    ask_threshold = Column(Float, nullable=False)
+    sample_count = Column(Integer, nullable=False)
+    metrics = Column(JSON, nullable=False)
+    reasons = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class KadiModuleInsight(Base):
+    """Latest result of a module check Kadi fired automatically for a case (#32, #92)."""
+
+    __tablename__ = "kadi_module_insights"
+    __table_args__ = (UniqueConstraint("case_id", "module_check", name="uq_kadi_module_insight"),)
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    module_check = Column(String, nullable=False)
+    # COMPLETED | FAILED | NOT_READY
+    status = Column(String, nullable=False)
+    trigger = Column(String, nullable=False)  # document_processed | abdm_import | income_profile_updated
+    summary = Column(JSON, nullable=True)
+    missing_context = Column(JSON, nullable=True)
+    error_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SchemeSetuCaseProfile(Base):
+    """Consent-bounded income profile for a case (#92).
+
+    Only the two facts the eligibility rules evaluate are stored. Social category is not:
+    the engine does not evaluate it, so keeping it would be collection without purpose.
+    The patient can delete the profile at any time.
+    """
+
+    __tablename__ = "schemesetu_case_profiles"
+
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), primary_key=True)
+    annual_income_inr = Column(Float, nullable=False)
+    state = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class DawaCheckGenericMapping(Base):

@@ -13,8 +13,20 @@ Modules that consume Kadi case context (BillNyay, DaaviSetu; DawaCheck's
 ``GET /cases/{case_id}/benchmark``; SchemeSetu's ``POST /cases/{case_id}/eligibility``)
 must call ``require_case_consent``. A module route that takes all its input from the
 request body and reads no case context (SchemeSetu's ``POST /eligibility``; DawaCheck's
-``POST /benchmark``) is out of scope by design — consent enforcement is a per-route
-decision based on whether that route reads case entities, not a per-module one.
+``POST /benchmark``; BillNyay's ``POST /outcome-estimate``) is out of scope by design —
+consent enforcement is a per-route decision based on whether that route reads case
+entities, not a per-module one.
+
+Phase 3 routes:
+
+- Consent-gated: Kadi's ``GET /cases/{case_id}/insights`` (other modules' analyses of the
+  case) and ``POST /cases/{case_id}/abdm/import`` (pulled medical history enters the shared
+  context only for an opted-in case); SchemeSetu's ``PUT/GET/DELETE
+  /cases/{case_id}/income-profile`` (nothing is stored without consent).
+- Not gated, like ``GET /kadi/cases/{case_id}``: Kadi's own view of its case —
+  ``/cases/{case_id}/resolutions`` (+ feedback) and ``/cases/{case_id}/graph``.
+- Auto-triggers (app.auto_triggers) re-read the stored consent at run time and run nothing
+  for a case without it.
 """
 
 import logging

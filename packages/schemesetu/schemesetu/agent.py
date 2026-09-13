@@ -8,6 +8,8 @@ import logging
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 
+from schemesetu.thresholds import MJPJAY, PMJAY
+
 logger = logging.getLogger("SchemeSetu.Agent")
 logger.setLevel(logging.INFO)
 
@@ -67,7 +69,7 @@ def check_eligibility(request: EligibilityRequest) -> List[SchemeResult]:
     
     # Simple rule-based check for PMJAY (national)
     # PMJAY target is low income / deprived families
-    if request.income <= 250000:
+    if PMJAY.income_within(request.income):
         results.append(
             SchemeResult(
                 scheme_name="PMJAY (Ayushman Bharat)",
@@ -93,8 +95,8 @@ def check_eligibility(request: EligibilityRequest) -> List[SchemeResult]:
         )
 
     # Maharashtra MJPJAY check
-    if request.location_state.lower() in ["maharashtra", "mh"]:
-        if request.income <= 150000:
+    if MJPJAY.applies_to_state(request.location_state):
+        if MJPJAY.income_within(request.income):
             results.append(
                 SchemeResult(
                     scheme_name="MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)",

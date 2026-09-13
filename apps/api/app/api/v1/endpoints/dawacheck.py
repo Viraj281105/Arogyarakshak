@@ -116,7 +116,18 @@ async def benchmark_case_medicines(case_id: str, db: AsyncSession = Depends(get_
     (`require_case_consent`) before returning anything.
     """
     await require_case_consent(case_id, db)
+    results = await build_case_medicine_benchmarks(case_id, db)
+    await db.commit()
+    return results
 
+
+async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List[CaseMedicineBenchmark]:
+    """Benchmarks a case's medicine entities; learned brand mappings are added to the
+    session but not committed (the caller commits).
+
+    Shared by the route above and Kadi's auto-triggers (app.auto_triggers, #32) so both
+    always compute the same result. Callers must enforce consent first.
+    """
     entities_result = await db.execute(
         select(KadiEntity)
         .join(KadiCase.entities)
@@ -181,7 +192,6 @@ async def benchmark_case_medicines(case_id: str, db: AsyncSession = Depends(get_
             CaseMedicineBenchmark(entity_id=entity.id, brand_name=entity.name, benchmark=benchmark)
         )
 
-    await db.commit()
     logger.info(
         "[DawaCheck] Benchmarked %d/%d medicine entities for case %s",
         sum(1 for r in results if r.benchmark is not None),

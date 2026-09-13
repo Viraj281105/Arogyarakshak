@@ -24,6 +24,7 @@ from schemesetu.agent import (
     SchemeResult,
     check_eligibility,
 )
+from schemesetu.thresholds import MJPJAY, PMJAY, format_inr
 
 
 class ReasoningStep(BaseModel):
@@ -50,21 +51,21 @@ def _income_rule(threshold: float) -> Callable[[EligibilityRequest], bool]:
 
 
 def _is_maharashtra(req: EligibilityRequest) -> bool:
-    return req.location_state.lower() in ["maharashtra", "mh"]
+    return MJPJAY.applies_to_state(req.location_state)
 
 
 # The structured criteria index this agent reasons over — the same rules
 # schemesetu.agent.check_eligibility applies, made explicit and inspectable here
 # instead of staying buried inside branching if/else logic.
-_PMJAY = "PMJAY (Ayushman Bharat)"
-_MJPJAY = "MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)"
+_PMJAY = PMJAY.scheme_name
+_MJPJAY = MJPJAY.scheme_name
 
 _CRITERIA_INDEX: List[dict] = [
     {
         "scheme": _PMJAY,
         "criterion": "annual_income",
-        "rule": "Annual family income <= Rs 2,50,000",
-        "check": _income_rule(250000),
+        "rule": f"Annual family income <= Rs {format_inr(PMJAY.max_annual_income_inr)}",
+        "check": _income_rule(PMJAY.max_annual_income_inr),
         "applies": lambda req: True,
     },
     {
@@ -77,8 +78,8 @@ _CRITERIA_INDEX: List[dict] = [
     {
         "scheme": _MJPJAY,
         "criterion": "annual_income",
-        "rule": "Annual family income <= Rs 1,50,000",
-        "check": _income_rule(150000),
+        "rule": f"Annual family income <= Rs {format_inr(MJPJAY.max_annual_income_inr)}",
+        "check": _income_rule(MJPJAY.max_annual_income_inr),
         # MJPJAY's income criterion is only meaningful for Maharashtra residents —
         # schemesetu.agent never evaluates it otherwise.
         "applies": _is_maharashtra,

@@ -2,7 +2,7 @@
 Pydantic Schemas for BimaNyay Insurance Denial and Grievance Engine.
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -32,7 +32,17 @@ class RegulatoryViolation(BaseModel):
 class DisputeAuditResult(BaseModel):
     """Outcome of legal and regulatory analysis on a claim denial."""
     is_wrongful_denial: bool
-    reversal_probability_score: float = Field(..., ge=0.0, le=1.0)
+    reversal_probability_score: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Hand-assigned prior for the matched denial-category rule. It is NOT derived "
+            "from historical dispute outcomes (no such dataset exists; see BillNyay's "
+            "outcome estimator, #90) and must not be presented as a statistical probability."
+        ),
+    )
+    probability_basis: Literal["HEURISTIC_PRIOR_NOT_HISTORICAL"] = "HEURISTIC_PRIOR_NOT_HISTORICAL"
     primary_dispute_grounds: str
     regulatory_violations: List[RegulatoryViolation] = []
     level_1_gro_appeal: str

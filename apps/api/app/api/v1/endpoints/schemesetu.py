@@ -4,17 +4,20 @@ SchemeSetu API Endpoints.
 Handles government healthcare scheme eligibility checks (PMJAY, MJPJAY).
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from typing import Any, List, Literal, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auto_triggers import run_triggers_in_background, upsert_insight
 from app.consent import require_case_consent
 from app.database import get_db
-from app.models import KadiCase, KadiEntity
+from app.models import KadiCase, KadiEntity, KadiModuleInsight, SchemeSetuCaseProfile
 # Import schemesetu packages
 from schemesetu.agent import check_eligibility, EligibilityRequest, SchemeResult
+from schemesetu.triggers import IncomeProfile, IncomeTriggerDecision, evaluate_income_trigger
 from schemesetu.reasoning_agent import reason_about_eligibility, EligibilityReasoning
 from schemesetu.trend_estimator import (
     project_future_eligibility,
@@ -84,20 +87,16 @@ async def check_case_scheme_eligibility(
     consent_opt_in (see app.consent) before returning anything.
     """
     await require_case_consent(case_id, db)
-
-    medical_need = intake.medical_need
-    if not medical_need:
-        entities_result = await db.execute(
-            select(KadiEntity)
-            .join(KadiCase.entities)
-            .where(KadiCase.id == case_id, KadiEntity.type.in_(["diagnosis", "procedure"]))
+    try:
+        return await build_case_eligibility(
+            case_id,
+            income=intake.income,
+            location_state=intake.location_state,
+            category=intake.category,
+            medical_need=intake.medical_need,
+            db=db,
         )
-        # De-duplicated, order-preserving: a case can carry the same procedure name
-        # from both OCR line items and LLM extraction.
-        names = list(dict.fromkeys(e.name for e in entities_result.scalars().all() if e.name))
-        medical_need = "; ".join(names) if names else None
-
-    if not medical_need:
+    except CaseMedicalNeedMissing:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
@@ -109,13 +108,155 @@ async def check_case_scheme_eligibility(
             },
         )
 
-    req = EligibilityRequest(
-        income=intake.income,
-        location_state=intake.location_state,
-        category=intake.category,
-        medical_need=medical_need,
+
+class CaseMedicalNeedMissing(Exception):
+    """No medical need was supplied and the case has no diagnosis/procedure entities."""
+
+
+async def case_medical_need(case_id: str, db: AsyncSession) -> Optional[str]:
+    entities_result = await db.execute(
+        select(KadiEntity)
+        .join(KadiCase.entities)
+        .where(KadiCase.id == case_id, KadiEntity.type.in_(["diagnosis", "procedure"]))
     )
-    return check_eligibility(req)
+    # De-duplicated, order-preserving: a case can carry the same procedure name from more
+    # than one source document.
+    names = list(dict.fromkeys(e.name for e in entities_result.scalars().all() if e.name))
+    return "; ".join(names) if names else None
+
+
+async def build_case_eligibility(
+    case_id: str,
+    *,
+    income: float,
+    location_state: str,
+    category: str,
+    medical_need: Optional[str],
+    db: AsyncSession,
+) -> List[SchemeResult]:
+    """Shared by the route above and Kadi's auto-triggers (#32, #92). Callers enforce
+    consent first."""
+    medical_need = medical_need or await case_medical_need(case_id, db)
+    if not medical_need:
+        raise CaseMedicalNeedMissing()
+    return check_eligibility(
+        EligibilityRequest(
+            income=income, location_state=location_state, category=category, medical_need=medical_need
+        )
+    )
+
+
+# --- Consent-bounded income profile & recommendation trigger (#92) ------------
+
+class IncomeProfileRequest(BaseModel):
+    annual_income_inr: float = Field(..., ge=0, le=1e10, allow_inf_nan=False, json_schema_extra={"example": 120000.0})
+    state: str = Field(..., min_length=2, max_length=64, json_schema_extra={"example": "Maharashtra"})
+
+
+class IncomeProfileResponse(BaseModel):
+    case_id: str
+    annual_income_inr: float
+    state: str
+    trigger: IncomeTriggerDecision
+    background_eligibility: Literal["queued", "not_ready", "not_triggered"]
+    missing_context: List[str] = Field(default_factory=list)
+
+
+class StoredIncomeProfile(BaseModel):
+    case_id: str
+    annual_income_inr: float
+    state: str
+    updated_at: Any
+
+
+@router.put("/cases/{case_id}/income-profile", response_model=IncomeProfileResponse)
+async def save_income_profile(
+    case_id: str,
+    body: IncomeProfileRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Saves the case's income profile and, when income newly falls within a scheme's
+    income threshold, queues a background eligibility run (#92).
+
+    Consent-bounded: without the case's stored consent_opt_in nothing is saved (403).
+    Only annual income and state are stored — the two facts the rules evaluate.
+    """
+    await require_case_consent(case_id, db)
+
+    stored = await db.get(SchemeSetuCaseProfile, case_id)
+    previous = IncomeProfile(annual_income_inr=stored.annual_income_inr, state=stored.state) if stored else None
+    current = IncomeProfile(annual_income_inr=body.annual_income_inr, state=body.state.strip())
+    decision = evaluate_income_trigger(current, previous)
+
+    if stored is None:
+        stored = SchemeSetuCaseProfile(case_id=case_id)
+        db.add(stored)
+    stored.annual_income_inr = current.annual_income_inr
+    stored.state = current.state
+    stored.updated_at = datetime.utcnow()
+    await db.commit()
+
+    background = "not_triggered"
+    missing: List[str] = []
+    if decision.status == "FIRE":
+        if await case_medical_need(case_id, db):
+            background_tasks.add_task(
+                run_triggers_in_background, case_id, "income_profile_updated", ["schemesetu_eligibility"]
+            )
+            background = "queued"
+        else:
+            background = "not_ready"
+            missing = ["diagnosis or procedure"]
+            await upsert_insight(
+                db,
+                case_id,
+                "schemesetu_eligibility",
+                status="NOT_READY",
+                trigger="income_profile_updated",
+                missing_context=missing,
+            )
+            await db.commit()
+
+    return IncomeProfileResponse(
+        case_id=case_id,
+        annual_income_inr=current.annual_income_inr,
+        state=current.state,
+        trigger=decision,
+        background_eligibility=background,
+        missing_context=missing,
+    )
+
+
+@router.get("/cases/{case_id}/income-profile", response_model=StoredIncomeProfile)
+async def get_income_profile(case_id: str, db: AsyncSession = Depends(get_db)):
+    await require_case_consent(case_id, db)
+    stored = await db.get(SchemeSetuCaseProfile, case_id)
+    if stored is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No income profile saved for this case")
+    return StoredIncomeProfile(
+        case_id=case_id, annual_income_inr=stored.annual_income_inr, state=stored.state, updated_at=stored.updated_at
+    )
+
+
+@router.delete("/cases/{case_id}/income-profile", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_income_profile(case_id: str, db: AsyncSession = Depends(get_db)):
+    """Withdraws the income profile. The scheme insight derived from it is deleted too."""
+    await require_case_consent(case_id, db)
+    stored = await db.get(SchemeSetuCaseProfile, case_id)
+    if stored is not None:
+        await db.delete(stored)
+    insight = (
+        await db.execute(
+            select(KadiModuleInsight).where(
+                KadiModuleInsight.case_id == case_id, KadiModuleInsight.module_check == "schemesetu_eligibility"
+            )
+        )
+    ).scalar_one_or_none()
+    if insight is not None:
+        await db.delete(insight)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/eligibility/reasoning", response_model=EligibilityReasoning, status_code=status.HTTP_200_OK)

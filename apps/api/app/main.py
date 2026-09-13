@@ -23,12 +23,23 @@ logger = logging.getLogger("arogyarakshak.api")
 logging.basicConfig(level=logging.INFO)
 
 
+def redact_database_url(url: str) -> str:
+    """The connection URL with its password replaced by ***."""
+    from sqlalchemy.engine import make_url
+
+    try:
+        return make_url(url).render_as_string(hide_password=True)
+    except Exception:
+        return "<unparseable DATABASE_URL>"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — runs database creation and logs startup configuration."""
     logger.info("ArogyaRakshak API starting up...")
     logger.info("GROQ_MODEL = %s", settings.groq_model)
-    logger.info("DATABASE_URL = %s", settings.database_url)
+    # The URL embeds the database password; log it masked.
+    logger.info("DATABASE_URL = %s", redact_database_url(settings.database_url))
 
     if settings.groq_api_key:
         logger.info("GROQ_API_KEY is configured — LLM-backed extraction and drafting enabled.")
