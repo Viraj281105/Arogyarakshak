@@ -1146,14 +1146,15 @@ def test_appeal_letter_contains_no_fake_denial_code():
 def test_offline_fallback_never_claims_denial_facts_were_extracted():
     """Regression: the offline Auditor fallback (DEN-999 / confidence 0.95) always
     parses into a valid StructuredDenial, so `denial is not None` alone can't tell a
-    templated response apart from a real extraction. Without GROQ_API_KEY configured,
-    every /appeal call runs on that canned template, and denial_facts_extracted must
-    say so rather than reporting True on fabricated facts."""
-    from app.config import settings
-
+    templated response apart from a real extraction. No test environment has a live,
+    valid GROQ_API_KEY — locally it's unset, and in CI it's a mock string that Groq
+    rejects with 403 — so every /appeal call here runs on the canned template
+    (confirmed by GroqClientFallback's "Returning fallback denial JSON block" log),
+    regardless of whether a key string happens to be configured. denial_facts_extracted
+    must reflect that rather than reporting True on fabricated facts."""
     case_id = _case_with_document()
     data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
-    assert data["denial_facts_extracted"] is bool(settings.groq_api_key)
+    assert data["denial_facts_extracted"] is False
 
 
 def test_dawacheck_unknown_medicine_does_not_claim_it_is_uncontrolled():
