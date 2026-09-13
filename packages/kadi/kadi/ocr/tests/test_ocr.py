@@ -2,14 +2,36 @@ import pytest
 from kadi.ocr.ocr_parser import parse_document
 
 
-def test_parse_document_pdf_fallback():
+def test_parse_document_unreadable_pdf_reports_failure():
+    """An unreadable PDF must be reported as a failure, not silently substituted.
+
+    The parser previously returned a fixed placeholder sentence as though it were the
+    document body, so the pipeline reported success on a document it never read.
+    """
     mock_pdf_bytes = b"%PDF-1.4 ... mock pdf content ..."
     result = parse_document(file_bytes=mock_pdf_bytes, filename="test_bill.pdf")
 
-    assert "full_text_content" in result
-    assert "line_items" in result
     assert result["filename"] == "test_bill.pdf"
-    assert "Hospital Bill / Clinical Document text extraction" in result["full_text_content"]
+    assert result["extraction_ok"] is False
+    assert result["extraction_error"]
+    assert result["full_text_content"] == ""
+    assert result["line_items"] == []
+    # The old placeholder must never reappear.
+    assert "Hospital Bill / Clinical Document text extraction" not in result["full_text_content"]
+
+
+def test_parse_document_flags_success_on_readable_text():
+    body = "Consultation: 900\nICU: 18500\n".encode("utf-8")
+    result = parse_document(file_bytes=body, filename="bill.txt")
+    assert result["extraction_ok"] is True
+    assert result["extraction_error"] is None
+    assert {i["item"] for i in result["line_items"]} == {"Consultation", "ICU"}
+
+
+def test_parse_document_empty_text_is_a_failure():
+    result = parse_document(file_bytes="   \n  \n".encode("utf-8"), filename="bill.txt")
+    assert result["extraction_ok"] is False
+    assert "no readable text" in result["extraction_error"].lower()
 
 
 def test_parse_document_line_items_regex(monkeypatch):

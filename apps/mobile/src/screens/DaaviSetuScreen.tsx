@@ -24,10 +24,12 @@ export const DaaviSetuScreen: React.FC = () => {
   const m = t.modules.daavisetu;
 
   // Form state
-  const [patientName, setPatientName] = useState('Viraj Jadhao');
-  const [policyId, setPolicyId] = useState('POL-STAR-774411');
-  const [hospitalName, setHospitalName] = useState('Apollo Multi-Speciality Hospital, Mumbai');
-  const [treatmentPlan, setTreatmentPlan] = useState('Laparoscopic Appendectomy');
+  // Empty by default: pre-filled values were submitted verbatim by users who did not
+  // edit them, producing determinations about a fabricated person.
+  const [patientName, setPatientName] = useState('');
+  const [policyId, setPolicyId] = useState('');
+  const [hospitalName, setHospitalName] = useState('');
+  const [treatmentPlan, setTreatmentPlan] = useState('');
 
   // Case & Result state
   const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);

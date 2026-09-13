@@ -15,14 +15,16 @@ export const BimaNyayScreen: React.FC = () => {
   const m = t.modules.bimanyay;
 
   // Form state
-  const [policyNumber, setPolicyNumber] = useState('POL-884422');
-  const [insurerName, setInsurerName] = useState('Star Health Insurance');
-  const [policyAge, setPolicyAge] = useState('6');
-  const [claimedAmount, setClaimedAmount] = useState('180000');
-  const [deniedAmount, setDeniedAmount] = useState('180000');
+  // Empty by default: pre-filled values were submitted verbatim by users who did not
+  // edit them, producing determinations about a fabricated person.
+  const [policyNumber, setPolicyNumber] = useState('');
+  const [insurerName, setInsurerName] = useState('');
+  const [policyAge, setPolicyAge] = useState('');
+  const [claimedAmount, setClaimedAmount] = useState('');
+  const [deniedAmount, setDeniedAmount] = useState('');
   const [denialCategory, setDenialCategory] = useState('PED_NON_DISCLOSURE');
-  const [denialReason, setDenialReason] = useState('Pre-existing condition non-disclosure');
-  const [diagnosis, setDiagnosis] = useState('Acute Myocardial Infarction');
+  const [denialReason, setDenialReason] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
 
   // Result state
   const [loading, setLoading] = useState(false);

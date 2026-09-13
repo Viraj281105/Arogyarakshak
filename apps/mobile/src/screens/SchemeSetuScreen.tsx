@@ -15,10 +15,12 @@ export const SchemeSetuScreen: React.FC = () => {
   const m = t.modules.schemesetu;
 
   // Form state
-  const [income, setIncome] = useState('120000');
-  const [state, setState] = useState('Maharashtra');
+  // Empty by default: pre-filled values were submitted verbatim by users who did not
+  // edit them, producing determinations about a fabricated person.
+  const [income, setIncome] = useState('');
+  const [state, setState] = useState('');
   const [category, setCategory] = useState('General');
-  const [medicalNeed, setMedicalNeed] = useState('Heart bypass surgery (CABG)');
+  const [medicalNeed, setMedicalNeed] = useState('');
 
   // Result state
   const [loading, setLoading] = useState(false);
@@ -146,6 +148,26 @@ export const SchemeSetuScreen: React.FC = () => {
                     {sIdx + 1}. {step}
                   </Text>
                 ))}
+              </View>
+            )}
+
+            {scheme.is_provisional && (
+              <View style={{ marginTop: spacing.sm, paddingTop: spacing.xs, borderTopWidth: 1, borderColor: colors.borderSubtle }}>
+                <Text style={{ color: '#f59e0b', fontSize: 11, lineHeight: 16 }}>
+                  ⓘ {m.provisionalNotice}
+                </Text>
+                {scheme.criteria_not_evaluated.length > 0 && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+                    <Text style={{ fontWeight: '600' }}>{m.criteriaNotEvaluated}: </Text>
+                    {scheme.criteria_not_evaluated.join(', ')}
+                  </Text>
+                )}
+                {scheme.criteria_evaluated.length > 0 && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
+                    <Text style={{ fontWeight: '600' }}>{m.criteriaEvaluated}: </Text>
+                    {scheme.criteria_evaluated.join(', ')}
+                  </Text>
+                )}
               </View>
             )}
           </Card>

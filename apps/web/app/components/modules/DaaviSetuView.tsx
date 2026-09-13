@@ -30,19 +30,26 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
   const t = translations[currentLang].modules.daavisetu;
   const api = useApi<ClaimPackageResponse>();
 
-  const [patientName, setPatientName] = useState("Viraj Jadhao");
-  const [policyId, setPolicyId] = useState("POL-STAR-774411");
-  const [hospital, setHospital] = useState("Apollo Multi-Speciality Hospital, Mumbai");
-  const [treatment, setTreatment] = useState("Laparoscopic Appendectomy");
+  // Deliberately empty. Pre-filling produced a persisted pre-authorization form for a
+  // fabricated patient and policy whenever the user submitted without editing.
+  const [patientName, setPatientName] = useState("");
+  const [policyId, setPolicyId] = useState("");
+  const [hospital, setHospital] = useState("");
+  const [treatment, setTreatment] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
 
   const handleGenerate = async () => {
     if (!caseId) return;
+    if (!patientName.trim() || !policyId.trim()) return;
     await api.execute(`/api/v1/daavisetu/cases/${caseId}/claim`, {
       body: {
-        policy_number: policyId,
-        patient_name: patientName,
-        hospital_name: hospital,
-        treatment_plan: treatment,
+        policy_number: policyId.trim(),
+        patient_name: patientName.trim(),
+        // Blank optional fields are omitted so the API can fall back to entities
+        // extracted from the uploaded document rather than storing an empty string.
+        ...(hospital.trim() ? { hospital_name: hospital.trim() } : {}),
+        ...(treatment.trim() ? { treatment_plan: treatment.trim() } : {}),
+        ...(diagnosis.trim() ? { diagnosis: diagnosis.trim() } : {}),
       },
     });
   };
@@ -69,23 +76,28 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
         <div className="grid-2" style={{ marginBottom: "1rem" }}>
           <div>
             <label className="input-label">{t.patientName}</label>
-            <input type="text" className="input-field" value={patientName} onChange={(e) => setPatientName(e.target.value)} />
+            <input type="text" className="input-field" placeholder={t.patientNamePlaceholder} value={patientName} onChange={(e) => setPatientName(e.target.value)} />
           </div>
           <div>
             <label className="input-label">{t.policyId}</label>
-            <input type="text" className="input-field" value={policyId} onChange={(e) => setPolicyId(e.target.value)} />
+            <input type="text" className="input-field" placeholder={t.policyIdPlaceholder} value={policyId} onChange={(e) => setPolicyId(e.target.value)} />
           </div>
         </div>
 
         <div className="grid-2" style={{ marginBottom: "1.25rem" }}>
           <div>
             <label className="input-label">{t.hospital}</label>
-            <input type="text" className="input-field" value={hospital} onChange={(e) => setHospital(e.target.value)} />
+            <input type="text" className="input-field" placeholder={t.optionalFromDocument} value={hospital} onChange={(e) => setHospital(e.target.value)} />
           </div>
           <div>
             <label className="input-label">{t.treatment}</label>
-            <input type="text" className="input-field" value={treatment} onChange={(e) => setTreatment(e.target.value)} />
+            <input type="text" className="input-field" placeholder={t.optionalFromDocument} value={treatment} onChange={(e) => setTreatment(e.target.value)} />
           </div>
+        </div>
+
+        <div style={{ marginBottom: "1.25rem" }}>
+          <label className="input-label">{t.diagnosis}</label>
+          <input type="text" className="input-field" placeholder={t.optionalFromDocument} value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
         </div>
 
         {!caseId && (
@@ -109,7 +121,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
           className="btn btn-primary"
           style={{ width: "100%" }}
           onClick={handleGenerate}
-          disabled={api.loading || !caseId}
+          disabled={api.loading || !caseId || !patientName.trim() || !policyId.trim()}
         >
           {api.loading ? (
             <>

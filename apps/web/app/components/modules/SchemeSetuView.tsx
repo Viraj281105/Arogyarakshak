@@ -8,9 +8,14 @@ import { useApi } from "../../hooks/useApi";
 interface SchemeResult {
   scheme_name: string;
   estimated_eligibility: string; // "eligible" | "ineligible" | "ambiguous"
+  /** Heuristic prior for the matched rule branch, not a calibrated probability. */
   confidence_score: number;
   reason: string;
   claim_guide_steps: string[];
+  criteria_evaluated: string[];
+  /** Factors the engine does not check; the determination stays provisional. */
+  criteria_not_evaluated: string[];
+  is_provisional: boolean;
 }
 
 interface SchemeSetuViewProps {
@@ -20,10 +25,12 @@ interface SchemeSetuViewProps {
 export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) => {
   const t = translations[currentLang].modules.schemesetu;
   const api = useApi<SchemeResult[]>();
-  const [income, setIncome] = useState("120000");
-  const [state, setState] = useState("Maharashtra");
+  // Empty by default: pre-filled values were submitted verbatim by users who did not
+  // edit them, producing determinations about a fabricated person.
+  const [income, setIncome] = useState("");
+  const [state, setState] = useState("");
   const [category, setCategory] = useState("General");
-  const [medicalNeed, setMedicalNeed] = useState("Heart bypass surgery (CABG)");
+  const [medicalNeed, setMedicalNeed] = useState("");
   const [hasChecked, setHasChecked] = useState(false);
 
   const handleCheck = async () => {
@@ -121,7 +128,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
           className="btn btn-primary"
           style={{ width: "100%" }}
           onClick={handleCheck}
-          disabled={api.loading}
+          disabled={api.loading || !income.trim() || !state.trim() || !medicalNeed.trim()}
         >
           {api.loading ? "Checking eligibility..." : `🔍 ${t.checkBtn}`}
         </button>
@@ -185,6 +192,30 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
                           <li key={sIdx}>{step}</li>
                         ))}
                       </ol>
+                    </div>
+                  )}
+
+                  {scheme.is_provisional && (
+                    <div
+                      style={{
+                        marginTop: "0.75rem",
+                        paddingTop: "0.75rem",
+                        borderTop: "1px solid var(--border-subtle)",
+                        fontSize: "0.75rem",
+                        color: "var(--status-warning)",
+                      }}
+                    >
+                      ⓘ {t.provisionalNotice}
+                      {scheme.criteria_not_evaluated.length > 0 && (
+                        <div style={{ marginTop: "0.35rem", color: "var(--text-secondary)" }}>
+                          <strong>{t.criteriaNotEvaluated}:</strong> {scheme.criteria_not_evaluated.join(", ")}
+                        </div>
+                      )}
+                      {scheme.criteria_evaluated.length > 0 && (
+                        <div style={{ marginTop: "0.25rem", color: "var(--text-secondary)" }}>
+                          <strong>{t.criteriaEvaluated}:</strong> {scheme.criteria_evaluated.join(", ")}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

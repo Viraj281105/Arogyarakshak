@@ -2,7 +2,7 @@
 
 **Project:** ArogyaRakshak (आरोग्यरक्षक)  
 **Standard:** Production Monorepo  
-**Stack:** FastAPI + Next.js (App Router) + PostgreSQL/pgvector + FAISS + Groq API  
+**Stack:** FastAPI + Next.js (App Router) + PostgreSQL/pgvector + Groq API (FAISS is a planned, unwired scaffold — see `docs/architecture/overview.md`)  
 
 ---
 
@@ -45,7 +45,7 @@ arogyarakshak/
 │   │   └── package.json         # React 19 / Next.js scripts
 │   └── mobile/                  # React Native / Expo client (planned)
 ├── packages/                    # Independent domain logic libraries (pip -e)
-│   ├── kadi/                    # Shared context: OCR, IndicXlit, IndicSBERT, FAISS
+│   ├── kadi/                    # Shared context: OCR, entity resolution (IndicXlit/IndicSBERT/FAISS planned, unwired)
 │   ├── billnyay/                # Hospital bill line-item audit vs CGHS tariffs (5 agents)
 │   ├── bimanyay/                # Insurance denial audit, IRDAI appeals & SLA tracker
 │   ├── daavisetu/               # Cashless pre-authorization form automation
@@ -90,11 +90,11 @@ Domain Packages (packages/billnyay, bimanyay, etc.)
        ↓ (Internal library dependency)
 Shared Infrastructure (packages/kadi)
        ↓
-PostgreSQL / pgvector + FAISS + Groq API
+PostgreSQL / pgvector + Groq API (FAISS: planned, unwired)
 ```
 
 ### Critical Invariants
-1. **Kadi Exclusivity**: OCR parsing, Devanagari transliteration (`IndicXlit`), and cross-lingual embeddings (`IndicSBERT`) live strictly in `packages/kadi`. No domain module may implement its own private OCR or embedding layer.
+1. **Kadi Exclusivity**: OCR parsing lives strictly in `packages/kadi`. Devanagari transliteration (`IndicXlit`) and cross-lingual embeddings (`IndicSBERT`) are also scoped exclusively to `packages/kadi` once built, but are not implemented today. No domain module may implement its own private OCR or embedding layer.
 2. **Zero Document Retention (BYOD)**: Uploaded hospital bills and insurance letters are processed purely in transient memory and expunged after entity extraction. No raw documents are persisted to disk.
 3. **Structured Pydantic Models**: Communication across agents and API boundaries uses strictly typed Pydantic models.
 

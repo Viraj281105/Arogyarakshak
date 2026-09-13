@@ -109,3 +109,75 @@ describe('Web Consent Request Behaviour', () => {
     );
   });
 });
+
+describe('Web Forms Must Not Pre-Fill Fabricated Data', () => {
+  const moduleDir = join(process.cwd(), 'app', 'components', 'modules');
+  const views = ['DaaviSetuView', 'BimaNyayView', 'SchemeSetuView', 'DawaCheckView'];
+
+  // Values previously hardcoded into form state. A user who submitted without editing
+  // generated a determination — and a persisted pre-auth form — about a fabricated person.
+  const forbidden = [
+    'Viraj Jadhao',
+    'POL-STAR-774411',
+    'POL-884422',
+    'Apollo Multi-Speciality Hospital',
+    'Star Health & Allied Insurance',
+    'Acute Myocardial Infarction',
+    'Heart bypass surgery (CABG)',
+    'Laparoscopic Appendectomy',
+    'Paracetamol 650mg',
+  ];
+
+  views.forEach((view) => {
+    test(`${view} must not seed form state with sample identity or clinical data`, () => {
+      const src = readFileSync(join(moduleDir, `${view}.tsx`), 'utf-8');
+      const seeded = src
+        .split('\n')
+        .filter((line) => line.includes('useState(') && !line.trim().startsWith('//'));
+
+      seeded.forEach((line) => {
+        forbidden.forEach((value) => {
+          assert.ok(
+            !line.includes(value),
+            `${view} seeds form state with "${value}": ${line.trim()}`
+          );
+        });
+      });
+    });
+  });
+
+  test('DaaviSetu requires patient name and policy before submitting', () => {
+    const src = readFileSync(join(moduleDir, 'DaaviSetuView.tsx'), 'utf-8');
+    assert.ok(
+      /!patientName\.trim\(\) \|\| !policyId\.trim\(\)/.test(src),
+      'submit must be blocked until identity fields are supplied'
+    );
+  });
+
+  test('BimaNyay requires a complete dossier before drafting a legal appeal', () => {
+    const src = readFileSync(join(moduleDir, 'BimaNyayView.tsx'), 'utf-8');
+    assert.ok(/bimaNyayFormComplete/.test(src), 'completeness guard missing');
+    assert.ok(
+      /disabled=\{isLoading \|\| !bimaNyayFormComplete\}/.test(src),
+      'analyze button must be disabled while the dossier is incomplete'
+    );
+  });
+
+  test('SchemeSetu renders the provisional-result disclosure, not just types it', () => {
+    // Regression: is_provisional/criteria_evaluated/criteria_not_evaluated were declared
+    // on the SchemeResult TS interface but never referenced in JSX, so the backend's
+    // honesty disclosure never reached the user.
+    const src = readFileSync(join(moduleDir, 'SchemeSetuView.tsx'), 'utf-8');
+    assert.ok(/scheme\.is_provisional/.test(src), 'is_provisional must gate a rendered notice');
+    assert.ok(/scheme\.criteria_not_evaluated/.test(src), 'criteria_not_evaluated must be rendered');
+    assert.ok(/scheme\.criteria_evaluated/.test(src), 'criteria_evaluated must be rendered');
+  });
+
+  test('DawaCheck renders the dataset provenance disclosure, not just types it', () => {
+    // Regression: data_source/reference_entry_count were declared on the response type
+    // but never rendered, so users could not tell the curated ~7-formulation subset
+    // apart from full NPPA Schedule-I coverage.
+    const src = readFileSync(join(moduleDir, 'DawaCheckView.tsx'), 'utf-8');
+    assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
+  });
+});

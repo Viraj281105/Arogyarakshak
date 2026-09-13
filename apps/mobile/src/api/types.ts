@@ -55,9 +55,11 @@ export interface BillNyayAuditResponse {
 export interface DaaviSetuClaimRequest {
   policy_number: string;
   patient_name: string;
+  /** Optional fields fall back to entities extracted from the case, never to defaults. */
   hospital_name?: string;
   treatment_plan?: string;
   diagnosis?: string;
+  estimated_cost?: number;
 }
 
 export interface DaaviSetuFormData {
@@ -140,9 +142,14 @@ export interface SchemeSetuEligibilityRequest {
 export interface SchemeResult {
   scheme_name: string;
   estimated_eligibility: string;
+  /** Heuristic prior for the matched rule branch, not a calibrated probability. */
   confidence_score: number;
   reason: string;
   claim_guide_steps: string[];
+  criteria_evaluated: string[];
+  /** Eligibility factors the engine does not check; the result stays provisional. */
+  criteria_not_evaluated: string[];
+  is_provisional: boolean;
 }
 
 // --- DawaCheck ---
@@ -160,6 +167,9 @@ export interface DawaCheckBenchmarkResponse {
   deviation_percentage: number;
   generic_substitute_available: boolean;
   generic_substitute_store_info: string;
+  /** Provenance of the ceiling price — the reference list is a curated subset. */
+  data_source: string;
+  reference_entry_count: number;
 }
 
 export interface ApiError {

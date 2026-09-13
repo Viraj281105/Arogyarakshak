@@ -112,3 +112,29 @@ def test_identity_lines_do_not_become_procedures():
     assert names == ["Consultation"]
     for leaked in ("Contact", "Aadhaar", "Email", "Patient Name"):
         assert not any(leaked.lower() in n.lower() for n in names)
+
+
+# --- Facility-name matching must respect word boundaries ----------------------
+
+def test_clinical_prose_is_not_mistaken_for_a_hospital_name():
+    """Substring matching made any line containing "clinical" match the keyword "clinic".
+
+    The bogus name then reached DaaviSetu and was printed on a pre-authorization form.
+    """
+    assert run_heuristic_extraction_fallback(
+        "Some unstructured clinical note with no fields.\n"
+    ).hospital_name is None
+    assert run_heuristic_extraction_fallback(
+        "Clinical Diagnosis: Sepsis\n"
+    ).hospital_name is None
+
+
+def test_real_facility_names_still_resolve():
+    cases = {
+        "Lifeline Multispeciality Hospital\n": "Lifeline Multispeciality Hospital",
+        "Sunrise Clinic, Pune\n": "Sunrise Clinic, Pune",
+        "Apollo Medical Centre\n": "Apollo Medical Centre",
+        "Ruby Hall Clinic\n": "Ruby Hall Clinic",
+    }
+    for text, expected in cases.items():
+        assert run_heuristic_extraction_fallback(text).hospital_name == expected

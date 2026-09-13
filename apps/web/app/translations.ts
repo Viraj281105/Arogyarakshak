@@ -87,6 +87,10 @@ export interface Translations {
       policyId: string;
       hospital: string;
       treatment: string;
+      diagnosis: string;
+      patientNamePlaceholder: string;
+      policyIdPlaceholder: string;
+      optionalFromDocument: string;
       generateBtn: string;
       preAuthSummary: string;
       downloadPackage: string;
@@ -102,6 +106,9 @@ export interface Translations {
       pmjayCard: string;
       mjpjayCard: string;
       maxCoverage: string;
+      criteriaEvaluated: string;
+      criteriaNotEvaluated: string;
+      provisionalNotice: string;
     };
     dawacheck: {
       title: string;
@@ -114,6 +121,7 @@ export interface Translations {
       nppaCeiling: string;
       statusOvercharged: string;
       statusFair: string;
+      dataSourceNotice: string;
     };
   };
   footer: {
@@ -210,6 +218,10 @@ export const translations: Record<Language, Translations> = {
         title: "DaaviSetu — Cashless Pre-Authorization Automation",
         desc: "Rapid cashless pre-authorization form generation conforming to standardized IRDAI claim formats.",
         patientName: "Patient Full Name",
+        diagnosis: "Clinical Diagnosis",
+        patientNamePlaceholder: "Enter the patient's full name",
+        policyIdPlaceholder: "Enter the policy number",
+        optionalFromDocument: "Leave blank to use the uploaded document",
         policyId: "Health Policy ID",
         hospital: "Hospital / Provider Name",
         treatment: "Planned Procedure / Surgery",
@@ -228,6 +240,9 @@ export const translations: Record<Language, Translations> = {
         pmjayCard: "Ayushman Bharat PM-JAY (₹5 Lakh / Year / Family)",
         mjpjayCard: "Mahatma Jyotirao Phule Jan Arogya Yojana (MJPJAY)",
         maxCoverage: "Maximum Financial Protection",
+        criteriaEvaluated: "Evaluated for this result",
+        criteriaNotEvaluated: "NOT evaluated — verify with official records",
+        provisionalNotice: "Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.",
       },
       dawacheck: {
         title: "DawaCheck — NPPA Ceiling Price Benchmark",
@@ -240,6 +255,7 @@ export const translations: Record<Language, Translations> = {
         nppaCeiling: "NPPA Ceiling Price",
         statusOvercharged: "Overcharged vs Statutory Cap",
         statusFair: "Compliant with NPPA Cap",
+        dataSourceNotice: "Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.",
       },
     },
     footer: {
@@ -334,6 +350,10 @@ export const translations: Record<Language, Translations> = {
         title: "दावेसेतु — कैशलेस प्री-ऑथराइजेशन ऑटोमेशन",
         desc: "IRDAI मानकीकृत प्रारूप में कैशलेस अस्पताल भर्ती प्री-ऑथराइजेशन फॉर्म स्वतः भरना।",
         patientName: "मरीज का पूरा नाम",
+        diagnosis: "नैदानिक निदान",
+        patientNamePlaceholder: "रोगी का पूरा नाम दर्ज करें",
+        policyIdPlaceholder: "पॉलिसी नंबर दर्ज करें",
+        optionalFromDocument: "दस्तावेज़ से लेने के लिए खाली छोड़ें",
         policyId: "स्वास्थ्य पॉलिसी नंबर",
         hospital: "अस्पताल का नाम",
         treatment: "उपचार / प्रक्रिया",
@@ -352,6 +372,9 @@ export const translations: Record<Language, Translations> = {
         pmjayCard: "आयुष्मान भारत PM-JAY (₹5 लाख प्रति वर्ष/परिवार)",
         mjpjayCard: "महात्मा ज्योतिराव फुले जन आरोग्य योजना (MJPJAY)",
         maxCoverage: "अधिकतम वित्तीय सुरक्षा",
+        criteriaEvaluated: "इस परिणाम हेतु जाँचे गए आधार",
+        criteriaNotEvaluated: "जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें",
+        provisionalNotice: "यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
       },
       dawacheck: {
         title: "दवाचेक — NPPA अधिकतम मूल्य जांच",
@@ -364,6 +387,7 @@ export const translations: Record<Language, Translations> = {
         nppaCeiling: "NPPA अधिकतम कानूनी दर",
         statusOvercharged: "अधिकतम सीमा से अधिक वसूला गया",
         statusFair: "NPPA नियमों के अनुसार उचित",
+        dataSourceNotice: "यह जांच NPPA शेड्यूल-I की {count} चयनित औषधियों की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।",
       },
     },
     footer: {
@@ -458,6 +482,10 @@ export const translations: Record<Language, Translations> = {
         title: "दावेसेतु — कॅशलेस प्री-ऑथरायझेशन ऑटोमेशन",
         desc: "IRDAI मानकीकृत स्वरूपात कॅशलेस रुग्णालय भरती प्री-ऑथरायझेशन फॉर्म त्वरित तयार करणे.",
         patientName: "रुग्णाचे संपूर्ण नाव",
+        diagnosis: "वैद्यकीय निदान",
+        patientNamePlaceholder: "रुग्णाचे पूर्ण नाव भरा",
+        policyIdPlaceholder: "पॉलिसी क्रमांक भरा",
+        optionalFromDocument: "दस्तऐवजातून घेण्यासाठी रिकामे ठेवा",
         policyId: "आरोग्य विमा क्रमांक",
         hospital: "रुग्णालयाचे नाव",
         treatment: "उपचार / शस्त्रक्रिया",
@@ -476,6 +504,9 @@ export const translations: Record<Language, Translations> = {
         pmjayCard: "आयुष्मान भारत PM-JAY (₹5 लाख प्रति वर्ष/कुटुंब)",
         mjpjayCard: "महात्मा ज्योतिराव फुले जन आरोग्य योजना (MJPJAY)",
         maxCoverage: "कमाल आर्थिक संरक्षण",
+        criteriaEvaluated: "या निकालासाठी तपासलेले निकष",
+        criteriaNotEvaluated: "तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा",
+        provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
       },
       dawacheck: {
         title: "दवाचेक — NPPA औषध कमाल दर तपासणी",
@@ -488,6 +519,7 @@ export const translations: Record<Language, Translations> = {
         nppaCeiling: "NPPA शासकीय कमाल दर",
         statusOvercharged: "शासकीय कमाल दरापेक्षा जास्त आकारणी",
         statusFair: "NPPA नियमानुसार योग्य दर",
+        dataSourceNotice: "ही तपासणी NPPA शेड्यूल-I मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.",
       },
     },
     footer: {

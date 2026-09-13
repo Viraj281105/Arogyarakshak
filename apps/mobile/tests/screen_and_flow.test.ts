@@ -3,6 +3,8 @@ import assert from 'node:assert';
 import { translations, Language } from '../src/translations/strings';
 import { BottomTabParamList, RootStackParamList } from '../src/navigation/types';
 import { BillNyayAuditItem } from '../src/api/types';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 describe('Mobile Screen & Navigation Flow Architecture', () => {
   it('should verify BottomTabParamList supports caseId and scanCompleted for modules', () => {
@@ -220,5 +222,76 @@ describe('Mobile BillNyay Audit Result Contract', () => {
       assert.ok(m.unmatchedNotice.includes('{count}'), `unmatchedNotice lost {count} in ${lang}`);
       assert.ok(m.unmatchedNotice.includes('{amount}'), `unmatchedNotice lost {amount} in ${lang}`);
     });
+  });
+
+  it('should localize the SchemeSetu provisional-result and DawaCheck provenance disclosures in all 3 languages', () => {
+    languages.forEach((lang) => {
+      const schemesetu = translations[lang].modules.schemesetu;
+      assert.ok(schemesetu.criteriaEvaluated?.trim().length > 0, `criteriaEvaluated missing in ${lang}`);
+      assert.ok(schemesetu.criteriaNotEvaluated?.trim().length > 0, `criteriaNotEvaluated missing in ${lang}`);
+      assert.ok(schemesetu.provisionalNotice?.trim().length > 0, `provisionalNotice missing in ${lang}`);
+
+      const dawacheck = translations[lang].modules.dawacheck;
+      assert.ok(dawacheck.dataSourceNotice?.trim().length > 0, `dataSourceNotice missing in ${lang}`);
+      assert.ok(dawacheck.dataSourceNotice.includes('{count}'), `dataSourceNotice lost {count} in ${lang}`);
+    });
+  });
+});
+
+describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
+  const screenDir = join(process.cwd(), 'src', 'screens');
+  const screens = [
+    'DaaviSetuScreen',
+    'BimaNyayScreen',
+    'SchemeSetuScreen',
+    'DawaCheckScreen',
+  ];
+
+  const forbidden = [
+    'Viraj Jadhao',
+    'POL-STAR-774411',
+    'POL-884422',
+    'Apollo Multi-Speciality Hospital',
+    'Star Health Insurance',
+    'Acute Myocardial Infarction',
+    'Heart bypass surgery (CABG)',
+    'Laparoscopic Appendectomy',
+    'Paracetamol 650mg',
+  ];
+
+  screens.forEach((screen) => {
+    it(`${screen} must not seed form state with sample identity or clinical data`, () => {
+      const src = readFileSync(join(screenDir, `${screen}.tsx`), 'utf-8');
+      const seeded = src
+        .split('\n')
+        .filter((line) => line.includes('useState(') && !line.trim().startsWith('//'));
+
+      seeded.forEach((line) => {
+        forbidden.forEach((value) => {
+          assert.ok(
+            !line.includes(value),
+            `${screen} seeds form state with "${value}": ${line.trim()}`
+          );
+        });
+      });
+    });
+  });
+
+  it('SchemeSetuScreen renders the provisional-result disclosure, not just types it', () => {
+    // Regression: is_provisional/criteria_evaluated/criteria_not_evaluated were declared
+    // on the SchemeResult type but never referenced in JSX, so the backend's honesty
+    // disclosure never reached the user.
+    const src = readFileSync(join(screenDir, 'SchemeSetuScreen.tsx'), 'utf-8');
+    assert.ok(/scheme\.is_provisional/.test(src), 'is_provisional must gate a rendered notice');
+    assert.ok(/scheme\.criteria_not_evaluated/.test(src), 'criteria_not_evaluated must be rendered');
+    assert.ok(/scheme\.criteria_evaluated/.test(src), 'criteria_evaluated must be rendered');
+  });
+
+  it('DawaCheckScreen renders the dataset provenance disclosure, not just types it', () => {
+    // Regression: reference_entry_count was declared on the response type but never
+    // rendered, so users could not tell the curated ~7-formulation subset apart from
+    // full NPPA Schedule-I coverage.
+    const src = readFileSync(join(screenDir, 'DawaCheckScreen.tsx'), 'utf-8');
+    assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
   });
 });

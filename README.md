@@ -181,10 +181,10 @@ For rapid development without container builds, see the [Developer Setup Guide](
 Run unit and integration test suites:
 
 ```bash
-# Run all backend tests (packages + API integration): 122 tests
+# Run all backend tests (packages + API integration): 139 tests
 python -m pytest
 
-# Web client tests (19) and mobile client tests (23)
+# Web client tests (25) and mobile client tests (27)
 cd apps/web && npm test && cd ../..
 cd apps/mobile && npm test && cd ../..
 

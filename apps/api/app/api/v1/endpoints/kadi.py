@@ -137,6 +137,20 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
         # Step 1: OCR parsing
         processing_status[case_id].append({"status": "ocr_start", "progress": 30, "log": "Running document OCR parser..."})
         parsed = parse_document(file_bytes=file_bytes, filename=filename)
+
+        # A parse failure must stop the pipeline. Previously the parser substituted a
+        # placeholder sentence, so the stream reported "processed successfully" and the
+        # user was shown an empty audit of a document that was never actually read.
+        if not parsed.get("extraction_ok", False):
+            reason = parsed.get("extraction_error") or "The document could not be read."
+            logger.warning("Extraction failed for case=%s file=%s: %s", case_id, filename, reason)
+            processing_status[case_id].append({
+                "status": "failed",
+                "progress": 100,
+                "log": reason,
+            })
+            return
+
         text = parsed.get("full_text_content", "")
         line_items = parsed.get("line_items", [])
         
@@ -259,8 +273,18 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
         processing_status[case_id].append({"status": "completed", "progress": 100, "log": "Document processed successfully. Entities extracted."})
         logger.info(f"Background task succeeded for case={case_id}. Extracted {len(entities_to_add)} entities.")
     except Exception as e:
-        logger.error(f"Background task failed for case={case_id}: {e}", exc_info=True)
-        processing_status[case_id].append({"status": "failed", "progress": 100, "log": f"Failed: {str(e)}"})
+        # The SSE log line is rendered in the browser, so it must not carry the raw
+        # exception text. The detail goes to the server log against a correlation id.
+        error_id = uuid.uuid4().hex[:12]
+        logger.error(
+            "Background task failed [%s] for case=%s: %s", error_id, case_id, e, exc_info=True
+        )
+        processing_status.setdefault(case_id, []).append({
+            "status": "failed",
+            "progress": 100,
+            "log": "Document processing failed. Please try uploading the document again.",
+            "error_id": error_id,
+        })
 
 
 # --- Route Implementations ----------------------------------------------------

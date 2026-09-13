@@ -8,7 +8,7 @@ and multi-tier IRDAI grievance timeline tracking.
 import logging
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -67,9 +67,11 @@ async def analyze_denial(
         await db.commit()
 
         return result
-    except Exception as e:
-        logger.error(f"Error analyzing claim denial: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to analyze claim denial: {str(e)}")
+    except Exception:
+        # Re-raised so the application-wide handler returns a safe payload with a
+        # correlation id. Returning str(e) here leaked internal detail to the client.
+        logger.exception("Error analyzing claim denial for policy %s", req.policy_number)
+        raise
 
 
 @router.post("/timeline", response_model=GrievanceTrackerResponse, status_code=status.HTTP_200_OK)
@@ -113,6 +115,6 @@ async def track_timeline(
 
         await db.commit()
         return timeline
-    except Exception as e:
-        logger.error(f"Error tracking grievance timeline: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to calculate grievance timeline: {str(e)}")
+    except Exception:
+        logger.exception("Error tracking grievance timeline for insurer %s", req.insurer_name)
+        raise

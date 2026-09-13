@@ -33,8 +33,10 @@ export const DawaCheckScreen: React.FC = () => {
   const m = t.modules.dawacheck;
 
   // Search state
-  const [brandName, setBrandName] = useState('Paracetamol 650mg');
-  const [mrp, setMrp] = useState('3.5');
+  // The MRP drives an "overcharged" verdict, so it must be the price the user actually
+  // paid — never a sample value they might submit unchanged.
+  const [brandName, setBrandName] = useState('');
+  const [mrp, setMrp] = useState('');
 
   // Result state
   const [loading, setLoading] = useState(false);
@@ -225,6 +227,11 @@ export const DawaCheckScreen: React.FC = () => {
               </Text>
             </View>
           )}
+
+          {/* Dataset Provenance Disclosure */}
+          <Text style={{ color: '#f59e0b', fontSize: 11, lineHeight: 16, marginTop: 10 }}>
+            ⓘ {m.dataSourceNotice.replace('{count}', String(result.reference_entry_count))}
+          </Text>
         </Card>
       )}
 

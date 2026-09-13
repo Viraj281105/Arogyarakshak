@@ -30,13 +30,13 @@ tests/
 
 ## 2. Test Commands
 
-### 2.1 Run All Backend & Package Tests (122 Tests)
+### 2.1 Run All Backend & Package Tests (139 Tests)
 ```bash
 # Run all package unit tests & API integration tests
 python -m pytest packages/ apps/api/tests/
 ```
 
-### 2.2 Run Mobile Client Tests (23 Tests)
+### 2.2 Run Mobile Client Tests (27 Tests)
 ```bash
 cd apps/mobile
 npm test

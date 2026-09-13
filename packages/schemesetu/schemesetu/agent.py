@@ -19,12 +19,44 @@ class EligibilityRequest(BaseModel):
     medical_need: str = Field(..., description="Details of medical procedure or condition")
 
 
+# Criteria this rule engine actually evaluates today. `category` and `medical_need` are
+# accepted by the API but do not influence the result, so they are reported as
+# NOT evaluated rather than being silently implied in the verdict.
+EVALUATED_CRITERIA = ["annual_income", "state_of_residence"]
+UNEVALUATED_CRITERIA = [
+    "social_category",
+    "medical_need",
+    "SECC-2011 deprivation status",
+    "ration_card_type",
+]
+
+
 class SchemeResult(BaseModel):
     scheme_name: str
     estimated_eligibility: str = Field(..., description='"eligible" | "ineligible" | "ambiguous"')
-    confidence_score: float
+    confidence_score: float = Field(
+        ...,
+        description=(
+            "Heuristic prior for this rule branch, not a calibrated model probability. "
+            "Do not present it as a statistical confidence."
+        ),
+    )
     reason: str
     claim_guide_steps: List[str]
+    criteria_evaluated: List[str] = Field(
+        default_factory=lambda: list(EVALUATED_CRITERIA),
+        description="Inputs that actually influenced this determination.",
+    )
+    criteria_not_evaluated: List[str] = Field(
+        default_factory=lambda: list(UNEVALUATED_CRITERIA),
+        description="Eligibility factors this engine does not yet check. The result is "
+        "provisional until these are verified against official records.",
+    )
+    is_provisional: bool = Field(
+        True,
+        description="Always true while unevaluated criteria remain. Callers must not "
+        "present the result as a final eligibility decision.",
+    )
 
 
 def check_eligibility(request: EligibilityRequest) -> List[SchemeResult]:

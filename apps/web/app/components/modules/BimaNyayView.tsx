@@ -48,22 +48,33 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
   const timelineApi = useApi<GrievanceTrackerResponse>();
 
   // Form State
-  const [policyNumber, setPolicyNumber] = useState("POL-884422");
-  const [insurerName, setInsurerName] = useState("Star Health & Allied Insurance");
-  const [policyAgeYears, setPolicyAgeYears] = useState("6.0");
-  const [claimedAmount, setClaimedAmount] = useState("180000");
-  const [deniedAmount, setDeniedAmount] = useState("180000");
+  // Empty by default: pre-filled values were submitted verbatim by users who did not
+  // edit them, producing determinations about a fabricated person.
+  const [policyNumber, setPolicyNumber] = useState("");
+  const [insurerName, setInsurerName] = useState("");
+  const [policyAgeYears, setPolicyAgeYears] = useState("");
+  const [claimedAmount, setClaimedAmount] = useState("");
+  const [deniedAmount, setDeniedAmount] = useState("");
   const [denialCategory, setDenialCategory] = useState("PED_NON_DISCLOSURE");
-  const [denialReason, setDenialReason] = useState(
-    "Claim repudiated due to alleged non-disclosure of hypertension at policy inception."
-  );
-  const [diagnosis, setDiagnosis] = useState("Acute Myocardial Infarction");
+  const [denialReason, setDenialReason] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
 
   // UI State
   const [activeTab, setActiveTab] = useState<"gro" | "bimabharosa" | "ombudsman">("gro");
   const [copied, setCopied] = useState(false);
 
+  // Every field feeds a legal appeal letter, so none may be blank or invented.
+  const bimaNyayFormComplete =
+    policyNumber.trim() !== "" &&
+    insurerName.trim() !== "" &&
+    policyAgeYears.trim() !== "" &&
+    claimedAmount.trim() !== "" &&
+    deniedAmount.trim() !== "" &&
+    denialReason.trim() !== "" &&
+    diagnosis.trim() !== "";
+
   const handleAnalyze = async () => {
+    if (!bimaNyayFormComplete) return;
     await analyzeApi.execute(`/api/v1/bimanyay/analyze?language=${currentLang}`, {
       body: {
         policy_number: policyNumber,
@@ -177,7 +188,7 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
           className="btn btn-primary"
           style={{ width: "100%" }}
           onClick={handleAnalyze}
-          disabled={isLoading}
+          disabled={isLoading || !bimaNyayFormComplete}
         >
           {isLoading ? (
             <>
