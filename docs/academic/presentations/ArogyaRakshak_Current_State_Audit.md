@@ -1043,6 +1043,136 @@ pre-existing in files this batch did not touch and were left alone.
    via `data_source`; ingestion is issue #16.
 7. **Evaluation harness (#102–#116) still absent.**
 
+---
+
+## 16. Final Release-Readiness Audit (2026-09-12)
+
+Full re-audit from scratch: implementation, docs, tests, CI, issues, architecture, API
+contracts, clients, security/privacy. Every claim below was executed, not inherited from
+earlier sections.
+
+### 16.1 Validation results
+
+| Check | Result |
+|---|---|
+| Backend `pytest` | **139 passed** |
+| Web `npm test` | **25 passed** |
+| Mobile `npm test` | **27 passed** |
+| **Total** | **191 passed, 0 failed** |
+| Web `tsc --noEmit` / lint / production build | clean |
+| Mobile `tsc --noEmit` | 0 errors |
+| Ruff (CI selection `E9,F63,F7,F82`) | clean |
+| Ruff (default ruleset — **not gated by CI**) | **179 findings** |
+| CI guardrails | 5/5 |
+| `docker compose config` | exit 0 |
+| Web `npm audit` | **0 vulnerabilities** |
+| Mobile `npm audit` | **30 (1 critical, 11 high)** |
+| Markdown link integrity | 73 links, 0 broken |
+| Cross-runtime contracts | 10/10 consistent |
+
+### 16.2 Regression check — all prior P0/P1 fixes hold
+
+Reproduced live on a ₹20,183 bill containing PII:
+
+```
+FLOW 1 — consented pipeline
+  entities: billing_item 4, diagnosis 1, hospital 1, medicine 1, document_text 1
+  total_charged = 20183.0                     (bill states 20183)
+  PII persisted? name=False phone=False aadhaar=False
+  AUDIT charged=20183 bench=6000 savings=14150 unmatched=1
+  statuses: overcharged, not_benchmarked, overcharged, overcharged
+  APPEAL 200, 1563 chars, fake denial code present = False
+  PDF 200: policy/patient/hospital/cost all correct, fabrications = []
+
+FLOW 2 — consent withheld
+  audit 403 | appeal 403 | grievance 403 | claim 403 | pdf 403
+
+FLOW 3 — failure handling
+  corrupt pdf -> 'failed', "The PDF could not be read.", 0 entities persisted
+  oversized 413 | bad type 415 | unknown case 404
+```
+
+**No regressions.** Every P0 fix (appeal 500, bill parsing, unknown-item fairness, UI
+stage labels, Groq configuration), the DaaviSetu P1 fix, and the privacy/consent/security
+batch all still hold.
+
+### 16.3 Genuine defects remaining
+
+Separated from planned functionality. These are **bugs or incomplete work**, not roadmap.
+
+| # | Severity | Defect | Evidence |
+|---|---|---|---|
+| D1 | **High** | **Disclosure fields are typed but never rendered.** `is_provisional`, `criteria_not_evaluated`, `criteria_evaluated` (SchemeSetu) and `data_source`, `reference_entry_count` (DawaCheck) appear only inside TypeScript interfaces. Neither client displays them, so the user still sees an income-only eligibility verdict and a 7-entry price table as authoritative. The §15 honesty fix is **half-delivered** — backend truthful, UI unchanged. | grep shows these identifiers only at interface declarations in `SchemeSetuView.tsx:15–18` and `DawaCheckView.tsx:18–19`; zero JSX usage |
+| D2 | Medium | **`denial_facts_extracted` is consumed by neither client** (0 references in `apps/web`, `apps/mobile`). No UI warning when an appeal letter was drafted without extracted denial facts. | repo grep |
+| D3 | Medium | **`denial_facts_extracted` is itself misleading offline.** With `GROQ_API_KEY` unset, `GroqClientFallback` returns canned denial JSON (`DEN-999`); the Auditor parses it successfully, so the flag reports `true` although nothing was extracted from the user's document. Probe: `facts=True` while `llm_backed=False`. | live probe |
+| D4 | Medium | **Documentation reconciliation (§14) was incomplete.** Residual false capability claims survive in `docs/architecture/repository-structure.md:5,48` (FAISS + IndicXlit + IndicSBERT in the stack), `docs/architecture/bimanyay-and-mobile.md:44` (Kadi does cross-script resolution), `AGENTS.md:91` and `PROJECT_CONTEXT.md:102` ("RAG reasoning agent & ONNX embeddings"), `CHANGELOG.md:28` ("Integrated … ONNX sentence transformer embedding fallback" — never true). §14's claim that docs were "reconciled and swept" was overstated. | grep sweep |
+| D5 | Medium | **Six hardcoded English literals in the web UI** defeat the trilingual claim: `Audit Status` ×2, `Compliance Status` ×2, `Social Category`, `Room Rent Proportionate Deduction`, `PENDING` ×2. | see #38 comment |
+| D6 | Medium | **Mobile BillNyay summary pairs mismatched totals** — `total_charged` (all items) beside `total_benchmark` (benchmarked subset). Web uses `potential_savings`; mobile does not. Disclosed by the unmatched notice but still invites a wrong subtraction. | `BillNyayScreen.tsx:145–151` |
+| D7 | Medium | **SchemeSetu collects two inert inputs.** `category` and `medical_need` are transmitted and discarded — 0 references in `agent.py`, pinned by `test_schemesetu_category_does_not_change_the_verdict_today`. | grep + test |
+| D8 | Low | **179 Ruff findings ungated.** CI selects only `E9,F63,F7,F82` (syntax/undefined-name). | `ruff check apps/api packages` |
+| D9 | Low | **Five dead exports retained**: `KadiVectorStore`, `OfflineEmbedder`, `compile_appeal_packet`, `setup_pgvector_index`, `DawaCheckGenericMapping` — 0 real usages each. Documented as scaffolds rather than deleted. | grep |
+| D10 | Low | **CI builds Docker images but never runs them**; `npm audit` is not a CI gate, so mobile's 30 advisories fail nothing. | `ci.yml` |
+
+### 16.4 Planned / future functionality (NOT defects)
+
+Correctly tracked as open issues and correctly absent from the code: IndicXlit/IndicSBERT
+entity resolution (#29, #30), FAISS/pgvector similarity search, ABDM/FHIR integration
+(#46, #54, #56), NPPA and CGHS scrapers (#16, #61, #13), fuzzy brand matching (#72),
+Jan Aushadhi store APIs (#74), the evaluation harness (#102–#116), and all Phase-3/4/5
+advanced-ML items. A keyword sweep confirms **0 source files** match `abdm`, `fhir`,
+`levenshtein`, `soundex`, `rapidfuzz`, `scraper`, `graphdb`, `rlhf`, `biobert`.
+
+### 16.5 Security & privacy standing
+
+| Area | State |
+|---|---|
+| Direct-identifier retention | **Fixed** — name never persisted; excerpt redacted (name/phone/email/Aadhaar/PAN/address); verified live |
+| Consent enforcement | **Fixed** — server-side from the stored case, 5 routes, unbypassable by request body |
+| Exception leakage | **Fixed** — correlation ids; 3 bypassing call sites also closed (2 in BimaNyay, 1 streaming over SSE) |
+| Upload limits | **Fixed** — 10 MB / extension allow-list (413 / 415) |
+| CORS | **Fixed** — credentials disabled under wildcard origin |
+| Web dependencies | **0 vulnerabilities** (was 6, incl. 2 critical Next.js RCEs) |
+| **Mobile dependencies** | **30 open (1 critical, 11 high)** — fix requires Expo SDK 52→57, semver-major |
+| **Authentication** | **Absent.** Any caller who guesses a `CASE-xxxxxxxx` id reads that patient's extracted entities. No rate limiting. |
+| Anonymisation | Direct-identifier removal only — **not** formal anonymisation; diagnosis + hospital may still re-identify |
+
+### 16.6 Issues reviewed
+
+**Closed this audit (6),** each with an evidence comment posted before closing:
+
+| # | Title | Decisive evidence |
+|---|---|---|
+| 18 | Re-verify 5-agent pipeline | All 5 agents invoked (`billnyay.py:419/436/439/444/458`); appeal 200; capturing-client test proves evidence reaches the Barrister prompt |
+| 19 | Integrate BillNyay with Kadi | Reads `billing_item` + `document_text`; Kadi and audit totals identical at 20183.0 |
+| 33 | Consent UI | 403 on all 5 Kadi-consuming routes; unbypassable by request body; opt-in default false; 15 tests |
+| 49 | Map Kadi context into pre-auth schema | All 6 Annexure-B fields verified in extracted PDF text |
+| 50 | Submission-ready package | 7 content-level PDF tests; 409 before submission; no fabricated placeholders |
+| 55 | DaaviSetu ↔ Kadi context | `_first_entity` resolution verified end to end |
+
+**Deliberately left open with evidence comments (4):** #20 (appeal PDF still orphaned,
+blocker now cleared), #22 (form complete but two inputs inert), #27 (DawaCheck reads no
+case context), #38 (six hardcoded English literals).
+
+**Obsolete / duplicate:** #48 ≈ #78 (both "ingest blank pre-auth form templates");
+#49 ≈ #55 (closed together on shared evidence). Deduplication left to the project owner.
+
+**Counts:** 92 open, 35 closed (was 98 / 29).
+
+### 16.7 Honest position
+
+The repository is **a well-engineered Phase-2 skeleton with verified correctness on its
+implemented paths** — not a production system, and not the "Functional Production Alpha"
+`PROJECT_CONTEXT.md` still claims. Two of five modules (BimaNyay, SchemeSetu) are complete
+within a deliberately narrow rule-based scope; BillNyay and DaaviSetu are complete and
+now trustworthy; DawaCheck works against 7 of ~800 formulations. Kadi's shared layer is
+genuinely shared and no longer loses data silently.
+
+The most important change across this audit cycle is not the issue count: it is that the
+system now **refuses to invent** — 422 instead of a fabricated diagnosis, `not_benchmarked`
+instead of "✓ Fair", `failed` instead of a placeholder "processed successfully", 403
+instead of unconsented access. What remains weakest is that several of those honesty
+signals stop at the API boundary and never reach the screen (D1, D2).
+
 ## Appendix A — Verification Commands
 
 ```bash
