@@ -49,7 +49,7 @@ arogyarakshak/
 │   ├── billnyay/                # Hospital bill line-item audit vs CGHS tariffs (5 agents)
 │   ├── bimanyay/                # Insurance denial audit, IRDAI appeals & SLA tracker
 │   ├── daavisetu/               # Cashless pre-authorization form automation
-│   ├── schemesetu/              # PMJAY/MJPJAY eligibility assessment & RAG
+│   ├── schemesetu/              # PMJAY/MJPJAY rule-based eligibility assessment (no RAG)
 │   └── dawacheck/               # NPPA Schedule-I ceiling price & generic mapping
 ├── data/                        # Ingestion scripts & raw public government data
 ├── docs/                        # Complete technical documentation, backlog, and ADRs

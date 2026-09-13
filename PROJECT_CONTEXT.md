@@ -99,7 +99,7 @@ arogyarakshak/
 │   ├── billnyay/                # Hospital bill audit (5-agent reasoning chain)
 │   ├── daavisetu/               # Pre-claim cashless pre-auth form generator
 │   ├── bimanyay/                # Claim denial dispute & IRDAI appeal tracker
-│   ├── schemesetu/              # PMJAY/MJPJAY RAG reasoning & ONNX embeddings
+│   ├── schemesetu/              # PMJAY/MJPJAY rule-based eligibility (no RAG, no embeddings)
 │   └── dawacheck/               # NPPA Schedule-I price verification & generics
 ├── data/                        # Government rate schedules (CGHS) and raw test sets
 ├── docs/                        # Complete documentation portal (architecture, guides, ADRs)
@@ -143,7 +143,6 @@ arogyarakshak/
 | **BillNyay 5-Agent Pipeline** | Complete (all 5 agents wired) | `packages/billnyay/billnyay/agents/`| `packages/billnyay/README.md` | Yes (`test_agents.py`, `test_api.py`) |
 | **DaaviSetu Pre-Auth Generator** | Complete | `packages/daavisetu/daavisetu/generator.py` | `packages/daavisetu/README.md` | Yes (`test_daavisetu.py`) |
 | **SchemeSetu Eligibility Agent** | Complete (rule-based, not RAG) | `packages/schemesetu/schemesetu/agent.py` | `packages/schemesetu/README.md` | Yes (`test_schemesetu.py`) |
-| **SchemeSetu Offline Embedder** | Scaffold (not wired) | `packages/schemesetu/schemesetu/embeddings.py`| `packages/schemesetu/README.md` | No — contains no ONNX code and is used by no endpoint |
 | **DawaCheck NPPA Benchmarking** | Complete | `packages/dawacheck/dawacheck/checker.py` | `packages/dawacheck/README.md` | Yes (`test_dawacheck.py`) |
 | **SSE Real-Time Stream** | Complete | `apps/api/app/api/v1/endpoints/kadi.py` | `docs/architecture/data-flow.md` | Yes (`test_api.py`) |
 | **FastAPI Gateway & Models** | Complete | `apps/api/app/` | `apps/api/README.md` | Yes (`test_api.py`) |
@@ -219,7 +218,7 @@ Phase 1: Foundations (COMPLETED)
 ├── Monorepo scaffolding, Docker Compose, CI pipeline
 ├── Kadi shared extraction, FAISS vector store, OCR parser
 ├── BillNyay 5-agent chain, DaaviSetu pre-auth generator
-├── SchemeSetu RAG & ONNX embedding fallback, DawaCheck NPPA price checker
+├── SchemeSetu rule-based eligibility checker, DawaCheck NPPA price checker
 └── Repository-wide documentation & test infrastructure overhaul
 
 Phase 2: Module Builds & BimaNyay (ACTIVE)

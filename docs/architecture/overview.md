@@ -92,7 +92,7 @@ arogyarakshak/
 │   ├── billnyay/                # 5-agent hospital bill auditing chain
 │   ├── daavisetu/               # Claim pre-authorization form generator
 │   ├── bimanyay/                # Claim denial dispute analysis & IRDAI appeals
-│   ├── schemesetu/              # RAG eligibility agent & local embedding fallback
+│   ├── schemesetu/              # Rule-based PMJAY/MJPJAY eligibility (no RAG, no embeddings)
 │   └── dawacheck/               # NPPA Schedule-I price verification & generics
 ├── data/                        # Government rate schedules & benchmark datasets
 ├── docs/                        # Technical specifications, ADRs & guides

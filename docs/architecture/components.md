@@ -82,7 +82,7 @@ SchemeSetu connects underprivileged citizens with public healthcare coverage.
 - **Eligibility Reasoning Agent**: Evaluates household income, ration card category (Yellow/Orange/White), and medical needs against:
   - **PMJAY** (Ayushman Bharat, national safety net up to ₹5 Lakh/family/year).
   - **MJPJAY** (Mahatma Jyotirao Phule Jan Arogya Yojana, Maharashtra state scheme).
-- **Local Embedding Fallback** *(scaffold, unwired)*: `schemesetu/embeddings.py` provides an offline SentenceTransformer fallback. It contains no ONNX runtime and is not used by eligibility checking.
+- **No embedding layer**: SchemeSetu computes no embeddings and runs no retrieval — eligibility is deterministic rule matching (`agent.py`, `thresholds.py`). The former `schemesetu/embeddings.py` scaffold (unwired, no ONNX runtime) was removed; cross-lingual embeddings belong only to Kadi's optional IndicSBERT signal (`kadi/resolution/semantic.py`, ADR-006).
 - **Empanelled Hospital Directory**: Identifies nearby public and private hospitals empanelled under PMJAY and MJPJAY.
 
 ---

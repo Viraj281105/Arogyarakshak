@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "schemesetu"
 version = "0.1.0"
-description = "SchemeSetu — government scheme eligibility checking and RAG indexing"
+description = "SchemeSetu — deterministic, rule-based PMJAY/MJPJAY eligibility estimation"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
