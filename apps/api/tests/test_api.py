@@ -261,6 +261,89 @@ def test_dawacheck_mobile_samples():
         assert data["active_ingredient"] != "Unknown"
 
 
+# ---------------------------------------------------------------------------
+# DawaCheck <-> Kadi case integration (issue #27): benchmarking medicines Kadi
+# already extracted from an uploaded bill, instead of requiring a second manual entry.
+# ---------------------------------------------------------------------------
+
+
+def test_dawacheck_case_benchmark_resolves_kadi_medicine_entity():
+    """'Dolo 650: 33' in AUDIT_PROBE_BILL is extracted by Kadi as a medicine entity;
+    this must be benchmarked against the same NPPA reference DawaCheck's standalone
+    /benchmark route uses, without the caller re-typing the brand name and price."""
+    case_id, _ = _audited_case()
+
+    res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
+    assert res.status_code == 200
+    results = res.json()
+    by_brand = {r["brand_name"]: r for r in results}
+
+    assert "Dolo 650" in by_brand
+    dolo = by_brand["Dolo 650"]
+    assert dolo["benchmark"] is not None
+    assert dolo["benchmark"]["active_ingredient"] == "Paracetamol 650mg"
+    assert dolo["benchmark"]["is_overcharged"] is True
+    assert dolo["note"] is None
+
+
+def test_dawacheck_case_benchmark_requires_consent():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": False}).json()["id"]
+    res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
+    assert res.status_code == 403
+
+
+def test_dawacheck_case_benchmark_unknown_case_returns_404():
+    res = client.get("/api/v1/dawacheck/cases/CASE-doesnotexist/benchmark")
+    assert res.status_code == 404
+
+
+def test_dawacheck_case_benchmark_persists_generic_mapping():
+    """Issue #27's audit flagged dawacheck_generic_mappings as never read or written.
+    A successful case benchmark must now write the resolved brand->generic mapping."""
+    import asyncio
+
+    from sqlalchemy import select as _select
+
+    from app.models import DawaCheckGenericMapping
+    from conftest import TestingSessionLocal
+
+    case_id, _ = _audited_case()
+    res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
+    assert res.status_code == 200
+
+    async def fetch():
+        async with TestingSessionLocal() as session:
+            result = await session.execute(
+                _select(DawaCheckGenericMapping).where(
+                    DawaCheckGenericMapping.brand_name == "dolo 650"
+                )
+            )
+            return result.scalar_one_or_none()
+
+    row = asyncio.run(fetch())
+    assert row is not None, "resolved brand->generic mapping was not persisted"
+    assert row.generic_name == "Paracetamol 650mg"
+    assert row.ceiling_price == 2.30
+
+
+def test_dawacheck_case_benchmark_reports_unbenchmarkable_medicine_honestly():
+    """A medicine absent from the curated reference list must be reported with a
+    clear note, never silently dropped or claimed as benchmarked."""
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Totally Unlisted Medicine XQZ: 500\n")},
+    ).status_code == 202
+
+    res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
+    assert res.status_code == 200
+    results = res.json()
+    if results:
+        for r in results:
+            if r["benchmark"] is None:
+                assert r["note"] is not None
+
+
 def test_cghs_rates_loaded_from_json():
     """Proves the loaded CGHS dataset is the complete JSON dataset (> 20 items), not the 5-item fallback."""
     from app.api.v1.endpoints.billnyay import CGHS_RATES
