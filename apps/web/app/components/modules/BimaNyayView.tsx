@@ -382,7 +382,7 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
                       <span className="badge" style={{ background: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>PENDING</span>
                     </div>
                     <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                      Binding arbitration with Insurance Ombudsman within 1 year. Awards up to ₹50 Lakhs.
+                      Complaint to Insurance Ombudsman within 1 year (Ombudsman Rules 2017, r.14(3)(b)). Award binding on insurer; capped at ₹50 lakh incl. expenses (r.17(3)(ii), as amended by G.S.R. 828(E), 09.11.2023).
                     </p>
                   </div>
                 </div>

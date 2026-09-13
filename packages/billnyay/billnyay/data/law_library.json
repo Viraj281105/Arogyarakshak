@@ -1,32 +1,57 @@
 [
   {
-    "statute_name": "IRDAI Circular Ref: IRDAI/HLT/REG/CIR/194/09/2020",
-    "statute_text": "Standardization of Exclusion Clauses in Health Insurance Contracts: Insurers cannot deny claims under exclusions that are vague or non-specific. Prior approval or medical necessity justifications must be clearly established before rejecting claims.",
+    "statute_name": "IRDAI Guidelines on Standardization of Exclusions in Health Insurance Contracts (Ref: IRDAI/HLT/REG/CIR/177/09/2019) — Chapter VI, Clause 4",
+    "statute_text": "Exclusion and waiting-period wordings in health insurance policy contracts must be specific and unambiguous; open-ended phrasing such as 'indirectly related to', 'such as' or 'etc.' is not permitted when framing exclusions or waiting periods.",
     "jurisdiction": "IRDAI",
-    "category": "claims_exclusion"
+    "category": "claims_exclusion",
+    "source_url": "https://irdai.gov.in/documents/37343/365525/Guidelines+on+Standardization+of+Exclusions+in+Health+Insurance+Contracts.pdf/39629f3a-a65b-7cea-f045-ca50f66ce6d0?version=1.1&t=1665918387659&download=true",
+    "issued_on": "2019-09-27",
+    "verified_on": "2026-09-13",
+    "verification_status": "verified",
+    "verification_note": "Reference number and date read from page 1 of the IRDAI PDF, and confirmed by IRDAI circular IRDAI/HLT/REG/CIR/046/02/2020 (10.02.2020), which amends these guidelines citing Ref No. IRDAI/HLT/REG/CIR/177/09/2019 (https://irdai.gov.in/documents/37343/365525/Amendments+in+respect+of+provisions+of+Guidelines+on+Standardization+of+Exc.pdf/fe4822bf-c5eb-de32-d65a-868067bccaab?version=1.0&t=1631531403603). Summary checked against Chapter VI, Clause 4. Not among the circulars superseded by Annexure-6 of Master Circular IRDAI/HLT/CIR/PRO/84/5/2024 (29.05.2024). Previously mis-cited here as IRDAI/HLT/REG/CIR/194/09/2020, a reference not found on irdai.gov.in (IRDAI/HLT/REG/CIR/194/07/2020 is a different circular: Consolidated Guidelines on Product Filing, 22.07.2020). The earlier summary's statement that prior approval or medical-necessity justification must be established before rejecting claims does not appear in these guidelines and was removed."
   },
   {
     "statute_name": "Consumer Protection Act, 2019 — Section 2(47)",
     "statute_text": "Defines Unfair Trade Practice: Imposing unreasonable conditions, delayed claim processing without justifiable cause, or arbitrary reduction of claimed expenses constitutes unfair trade practice.",
     "jurisdiction": "India Federal",
-    "category": "consumer_rights"
+    "category": "consumer_rights",
+    "source_url": null,
+    "issued_on": null,
+    "verified_on": null,
+    "verification_status": "unverified",
+    "verification_note": "Not verified. The Gazette of India copy of the Act could not be retrieved from egazette.gov.in on 2026-09-13 (TLS certificate error), so this summary has not been checked against the text of section 2(47). Do not present it as settled law until verified."
   },
   {
     "statute_name": "IRDAI (Health Insurance) Regulations, 2016 — Regulation 27",
     "statute_text": "Claim Settlement Timeline: Insurers must settle or reject claims within 30 days of receiving all necessary documents. Interest at 2% above the bank rate is payable for delayed payments.",
     "jurisdiction": "IRDAI",
-    "category": "claim_settlement"
+    "category": "claim_settlement",
+    "source_url": null,
+    "issued_on": "2016-07-18",
+    "verified_on": null,
+    "verification_status": "unverified",
+    "verification_note": "Not verified. The regulation text could not be retrieved from irdai.gov.in on 2026-09-13 (consolidated PDF returned HTTP 404), so the Regulation 27 summary is unchecked. Confirmed from primary sources: (a) the notification date 18.07.2016 is as stated on page 1 of IRDAI/HLT/REG/CIR/194/07/2020; (b) these Regulations were repealed by regulation 9(1)(d) of the IRDAI (Insurance Products) Regulations, 2024 (F. No. IRDAI/Reg/8/202/2024, notified 20.03.2024; https://irdai.gov.in/web/guest/document-detail?documentId=4590475) from the date those regulations came into force. The current claim-settlement provision has not been identified."
   },
   {
     "statute_name": "CGHS Billing Guidelines & Package Rate Mandate",
     "statute_text": "Empanelled hospitals cannot charge rates higher than prescribed CGHS package rates for beneficiaries. Overcharging beyond ceiling rates is subject to refund and penalty under MoHFW circulars.",
     "jurisdiction": "MoHFW India",
-    "category": "hospital_overcharge"
+    "category": "hospital_overcharge",
+    "source_url": null,
+    "issued_on": null,
+    "verified_on": null,
+    "verification_status": "unverified",
+    "verification_note": "Not verified. No specific MoHFW/CGHS circular is identified for this summary, and none was found among the primary sources checked on 2026-09-13 (irdai.gov.in, cioins.co.in, egazette.gov.in)."
   },
   {
     "statute_name": "NPPA DPCO 2013 — Paragraph 14(1)",
     "statute_text": "No manufacturer, distributor, or retailer shall sell any scheduled formulation at a price exceeding the ceiling price fixed by NPPA plus applicable GST. Overcharging attracts recovery with interest.",
     "jurisdiction": "NPPA India",
-    "category": "medicine_pricing"
+    "category": "medicine_pricing",
+    "source_url": null,
+    "issued_on": null,
+    "verified_on": null,
+    "verification_status": "unverified",
+    "verification_note": "Not verified. The Drugs (Prices Control) Order, 2013 was not located on egazette.gov.in on 2026-09-13, so the paragraph number and this summary have not been checked against the Order's text."
   }
 ]

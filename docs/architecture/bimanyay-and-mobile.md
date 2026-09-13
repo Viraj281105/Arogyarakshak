@@ -64,7 +64,7 @@ flowchart TD
     F -->|"IRDAI Token Generated - 15 Day Window"| G{"Resolution by Insurer?"}
     G -->|"Yes - Settled"| E
     G -->|"Unresolved / Rejected"| H["Tier 3: Insurance Ombudsman (CIO)"]
-    H -->|"Filing within 1 Year | Up to ₹50 Lakhs"| I["Ombudsman Hearing & Binding Award (30 Days)"]
+    H -->|"Filing within 1 Year | Award cap ₹50 lakh (Rule 17(3)(ii))"| I["Ombudsman Hearing & Binding Award (30 Days)"]
     H -->|"If award unacceptable to policyholder"| J["Consumer Forum (DCDRC / SCDRC)"]
 ```
 
@@ -85,11 +85,11 @@ flowchart TD
 
 #### Tier 3: Council for Insurance Ombudsmen (CIO)
 - **Portal**: [https://cioins.co.in](https://cioins.co.in)
-- **Authority**: Established under the **Insurance Ombudsman Rules, 2017** (amended 2021).
+- **Authority**: Established under the **Insurance Ombudsman Rules, 2017**, as amended up to G.S.R. 828(E) dated 09.11.2023 ([CIO: Insurance Ombudsman Rules](https://www.cioins.co.in/OmbudsmanRules2017)).
 - **Eligibility & Constraints**:
   - Complainant must have first approached the insurer GRO.
   - Complaint must be lodged within **1 year** of receiving the insurer's final rejection or 1 month after GRO non-response.
-  - Total claim dispute amount (claim + expenses) cannot exceed **₹50 Lakhs**.
+  - The Ombudsman cannot award compensation exceeding **₹50 lakh** (including relevant expenses) — Rule 17(3)(ii); the cap was raised from ₹30 lakh by G.S.R. 828(E) dated 09.11.2023.
   - No simultaneous petition pending in civil court or consumer forum.
 - **Cost**: **100% Free** for policyholders.
 - **Outcome**: The Ombudsman award is **fully legally binding on the insurance company** within 30 days. However, the policyholder is not bound; if dissatisfied, they can still approach the Consumer Commission.
