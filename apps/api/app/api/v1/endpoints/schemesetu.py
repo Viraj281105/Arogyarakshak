@@ -15,6 +15,13 @@ from app.database import get_db
 from app.models import KadiCase, KadiEntity
 # Import schemesetu packages
 from schemesetu.agent import check_eligibility, EligibilityRequest, SchemeResult
+from schemesetu.reasoning_agent import reason_about_eligibility, EligibilityReasoning
+from schemesetu.trend_estimator import (
+    project_future_eligibility,
+    EligibilityTrendResult,
+    IncomeDataPoint,
+)
+from schemesetu.transition_adviser import advise_transition, TransitionAdvice
 
 router = APIRouter()
 
@@ -109,3 +116,70 @@ async def check_case_scheme_eligibility(
         medical_need=medical_need,
     )
     return check_eligibility(req)
+
+
+@router.post("/eligibility/reasoning", response_model=EligibilityReasoning, status_code=status.HTTP_200_OK)
+async def eligibility_reasoning(intake: IntakeEligibilityRequest):
+    """Returns the same eligibility verdict as /eligibility, plus a step-by-step
+    reasoning trace of which criteria were checked and why (#21). See
+    schemesetu.reasoning_agent for why this is an explainable rules index, not
+    retrieval-augmented generation over a vector store."""
+    req = EligibilityRequest(
+        income=intake.income,
+        location_state=intake.location_state,
+        category=intake.category,
+        medical_need=intake.medical_need,
+    )
+    return reason_about_eligibility(req)
+
+
+class TrendEligibilityRequest(BaseModel):
+    income_history: List[IncomeDataPoint] = Field(
+        ..., min_length=2, description="At least 2 historical (year, annual_income) data points"
+    )
+    target_year: int = Field(..., description="Calendar year to project eligibility for")
+    location_state: str
+    category: str = "General"
+    medical_need: str = "Not specified"
+
+
+@router.post("/eligibility/trend", response_model=EligibilityTrendResult, status_code=status.HTTP_200_OK)
+async def eligibility_trend(intake: TrendEligibilityRequest):
+    """Projects future PMJAY/MJPJAY eligibility from caller-supplied historical income
+    data points via linear trend (#70). ArogyaRakshak has no real historical
+    demographic dataset of its own — see schemesetu.trend_estimator — so this only
+    projects a trend from data the caller actually provides."""
+    try:
+        return project_future_eligibility(
+            income_history=intake.income_history,
+            target_year=intake.target_year,
+            location_state=intake.location_state,
+            category=intake.category,
+            medical_need=intake.medical_need,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+
+class TransitionEligibilityRequest(BaseModel):
+    previous: IntakeEligibilityRequest
+    current: IntakeEligibilityRequest
+
+
+@router.post("/eligibility/transition", response_model=TransitionAdvice, status_code=status.HTTP_200_OK)
+async def eligibility_transition(intake: TransitionEligibilityRequest):
+    """Generates a transition checklist when eligibility moves between PMJAY and
+    MJPJAY across two intakes (#71) — e.g. before/after relocating to/from Maharashtra."""
+    previous_req = EligibilityRequest(
+        income=intake.previous.income,
+        location_state=intake.previous.location_state,
+        category=intake.previous.category,
+        medical_need=intake.previous.medical_need,
+    )
+    current_req = EligibilityRequest(
+        income=intake.current.income,
+        location_state=intake.current.location_state,
+        category=intake.current.category,
+        medical_need=intake.current.medical_need,
+    )
+    return advise_transition(previous_req, current_req)

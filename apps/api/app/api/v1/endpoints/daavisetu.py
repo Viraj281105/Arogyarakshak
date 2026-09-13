@@ -5,12 +5,13 @@ Handles claim and pre-authorization document generation.
 """
 
 import logging
-from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DaaviSetuClaim, KadiCase, KadiEntity
@@ -18,6 +19,7 @@ from app.models import DaaviSetuClaim, KadiCase, KadiEntity
 from daavisetu.generator import generate_claim_package, generate_preauth_pdf, ClaimData, ClaimPackage
 from daavisetu.package_assembler import build_claim_package_zip
 from daavisetu.schema import get_claim_form_json_schema
+from daavisetu.form_filler import fill_pdf_form, list_form_fields, FormFieldInfo
 
 logger = logging.getLogger("arogyarakshak.api.daavisetu")
 router = APIRouter()
@@ -243,3 +245,57 @@ async def claim_form_schema() -> Dict[str, Any]:
     fields, annotated with the Annexure-B form section each maps to. Static and
     case-independent, so it takes no case_id and no consent check."""
     return get_claim_form_json_schema()
+
+
+async def _read_template_upload(template: UploadFile) -> bytes:
+    """Reads an uploaded template PDF with the same size guard Kadi's document
+    upload uses — an unbounded read here is the same DoS vector, just on a
+    different endpoint."""
+    template_bytes = await template.read(settings.max_upload_bytes + 1)
+    if len(template_bytes) > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Template exceeds the {settings.max_upload_bytes // (1024 * 1024)} MB limit.",
+        )
+    return template_bytes
+
+
+@router.post("/claim-template/inspect", response_model=List[FormFieldInfo])
+async def inspect_claim_template(template: UploadFile = File(...)):
+    """Lists the fillable AcroForm field names in a caller-supplied PDF (#80), so a
+    user can map DaaviSetu's canonical field names (see /claim-form-schema, #79) onto
+    their own insurer's real template. ArogyaRakshak ships no insurer's proprietary
+    form of its own — the caller supplies their own."""
+    template_bytes = await _read_template_upload(template)
+    return list_form_fields(template_bytes)
+
+
+@router.post("/cases/{case_id}/claim/fill-template")
+async def fill_claim_template(
+    case_id: str, template: UploadFile = File(...), db: AsyncSession = Depends(get_db)
+):
+    """Fills a caller-supplied fillable PDF template with this case's submitted claim
+    fields (#80). The template's AcroForm field names must match DaaviSetu's canonical
+    names (patient_name, policy_number, hospital_name, diagnosis, treatment_plan,
+    estimated_cost) — use POST /claim-template/inspect first to check a template's
+    actual field names before relying on this to fill it correctly."""
+    await require_case_consent(case_id, db)
+    claim_record = await _load_submitted_claim(case_id, db)
+    claim_input = _claim_data_from_record(claim_record)
+
+    template_bytes = await _read_template_upload(template)
+    field_values = {
+        "patient_name": claim_input.patient_name,
+        "policy_number": claim_input.policy_number,
+        "hospital_name": claim_input.hospital_name,
+        "diagnosis": claim_input.diagnosis,
+        "treatment_plan": claim_input.treatment_plan,
+        "estimated_cost": f"{claim_input.estimated_cost:,.2f}",
+    }
+    filled_bytes = fill_pdf_form(template_bytes, field_values)
+
+    return Response(
+        content=filled_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=filled_template_{case_id}.pdf"},
+    )

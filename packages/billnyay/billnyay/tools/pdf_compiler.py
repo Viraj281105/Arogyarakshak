@@ -5,6 +5,7 @@ Generates a formal, beautifully formatted ReportLab PDF appeal document containi
 the formal appeal letter, audit findings, clinical evidence, and regulatory support.
 """
 
+import io
 import os
 from datetime import datetime
 from pathlib import Path
@@ -37,24 +38,9 @@ def _styles():
     return base
 
 
-def compile_appeal_packet(
-    appeal_letter: str,
-    output_path: str,
-    case_meta: Optional[Dict[str, Any]] = None,
-) -> str:
-    """Compiles appeal letter text into a formal PDF appeal document."""
-    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-
-    doc = SimpleDocTemplate(
-        output_path,
-        pagesize=A4,
-        leftMargin=40,
-        rightMargin=40,
-        topMargin=40,
-        bottomMargin=40,
-    )
-
-    styles = _styles()
+def _build_story(appeal_letter: str, styles) -> list:
+    """Shared story-building logic for both the file-path and in-memory compilers,
+    so the two can never silently render different documents."""
     story = []
 
     # Title Banner
@@ -77,5 +63,44 @@ def compile_appeal_packet(
             story.append(Paragraph(text, styles["LetterBody"]))
             story.append(Spacer(1, 8))
 
-    doc.build(story)
+    return story
+
+
+def compile_appeal_packet(
+    appeal_letter: str,
+    output_path: str,
+    case_meta: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Compiles appeal letter text into a formal PDF appeal document on disk."""
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+    doc.build(_build_story(appeal_letter, _styles()))
     return output_path
+
+
+def compile_appeal_packet_bytes(
+    appeal_letter: str,
+    case_meta: Optional[Dict[str, Any]] = None,
+) -> bytes:
+    """Compiles appeal letter text into a formal PDF and returns its bytes directly,
+    with no file written to disk — used by the appeal PDF-download/signing endpoint
+    (#66), consistent with how DawaCheck/DaaviSetu build PDFs entirely in-memory."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+    doc.build(_build_story(appeal_letter, _styles()))
+    return buffer.getvalue()

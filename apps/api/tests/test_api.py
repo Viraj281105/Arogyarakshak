@@ -1097,6 +1097,27 @@ def test_clinical_and_billing_context_is_preserved():
     assert by_type["document_text"][0]["meta"]["redacted"] is True
 
 
+def test_procedure_entities_are_not_suppressed_by_same_named_billing_items():
+    """Regression: the dedup check when adding type="procedure" entities previously
+    compared a candidate procedure's name against ALL already-queued entities,
+    including the type="billing_item" entities OCR's line-item parser adds for the
+    same source line. Since a procedure and its billing line almost always share a
+    name (e.g. "Consultation: 900" produces both), this silently prevented a
+    "procedure" entity from ever being created in the common case — starving
+    BillNyay's ICD-10/procedure consistency audit (#64) of anything to query. Fixed
+    by scoping the dedup check to type="procedure" entities only."""
+    case_id = _uploaded_case(PII_BILL)
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    by_type: dict = {}
+    for e in entities:
+        by_type.setdefault(e["type"], []).append(e)
+
+    assert "procedure" in by_type, "a procedure entity must exist despite a same-named billing_item"
+    procedure_names = {e["name"] for e in by_type["procedure"]}
+    billing_item_names = {e["name"] for e in by_type["billing_item"]}
+    assert procedure_names & billing_item_names, "the overlap this bug used to suppress must now survive"
+
+
 def test_document_excerpt_is_redacted_not_raw():
     case_id = _uploaded_case(PII_BILL)
     entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
@@ -1348,10 +1369,16 @@ def test_claim_refuses_rather_than_inventing_clinical_fields():
 
 
 def test_claim_partial_gaps_are_named_precisely():
+    # "Dolo 650mg: 33" is classified as a medicine, not a procedure (see
+    # kadi.extraction.looks_like_medicine), so it contributes to the billing total
+    # without resolving treatment_plan — unlike a non-medicine line (e.g.
+    # "Consultation: 900"), which the extraction agent's heuristic classifies as a
+    # candidate procedure and would resolve treatment_plan itself, defeating this
+    # test's point of proving diagnosis/treatment_plan stay reported as missing.
     case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
     client.post(
         f"/api/v1/kadi/cases/{case_id}/upload",
-        files={"file": ("bill.txt", b"Hospital: Ruby Hall Clinic\nConsultation: 900\n")},
+        files={"file": ("bill.txt", b"Hospital: Ruby Hall Clinic\nDolo 650mg: 33\n")},
     )
     res = client.post(
         f"/api/v1/daavisetu/cases/{case_id}/claim",
@@ -1572,6 +1599,279 @@ def test_end_to_end_document_drives_every_module_consistently():
     assert "Acute Cholecystitis" in text
     assert "Laparoscopic Cholecystectomy" in text
     assert "INR 20,183.00" in text
+
+
+# ---------------------------------------------------------------------------
+# BillNyay: consensus (#65), self-correcting drafting (#68), and PDF signing (#66).
+# ---------------------------------------------------------------------------
+
+
+def test_appeal_response_includes_consensus_and_signing_fields():
+    case_id = _case_with_document()
+    data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
+
+    consensus = data["consensus"]
+    assert consensus["final_verdict"] in ("approve", "reject", "flag_review")
+    assert len(consensus["votes"]) == 3
+    roles = {v["role"] for v in consensus["votes"]}
+    assert roles == {"auditor", "clinician", "regulatory"}
+
+    assert isinstance(data["revision_count"], int)
+    assert isinstance(data["revision_history"], list)
+
+    assert len(data["document_sha256"]) == 64  # hex-encoded SHA-256
+    assert data["pdf_download_url"] == f"/api/v1/billnyay/cases/{case_id}/appeal/pdf"
+
+
+def test_appeal_pdf_download_matches_hashed_document():
+    case_id = _case_with_document()
+    data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
+
+    pdf_res = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf")
+    assert pdf_res.status_code == 200
+    assert pdf_res.headers["content-type"] == "application/pdf"
+    assert pdf_res.content.startswith(b"%PDF")
+
+    import hashlib
+    assert hashlib.sha256(pdf_res.content).hexdigest() == data["document_sha256"]
+
+
+def test_appeal_pdf_requires_drafting_first():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    res = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf")
+    assert res.status_code == 409
+
+
+def test_appeal_pdf_unknown_case_returns_404():
+    res = client.get("/api/v1/billnyay/cases/CASE-doesnotexist/appeal/pdf")
+    assert res.status_code == 404
+
+
+def test_appeal_verify_confirms_integrity_of_a_freshly_drafted_appeal():
+    case_id = _case_with_document()
+    client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+
+    res = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/verify")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["hash_matches_stored_bytes"] is True
+    assert data["signature_valid"] is True
+    assert "not a licensed digital signature certificate" in data["note"]
+
+
+def test_appeal_verify_requires_drafting_first():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    res = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/verify")
+    assert res.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# BillNyay: ICD-10 / procedure consistency audit (#64).
+# ---------------------------------------------------------------------------
+
+
+def test_icd_audit_flags_consistent_procedure():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Diagnosis: Acute Appendicitis (K35.8)\nLaparoscopic Appendectomy: 25000\n")},
+    ).status_code == 202
+
+    res = client.get(f"/api/v1/billnyay/cases/{case_id}/icd-audit")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["icd10_code"] == "K35"
+    assert data["status"] == "consistent"
+
+
+def test_icd_audit_flags_mismatched_procedure():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Diagnosis: Acute Appendicitis (K35.8)\nTotal Knee Replacement: 180000\n")},
+    ).status_code == 202
+
+    res = client.get(f"/api/v1/billnyay/cases/{case_id}/icd-audit")
+    assert res.status_code == 200
+    assert res.json()["status"] == "mismatched"
+
+
+def test_icd_audit_requires_consent():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": False}).json()["id"]
+    res = client.get(f"/api/v1/billnyay/cases/{case_id}/icd-audit")
+    assert res.status_code == 403
+
+
+def test_icd_audit_unknown_case_returns_404():
+    res = client.get("/api/v1/billnyay/cases/CASE-doesnotexist/icd-audit")
+    assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# BillNyay: mock Bima Bharosa registration-status check (#67).
+# ---------------------------------------------------------------------------
+
+
+def test_registration_status_is_mock_and_says_so():
+    res = client.get(
+        "/api/v1/billnyay/grievance/registration-status", params={"complaint_reference": "BB-123456"}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["source"] == "mock"
+    assert data["is_registered"] is True
+    assert "MOCK" in data["note"]
+
+
+def test_registration_status_requires_complaint_reference_param():
+    res = client.get("/api/v1/billnyay/grievance/registration-status")
+    assert res.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# SchemeSetu: reasoning agent (#21), trend estimator (#70), transition adviser (#71).
+# ---------------------------------------------------------------------------
+
+
+def test_eligibility_reasoning_returns_verdict_and_trace():
+    payload = {
+        "income": 120000.0,
+        "location_state": "Maharashtra",
+        "category": "General",
+        "medical_need": "Heart bypass surgery",
+    }
+    res = client.post("/api/v1/schemesetu/eligibility/reasoning", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["scheme_results"]) == 2
+    # Maharashtra: PMJAY income + MJPJAY state_of_residence + MJPJAY income = 3 steps.
+    assert len(data["reasoning_trace"]) == 3
+    assert data["criteria_considered"]
+    assert data["criteria_not_considered"]
+
+
+def test_eligibility_reasoning_trace_matches_scheme_results():
+    payload = {"income": 500000.0, "location_state": "Karnataka", "medical_need": "Surgery"}
+    res = client.post("/api/v1/schemesetu/eligibility/reasoning", json=payload)
+    data = res.json()
+
+    pmjay_result = next(r for r in data["scheme_results"] if "PMJAY" in r["scheme_name"])
+    pmjay_step = next(s for s in data["reasoning_trace"] if s["scheme"].startswith("PMJAY"))
+    assert pmjay_result["estimated_eligibility"] == "ineligible"
+    assert pmjay_step["satisfied"] is False
+
+
+def test_eligibility_trend_projects_future_eligibility():
+    payload = {
+        "income_history": [
+            {"year": 2020, "annual_income": 100000.0},
+            {"year": 2021, "annual_income": 150000.0},
+            {"year": 2022, "annual_income": 200000.0},
+        ],
+        "target_year": 2024,
+        "location_state": "Maharashtra",
+    }
+    res = client.post("/api/v1/schemesetu/eligibility/trend", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["projected_income"] == 300000.0
+    assert data["is_extrapolation"] is True
+    assert len(data["projected_eligibility"]) == 2
+
+
+def test_eligibility_trend_requires_at_least_two_points():
+    payload = {
+        "income_history": [{"year": 2024, "annual_income": 100000.0}],
+        "target_year": 2026,
+        "location_state": "Maharashtra",
+    }
+    res = client.post("/api/v1/schemesetu/eligibility/trend", json=payload)
+    assert res.status_code == 422
+
+
+def test_eligibility_transition_detects_relocation_out_of_maharashtra():
+    payload = {
+        "previous": {"income": 100000.0, "location_state": "Maharashtra", "medical_need": "Surgery"},
+        "current": {"income": 100000.0, "location_state": "Karnataka", "medical_need": "Surgery"},
+    }
+    res = client.post("/api/v1/schemesetu/eligibility/transition", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["transition_detected"] is True
+    assert "MJPJAY" in data["from_schemes"]
+    assert len(data["checklist"]) > 0
+
+
+def test_eligibility_transition_no_change_reports_no_checklist():
+    intake = {"income": 500000.0, "location_state": "Karnataka", "medical_need": "Surgery"}
+    payload = {"previous": intake, "current": intake}
+    res = client.post("/api/v1/schemesetu/eligibility/transition", json=payload)
+    data = res.json()
+    assert data["transition_detected"] is False
+    assert data["checklist"] == []
+
+
+# ---------------------------------------------------------------------------
+# DaaviSetu: PDF form-field mapping/filling tool (#80).
+# ---------------------------------------------------------------------------
+
+
+def _fillable_pdf_bytes(field_names) -> bytes:
+    import io as _io
+    from reportlab.pdfgen import canvas as _canvas
+
+    buffer = _io.BytesIO()
+    c = _canvas.Canvas(buffer)
+    form = c.acroForm
+    y = 700
+    for name in field_names:
+        form.textfield(name=name, tooltip=name, x=100, y=y, width=200, height=20, borderStyle="inset", forceBorder=True)
+        y -= 40
+    c.save()
+    return buffer.getvalue()
+
+
+def test_inspect_claim_template_lists_field_names():
+    template_bytes = _fillable_pdf_bytes(["patient_name", "policy_number"])
+    res = client.post(
+        "/api/v1/daavisetu/claim-template/inspect",
+        files={"template": ("template.pdf", template_bytes, "application/pdf")},
+    )
+    assert res.status_code == 200
+    names = {f["field_name"] for f in res.json()}
+    assert names == {"patient_name", "policy_number"}
+
+
+def test_fill_claim_template_uses_submitted_claim_fields():
+    case_id, package = _case_with_submitted_claim()
+    template_bytes = _fillable_pdf_bytes(["patient_name", "policy_number", "hospital_name"])
+
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim/fill-template",
+        files={"template": ("template.pdf", template_bytes, "application/pdf")},
+    )
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert res.content.startswith(b"%PDF")
+
+    filled_fields_res = client.post(
+        "/api/v1/daavisetu/claim-template/inspect",
+        files={"template": ("filled.pdf", res.content, "application/pdf")},
+    )
+    filled = {f["field_name"]: f["current_value"] for f in filled_fields_res.json()}
+    assert filled["patient_name"] == SUBMITTED_CLAIM["patient_name"]
+    assert filled["policy_number"] == SUBMITTED_CLAIM["policy_number"]
+    assert filled["hospital_name"] == SUBMITTED_CLAIM["hospital_name"]
+
+
+def test_fill_claim_template_requires_a_submitted_claim():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    template_bytes = _fillable_pdf_bytes(["patient_name"])
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim/fill-template",
+        files={"template": ("template.pdf", template_bytes, "application/pdf")},
+    )
+    assert res.status_code == 409
 
 
 def test_end_to_end_is_blocked_without_consent_at_every_stage():
