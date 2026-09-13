@@ -128,7 +128,18 @@ describe('Web UI Capability Claim Integrity', () => {
   });
 
   test('schemesetu provisional-result disclosure vocabulary is fully localized', () => {
-    const keys = ['criteriaEvaluated', 'criteriaNotEvaluated', 'provisionalNotice'] as const;
+    const keys = [
+      'criteriaEvaluated',
+      'criteriaNotEvaluated',
+      'provisionalNotice',
+      'provisionallyEligible',
+      'verificationNeeded',
+      'notEligible',
+      'howToClaim',
+      'howToVerify',
+      'nonDeterminative',
+      'officialSources',
+    ] as const;
     languages.forEach((lang) => {
       const schemesetu = translations[lang].modules.schemesetu;
       keys.forEach((key) => {

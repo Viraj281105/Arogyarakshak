@@ -8,14 +8,14 @@ Every result is **provisional**. SchemeSetu is deterministic rule matching over 
 
 ---
 
-## Capabilities & Architecture
-
-- **Eligibility rules (`schemesetu/agent.py`)**: `check_eligibility(EligibilityRequest)` evaluates two criteria only — annual family income against the scheme income limits, and state of residence (MJPJAY applies only in Maharashtra). `category` and `medical_need` are accepted but do **not** change the verdict. Each `SchemeResult` lists `criteria_evaluated` and `criteria_not_evaluated` (the latter includes SECC-2011 deprivation status and ration-card type) and sets `is_provisional=True`. `confidence_score` is a fixed per-branch heuristic, not a calibrated probability.
-- **Income thresholds (`schemesetu/thresholds.py`)**: single source of truth for the limits (PMJAY ₹2,50,000; MJPJAY ₹1,50,000, Maharashtra only). Both carry `provenance="UNVERIFIED_PROJECT_HEURISTIC"` — they have not been verified against official NHA or SHAS Maharashtra guidelines.
-- **Reasoning trace (`schemesetu/reasoning_agent.py`)**: `reason_about_eligibility` explains the same determination step by step by walking an explicit Python criteria table. It is not retrieval-augmented generation.
-- **Trend estimate (`schemesetu/trend_estimator.py`)**: `project_future_eligibility` fits an ordinary least-squares line to income data points the caller supplies (at least two) and applies the same thresholds to the projected year. No external demographic dataset is used.
-- **Transition checklist (`schemesetu/transition_adviser.py`)**: `advise_transition` compares two requests (e.g. before and after relocating, or an income change) and returns generic scheme-transfer housekeeping steps when estimated eligibility changes.
-- **Recommendation trigger (`schemesetu/triggers.py`)**: `evaluate_income_trigger` decides from a case's saved income profile (and the previous one) whether a background eligibility run should fire — `FIRE`, `NO_THRESHOLD_CROSSED` or `INSUFFICIENT_EVIDENCE`. The consent check is enforced by the caller in `apps/api`.
+SchemeSetu matches patients with public healthcare safety nets:
+- **Eligibility Rules Engine (`schemesetu/agent.py`)**:
+  - Takes annual income, state, social category and medical need, and reports a provisional determination per scheme with claim or verification steps and the official `sources` behind it.
+  - Criteria live in `schemesetu/thresholds.py`, the single source of truth. Each scheme carries citations (URL, document, publisher, date, retrieval date) and a `provenance` value:
+    - **PMJAY** (`OFFICIAL_SOURCE_CITED`; PIB releases 2116209 of 28 Mar 2025 and 2053883 of 11 Sep 2024): SECC-2011 deprivation/occupational listing or a state-verified database, ASHA/AWW/AWH families, or age 70+ irrespective of income. None of these is collected, so the verdict is always `ambiguous`.
+    - **MJPJAY** (`OFFICIAL_RESTATEMENT_CITED`; Government of Maharashtra district portals restating the GR dated 28 July 2023): all families in Maharashtra, so stated residence decides. The GR text and the SHAS portal (jeevandayee.gov.in) were not retrieved, so documentary requirements are unverified.
+  - **Income is non-determinative.** Neither scheme defines an annual income ceiling in the cited sources. The earlier ₹2.5L (PMJAY) / ₹1.5L (MJPJAY) limits were unverified project heuristics and were removed; ₹1.5L was MJPJAY's 2020–2024 cover amount, not an income limit.
+- **Reasoning, trend and transition helpers** (`reasoning_agent.py` #21, `trend_estimator.py` #70, `transition_adviser.py` #71) and the consent-bounded recommendation trigger (`triggers.py`, #92) read the same criteria. The trigger fires when a scheme newly applies (first saved profile, or a move into Maharashtra); an income change alone never fires, and a projected income cannot change a verdict.
 
 ### Not implemented
 - **No embeddings, vector index or RAG.** SchemeSetu computes no embeddings. Domain modules may not implement their own embedding layer (`docs/architecture/repository-structure.md`, Kadi Exclusivity); cross-lingual embeddings belong to Kadi's optional IndicSBERT signal (`packages/kadi/kadi/resolution/semantic.py`, ADR-006). The former unwired `embeddings.py` scaffold was removed.
@@ -27,19 +27,19 @@ Every result is **provisional**. SchemeSetu is deterministic rule matching over 
 ```text
 packages/schemesetu/
 ├── schemesetu/
-│   ├── __init__.py
-│   ├── agent.py               # Income + state rule matching (check_eligibility)
-│   ├── thresholds.py          # Income limits and their provenance
-│   ├── reasoning_agent.py     # Step-by-step reasoning trace over the same rules
-│   ├── trend_estimator.py     # Least-squares projection from caller-supplied income history
-│   ├── transition_adviser.py  # PMJAY <-> MJPJAY transition checklist
-│   └── triggers.py            # Consent-bounded income-profile recommendation trigger
+│   ├── agent.py               # Deterministic eligibility rules (income non-determinative)
+│   ├── thresholds.py          # Scheme criteria with official citations (single source of truth)
+│   ├── reasoning_agent.py     # Step-by-step trace over the same criteria (#21)
+│   ├── triggers.py            # Consent-bounded recommendation trigger (#92)
+│   ├── trend_estimator.py     # Income trend projection (#70)
+│   ├── transition_adviser.py  # PMJAY <-> MJPJAY transition checklist (#71)
+│   └── __init__.py
 ├── tests/
 │   ├── test_schemesetu.py
+│   ├── test_income_triggers.py
 │   ├── test_reasoning_agent.py
 │   ├── test_trend_estimator.py
-│   ├── test_transition_adviser.py
-│   └── test_income_triggers.py
+│   └── test_transition_adviser.py
 ├── pyproject.toml
 └── README.md
 ```

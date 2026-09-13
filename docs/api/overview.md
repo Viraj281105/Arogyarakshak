@@ -136,10 +136,20 @@ subject to the consent gate.
 
 | Method | Route | Description | Response Code |
 |---|---|---|---|
-| `POST` | `/api/v1/schemesetu/eligibility` | Evaluates income and state against PMJAY & MJPJAY | `200 OK` |
+| `POST` | `/api/v1/schemesetu/eligibility` | Provisional PMJAY & MJPJAY eligibility with cited official sources | `200 OK` |
 
-Currently a deterministic income-threshold rule set. `category` and `medical_need` are accepted
-but do not yet influence the result.
+A deterministic rule set with no income threshold. Neither scheme defines an annual income ceiling
+in the cited official sources, so `income` is listed under `non_determinative_factors` and never
+decides a verdict. PMJAY is always `ambiguous` (its criteria — SECC-2011 listing, ASHA/AWW/AWH
+family, age 70+ — are not collected); MJPJAY is `eligible` for a stated Maharashtra resident. Each
+result carries `criteria_provenance` and `sources` (URL, document, publisher, date). The former
+`confidence_score` field was removed. `category` and `medical_need` are accepted but do not
+influence the result.
+
+`PUT /api/v1/schemesetu/cases/{case_id}/income-profile` (#92, consent-gated) returns a `trigger`
+with `status` `FIRE` | `NO_CHANGE` | `INSUFFICIENT_EVIDENCE`, `schemes_applicable`,
+`newly_applicable` and `income_role: "NON_DETERMINATIVE"`. It fires when a scheme newly applies
+(first saved profile, or a move into Maharashtra); an income change alone never fires.
 
 ### DawaCheck (Medicine Pricing)
 

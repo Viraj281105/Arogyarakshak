@@ -9,21 +9,15 @@ ArogyaRakshak's vector-search scaffold (`packages/kadi/kadi/vector_store.py`) is
 unwired — no embeddings are computed and no similarity search runs anywhere in this
 codebase (see `docs/architecture/components.md`, marked "planned — not implemented").
 The "index" here is a small, explicit Python structure covering the same PMJAY/MJPJAY
-criteria `schemesetu.agent.check_eligibility` already evaluates — a lookup table, not a
+criteria `schemesetu.agent.check_eligibility` already applies — a lookup table, not a
 learned representation — so this agent can be explainable without pretending a
 retrieval system exists where none does.
 """
 
-from typing import Any, Callable, List
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from schemesetu.agent import (
-    EligibilityRequest,
-    EVALUATED_CRITERIA,
-    UNEVALUATED_CRITERIA,
-    SchemeResult,
-    check_eligibility,
-)
+from schemesetu.agent import EligibilityRequest, SchemeResult, check_eligibility
 from schemesetu.thresholds import MJPJAY, PMJAY, format_inr
 
 
@@ -32,56 +26,79 @@ class ReasoningStep(BaseModel):
     scheme: str
     threshold_or_rule: str
     applicant_value: str
-    satisfied: bool
+    determinative: bool = Field(..., description="Whether this criterion can decide the verdict.")
+    satisfied: Optional[bool] = Field(
+        ...,
+        description="None when the criterion is non-determinative or its input is not collected.",
+    )
 
 
 class EligibilityReasoning(BaseModel):
     scheme_results: List[SchemeResult]
     reasoning_trace: List[ReasoningStep]
-    criteria_considered: List[str]
+    criteria_considered: List[str] = Field(
+        ..., description="Determinative criteria this trace actually checked."
+    )
+    non_determinative_factors: List[str] = Field(
+        ..., description="Inputs shown in the trace that cannot change a verdict."
+    )
     criteria_not_considered: List[str] = Field(
-        default_factory=lambda: list(UNEVALUATED_CRITERIA),
+        ...,
         description="Same disclosure as SchemeResult — factors this reasoning agent "
         "does not check, so the trace above is not mistaken for exhaustive.",
     )
-
-
-def _income_rule(threshold: float) -> Callable[[EligibilityRequest], bool]:
-    return lambda req: req.income <= threshold
 
 
 def _is_maharashtra(req: EligibilityRequest) -> bool:
     return MJPJAY.applies_to_state(req.location_state)
 
 
+def _income(req: EligibilityRequest) -> str:
+    return f"Rs {format_inr(req.income)}"
+
+
+_NO_INCOME_CEILING = "No income ceiling in the cited official criteria; recorded, not used to decide"
+
 # The structured criteria index this agent reasons over — the same rules
 # schemesetu.agent.check_eligibility applies, made explicit and inspectable here
-# instead of staying buried inside branching if/else logic.
-_PMJAY = PMJAY.scheme_name
-_MJPJAY = MJPJAY.scheme_name
-
+# instead of staying buried inside branching logic. `check` returns None when the
+# criterion cannot be evaluated from the intake.
 _CRITERIA_INDEX: List[dict] = [
     {
-        "scheme": _PMJAY,
-        "criterion": "annual_income",
-        "rule": f"Annual family income <= Rs {format_inr(PMJAY.max_annual_income_inr)}",
-        "check": _income_rule(PMJAY.max_annual_income_inr),
+        "scheme": PMJAY.scheme_name,
+        "criterion": "beneficiary_identification",
+        "rule": PMJAY.official_basis,
+        "determinative": True,
+        "value": lambda req: "not collected",
+        "check": lambda req: None,
         "applies": lambda req: True,
     },
     {
-        "scheme": _MJPJAY,
+        "scheme": PMJAY.scheme_name,
+        "criterion": "annual_income",
+        "rule": _NO_INCOME_CEILING,
+        "determinative": False,
+        "value": _income,
+        "check": lambda req: None,
+        "applies": lambda req: True,
+    },
+    {
+        "scheme": MJPJAY.scheme_name,
         "criterion": "state_of_residence",
-        "rule": "Resident of Maharashtra",
+        "rule": f"Resident of Maharashtra. {MJPJAY.official_basis}",
+        "determinative": True,
+        "value": lambda req: req.location_state,
         "check": _is_maharashtra,
         "applies": lambda req: True,
     },
     {
-        "scheme": _MJPJAY,
+        "scheme": MJPJAY.scheme_name,
         "criterion": "annual_income",
-        "rule": f"Annual family income <= Rs {format_inr(MJPJAY.max_annual_income_inr)}",
-        "check": _income_rule(MJPJAY.max_annual_income_inr),
-        # MJPJAY's income criterion is only meaningful for Maharashtra residents —
-        # schemesetu.agent never evaluates it otherwise.
+        "rule": _NO_INCOME_CEILING,
+        "determinative": False,
+        "value": _income,
+        "check": lambda req: None,
+        # schemesetu.agent only assesses MJPJAY for Maharashtra residents.
         "applies": _is_maharashtra,
     },
 ]
@@ -90,31 +107,30 @@ _CRITERIA_INDEX: List[dict] = [
 def reason_about_eligibility(request: EligibilityRequest) -> EligibilityReasoning:
     """Runs the same eligibility rules as `check_eligibility`, and additionally
     returns a step-by-step trace of which criteria were checked, against what
-    threshold, and whether the applicant satisfied each one."""
+    rule, and whether the applicant satisfied each one."""
     scheme_results = check_eligibility(request)
 
-    trace: List[ReasoningStep] = []
-    for entry in _CRITERIA_INDEX:
-        if not entry["applies"](request):
-            continue
-        applicant_value = (
-            f"Rs {request.income:,.0f}"
-            if entry["criterion"] == "annual_income"
-            else request.location_state
+    trace: List[ReasoningStep] = [
+        ReasoningStep(
+            criterion=entry["criterion"],
+            scheme=entry["scheme"],
+            threshold_or_rule=entry["rule"],
+            applicant_value=entry["value"](request),
+            determinative=entry["determinative"],
+            satisfied=entry["check"](request),
         )
-        trace.append(
-            ReasoningStep(
-                criterion=entry["criterion"],
-                scheme=entry["scheme"],
-                threshold_or_rule=entry["rule"],
-                applicant_value=applicant_value,
-                satisfied=bool(entry["check"](request)),
-            )
-        )
+        for entry in _CRITERIA_INDEX
+        if entry["applies"](request)
+    ]
 
     return EligibilityReasoning(
         scheme_results=scheme_results,
         reasoning_trace=trace,
-        criteria_considered=list(EVALUATED_CRITERIA),
-        criteria_not_considered=list(UNEVALUATED_CRITERIA),
+        criteria_considered=list(
+            dict.fromkeys(s.criterion for s in trace if s.determinative and s.satisfied is not None)
+        ),
+        non_determinative_factors=list(dict.fromkeys(s.criterion for s in trace if not s.determinative)),
+        criteria_not_considered=list(
+            dict.fromkeys(c for r in scheme_results for c in r.criteria_not_evaluated)
+        ),
     )

@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dedicated GitHub issue templates (Bug Report, Feature Request) and PR Template.
 - Open-source governance files (`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.gitattributes`).
 
+### Changed
+- **SchemeSetu no longer decides eligibility from income thresholds.** The PMJAY ₹2,50,000 and MJPJAY ₹1,50,000 limits were unverified heuristics; the official sources now cited in `packages/schemesetu/schemesetu/thresholds.py` (PIB releases 2116209 and 2053883; Government of Maharashtra restatements of the GR dated 28 July 2023) define no income ceiling. Income is reported as non-determinative, PMJAY is reported `ambiguous` with verification steps, MJPJAY follows state of residence, and every result cites its sources.
+- **API:** `SchemeResult.confidence_score` removed; `non_determinative_factors`, `criteria_provenance` and `sources` added. The income-profile trigger now returns `FIRE` | `NO_CHANGE` | `INSUFFICIENT_EVIDENCE` with `schemes_applicable`, `newly_applicable` and `income_role` (replacing `NO_THRESHOLD_CROSSED`, `*_within_threshold` and `threshold_provenance`). Web and mobile clients render `ambiguous` as "Verification needed" instead of "Not Eligible".
+
 ### Removed
 - `packages/schemesetu/schemesetu/embeddings.py` (`OfflineEmbedder`): an unwired scaffold that nothing imported. Its fallback built vectors from Python's per-process-salted `hash()`, so they were not reproducible. Domain modules may not ship their own embedding layer; cross-lingual embeddings belong to Kadi's optional IndicSBERT signal (`kadi/resolution/semantic.py`, ADR-006).
 

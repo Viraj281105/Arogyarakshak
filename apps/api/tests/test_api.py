@@ -83,10 +83,15 @@ def test_schemesetu_eligibility():
     by_scheme = {s["scheme_name"].split(" ")[0]: s for s in data}
     assert set(by_scheme) == {"PMJAY", "MJPJAY"}, "Maharashtra must yield both schemes"
 
-    # 1.2L is under the 2.5L PMJAY threshold but over the 1.5L MJPJAY threshold.
-    assert by_scheme["PMJAY"]["estimated_eligibility"] == "eligible"
-    assert by_scheme["PMJAY"]["claim_guide_steps"], "eligible schemes must carry next steps"
+    # No official income ceiling exists for either scheme. PM-JAY rests on SECC-2011 listing,
+    # ASHA/AWW/AWH status or age 70+ (none collected); MJPJAY covers all Maharashtra families.
+    assert by_scheme["PMJAY"]["estimated_eligibility"] == "ambiguous"
+    assert by_scheme["PMJAY"]["claim_guide_steps"], "ambiguous schemes must say how to verify"
     assert by_scheme["MJPJAY"]["estimated_eligibility"] == "eligible"
+    for scheme in data:
+        assert "confidence_score" not in scheme, "no heuristic score may accompany a cited rule"
+        assert scheme["sources"] and all(s["url"].startswith("https://") for s in scheme["sources"])
+        assert scheme["criteria_provenance"] in {"OFFICIAL_SOURCE_CITED", "OFFICIAL_RESTATEMENT_CITED"}
 
 
 # ---------------------------------------------------------------------------
@@ -1460,7 +1465,8 @@ def test_schemesetu_discloses_what_it_did_not_evaluate():
     assert res.status_code == 200
     for scheme in res.json():
         assert scheme["is_provisional"] is True
-        assert "annual_income" in scheme["criteria_evaluated"]
+        assert "annual_income" in scheme["non_determinative_factors"]
+        assert "annual_income" not in scheme["criteria_evaluated"]
         assert "social_category" in scheme["criteria_not_evaluated"]
         assert "medical_need" in scheme["criteria_not_evaluated"]
 
@@ -1744,8 +1750,8 @@ def test_eligibility_reasoning_returns_verdict_and_trace():
     assert res.status_code == 200
     data = res.json()
     assert len(data["scheme_results"]) == 2
-    # Maharashtra: PMJAY income + MJPJAY state_of_residence + MJPJAY income = 3 steps.
-    assert len(data["reasoning_trace"]) == 3
+    # Maharashtra: PMJAY identification + PMJAY income + MJPJAY state + MJPJAY income = 4 steps.
+    assert len(data["reasoning_trace"]) == 4
     assert data["criteria_considered"]
     assert data["criteria_not_considered"]
 
@@ -1756,9 +1762,9 @@ def test_eligibility_reasoning_trace_matches_scheme_results():
     data = res.json()
 
     pmjay_result = next(r for r in data["scheme_results"] if "PMJAY" in r["scheme_name"])
-    pmjay_step = next(s for s in data["reasoning_trace"] if s["scheme"].startswith("PMJAY"))
-    assert pmjay_result["estimated_eligibility"] == "ineligible"
-    assert pmjay_step["satisfied"] is False
+    pmjay_steps = [s for s in data["reasoning_trace"] if s["scheme"].startswith("PMJAY")]
+    assert pmjay_result["estimated_eligibility"] == "ambiguous"
+    assert pmjay_steps and all(s["satisfied"] is None for s in pmjay_steps)
 
 
 def test_eligibility_trend_projects_future_eligibility():

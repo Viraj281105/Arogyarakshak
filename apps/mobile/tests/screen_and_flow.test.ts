@@ -230,6 +230,9 @@ describe('Mobile BillNyay Audit Result Contract', () => {
       assert.ok(schemesetu.criteriaEvaluated?.trim().length > 0, `criteriaEvaluated missing in ${lang}`);
       assert.ok(schemesetu.criteriaNotEvaluated?.trim().length > 0, `criteriaNotEvaluated missing in ${lang}`);
       assert.ok(schemesetu.provisionalNotice?.trim().length > 0, `provisionalNotice missing in ${lang}`);
+      for (const key of ['provisionallyEligible', 'needsVerification', 'howToVerify', 'nonDeterminative', 'officialSources'] as const) {
+        assert.ok(schemesetu[key]?.trim().length > 0, `${key} missing in ${lang}`);
+      }
 
       const dawacheck = translations[lang].modules.dawacheck;
       assert.ok(dawacheck.dataSourceNotice?.trim().length > 0, `dataSourceNotice missing in ${lang}`);

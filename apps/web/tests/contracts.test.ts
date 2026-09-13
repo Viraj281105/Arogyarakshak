@@ -177,6 +177,10 @@ describe('Web Forms Must Not Pre-Fill Fabricated Data', () => {
     assert.ok(/scheme\.is_provisional/.test(src), 'is_provisional must gate a rendered notice');
     assert.ok(/scheme\.criteria_not_evaluated/.test(src), 'criteria_not_evaluated must be rendered');
     assert.ok(/scheme\.criteria_evaluated/.test(src), 'criteria_evaluated must be rendered');
+    assert.ok(/scheme\.non_determinative_factors/.test(src), 'non_determinative_factors must be rendered');
+    assert.ok(/scheme\.sources\.map/.test(src), 'official sources must be rendered');
+    assert.ok(!src.includes('confidence_score'), 'no heuristic score may be shown beside a cited rule');
+    assert.ok(src.includes('t.verificationNeeded'), 'an ambiguous verdict must not render as "Not eligible"');
   });
 
   test('DawaCheck renders the dataset provenance disclosure, not just types it', () => {

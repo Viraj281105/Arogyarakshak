@@ -425,19 +425,21 @@ def test_income_profile_requires_consent_and_stores_nothing_without_it():
     assert _with_session(lambda s: s.get(SchemeSetuCaseProfile, case_id)) is None
 
 
-def test_income_within_threshold_triggers_background_eligibility():
+def test_first_income_profile_triggers_background_eligibility():
     case_id = _case()
     _upload(case_id, MERGE_BILL)
 
     saved = client.put(_profile_url(case_id), json={"annual_income_inr": 120000, "state": "Maharashtra"}).json()
     assert saved["trigger"]["status"] == "FIRE"
-    assert [m["short_name"] for m in saved["trigger"]["newly_within_threshold"]] == ["PMJAY", "MJPJAY"]
-    assert saved["trigger"]["threshold_provenance"] == "UNVERIFIED_PROJECT_HEURISTIC"
+    assert [m["short_name"] for m in saved["trigger"]["newly_applicable"]] == ["PMJAY", "MJPJAY"]
+    assert saved["trigger"]["income_role"] == "NON_DETERMINATIVE"
     assert saved["background_eligibility"] == "queued"
 
     insight = {i["module_check"]: i for i in _insights(case_id).json()["insights"]}["schemesetu_eligibility"]
     assert insight["status"] == "COMPLETED"
     assert insight["trigger"] == "income_profile_updated"
+    assert insight["summary"]["non_determinative_factors"] == ["annual_income"]
+    assert "income_threshold_provenance" not in insight["summary"]
     direct = client.post(
         f"/api/v1/schemesetu/cases/{case_id}/eligibility", json={"income": 120000, "location_state": "Maharashtra"}
     ).json()
@@ -445,10 +447,11 @@ def test_income_within_threshold_triggers_background_eligibility():
         (r["scheme_name"], r["estimated_eligibility"]) for r in direct
     ]
 
-    again = client.put(_profile_url(case_id), json={"annual_income_inr": 110000, "state": "Maharashtra"}).json()
-    assert again["trigger"]["status"] == "NO_THRESHOLD_CROSSED"
+    # Income is non-determinative: even a large change re-runs nothing.
+    again = client.put(_profile_url(case_id), json={"annual_income_inr": 900000, "state": "Maharashtra"}).json()
+    assert again["trigger"]["status"] == "NO_CHANGE"
     assert again["background_eligibility"] == "not_triggered"
-    assert client.get(_profile_url(case_id)).json()["annual_income_inr"] == 110000
+    assert client.get(_profile_url(case_id)).json()["annual_income_inr"] == 900000
 
     assert client.delete(_profile_url(case_id)).status_code == 204
     assert client.get(_profile_url(case_id)).status_code == 404

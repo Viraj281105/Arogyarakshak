@@ -123,9 +123,13 @@ export interface MobileTranslations {
       medicalNeed: string;
       checkBtn: string;
       checking: string;
-      match: string;
+      provisionallyEligible: string;
+      needsVerification: string;
       notEligible: string;
       howToClaim: string;
+      howToVerify: string;
+      nonDeterminative: string;
+      officialSources: string;
       noMatches: string;
       criteriaEvaluated: string;
       criteriaNotEvaluated: string;
@@ -289,13 +293,17 @@ export const translations: Record<Language, MobileTranslations> = {
         medicalNeed: 'Required Medical Procedure / Specialty',
         checkBtn: '🔍 Check Government Health Schemes',
         checking: 'Assessing Scheme Guidelines...',
-        match: 'Match',
+        provisionallyEligible: 'Provisionally eligible',
+        needsVerification: 'Verification needed',
         notEligible: 'Not Eligible',
         howToClaim: 'How to Claim at Empaneled Hospital:',
+        howToVerify: 'How to verify:',
+        nonDeterminative: 'Recorded but not used to decide (no official income ceiling)',
+        officialSources: 'Official sources',
         noMatches: 'No government health scheme matches found for the given criteria.',
         criteriaEvaluated: 'Evaluated for this result',
         criteriaNotEvaluated: 'NOT evaluated — verify with official records',
-        provisionalNotice: 'Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.',
+        provisionalNotice: 'Provisional estimate only. The criteria listed as not evaluated (such as SECC-2011 listing, age and documents) are not checked by this tool, so this is not a final eligibility decision.',
       },
       dawacheck: {
         title: 'DawaCheck',
@@ -453,13 +461,17 @@ export const translations: Record<Language, MobileTranslations> = {
         medicalNeed: 'आवश्यक चिकित्सा उपचार / विशेषज्ञता',
         checkBtn: '🔍 स्वास्थ्य योजना पात्रता जांचें',
         checking: 'योजना नियमों की समीक्षा हो रही है...',
-        match: 'अनुकूल',
+        provisionallyEligible: 'अस्थायी रूप से पात्र',
+        needsVerification: 'पुष्टि आवश्यक',
         notEligible: 'पात्र नहीं',
         howToClaim: 'अस्पताल में लाभ कैसे प्राप्त करें:',
+        howToVerify: 'पात्रता की पुष्टि कैसे करें:',
+        nonDeterminative: 'दर्ज किया गया, पर निर्णय में उपयोग नहीं (कोई आधिकारिक आय-सीमा नहीं)',
+        officialSources: 'आधिकारिक स्रोत',
         noMatches: 'दी गई जानकारी के आधार पर कोई योजना मेल नहीं खाई।',
         criteriaEvaluated: 'इस परिणाम हेतु जाँचे गए आधार',
         criteriaNotEvaluated: 'जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें',
-        provisionalNotice: 'यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।',
+        provisionalNotice: 'यह केवल एक अस्थायी अनुमान है। “जाँचे नहीं गए” के रूप में सूचीबद्ध मानदंड (जैसे SECC-2011 सूची, आयु और दस्तावेज़) इस टूल द्वारा नहीं जाँचे जाते, इसलिए यह अंतिम पात्रता निर्णय नहीं है।',
       },
       dawacheck: {
         title: 'दवाचेक',
@@ -617,13 +629,17 @@ export const translations: Record<Language, MobileTranslations> = {
         medicalNeed: 'आवश्यक वैद्यकीय उपचार / शस्त्रक्रिया',
         checkBtn: '🔍 शासकीय योजना पात्रता तपासा',
         checking: 'योजनेच्या अटी तपासल्या जात आहेत...',
-        match: 'पात्र',
+        provisionallyEligible: 'तात्पुरते पात्र',
+        needsVerification: 'पडताळणी आवश्यक',
         notEligible: 'अपात्र',
         howToClaim: 'रुग्णालयात लाभ कसा मिळवावा:',
+        howToVerify: 'पात्रतेची पडताळणी कशी करावी:',
+        nonDeterminative: 'नोंदवले, पण निर्णयासाठी वापरले नाही (अधिकृत उत्पन्न मर्यादा नाही)',
+        officialSources: 'अधिकृत स्रोत',
         noMatches: 'दिलेल्या माहितीनुसार कोणतीही शासकीय योजना आढळली नाही.',
         criteriaEvaluated: 'या निकालासाठी तपासलेले निकष',
         criteriaNotEvaluated: 'तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा',
-        provisionalNotice: 'हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.',
+        provisionalNotice: 'हा फक्त प्राथमिक अंदाज आहे. “तपासले गेलेले नाहीत” म्हणून दिलेले निकष (उदा. SECC-2011 यादी, वय आणि कागदपत्रे) या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.',
       },
       dawacheck: {
         title: 'दवाचेक',

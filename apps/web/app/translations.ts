@@ -110,6 +110,13 @@ export interface Translations {
       criteriaEvaluated: string;
       criteriaNotEvaluated: string;
       provisionalNotice: string;
+      provisionallyEligible: string;
+      verificationNeeded: string;
+      notEligible: string;
+      howToClaim: string;
+      howToVerify: string;
+      nonDeterminative: string;
+      officialSources: string;
       saveToCaseLabel: string;
       savedTriggered: string;
       savedNotReady: string;
@@ -276,11 +283,18 @@ export const translations: Record<Language, Translations> = {
         maxCoverage: "Maximum Financial Protection",
         criteriaEvaluated: "Evaluated for this result",
         criteriaNotEvaluated: "NOT evaluated — verify with official records",
-        provisionalNotice: "Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.",
+        provisionalNotice: "Provisional estimate only. The criteria listed as not evaluated (such as SECC-2011 listing, age and documents) are not checked by this tool, so this is not a final eligibility decision.",
+        provisionallyEligible: "Provisionally eligible",
+        verificationNeeded: "Verification needed",
+        notEligible: "Not eligible",
+        howToClaim: "How to Claim:",
+        howToVerify: "How to verify:",
+        nonDeterminative: "Recorded but not used to decide (no official income ceiling)",
+        officialSources: "Official sources",
         saveToCaseLabel: "Save my annual income and state to this case so eligibility is re-checked when new documents arrive (optional)",
-        savedTriggered: "Saved. Income is within a scheme income threshold — an eligibility check is running for this case.",
+        savedTriggered: "Saved. A scheme now applies to this case — an eligibility check is running.",
         savedNotReady: "Saved. Upload a bill or discharge summary with a diagnosis or procedure to run the scheme check.",
-        savedNoChange: "Saved. No new scheme income threshold applies, so no new check was needed.",
+        savedNoChange: "Saved. The same schemes apply as before, and a change in income alone does not change eligibility, so no new check was needed.",
       },
       dawacheck: {
         title: "DawaCheck — NPPA Ceiling Price Benchmark",
@@ -427,11 +441,18 @@ export const translations: Record<Language, Translations> = {
         maxCoverage: "अधिकतम वित्तीय सुरक्षा",
         criteriaEvaluated: "इस परिणाम हेतु जाँचे गए आधार",
         criteriaNotEvaluated: "जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें",
-        provisionalNotice: "यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
+        provisionalNotice: "यह केवल एक अस्थायी अनुमान है। “जाँचे नहीं गए” के रूप में सूचीबद्ध मानदंड (जैसे SECC-2011 सूची, आयु और दस्तावेज़) इस टूल द्वारा नहीं जाँचे जाते, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
+        provisionallyEligible: "अस्थायी रूप से पात्र",
+        verificationNeeded: "पुष्टि आवश्यक",
+        notEligible: "पात्र नहीं",
+        howToClaim: "लाभ कैसे प्राप्त करें:",
+        howToVerify: "पात्रता की पुष्टि कैसे करें:",
+        nonDeterminative: "दर्ज किया गया, पर निर्णय में उपयोग नहीं (कोई आधिकारिक आय-सीमा नहीं)",
+        officialSources: "आधिकारिक स्रोत",
         saveToCaseLabel: "मेरी वार्षिक आय और राज्य इस केस में सहेजें ताकि नए दस्तावेज़ आने पर पात्रता दोबारा जाँची जा सके (वैकल्पिक)",
-        savedTriggered: "सहेजा गया। आय किसी योजना की आय-सीमा के भीतर है — इस केस के लिए पात्रता जाँच चल रही है।",
+        savedTriggered: "सहेजा गया। इस केस पर अब एक योजना लागू होती है — पात्रता जाँच चल रही है।",
         savedNotReady: "सहेजा गया। योजना जाँच के लिए निदान या प्रक्रिया वाला बिल या डिस्चार्ज सारांश अपलोड करें।",
-        savedNoChange: "सहेजा गया। कोई नई योजना आय-सीमा लागू नहीं होती, इसलिए नई जाँच की ज़रूरत नहीं थी।",
+        savedNoChange: "सहेजा गया। पहले जैसी ही योजनाएं लागू होती हैं, और केवल आय बदलने से पात्रता नहीं बदलती, इसलिए नई जाँच की ज़रूरत नहीं थी।",
       },
       dawacheck: {
         title: "दवाचेक — NPPA अधिकतम मूल्य जांच",
@@ -578,11 +599,18 @@ export const translations: Record<Language, Translations> = {
         maxCoverage: "कमाल आर्थिक संरक्षण",
         criteriaEvaluated: "या निकालासाठी तपासलेले निकष",
         criteriaNotEvaluated: "तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा",
-        provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
+        provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. “तपासले गेलेले नाहीत” म्हणून दिलेले निकष (उदा. SECC-2011 यादी, वय आणि कागदपत्रे) या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
+        provisionallyEligible: "तात्पुरते पात्र",
+        verificationNeeded: "पडताळणी आवश्यक",
+        notEligible: "अपात्र",
+        howToClaim: "लाभ कसा मिळवावा:",
+        howToVerify: "पात्रतेची पडताळणी कशी करावी:",
+        nonDeterminative: "नोंदवले, पण निर्णयासाठी वापरले नाही (अधिकृत उत्पन्न मर्यादा नाही)",
+        officialSources: "अधिकृत स्रोत",
         saveToCaseLabel: "नवीन कागदपत्रे आल्यावर पात्रता पुन्हा तपासता यावी म्हणून माझे वार्षिक उत्पन्न आणि राज्य या केसमध्ये जतन करा (ऐच्छिक)",
-        savedTriggered: "जतन केले. उत्पन्न एखाद्या योजनेच्या उत्पन्न मर्यादेत आहे — या केससाठी पात्रता तपासणी सुरू आहे.",
+        savedTriggered: "जतन केले. या केसला आता एक योजना लागू होते — पात्रता तपासणी सुरू आहे.",
         savedNotReady: "जतन केले. योजना तपासणीसाठी निदान किंवा प्रक्रिया असलेले बिल किंवा डिस्चार्ज सारांश अपलोड करा.",
-        savedNoChange: "जतन केले. कोणतीही नवीन योजना उत्पन्न मर्यादा लागू होत नाही, त्यामुळे नवीन तपासणीची गरज नव्हती.",
+        savedNoChange: "जतन केले. पूर्वीप्रमाणेच योजना लागू होतात, आणि केवळ उत्पन्न बदलल्याने पात्रता बदलत नाही, त्यामुळे नवीन तपासणीची गरज नव्हती.",
       },
       dawacheck: {
         title: "दवाचेक — NPPA औषध कमाल दर तपासणी",

@@ -176,11 +176,12 @@ async def save_income_profile(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Saves the case's income profile and, when income newly falls within a scheme's
-    income threshold, queues a background eligibility run (#92).
+    """Saves the case's income profile and, when a scheme newly applies (first profile,
+    or a move into a state with its own scheme), queues a background eligibility run (#92).
 
     Consent-bounded: without the case's stored consent_opt_in nothing is saved (403).
-    Only annual income and state are stored — the two facts the rules evaluate.
+    Only annual income and state are stored. State decides which schemes apply; income is
+    recorded but non-determinative, so an income change alone never queues a run.
     """
     await require_case_consent(case_id, db)
 
@@ -286,8 +287,9 @@ class TrendEligibilityRequest(BaseModel):
 
 @router.post("/eligibility/trend", response_model=EligibilityTrendResult, status_code=status.HTTP_200_OK)
 async def eligibility_trend(intake: TrendEligibilityRequest):
-    """Projects future PMJAY/MJPJAY eligibility from caller-supplied historical income
-    data points via linear trend (#70). ArogyaRakshak has no real historical
+    """Projects income from caller-supplied historical data points via linear trend and
+    runs the eligibility rules on it (#70). Income is non-determinative for both schemes,
+    so the projection cannot change a verdict. ArogyaRakshak has no real historical
     demographic dataset of its own — see schemesetu.trend_estimator — so this only
     projects a trend from data the caller actually provides."""
     try:

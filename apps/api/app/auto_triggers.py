@@ -117,11 +117,12 @@ async def _run_schemesetu_eligibility(session: AsyncSession, case: KadiCase) -> 
                 "scheme_name": r.scheme_name,
                 "estimated_eligibility": r.estimated_eligibility,
                 "is_provisional": r.is_provisional,
+                "criteria_provenance": r.criteria_provenance,
+                "criteria_not_evaluated": r.criteria_not_evaluated,
             }
             for r in results
         ],
-        "criteria_not_evaluated": results[0].criteria_not_evaluated if results else [],
-        "income_threshold_provenance": "UNVERIFIED_PROJECT_HEURISTIC",
+        "non_determinative_factors": results[0].non_determinative_factors if results else [],
     }
 
 

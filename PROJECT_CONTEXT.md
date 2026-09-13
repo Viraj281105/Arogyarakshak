@@ -50,7 +50,7 @@ flowchart TD
 1. **BillNyay (`packages/billnyay`)**: Audits hospital bills line-by-line against Central Government Health Scheme (CGHS) benchmark rates; drafts dispute representation letters to hospital billing management.
 2. **DaaviSetu (`packages/daavisetu`)**: Pre-claim automation pre-populating cashless pre-authorization forms and reimbursement claim packages for major private insurers.
 3. **BimaNyay (`packages/bimanyay`)**: Post-denial dispute engine auditing claim repudiations against the **IRDAI Master Circular (May 29, 2024)**; auto-generates 3-tier appeals (GRO, Bima Bharosa, Ombudsman Form VI) and tracks statutory SLAs.
-4. **SchemeSetu (`packages/schemesetu`)**: Matches low-income demographics and clinical diagnoses against **PMJAY** (national) and **MJPJAY** (Maharashtra) eligibility rules; locates empanelled network hospitals.
+4. **SchemeSetu (`packages/schemesetu`)**: Reports provisional **PMJAY** (national) and **MJPJAY** (Maharashtra) eligibility from official criteria cited in `schemesetu/thresholds.py`. Income is non-determinative (neither scheme defines an income ceiling); PMJAY is always `ambiguous` because its criteria (SECC-2011 listing, ASHA/AWW/AWH family, age 70+) are not collected. Empanelled-hospital location is *(planned — not implemented)*.
 5. **DawaCheck (`packages/dawacheck`)**: Verifies medicine MRP against NPPA Schedule-I price control caps; recommends low-cost bioequivalent generic substitutes at PMBJP Jan Aushadhi Kendras.
 6. **Kadi (`packages/kadi`)**: Central shared intelligence layer providing unified document parsing, entity resolution (edit distance, rule-based cross-script phonetics, optional **IndicSBERT** semantic matching; **IndicXlit** is not used — see ADR-006), ABDM FHIR bundle import, a case graph projection and consent-bounded module auto-triggering.
 
@@ -352,6 +352,13 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-09-13
+- **SchemeSetu income criteria replaced with cited official criteria** (`packages/schemesetu/schemesetu/thresholds.py`):
+  - The PMJAY ₹2,50,000 and MJPJAY ₹1,50,000 limits (`UNVERIFIED_PROJECT_HEURISTIC`) were removed. Official sources define no single income ceiling: AB PM-JAY uses SECC-2011 deprivation/occupational criteria, state-verified databases, ASHA/AWW/AWH families and all persons aged 70+ irrespective of income (PIB releases 2116209, 28 Mar 2025, and 2053883, 11 Sep 2024); MJPJAY covers all families in Maharashtra under the GR dated 28 July 2023, integrated scheme from 1 July 2024 (Government of Maharashtra district portals; the GR text and jeevandayee.gov.in could not be retrieved).
+  - Income is now non-determinative everywhere (`agent.py`, `reasoning_agent.py`, `triggers.py` #92, `trend_estimator.py`, `transition_adviser.py`, `apps/api/app/auto_triggers.py`). PMJAY is always `ambiguous` with verification steps; MJPJAY follows state of residence; results carry `criteria_provenance` and `sources`; `confidence_score` removed.
+  - The #92 trigger fires when a scheme newly applies (first profile or move into Maharashtra) and returns `NO_CHANGE` otherwise; income changes alone never fire.
+  - Web `SchemeSetuView` and mobile `SchemeSetuScreen` render `ambiguous` as "Verification needed" (not "Not Eligible") and show sources. New hi/mr strings need native-speaker QA.
 
 ### 2026-09-09
 - **Documentation Directory Restructuring & Modernization**:

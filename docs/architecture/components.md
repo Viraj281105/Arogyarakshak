@@ -79,11 +79,12 @@ BimaNyay governs the **post-denial dispute and grievance escalation lifecycle**.
 SchemeSetu connects underprivileged citizens with public healthcare coverage.
 
 ### Core Responsibilities
-- **Eligibility Reasoning Agent**: Evaluates household income, ration card category (Yellow/Orange/White), and medical needs against:
-  - **PMJAY** (Ayushman Bharat, national safety net up to ₹5 Lakh/family/year).
-  - **MJPJAY** (Mahatma Jyotirao Phule Jan Arogya Yojana, Maharashtra state scheme).
+- **Eligibility Rules Engine** (`schemesetu/agent.py`, criteria in `schemesetu/thresholds.py`): deterministic rules backed by cited official sources, not RAG. Every result is provisional and carries its `sources`.
+  - **PMJAY** (Ayushman Bharat, up to ₹5 Lakh/family/year): eligibility rests on SECC-2011 deprivation/occupational listing (or a state-verified database), ASHA/AWW/AWH families, or age 70+ irrespective of income. None of these is collected, so PMJAY is always reported `ambiguous` with verification steps.
+  - **MJPJAY** (Mahatma Jyotirao Phule Jan Arogya Yojana, Maharashtra): all families in the state (GR dated 28 July 2023; integrated scheme from 1 July 2024), so stated residence decides. Documentary requirements are not verified.
+  - **Income is non-determinative**: neither scheme defines an annual income ceiling in the cited sources, so income is recorded and reported but never decides a verdict. Ration card and social category are not evaluated.
 - **No embedding layer**: SchemeSetu computes no embeddings and runs no retrieval — eligibility is deterministic rule matching (`agent.py`, `thresholds.py`). The former `schemesetu/embeddings.py` scaffold (unwired, no ONNX runtime) was removed; cross-lingual embeddings belong only to Kadi's optional IndicSBERT signal (`kadi/resolution/semantic.py`, ADR-006).
-- **Empanelled Hospital Directory**: Identifies nearby public and private hospitals empanelled under PMJAY and MJPJAY.
+- **Empanelled Hospital Directory** *(planned — not implemented)*: no hospital dataset or locator exists in `packages/schemesetu`.
 
 ---
 

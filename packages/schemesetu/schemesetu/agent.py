@@ -1,14 +1,16 @@
 """
 SchemeSetu — Scheme Eligibility Agent.
 
-Determines estimated eligibility for government healthcare schemes (PMJAY, MJPJAY).
+Reports provisional eligibility for government healthcare schemes (PMJAY, MJPJAY) against the
+cited official criteria in `schemesetu.thresholds`. Annual income is recorded and echoed back
+but never decides a verdict: neither scheme defines an income ceiling in those sources.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import List
 from pydantic import BaseModel, Field
 
-from schemesetu.thresholds import MJPJAY, PMJAY
+from schemesetu.thresholds import MJPJAY, PMJAY, Citation, format_inr
 
 logger = logging.getLogger("SchemeSetu.Agent")
 logger.setLevel(logging.INFO)
@@ -21,37 +23,30 @@ class EligibilityRequest(BaseModel):
     medical_need: str = Field(..., description="Details of medical procedure or condition")
 
 
-# Criteria this rule engine actually evaluates today. `category` and `medical_need` are
-# accepted by the API but do not influence the result, so they are reported as
-# NOT evaluated rather than being silently implied in the verdict.
-EVALUATED_CRITERIA = ["annual_income", "state_of_residence"]
-UNEVALUATED_CRITERIA = [
-    "social_category",
-    "medical_need",
-    "SECC-2011 deprivation status",
-    "ration_card_type",
-]
+# Inputs the API accepts that influence no verdict. `category` and `medical_need` are not
+# criteria of either scheme in the cited sources; income is recorded but has no official ceiling.
+UNUSED_INPUTS = ["social_category", "medical_need"]
+NON_DETERMINATIVE_FACTORS = ["annual_income"]
 
 
 class SchemeResult(BaseModel):
     scheme_name: str
     estimated_eligibility: str = Field(..., description='"eligible" | "ineligible" | "ambiguous"')
-    confidence_score: float = Field(
-        ...,
-        description=(
-            "Heuristic prior for this rule branch, not a calibrated model probability. "
-            "Do not present it as a statistical confidence."
-        ),
-    )
     reason: str
-    claim_guide_steps: List[str]
+    claim_guide_steps: List[str] = Field(
+        ..., description="Next steps: how to claim when eligible, how to verify when ambiguous."
+    )
     criteria_evaluated: List[str] = Field(
-        default_factory=lambda: list(EVALUATED_CRITERIA),
-        description="Inputs that actually influenced this determination.",
+        ..., description="Criteria that actually decided this determination."
+    )
+    non_determinative_factors: List[str] = Field(
+        default_factory=lambda: list(NON_DETERMINATIVE_FACTORS),
+        description="Inputs recorded and reported but never used to decide: the cited official "
+        "criteria define no annual income ceiling for either scheme.",
     )
     criteria_not_evaluated: List[str] = Field(
-        default_factory=lambda: list(UNEVALUATED_CRITERIA),
-        description="Eligibility factors this engine does not yet check. The result is "
+        ...,
+        description="Eligibility factors this engine does not check. The result is "
         "provisional until these are verified against official records.",
     )
     is_provisional: bool = Field(
@@ -59,66 +54,56 @@ class SchemeResult(BaseModel):
         description="Always true while unevaluated criteria remain. Callers must not "
         "present the result as a final eligibility decision.",
     )
+    criteria_provenance: str = Field(..., description="Provenance of the criteria behind this result.")
+    sources: List[Citation] = Field(..., description="Official sources for the criteria applied.")
+
+
+def _income_note(income: float) -> str:
+    return (
+        f"Stated annual income (Rs {format_inr(income)}) is recorded but does not decide "
+        "eligibility: the cited official criteria define no income ceiling."
+    )
 
 
 def check_eligibility(request: EligibilityRequest) -> List[SchemeResult]:
     """Check eligibility across PMJAY and MJPJAY based on intake data."""
-    logger.info(f"[SchemeSetu] Assessing eligibility for income: {request.income}, state: {request.location_state}")
-    
-    results = []
-    
-    # Simple rule-based check for PMJAY (national)
-    # PMJAY target is low income / deprived families
-    if PMJAY.income_within(request.income):
-        results.append(
-            SchemeResult(
-                scheme_name="PMJAY (Ayushman Bharat)",
-                estimated_eligibility="eligible",
-                confidence_score=0.90,
-                reason="Annual income is below the ₹2.5L threshold, meeting general economic criteria.",
-                claim_guide_steps=[
-                    "Verify your name in the SECC-2011 database or via your ration card.",
-                    "Visit the nearest empanelled hospital Ayushman Mitra desk.",
-                    "Present your Aadhaar card and active Ration Card for verification."
-                ]
-            )
+    logger.info(f"[SchemeSetu] Assessing eligibility for state: {request.location_state}")
+    income_note = _income_note(request.income)
+
+    # PMJAY (national): eligibility rests on listing, occupation or age, none of which is
+    # collected, so the verdict can only be "ambiguous" whatever the income.
+    results = [
+        SchemeResult(
+            scheme_name=PMJAY.scheme_name,
+            estimated_eligibility="ambiguous",
+            reason=(
+                f"AB PM-JAY eligibility is not income-based. {PMJAY.official_basis} None of these "
+                f"facts is collected here, so eligibility cannot be determined. {income_note}"
+            ),
+            claim_guide_steps=list(PMJAY.verification_steps),
+            criteria_evaluated=[],
+            criteria_not_evaluated=PMJAY.criteria_not_evaluated + UNUSED_INPUTS,
+            criteria_provenance=PMJAY.provenance,
+            sources=PMJAY.citations,
         )
-    else:
+    ]
+
+    # MJPJAY (Maharashtra): covers all families in the state, so stated residence decides.
+    if MJPJAY.applies_to_state(request.location_state):
         results.append(
             SchemeResult(
-                scheme_name="PMJAY (Ayushman Bharat)",
-                estimated_eligibility="ineligible",
-                confidence_score=0.95,
-                reason="Annual income exceeds the ₹2.5L threshold for general PMJAY eligibility.",
-                claim_guide_steps=[]
+                scheme_name=MJPJAY.scheme_name,
+                estimated_eligibility="eligible",
+                reason=(
+                    f"Stated residence is Maharashtra. {MJPJAY.official_basis} Residence was not "
+                    f"verified against documents. {income_note}"
+                ),
+                claim_guide_steps=list(MJPJAY.verification_steps),
+                criteria_evaluated=["state_of_residence"],
+                criteria_not_evaluated=MJPJAY.criteria_not_evaluated + UNUSED_INPUTS,
+                criteria_provenance=MJPJAY.provenance,
+                sources=MJPJAY.citations,
             )
         )
 
-    # Maharashtra MJPJAY check
-    if MJPJAY.applies_to_state(request.location_state):
-        if MJPJAY.income_within(request.income):
-            results.append(
-                SchemeResult(
-                    scheme_name="MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)",
-                    estimated_eligibility="eligible",
-                    confidence_score=0.92,
-                    reason="Resident of Maharashtra with annual income under ₹1.5L (Yellow/Orange ration card).",
-                    claim_guide_steps=[
-                        "Obtain a valid health card or Orange/Yellow ration card.",
-                        "Consult an empanelled hospital's Arogyamitra.",
-                        "Submit the doctor's diagnosis and treatment plan for pre-authorization."
-                    ]
-                )
-            )
-        else:
-            results.append(
-                SchemeResult(
-                    scheme_name="MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)",
-                    estimated_eligibility="ineligible",
-                    confidence_score=0.85,
-                    reason="Annual income is above the ₹1.5L limit for the standard subsidized tier.",
-                    claim_guide_steps=[]
-                )
-            )
-            
     return results
