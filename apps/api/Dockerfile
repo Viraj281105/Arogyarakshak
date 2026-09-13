@@ -25,9 +25,23 @@ RUN pip install --no-cache-dir -c constraints-cpu.txt \
     -e /app/packages/daavisetu \
     -e /app/packages/bimanyay
 
+# Unprivileged runtime user. Code and site-packages stay root-owned (read-only to the
+# app); only /home/app is writable, which is where the Hugging Face cache (HF_HOME) and
+# EasyOCR (~/.EasyOCR) download model weights at runtime. HF_HOME is created here so an
+# empty named volume mounted over it (docker-compose.yml) inherits app's ownership.
+ENV HF_HOME=/home/app/.cache/huggingface
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /home/app --create-home \
+       --shell /usr/sbin/nologin app \
+    && mkdir -p "$HF_HOME" \
+    && chown -R app:app /home/app
+
 # Copy app code
 COPY apps/api/app/ /app/app/
 
+USER app
+
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Production default: no --reload. docker-compose.yml overrides this for local dev.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

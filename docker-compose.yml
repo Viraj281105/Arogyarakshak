@@ -35,6 +35,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
+    # Local dev only: hot reload. The image's default CMD runs without --reload.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     ports:
       - "8000:8000"
     environment:
@@ -48,7 +50,8 @@ services:
       KADI_SEMANTIC_MATCHING: ${KADI_SEMANTIC_MATCHING:-false}
     volumes:
       # Model weights only (never documents), so the download survives container rebuilds.
-      - hf_cache:/root/.cache/huggingface
+      # Must match HF_HOME in apps/api/Dockerfile, which the non-root app user owns.
+      - hf_cache:/home/app/.cache/huggingface
     depends_on:
       postgres:
         condition: service_healthy
