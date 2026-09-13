@@ -178,6 +178,7 @@ Resolve remaining adversarial audit findings for Product Phase 1 across Kadi bac
 - [x] P2: `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
 - [x] OCR: EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
 - [x] CI Dependency Fix: Added `reportlab>=4.0.0` to `packages/daavisetu/pyproject.toml`, `apps/api/requirements.txt`, and `.github/workflows/ci.yml` resolving CI runner `ModuleNotFoundError: No module named 'reportlab'`.
+- [x] Web CI Test Runner Fix: Updated `test` script in `apps/web/package.json` to `tsx --test` (matching `apps/mobile`), resolving POSIX `/bin/sh` unexpanded glob failure (`Could not find '.../apps/web/tests/**/*.test.ts'`) in Ubuntu CI runner.
 - [x] Full regression validation suite executed: 139 backend tests, 27 mobile tests, 25 web tests, web/mobile builds, and CI guardrails all passing (0 failures).
 
 ### Current Blockers
@@ -496,10 +497,11 @@ Successfully fixed and verified all Product Phase 1 issues based on the independ
 7. **DawaCheck Sample 404s**: Fully resolved with expanded NPPA Schedule-I rates and alias matching.
 8. **BillNyay CGHS Dataset**: Benchmark dataset codified in `cghs_rates.json` and wired to audit endpoint.
 9. **Mobile Offline Action Queue**: Enqueue and automatic replay implemented via `useOfflineQueue`.
-10. **Validation Suite Results**:
-    - Backend: `pytest` passed **34/34 tests** (100%).
-    - Web: `npm test` passed **9/9 tests**; `npm run lint` passed **0 errors**; `npm run build` passed.
-    - Mobile: `npm test` passed **15/15 tests**; `npm run type-check` passed **0 errors**.
+10. **Web CI Test Runner Script**: Configured `test` in `apps/web/package.json` to `tsx --test` to match `apps/mobile`, preventing POSIX `sh` glob unexpansion in Linux CI runners.
+11. **Validation Suite Results**:
+    - Backend: `pytest` passed **139/139 tests** (100%).
+    - Web: `npm test` passed **25/25 tests**; `npm run lint` passed **0 errors**; Next.js production build passing.
+    - Mobile: `npm test` passed **27/27 tests**; `npm run type-check` passed **0 errors**.
     - CI Guardrails: `python scripts/ci_guardrails.py` passed **5/5 checks**.
 
 ### Current State
