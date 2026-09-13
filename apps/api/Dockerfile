@@ -13,9 +13,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy and install local packages. Kadi pulls EasyOCR, which transitively depends on
 # torch/torchvision; -c constraints-cpu.txt pins those to the CPU-only build (see that
 # file for why — EasyOCR always runs with gpu=False in this codebase).
+# kadi[semantic] adds sentence-transformers for the optional IndicSBERT entity-resolution
+# signal (#30). It stays off unless KADI_SEMANTIC_MATCHING=true; the model itself is not
+# baked into the image and downloads from the Hugging Face Hub on first use.
 COPY packages/ /app/packages/
 RUN pip install --no-cache-dir -c constraints-cpu.txt \
-    -e /app/packages/kadi \
+    -e "/app/packages/kadi[semantic]" \
     -e /app/packages/billnyay \
     -e /app/packages/schemesetu \
     -e /app/packages/dawacheck \

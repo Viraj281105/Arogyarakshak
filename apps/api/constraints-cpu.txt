@@ -9,9 +9,15 @@
 # Docker build (see GitHub issue #141).
 #
 # The CPU-only build below (from PyTorch's own wheel index) has zero nvidia-*/triton
-# dependencies and totals ~197 MB. torch/torchvision must stay a matched release pair —
-# check https://github.com/pytorch/vision#installation before bumping either line.
+# dependencies. torch/torchvision must stay a matched release pair — check
+# https://github.com/pytorch/vision#installation before bumping either line.
+#
+# Minimum torch 2.6: CVE-2025-32434 (torch.load code execution even with
+# weights_only=True) is fixed in 2.6, and transformers refuses to torch.load checkpoints
+# on older torch. Kadi's optional IndicSBERT signal (packages/kadi[semantic], #30) loads
+# l3cube-pune/indic-sentence-similarity-sbert, which ships only pytorch_model.bin, so it
+# cannot load at all on torch < 2.6. Bumped from 2.4.1/0.19.1 on 2026-09-13.
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-torch==2.4.1+cpu
-torchvision==0.19.1+cpu
+torch==2.7.1+cpu
+torchvision==0.22.1+cpu

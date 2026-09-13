@@ -17,7 +17,14 @@ dependencies = [
     "opencv-python-headless>=4.8.0.0",
     "PyMuPDF>=1.23.0",
     "numpy<2.0.0",
+    "pydantic>=2.0.0",
 ]
+
+[project.optional-dependencies]
+# Optional cross-lingual semantic signal for entity resolution (#30). Off at runtime unless
+# KADI_SEMANTIC_MATCHING=true; the model downloads from the Hugging Face Hub on first use.
+# Install with -c apps/api/constraints-cpu.txt so torch stays the CPU-only build.
+semantic = ["sentence-transformers>=4.1.0,<5.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]

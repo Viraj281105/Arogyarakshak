@@ -6,7 +6,8 @@
 #   api       — FastAPI backend (depends on postgres)
 #   web       — Next.js 15 frontend dev server
 #
-# FAISS is a Python library used inside apps/api, not a standalone service.
+# There is no vector or graph database service: FAISS is an unwired scaffold, and the
+# Kadi case graph (#86) is computed from Postgres rows on request.
 # ──────────────────────────────────────────────────────────────────────
 
 services:
@@ -42,6 +43,12 @@ services:
       # Without this the container can never reach Groq, and every LLM path silently
       # degrades to regex/template fallbacks.
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      # Optional IndicSBERT cross-lingual signal for Kadi entity resolution (#30). Off by
+      # default; when true, the ~950 MB model downloads from the Hugging Face Hub on first use.
+      KADI_SEMANTIC_MATCHING: ${KADI_SEMANTIC_MATCHING:-false}
+    volumes:
+      # Model weights only (never documents), so the download survives container rebuilds.
+      - hf_cache:/root/.cache/huggingface
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,3 +64,4 @@ services:
 
 volumes:
   pgdata:
+  hf_cache:
