@@ -7,12 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY apps/api/requirements.txt .
+COPY apps/api/requirements.txt apps/api/constraints-cpu.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy and install local packages
+# Copy and install local packages. Kadi pulls EasyOCR, which transitively depends on
+# torch/torchvision; -c constraints-cpu.txt pins those to the CPU-only build (see that
+# file for why — EasyOCR always runs with gpu=False in this codebase).
 COPY packages/ /app/packages/
-RUN pip install -e /app/packages/kadi \
+RUN pip install --no-cache-dir -c constraints-cpu.txt \
+    -e /app/packages/kadi \
     -e /app/packages/billnyay \
     -e /app/packages/schemesetu \
     -e /app/packages/dawacheck \

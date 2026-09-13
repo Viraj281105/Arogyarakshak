@@ -170,6 +170,46 @@ def check_secret_patterns() -> list[str]:
     return errors
 
 
+def check_cpu_only_torch_pin() -> list[str]:
+    """EasyOCR (via packages/kadi) transitively pulls torch/torchvision. Without a
+    pinned CPU-only build, pip resolves the default CUDA wheel — ~2.8 GB of unused
+    nvidia-*/triton packages, since packages/kadi/kadi/ocr/ocr_parser.py always runs
+    EasyOCR with gpu=False. This previously exhausted CI runner disk (see #141).
+    Guards against the constraints file being removed or unwired from either the
+    Dockerfile or CI without anyone noticing until the next disk-exhaustion failure.
+    """
+    errors = []
+    constraints_file = ROOT_DIR / "apps" / "api" / "constraints-cpu.txt"
+    if not constraints_file.exists():
+        return ["CPU Torch Pin: apps/api/constraints-cpu.txt is missing."]
+
+    constraints_content = constraints_file.read_text(encoding="utf-8")
+    if "download.pytorch.org/whl/cpu" not in constraints_content:
+        errors.append("CPU Torch Pin: constraints-cpu.txt no longer points at the PyTorch CPU wheel index.")
+    if not re.search(r"^torch==\S+\+cpu\s*$", constraints_content, re.MULTILINE):
+        errors.append("CPU Torch Pin: constraints-cpu.txt no longer pins a torch==<version>+cpu build.")
+    if not re.search(r"^torchvision==\S+\+cpu\s*$", constraints_content, re.MULTILINE):
+        errors.append("CPU Torch Pin: constraints-cpu.txt no longer pins a torchvision==<version>+cpu build.")
+
+    dockerfile = ROOT_DIR / "apps" / "api" / "Dockerfile"
+    if dockerfile.exists():
+        docker_content = dockerfile.read_text(encoding="utf-8")
+        if "constraints-cpu.txt" not in docker_content:
+            errors.append("CPU Torch Pin: apps/api/Dockerfile no longer installs Kadi with -c constraints-cpu.txt.")
+    else:
+        errors.append("CPU Torch Pin: apps/api/Dockerfile not found.")
+
+    ci_workflow = ROOT_DIR / ".github" / "workflows" / "ci.yml"
+    if ci_workflow.exists():
+        ci_content = ci_workflow.read_text(encoding="utf-8")
+        if "constraints-cpu.txt" not in ci_content:
+            errors.append("CPU Torch Pin: .github/workflows/ci.yml backend job no longer uses constraints-cpu.txt.")
+    else:
+        errors.append("CPU Torch Pin: .github/workflows/ci.yml not found.")
+
+    return errors
+
+
 def main() -> int:
     print("=" * 60)
     print("  ArogyaRakshak CI Guardrails & Invariant Verification")
@@ -177,7 +217,7 @@ def main() -> int:
 
     all_errors = []
 
-    print("[1/5] Checking BYOD Zero-Retention Invariants...")
+    print("[1/6] Checking BYOD Zero-Retention Invariants...")
     byod_errors = check_byod_zero_retention()
     if byod_errors:
         all_errors.extend(byod_errors)
@@ -185,7 +225,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: Zero persistent document directories.")
 
-    print("[2/5] Checking Model Grounding Guard...")
+    print("[2/6] Checking Model Grounding Guard...")
     model_errors = check_model_grounding()
     if model_errors:
         all_errors.extend(model_errors)
@@ -193,7 +233,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: No prohibited deprecated models.")
 
-    print("[3/5] Checking Monorepo Package Hygiene...")
+    print("[3/6] Checking Monorepo Package Hygiene...")
     pkg_errors = check_package_hygiene()
     if pkg_errors:
         all_errors.extend(pkg_errors)
@@ -201,7 +241,7 @@ def main() -> int:
     else:
         print(f"  ✓ PASSED: All {len(REQUIRED_PACKAGES)} packages lowercase & valid.")
 
-    print("[4/5] Checking Database Table Prefix Conventions...")
+    print("[4/6] Checking Database Table Prefix Conventions...")
     db_errors = check_database_table_prefixes()
     if db_errors:
         all_errors.extend(db_errors)
@@ -209,13 +249,21 @@ def main() -> int:
     else:
         print("  ✓ PASSED: All ORM tables strictly prefixed by module.")
 
-    print("[5/5] Scanning for Accidental API Key Leaks...")
+    print("[5/6] Scanning for Accidental API Key Leaks...")
     sec_errors = check_secret_patterns()
     if sec_errors:
         all_errors.extend(sec_errors)
         print(f"  ❌ Failed with {len(sec_errors)} violation(s)")
     else:
         print("  ✓ PASSED: No sensitive API keys detected.")
+
+    print("[6/6] Checking CPU-Only PyTorch Pin (Kadi/EasyOCR)...")
+    torch_errors = check_cpu_only_torch_pin()
+    if torch_errors:
+        all_errors.extend(torch_errors)
+        print(f"  ❌ Failed with {len(torch_errors)} violation(s)")
+    else:
+        print("  ✓ PASSED: torch/torchvision pinned to CPU wheels in Dockerfile & CI.")
 
     print("=" * 60)
     if all_errors:

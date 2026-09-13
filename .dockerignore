@@ -1,0 +1,23 @@
+# Build context exclusions for `apps/api/Dockerfile`, whose context is the repo root
+# (see docker-compose.yml). That Dockerfile only COPYs apps/api/requirements.txt,
+# apps/api/constraints-cpu.txt, packages/, and apps/api/app/ — everything below was
+# previously sent to the Docker daemon on every build regardless (900MB+, mostly
+# apps/web and apps/mobile node_modules) despite never being used by it.
+#
+# This does not affect the web image build: apps/web/Dockerfile uses ./apps/web as
+# its own separate build context, which this file has no effect on.
+
+.git/
+apps/web/
+apps/mobile/
+docs/
+data/
+apps/api/tests/
+
+# General hygiene, in case any of the above is ever narrowed.
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+.venv/
+.pytest_cache/
+*.log

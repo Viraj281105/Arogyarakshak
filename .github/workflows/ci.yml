@@ -77,12 +77,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install -r apps/api/requirements.txt
-          pip install -e packages/kadi
-          pip install -e packages/billnyay
-          pip install -e packages/daavisetu
-          pip install -e packages/bimanyay
-          pip install -e packages/schemesetu
-          pip install -e packages/dawacheck
+          # -c pins EasyOCR's transitive torch/torchvision to the CPU-only build — see
+          # apps/api/constraints-cpu.txt. Without it this installs the default CUDA
+          # wheel (~2.8 GB of unused nvidia-*/triton packages on a GPU-less runner).
+          pip install -c apps/api/constraints-cpu.txt -e packages/kadi
+          pip install -c apps/api/constraints-cpu.txt -e packages/billnyay
+          pip install -c apps/api/constraints-cpu.txt -e packages/daavisetu
+          pip install -c apps/api/constraints-cpu.txt -e packages/bimanyay
+          pip install -c apps/api/constraints-cpu.txt -e packages/schemesetu
+          pip install -c apps/api/constraints-cpu.txt -e packages/dawacheck
           pip install pytest pytest-asyncio pytest-cov aiosqlite httpx ruff reportlab
 
       - name: Python Code Syntax & Lint Check (Ruff)
@@ -214,7 +217,13 @@ jobs:
           push: false
           tags: arogyarakshak-api:ci-test
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # mode=max caches every intermediate stage, which only pays off for
+          # multi-stage Dockerfiles. Both apps/api/Dockerfile and apps/web/Dockerfile
+          # are single-stage, so mode=max just spends extra time/cache-storage
+          # exporting layer history with nothing to show for it; mode=min (the
+          # default for single-stage builds) caches the same final-image layers
+          # for faster future builds without that overhead.
+          cache-to: type=gha,mode=min
 
       - name: Build Web Container Image (Dry Run)
         uses: docker/build-push-action@v6
@@ -224,7 +233,13 @@ jobs:
           push: false
           tags: arogyarakshak-web:ci-test
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # mode=max caches every intermediate stage, which only pays off for
+          # multi-stage Dockerfiles. Both apps/api/Dockerfile and apps/web/Dockerfile
+          # are single-stage, so mode=max just spends extra time/cache-storage
+          # exporting layer history with nothing to show for it; mode=min (the
+          # default for single-stage builds) caches the same final-image layers
+          # for faster future builds without that overhead.
+          cache-to: type=gha,mode=min
 
   # ──────────────────────────────────────────────────────────────────────────
   # 6. UNIFIED CI BRANCH PROTECTION GATE
