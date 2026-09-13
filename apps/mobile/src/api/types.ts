@@ -14,10 +14,69 @@ export interface CaseResponse {
 }
 
 export interface UploadResponse {
+  /** "processing", or "duplicate" when this exact document was already ingested into the case. */
   status: string;
   message: string;
   case_id: string;
   filename: string;
+}
+
+// --- Kadi entity resolution (#31, #88) ---
+export type ResolutionSignalStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'NOT_APPLICABLE';
+
+export interface ResolutionSignal {
+  signal: 'lexical' | 'phonetic' | 'semantic';
+  status: ResolutionSignalStatus;
+  score: number | null;
+  detail: string;
+}
+
+export interface ResolutionDecision {
+  id: string;
+  entity_type: string;
+  action: 'MERGE' | 'ASK';
+  status: string;
+  source: string;
+  /** Similarity evidence in [0, 1] — not a probability. */
+  confidence: number;
+  mention_name: string | null;
+  mention_entity_id: string | null;
+  candidate_entity_id: string;
+  candidate_name: string;
+  signals: ResolutionSignal[];
+  reasons: string[];
+  feedback_same_entity: boolean | null;
+}
+
+export interface ResolutionFeedbackResponse {
+  decision: ResolutionDecision;
+  calibration: {
+    scope: string;
+    status: 'CALIBRATED' | 'INSUFFICIENT_EVIDENCE';
+    merge_threshold: number;
+    ask_threshold: number;
+    sample_count: number;
+    reasons: string[];
+  }[];
+}
+
+// --- SchemeSetu consent-bounded income profile (#92) ---
+export interface IncomeProfileRequest {
+  annual_income_inr: number;
+  state: string;
+}
+
+export interface IncomeProfileResponse {
+  case_id: string;
+  annual_income_inr: number;
+  state: string;
+  trigger: {
+    status: 'FIRE' | 'NO_THRESHOLD_CROSSED' | 'INSUFFICIENT_EVIDENCE';
+    reason: string;
+    threshold_provenance: string;
+  };
+  background_eligibility: 'queued' | 'not_ready' | 'not_triggered';
+  missing_context: string[];
 }
 
 // --- BillNyay ---
@@ -101,6 +160,8 @@ export interface RegulatoryViolation {
 export interface BimaNyayAnalysisResponse {
   is_wrongful_denial: boolean;
   reversal_probability_score: number;
+  /** Always "HEURISTIC_PRIOR_NOT_HISTORICAL": a rule prior, not a probability from past outcomes. */
+  probability_basis?: 'HEURISTIC_PRIOR_NOT_HISTORICAL';
   primary_dispute_grounds: string;
   regulatory_violations: RegulatoryViolation[];
   level_1_gro_appeal: string;

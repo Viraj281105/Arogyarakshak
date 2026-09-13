@@ -172,3 +172,29 @@ describe('Web Consent Vocabulary', () => {
     });
   });
 });
+
+describe('Phase 3 Review and Disclosure Copy', () => {
+  const phase3Languages: Language[] = ['en', 'hi', 'mr'];
+
+  test('entity-resolution review strings exist in every language and name no unbuilt capability', () => {
+    phase3Languages.forEach((lang) => {
+      const review = translations[lang].resolution;
+      Object.entries(review).forEach(([key, value]) => {
+        assert.ok(value.trim().length > 0, `Empty resolution.${key} in ${lang}`);
+        ['IndicSBERT', 'IndicXlit', 'FAISS'].forEach((claim) => {
+          assert.ok(!value.includes(claim), `resolution.${key} in ${lang} names ${claim}`);
+        });
+      });
+    });
+  });
+
+  test('heuristic probability disclosure and income opt-in copy exist in every language', () => {
+    phase3Languages.forEach((lang) => {
+      const modules = translations[lang].modules;
+      assert.ok(modules.bimanyay.heuristicDisclosure.trim().length > 0, `Missing heuristicDisclosure in ${lang}`);
+      for (const key of ['saveToCaseLabel', 'savedTriggered', 'savedNotReady', 'savedNoChange'] as const) {
+        assert.ok(modules.schemesetu[key].trim().length > 0, `Missing schemesetu.${key} in ${lang}`);
+      }
+    });
+  });
+});

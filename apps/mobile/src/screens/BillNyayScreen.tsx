@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, AgentStreamVisualizer } from '../components';
+import { Card, Button, Badge, AgentStreamVisualizer, ResolutionReviewCard } from '../components';
 import { api, BillNyayAuditResponse, ApiError } from '../api';
 import { useSSEStream } from '../hooks/useSSEStream';
 
@@ -95,6 +95,8 @@ export const BillNyayScreen: React.FC = () => {
           error={sse.error}
         />
       )}
+
+      <ResolutionReviewCard caseId={caseId} refreshToken={sse.isCompleted} />
 
       <Card style={{ marginVertical: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>

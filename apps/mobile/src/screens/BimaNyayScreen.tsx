@@ -189,6 +189,9 @@ export const BimaNyayScreen: React.FC = () => {
             </Text>
             {result.is_wrongful_denial && <Badge label={m.wrongful} variant="success" />}
           </View>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: spacing.sm }}>
+            {m.heuristicDisclosure}
+          </Text>
 
           {result.regulatory_violations.length > 0 && (
             <View style={{ marginBottom: spacing.sm }}>

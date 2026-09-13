@@ -15,6 +15,8 @@ interface RegulatoryViolation {
 interface DisputeAuditResult {
   is_wrongful_denial: boolean;
   reversal_probability_score: number;
+  /** "HEURISTIC_PRIOR_NOT_HISTORICAL": a rule prior, not a probability from past outcomes. */
+  probability_basis?: string;
   primary_dispute_grounds: string;
   regulatory_violations: RegulatoryViolation[];
   level_1_gro_appeal: string;
@@ -228,6 +230,7 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
               <div className="stat-val" style={{ color: result.is_wrongful_denial ? "var(--brand-emerald)" : "var(--status-danger)" }}>
                 {(result.reversal_probability_score * 100).toFixed(0)}%
               </div>
+              <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: "0.35rem" }}>{t.heuristicDisclosure}</div>
               {result.is_wrongful_denial && (
                 <span className="badge badge-success" style={{ marginTop: "0.5rem" }}>
                   ✓ {t.wrongfulBadge}

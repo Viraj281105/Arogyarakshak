@@ -191,3 +191,67 @@ describe('Mobile Consent Enforcement', () => {
     });
   });
 });
+
+import { formatMatchScore } from '../src/services/resolution';
+
+describe('Phase 3 Kadi Resolution & Income Profile Contracts', () => {
+  it('routes pending resolutions and feedback to the Kadi endpoints', async () => {
+    const origGet = apiClient.get;
+    const origPost = apiClient.post;
+    let getPath = '';
+    let postPath = '';
+    let postBody: any = null;
+    apiClient.get = async (endpoint: string) => {
+      getPath = endpoint;
+      return [] as any;
+    };
+    apiClient.post = async (endpoint: string, data?: any) => {
+      postPath = endpoint;
+      postBody = data;
+      return {} as any;
+    };
+    try {
+      await api.kadi.getPendingResolutions('CASE-ABC');
+      await api.kadi.submitResolutionFeedback('CASE-ABC', 'RES-1', false);
+      assert.strictEqual(getPath, '/api/v1/kadi/cases/CASE-ABC/resolutions?status=pending');
+      assert.strictEqual(postPath, '/api/v1/kadi/cases/CASE-ABC/resolutions/RES-1/feedback');
+      assert.deepStrictEqual(postBody, { same_entity: false });
+    } finally {
+      apiClient.get = origGet;
+      apiClient.post = origPost;
+    }
+  });
+
+  it('saves the consent-bounded income profile with PUT', async () => {
+    const origPut = apiClient.put;
+    let putPath = '';
+    let putBody: any = null;
+    apiClient.put = async (endpoint: string, data?: any) => {
+      putPath = endpoint;
+      putBody = data;
+      return {} as any;
+    };
+    try {
+      await api.schemesetu.saveIncomeProfile('CASE-ABC', { annual_income_inr: 120000, state: 'Maharashtra' });
+      assert.strictEqual(putPath, '/api/v1/schemesetu/cases/CASE-ABC/income-profile');
+      assert.deepStrictEqual(putBody, { annual_income_inr: 120000, state: 'Maharashtra' });
+    } finally {
+      apiClient.put = origPut;
+    }
+  });
+
+  it('renders match scores as percentages and never invents a missing value', () => {
+    assert.strictEqual(formatMatchScore(0.8583), '86%');
+    assert.strictEqual(formatMatchScore(null), null);
+    assert.strictEqual(formatMatchScore(Number.NaN), null);
+  });
+
+  it('has review and heuristic-disclosure copy in every language', () => {
+    (['en', 'hi', 'mr'] as Language[]).forEach((lang) => {
+      Object.entries(translations[lang].resolution).forEach(([key, value]) => {
+        assert.ok(value.trim().length > 0, `Empty resolution.${key} in ${lang}`);
+      });
+      assert.ok(translations[lang].modules.bimanyay.heuristicDisclosure.trim().length > 0);
+    });
+  });
+});

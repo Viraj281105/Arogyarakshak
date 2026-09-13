@@ -33,6 +33,17 @@ export interface MobileTranslations {
     consentRequired: string;
     scanFirst: string;
   };
+  resolution: {
+    title: string;
+    intro: string;
+    mentionLabel: string;
+    existingLabel: string;
+    confidenceLabel: string;
+    confirmBtn: string;
+    rejectBtn: string;
+    unavailable: string;
+    uncalibratedNote: string;
+  };
   modules: {
     billnyay: {
       title: string;
@@ -92,6 +103,7 @@ export interface MobileTranslations {
       auditBtn: string;
       auditing: string;
       reversalScore: string;
+      heuristicDisclosure: string;
       wrongful: string;
       copyDraft: string;
       groTab: string;
@@ -187,6 +199,17 @@ export const translations: Record<Language, MobileTranslations> = {
       consentRequired: 'Please give consent before scanning.',
       scanFirst: 'Scan a document first — consent is captured during the scan.',
     },
+    resolution: {
+      title: 'Please confirm possible duplicates',
+      intro: 'Kadi found entries in your documents that may refer to the same thing. Nothing is merged until you confirm.',
+      mentionLabel: 'New entry',
+      existingLabel: 'Already in this case',
+      confidenceLabel: 'Match score',
+      confirmBtn: 'Same — merge',
+      rejectBtn: 'Different — keep both',
+      unavailable: 'not available',
+      uncalibratedNote: 'Match scores are similarity estimates, not probabilities.',
+    },
     modules: {
       billnyay: {
         title: 'BillNyay',
@@ -246,6 +269,7 @@ export const translations: Record<Language, MobileTranslations> = {
         auditBtn: '⚖️ Audit Grounds & Draft 3-Tier Appeals',
         auditing: 'Auditing Regulatory Precedents...',
         reversalScore: 'Reversal Probability:',
+        heuristicDisclosure: 'Rule-based estimate for this denial category — not derived from historical dispute outcomes.',
         wrongful: 'Wrongful Repudiation Detected',
         copyDraft: '📋 Copy Selected Appeal Draft',
         groTab: 'Tier 1: GRO',
@@ -339,6 +363,17 @@ export const translations: Record<Language, MobileTranslations> = {
       consentRequired: 'कृपया स्कैन करने से पहले सहमति दें।',
       scanFirst: 'पहले दस्तावेज़ स्कैन करें — सहमति स्कैन के समय ली जाती है।',
     },
+    resolution: {
+      title: 'संभावित दोहराव की पुष्टि करें',
+      intro: 'Kadi को आपके दस्तावेज़ों में ऐसी प्रविष्टियाँ मिलीं जो एक ही चीज़ हो सकती हैं। आपकी पुष्टि के बिना कुछ भी मिलाया नहीं जाता।',
+      mentionLabel: 'नई प्रविष्टि',
+      existingLabel: 'इस केस में पहले से',
+      confidenceLabel: 'मिलान स्कोर',
+      confirmBtn: 'एक ही हैं — मिलाएँ',
+      rejectBtn: 'अलग हैं — दोनों रखें',
+      unavailable: 'उपलब्ध नहीं',
+      uncalibratedNote: 'मिलान स्कोर समानता का अनुमान है, संभावना नहीं।',
+    },
     modules: {
       billnyay: {
         title: 'बिलन्याय',
@@ -398,6 +433,7 @@ export const translations: Record<Language, MobileTranslations> = {
         auditBtn: '⚖️ अस्वीकृति की जांच करें व 3-स्तरीय अपील बनाएं',
         auditing: 'विधिक नियमों की जांच हो रही है...',
         reversalScore: 'अपील सफलता संभावना:',
+        heuristicDisclosure: 'इस अस्वीकृति श्रेणी के लिए नियम-आधारित अनुमान — पिछले विवादों के वास्तविक परिणामों पर आधारित नहीं।',
         wrongful: 'अनुचित अस्वीकृति पाई गई',
         copyDraft: '📋 चयनित अपील ड्राफ्ट कॉपी करें',
         groTab: 'स्तर 1: जीआरओ (GRO)',
@@ -491,6 +527,17 @@ export const translations: Record<Language, MobileTranslations> = {
       consentRequired: 'कृपया स्कॅन करण्यापूर्वी संमती द्या.',
       scanFirst: 'आधी दस्तऐवज स्कॅन करा — संमती स्कॅनवेळी घेतली जाते.',
     },
+    resolution: {
+      title: 'संभाव्य दुहेरी नोंदींची खात्री करा',
+      intro: 'Kadi ला तुमच्या कागदपत्रांमध्ये अशा नोंदी सापडल्या ज्या एकाच गोष्टीबद्दल असू शकतात. तुमच्या खात्रीशिवाय काहीही एकत्र केले जात नाही.',
+      mentionLabel: 'नवीन नोंद',
+      existingLabel: 'या केसमध्ये आधीपासून',
+      confidenceLabel: 'जुळणी गुण',
+      confirmBtn: 'एकच आहेत — एकत्र करा',
+      rejectBtn: 'वेगळे आहेत — दोन्ही ठेवा',
+      unavailable: 'उपलब्ध नाही',
+      uncalibratedNote: 'जुळणी गुण हे साम्याचा अंदाज आहेत, संभाव्यता नाही.',
+    },
     modules: {
       billnyay: {
         title: 'बिलन्याय',
@@ -550,6 +597,7 @@ export const translations: Record<Language, MobileTranslations> = {
         auditBtn: '⚖️ नकाराचे परीक्षण करा व ३-स्तरीय अपील बनवा',
         auditing: 'कायदेशीर नियमांची तपासणी सुरू आहे...',
         reversalScore: 'अपील यशाची शक्यता:',
+        heuristicDisclosure: 'या नाकारण्याच्या प्रकारासाठी नियमांवर आधारित अंदाज — मागील वादांच्या प्रत्यक्ष निकालांवर आधारित नाही.',
         wrongful: 'अयोग्य नकार आढळला',
         copyDraft: '📋 निवडलेला अपील मसुदा कॉपी करा',
         groTab: 'स्तर १: जीआरओ (GRO)',

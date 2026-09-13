@@ -5,6 +5,7 @@ import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { DocumentUploader } from "./components/DocumentUploader";
 import { AgentStreamVisualizer, PipelineStep } from "./components/AgentStreamVisualizer";
+import { EntityResolutionReview } from "./components/EntityResolutionReview";
 import { BillNyayView } from "./components/modules/BillNyayView";
 import { BimaNyayView } from "./components/modules/BimaNyayView";
 import { DaaviSetuView } from "./components/modules/DaaviSetuView";
@@ -128,7 +129,8 @@ export default function Home() {
           } else if (payload.status === "completed") {
             setPipelineStep(4);
             setIsProcessing(false);
-            setLiveLog("Document processed successfully. Entities extracted.");
+            // The backend log says when a document was a duplicate or which module checks ran.
+            setLiveLog(payload.log || "Document processed successfully. Entities extracted.");
             es.close();
           } else if (payload.status === "failed") {
             setErrorMessage(payload.log || "Document processing failed");
@@ -212,6 +214,11 @@ export default function Home() {
           />
         )}
 
+        {/* Entity-resolution questions Kadi could not decide on its own (#31) */}
+        {pipelineStep === 4 && !isProcessing && caseId && (
+          <EntityResolutionReview key={caseId} caseId={caseId} currentLang={currentLang} />
+        )}
+
 
         {/* Module Tab Navigation (Mobile Touch-Friendly Scroll) */}
         <nav className="module-tabs" role="tablist" aria-label="Feature Modules">
@@ -267,7 +274,7 @@ export default function Home() {
           {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={caseId} />}
           {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} />}
           {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={caseId} />}
-          {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} />}
+          {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={caseId} />}
           {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} />}
         </div>
       </main>

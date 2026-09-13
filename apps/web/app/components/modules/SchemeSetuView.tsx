@@ -18,11 +18,19 @@ interface SchemeResult {
   is_provisional: boolean;
 }
 
-interface SchemeSetuViewProps {
-  currentLang: Language;
+// PUT /api/v1/schemesetu/cases/{case_id}/income-profile (#92)
+interface IncomeProfileSaveResult {
+  background_eligibility: "queued" | "not_ready" | "not_triggered";
+  missing_context: string[];
+  trigger: { status: string; threshold_provenance: string };
 }
 
-export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) => {
+interface SchemeSetuViewProps {
+  currentLang: Language;
+  caseId?: string | null;
+}
+
+export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, caseId }) => {
   const t = translations[currentLang].modules.schemesetu;
   const api = useApi<SchemeResult[]>();
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -32,6 +40,9 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
   const [category, setCategory] = useState("General");
   const [medicalNeed, setMedicalNeed] = useState("");
   const [hasChecked, setHasChecked] = useState(false);
+  // Opt-in, unchecked by default: income is stored against a case only when the patient asks.
+  const [saveToCase, setSaveToCase] = useState(false);
+  const profileApi = useApi<IncomeProfileSaveResult>();
 
   const handleCheck = async () => {
     const incomeVal = parseFloat(income);
@@ -45,6 +56,12 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
         medical_need: medicalNeed,
       },
     });
+    if (caseId && saveToCase) {
+      await profileApi.execute(`/api/v1/schemesetu/cases/${encodeURIComponent(caseId)}/income-profile`, {
+        method: "PUT",
+        body: { annual_income_inr: incomeVal, state },
+      });
+    }
   };
 
   const results = api.data;
@@ -123,6 +140,13 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
           </div>
         </div>
 
+        {caseId && (
+          <label style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontSize: "0.85rem", marginBottom: "1rem" }}>
+            <input type="checkbox" checked={saveToCase} onChange={(e) => setSaveToCase(e.target.checked)} />
+            <span>{t.saveToCaseLabel}</span>
+          </label>
+        )}
+
         <button
           type="button"
           className="btn btn-primary"
@@ -133,6 +157,30 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
           {api.loading ? "Checking eligibility..." : `🔍 ${t.checkBtn}`}
         </button>
       </div>
+
+      {profileApi.data && (
+        <div
+          role="status"
+          style={{
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            fontSize: "0.85rem",
+          }}
+        >
+          {profileApi.data.background_eligibility === "queued"
+            ? t.savedTriggered
+            : profileApi.data.background_eligibility === "not_ready"
+            ? t.savedNotReady
+            : t.savedNoChange}
+        </div>
+      )}
+      {profileApi.error && (
+        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          ⚠️ {typeof profileApi.error === "string" ? profileApi.error : "Could not save the income profile."}
+        </div>
+      )}
 
       {/* Error State */}
       {api.error && (

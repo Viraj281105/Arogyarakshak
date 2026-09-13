@@ -68,6 +68,7 @@ export interface Translations {
       analyzeBtn: string;
       analyzing: string;
       reversalScore: string;
+      heuristicDisclosure: string;
       wrongfulBadge: string;
       violationsTitle: string;
       groTab: string;
@@ -109,6 +110,10 @@ export interface Translations {
       criteriaEvaluated: string;
       criteriaNotEvaluated: string;
       provisionalNotice: string;
+      saveToCaseLabel: string;
+      savedTriggered: string;
+      savedNotReady: string;
+      savedNoChange: string;
     };
     dawacheck: {
       title: string;
@@ -123,6 +128,20 @@ export interface Translations {
       statusFair: string;
       dataSourceNotice: string;
     };
+  };
+  resolution: {
+    title: string;
+    intro: string;
+    mentionLabel: string;
+    existingLabel: string;
+    confidenceLabel: string;
+    confirmBtn: string;
+    rejectBtn: string;
+    signalLexical: string;
+    signalPhonetic: string;
+    signalSemantic: string;
+    signalUnavailable: string;
+    uncalibratedNote: string;
   };
   footer: {
     disclaimer: string;
@@ -166,6 +185,20 @@ export const translations: Record<Language, Translations> = {
       stepAudit: "Saving Extracted Entities",
       stepComplete: "Extraction Complete — Ready for Module Audit",
     },
+    resolution: {
+      title: "Please confirm possible duplicates",
+      intro: "Kadi found entries in your documents that may refer to the same thing. Nothing is merged until you confirm.",
+      mentionLabel: "New entry",
+      existingLabel: "Already in this case",
+      confidenceLabel: "Match score",
+      confirmBtn: "Same — merge",
+      rejectBtn: "Different — keep both",
+      signalLexical: "Spelling similarity",
+      signalPhonetic: "Sound-alike (across scripts)",
+      signalSemantic: "Meaning similarity",
+      signalUnavailable: "not available",
+      uncalibratedNote: "Match scores are similarity estimates, not probabilities.",
+    },
     modules: {
       billnyay: {
         title: "BillNyay — Hospital Bill Forensic Audit",
@@ -202,6 +235,7 @@ export const translations: Record<Language, Translations> = {
         analyzeBtn: "Audit Denial Grounds & Draft Appeals",
         analyzing: "Auditing Clauses against IRDAI Mandates...",
         reversalScore: "Reversal Likelihood Probability",
+        heuristicDisclosure: "Rule-based estimate for this denial category — not derived from historical dispute outcomes.",
         wrongfulBadge: "Wrongful Repudiation Ground Detected",
         violationsTitle: "Statutory & Regulatory Violations",
         groTab: "Tier 1: Insurer GRO Appeal",
@@ -243,6 +277,10 @@ export const translations: Record<Language, Translations> = {
         criteriaEvaluated: "Evaluated for this result",
         criteriaNotEvaluated: "NOT evaluated — verify with official records",
         provisionalNotice: "Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.",
+        saveToCaseLabel: "Save my annual income and state to this case so eligibility is re-checked when new documents arrive (optional)",
+        savedTriggered: "Saved. Income is within a scheme income threshold — an eligibility check is running for this case.",
+        savedNotReady: "Saved. Upload a bill or discharge summary with a diagnosis or procedure to run the scheme check.",
+        savedNoChange: "Saved. No new scheme income threshold applies, so no new check was needed.",
       },
       dawacheck: {
         title: "DawaCheck — NPPA Ceiling Price Benchmark",
@@ -298,6 +336,20 @@ export const translations: Record<Language, Translations> = {
       stepAudit: "निकाली गई एंटिटी सहेजी जा रही हैं",
       stepComplete: "निष्कर्षण पूर्ण — मॉड्यूल ऑडिट के लिए तैयार",
     },
+    resolution: {
+      title: "संभावित दोहराव की पुष्टि करें",
+      intro: "Kadi को आपके दस्तावेज़ों में ऐसी प्रविष्टियाँ मिलीं जो एक ही चीज़ हो सकती हैं। आपकी पुष्टि के बिना कुछ भी मिलाया नहीं जाता।",
+      mentionLabel: "नई प्रविष्टि",
+      existingLabel: "इस केस में पहले से",
+      confidenceLabel: "मिलान स्कोर",
+      confirmBtn: "एक ही हैं — मिलाएँ",
+      rejectBtn: "अलग हैं — दोनों रखें",
+      signalLexical: "वर्तनी समानता",
+      signalPhonetic: "उच्चारण समानता (लिपियों के पार)",
+      signalSemantic: "अर्थ समानता",
+      signalUnavailable: "उपलब्ध नहीं",
+      uncalibratedNote: "मिलान स्कोर समानता का अनुमान है, संभावना नहीं।",
+    },
     modules: {
       billnyay: {
         title: "बिलन्याय — अस्पताल बिल फॉरेन्सिक ऑडिट",
@@ -334,6 +386,7 @@ export const translations: Record<Language, Translations> = {
         analyzeBtn: "अस्वीकृति की विधिक जांच करें व अपील ड्राफ्ट करें",
         analyzing: "IRDAI नियमों के आधार पर जांच जारी...",
         reversalScore: "दावा पुनः स्वीकृत होने की संभावना",
+        heuristicDisclosure: "इस अस्वीकृति श्रेणी के लिए नियम-आधारित अनुमान — पिछले विवादों के वास्तविक परिणामों पर आधारित नहीं।",
         wrongfulBadge: "अनुचित अस्वीकृति का ठोस आधार पाया गया",
         violationsTitle: "संवैधानिक एवं विनियामक उल्लंघन",
         groTab: "स्तर 1: कंपनी GRO अपील पत्र",
@@ -375,6 +428,10 @@ export const translations: Record<Language, Translations> = {
         criteriaEvaluated: "इस परिणाम हेतु जाँचे गए आधार",
         criteriaNotEvaluated: "जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें",
         provisionalNotice: "यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
+        saveToCaseLabel: "मेरी वार्षिक आय और राज्य इस केस में सहेजें ताकि नए दस्तावेज़ आने पर पात्रता दोबारा जाँची जा सके (वैकल्पिक)",
+        savedTriggered: "सहेजा गया। आय किसी योजना की आय-सीमा के भीतर है — इस केस के लिए पात्रता जाँच चल रही है।",
+        savedNotReady: "सहेजा गया। योजना जाँच के लिए निदान या प्रक्रिया वाला बिल या डिस्चार्ज सारांश अपलोड करें।",
+        savedNoChange: "सहेजा गया। कोई नई योजना आय-सीमा लागू नहीं होती, इसलिए नई जाँच की ज़रूरत नहीं थी।",
       },
       dawacheck: {
         title: "दवाचेक — NPPA अधिकतम मूल्य जांच",
@@ -430,6 +487,20 @@ export const translations: Record<Language, Translations> = {
       stepAudit: "काढलेली माहिती जतन करत आहे",
       stepComplete: "निष्कर्षण पूर्ण — मॉड्यूल ऑडिटसाठी सज्ज",
     },
+    resolution: {
+      title: "संभाव्य दुहेरी नोंदींची खात्री करा",
+      intro: "Kadi ला तुमच्या कागदपत्रांमध्ये अशा नोंदी सापडल्या ज्या एकाच गोष्टीबद्दल असू शकतात. तुमच्या खात्रीशिवाय काहीही एकत्र केले जात नाही.",
+      mentionLabel: "नवीन नोंद",
+      existingLabel: "या केसमध्ये आधीपासून",
+      confidenceLabel: "जुळणी गुण",
+      confirmBtn: "एकच आहेत — एकत्र करा",
+      rejectBtn: "वेगळे आहेत — दोन्ही ठेवा",
+      signalLexical: "स्पेलिंग साम्य",
+      signalPhonetic: "उच्चार साम्य (लिपींच्या पलीकडे)",
+      signalSemantic: "अर्थ साम्य",
+      signalUnavailable: "उपलब्ध नाही",
+      uncalibratedNote: "जुळणी गुण हे साम्याचा अंदाज आहेत, संभाव्यता नाही.",
+    },
     modules: {
       billnyay: {
         title: "बिलन्याय — रुग्णालय बिल फॉरेन्सिक ऑडिट",
@@ -466,6 +537,7 @@ export const translations: Record<Language, Translations> = {
         analyzeBtn: "नकाराची कायदेशीर तपासणी करा व अपील ड्राफ्ट मिळवा",
         analyzing: "IRDAI नियमांनुसार तपासणी सुरू आहे...",
         reversalScore: "दावा मंजूर होण्याची शक्यता",
+        heuristicDisclosure: "या नाकारण्याच्या प्रकारासाठी नियमांवर आधारित अंदाज — मागील वादांच्या प्रत्यक्ष निकालांवर आधारित नाही.",
         wrongfulBadge: "विमा कंपनीचा नकार बेकायदेशीर असल्याचा पुरावा",
         violationsTitle: "कायदेशीर व विनियामक नियमभंग",
         groTab: "स्तर 1: विमा कंपनी GRO कडे अपील",
@@ -507,6 +579,10 @@ export const translations: Record<Language, Translations> = {
         criteriaEvaluated: "या निकालासाठी तपासलेले निकष",
         criteriaNotEvaluated: "तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा",
         provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
+        saveToCaseLabel: "नवीन कागदपत्रे आल्यावर पात्रता पुन्हा तपासता यावी म्हणून माझे वार्षिक उत्पन्न आणि राज्य या केसमध्ये जतन करा (ऐच्छिक)",
+        savedTriggered: "जतन केले. उत्पन्न एखाद्या योजनेच्या उत्पन्न मर्यादेत आहे — या केससाठी पात्रता तपासणी सुरू आहे.",
+        savedNotReady: "जतन केले. योजना तपासणीसाठी निदान किंवा प्रक्रिया असलेले बिल किंवा डिस्चार्ज सारांश अपलोड करा.",
+        savedNoChange: "जतन केले. कोणतीही नवीन योजना उत्पन्न मर्यादा लागू होत नाही, त्यामुळे नवीन तपासणीची गरज नव्हती.",
       },
       dawacheck: {
         title: "दवाचेक — NPPA औषध कमाल दर तपासणी",

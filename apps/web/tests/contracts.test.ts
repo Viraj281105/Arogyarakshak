@@ -14,6 +14,12 @@ describe('Web Domain Contracts and Routing Boundaries', () => {
     { module: 'bimanyay', path: '/api/v1/bimanyay/analyze' },
     { module: 'schemesetu', path: '/api/v1/schemesetu/eligibility' },
     { module: 'dawacheck', path: '/api/v1/dawacheck/benchmark' },
+    { module: 'kadi', path: '/api/v1/kadi/cases/CASE-123/resolutions' },
+    { module: 'kadi', path: '/api/v1/kadi/cases/CASE-123/graph' },
+    { module: 'kadi', path: '/api/v1/kadi/cases/CASE-123/insights' },
+    { module: 'kadi', path: '/api/v1/kadi/cases/CASE-123/abdm/import' },
+    { module: 'schemesetu', path: '/api/v1/schemesetu/cases/CASE-123/income-profile' },
+    { module: 'billnyay', path: '/api/v1/billnyay/outcome-estimate' },
   ];
 
   test('all routes must strictly follow /api/v1/<module>/... versioning', () => {
@@ -179,5 +185,47 @@ describe('Web Forms Must Not Pre-Fill Fabricated Data', () => {
     // apart from full NPPA Schedule-I coverage.
     const src = readFileSync(join(moduleDir, 'DawaCheckView.tsx'), 'utf-8');
     assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
+  });
+});
+
+import { formatScore, resolutionPaths, signalRows } from '../app/lib/resolution';
+
+describe('Kadi Entity Resolution Review Contract (#31)', () => {
+  test('review paths match the API routes', () => {
+    assert.strictEqual(resolutionPaths.pending('CASE-123'), '/api/v1/kadi/cases/CASE-123/resolutions?status=pending');
+    assert.strictEqual(
+      resolutionPaths.feedback('CASE-123', 'RES-9'),
+      '/api/v1/kadi/cases/CASE-123/resolutions/RES-9/feedback'
+    );
+  });
+
+  test('scores render as percentages and unavailable signals as missing, never as zero', () => {
+    assert.strictEqual(formatScore(0.8583), '86%');
+    assert.strictEqual(formatScore(null), null);
+    const rows = signalRows([
+      { signal: 'lexical', status: 'AVAILABLE', score: 0.8182, detail: '' },
+      { signal: 'semantic', status: 'UNAVAILABLE', score: null, detail: 'disabled' },
+    ]);
+    assert.deepStrictEqual(rows, [
+      { signal: 'lexical', value: '82%' },
+      { signal: 'semantic', value: null },
+    ]);
+  });
+
+  test('entities are only merged by an explicit answer from the patient', () => {
+    const src = readFileSync(join(process.cwd(), 'app', 'components', 'EntityResolutionReview.tsx'), 'utf-8');
+    assert.ok(src.includes('same_entity: sameEntity'));
+    assert.ok(src.includes('onClick={() => answer(decision, true)}'));
+    assert.ok(src.includes('onClick={() => answer(decision, false)}'));
+  });
+});
+
+describe('SchemeSetu Income Profile Is Opt-In (#92)', () => {
+  const src = readFileSync(join(process.cwd(), 'app', 'components', 'modules', 'SchemeSetuView.tsx'), 'utf-8');
+
+  test('save-to-case defaults to unchecked and gates the PUT', () => {
+    assert.ok(src.includes('const [saveToCase, setSaveToCase] = useState(false)'));
+    assert.ok(src.includes('if (caseId && saveToCase)'));
+    assert.ok(src.includes('/income-profile'));
   });
 });
