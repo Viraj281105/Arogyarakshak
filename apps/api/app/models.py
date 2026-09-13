@@ -5,7 +5,7 @@ Database tables for Kadi shared context (cases and entities).
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Float, Boolean, ForeignKey, Table, JSON
+from sqlalchemy import Column, String, DateTime, Float, Boolean, ForeignKey, Table, JSON, LargeBinary
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -121,6 +121,29 @@ class BimaNyayTimelineEvent(Base):
 
 
 
+class BillNyayAppeal(Base):
+    """Persisted appeal letter + its compiled PDF and integrity signature (#66).
+
+    The appeal letter is LLM-drafted (or template-fallback) and can differ between
+    calls to POST .../appeal, so the PDF download and integrity verification must
+    render/check the exact bytes generated at draft time — not a value regenerated
+    later, which could silently differ. One row per case; re-drafting replaces it.
+    """
+
+    __tablename__ = "billnyay_appeals"
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(
+        String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    appeal_letter = Column(String, nullable=False)
+    pdf_bytes = Column(LargeBinary, nullable=False)
+    sha256_hash = Column(String, nullable=False)
+    hmac_signature = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class DaaviSetuClaim(Base):
     """Pre-authorization claim submitted for a case.
 
@@ -146,6 +169,9 @@ class DaaviSetuClaim(Base):
     diagnosis = Column(String, nullable=False)
     estimated_cost = Column(Float, default=0.0)
     treatment_plan = Column(String, nullable=False)
+    # Policyholder-declared sum insured (#84). Nullable: policy-limit validation is
+    # skipped, never assumed, when the policyholder hasn't supplied a limit.
+    sum_insured = Column(Float, nullable=True)
 
     status = Column(String, default="ready_for_review")  # ready_for_review, completed
     created_at = Column(DateTime, default=datetime.utcnow)

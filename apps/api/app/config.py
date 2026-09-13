@@ -23,6 +23,12 @@ class Settings(BaseSettings):
 
     # --- Security -------------------------------------------------------------
     cors_origins: str = "*"
+    # HMAC key for BillNyay's document integrity signatures (#66) — proves a
+    # downloaded appeal PDF is byte-for-byte what this server generated, NOT a
+    # licensed digital signature certificate (DSC) under the IT Act, 2000. The
+    # insecure default is fine for dev/test; production deployments must override
+    # this via the DOCUMENT_SIGNING_SECRET env var.
+    document_signing_secret: str = "dev-insecure-signing-secret-change-in-production"
 
     # --- Upload limits --------------------------------------------------------
     # Documents are read fully into RAM for transient parsing, so an unbounded upload is

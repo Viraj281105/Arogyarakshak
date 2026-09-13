@@ -222,7 +222,17 @@ async def process_document_background(case_id: str, file_bytes: bytes, filename:
 
             for proc in extracted.procedures:
                 proc_name = proc.get("name")
-                if proc_name and not any(e.name == proc_name for e in entities_to_add):
+                # Scoped to type="procedure" only. The unscoped check previously
+                # compared against every entity already queued — including the
+                # type="billing_item" entity OCR's line-item parser adds for the same
+                # source line (step 1, above) — so a procedure entity was silently
+                # never created whenever OCR had already captured that line as a
+                # billing item, which is the common case for any procedure with a
+                # charge on the bill. That starved BillNyay's ICD-10/procedure
+                # consistency audit (#64) of the "procedure" entities it queries for.
+                if proc_name and not any(
+                    e.name == proc_name and e.type == "procedure" for e in entities_to_add
+                ):
                     entities_to_add.append(
                         KadiEntity(
                             id=f"ENT-PROC-{uuid.uuid4().hex[:8]}",

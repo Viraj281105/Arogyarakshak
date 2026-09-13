@@ -14,6 +14,18 @@ from .clinician import run_clinician_agent, EvidenceList, ClinicalEvidence
 from .regulatory import run_regulatory_agent
 from .barrister import run_barrister_agent
 from .judge import run_judge_agent, JudgeScorecard
+from .consensus import (
+    AgentRole,
+    AgentVote,
+    ConsensusResult,
+    VoteDecision,
+    compute_weighted_consensus,
+    vote_from_auditor,
+    vote_from_clinician,
+    vote_from_regulatory,
+)
+from .feedback_loop import draft_with_self_correction, DraftingResult, RevisionAttempt
+from .icd_audit import audit_icd_procedure_consistency, ICDProcedureAuditItem
 
 __all__ = [
     "run_auditor_agent",
@@ -25,4 +37,17 @@ __all__ = [
     "run_barrister_agent",
     "run_judge_agent",
     "JudgeScorecard",
+    "AgentRole",
+    "AgentVote",
+    "ConsensusResult",
+    "VoteDecision",
+    "compute_weighted_consensus",
+    "vote_from_auditor",
+    "vote_from_clinician",
+    "vote_from_regulatory",
+    "draft_with_self_correction",
+    "DraftingResult",
+    "RevisionAttempt",
+    "audit_icd_procedure_consistency",
+    "ICDProcedureAuditItem",
 ]

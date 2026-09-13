@@ -5,8 +5,9 @@ Handles hospital bill auditing, appeal drafting (5-agent pipeline), and grievanc
 """
 
 import logging
+import uuid
 from typing import Any, Dict, List, Literal, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,13 +18,25 @@ import urllib.request
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
-from app.models import KadiCase, KadiEntity
+from app.models import BillNyayAppeal, KadiCase, KadiEntity
 # Import billnyay modules
 from billnyay.agents.auditor import run_auditor_agent, StructuredDenial
 from billnyay.agents.judge import run_judge_agent, JudgeScorecard
 from billnyay.agents.barrister import run_barrister_agent
 from billnyay.agents.clinician import run_clinician_agent
 from billnyay.agents.regulatory import run_regulatory_agent
+from billnyay.agents.consensus import (
+    ConsensusResult,
+    compute_weighted_consensus,
+    vote_from_auditor,
+    vote_from_clinician,
+    vote_from_regulatory,
+)
+from billnyay.agents.feedback_loop import draft_with_self_correction
+from billnyay.agents.icd_audit import audit_icd_procedure_consistency, ICDProcedureAuditItem
+from billnyay.tools.pdf_compiler import compile_appeal_packet_bytes
+from billnyay.tools.pdf_integrity import compute_sha256, sign_document, verify_signature
+from billnyay.tools.bima_bharosa_crawler import check_registration_status_mock, RegistrationStatusResult
 
 logger = logging.getLogger("arogyarakshak.api.billnyay")
 router = APIRouter()
@@ -160,6 +173,16 @@ class AppealResponse(BaseModel):
     # False when GROQ_API_KEY is unset: the letter is a static statutory template rather
     # than an LLM draft grounded in this case. Callers must be able to tell the two apart.
     llm_backed: bool
+    # #65 — cooperative pre-drafting vote across Auditor/Clinician/Regulatory, surfaced
+    # alongside (not instead of) the Judge's own scoring of the finished letter.
+    consensus: Dict[str, Any]
+    # #68 — how many times the Barrister re-drafted after a needs_revision verdict.
+    revision_count: int = 0
+    revision_history: List[Dict[str, Any]] = []
+    # #66 — integrity of the compiled, persisted PDF. See .../appeal/pdf and
+    # .../appeal/verify.
+    document_sha256: str
+    pdf_download_url: str
 
 
 class GrievanceResponse(BaseModel):
@@ -167,6 +190,11 @@ class GrievanceResponse(BaseModel):
     complaint_text: str
     bima_bharosa_fields: Dict[str, str] = {}
     deep_link: str
+    # False when the Auditor could not extract real denial facts from the uploaded
+    # document (no GROQ_API_KEY, or the call fell back). The complaint is then built on
+    # UNSPECIFIED_FIELD placeholders instead of a fabricated denial code/reason —
+    # mirrors AppealResponse.denial_facts_extracted for the same reason.
+    denial_facts_extracted: bool = True
 
 
 # --- Groq LLM Client & Fallback -----------------------------------------------
@@ -454,27 +482,52 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         denial_data=denial.model_dump(), client=client
     )
 
-    # 6. Agent 4 — Barrister: draft the formal IRDAI appeal letter.
-    appeal_letter = run_barrister_agent(
+    # 5b. Multi-agent consensus (#65): a transparency/triage vote across the three
+    # upstream agents, surfaced alongside — not instead of — the Judge's scoring of
+    # the finished letter.
+    votes = [
+        vote_from_auditor(denial, denial_facts_extracted),
+        vote_from_clinician(clinical_evidence),
+        vote_from_regulatory(regulatory_evidence),
+    ]
+    consensus: ConsensusResult = compute_weighted_consensus(votes)
+
+    # 6-7. Agents 4 & 5 — Barrister drafts, Judge scores, with self-correcting
+    # revision (#68) when the Judge reports needs_revision.
+    drafting_result = draft_with_self_correction(
         client,
         denial_details=denial,
         clinical_evidence=clinical_evidence,
         regulatory_evidence=regulatory_evidence,
     )
-    if not appeal_letter:
+    if drafting_result is None:
         logger.error("[BillNyay] Barrister Agent returned no appeal letter for case %s", case_id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Appeal drafting failed: the drafting agent returned no letter.",
         )
+    appeal_letter = drafting_result.appeal_letter
+    scorecard = drafting_result.scorecard
 
-    # 7. Agent 5 — Judge: score the draft against the upstream evidence.
-    scorecard = run_judge_agent(
-        appeal_letter=appeal_letter,
-        denial_details=denial,
-        clinical_evidence=clinical_evidence,
-        regulatory_evidence=regulatory_evidence,
+    # 8. Compile, sign, and persist the PDF (#66) — the exact bytes served by
+    # .../appeal/pdf and checked by .../appeal/verify, so a later re-draft cannot
+    # silently invalidate what was already downloaded.
+    pdf_bytes = compile_appeal_packet_bytes(appeal_letter, case_meta={"case_id": case_id})
+    document_sha256 = compute_sha256(pdf_bytes)
+    hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
+
+    existing_appeal = await db.execute(
+        select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id)
     )
+    appeal_record = existing_appeal.scalar_one_or_none()
+    if appeal_record is None:
+        appeal_record = BillNyayAppeal(id=f"APPEAL-{uuid.uuid4().hex[:10]}", case_id=case_id)
+        db.add(appeal_record)
+    appeal_record.appeal_letter = appeal_letter
+    appeal_record.pdf_bytes = pdf_bytes
+    appeal_record.sha256_hash = document_sha256
+    appeal_record.hmac_signature = hmac_signature
+    await db.commit()
 
     return AppealResponse(
         case_id=case_id,
@@ -483,25 +536,165 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         status=scorecard.status,
         llm_backed=bool(settings.groq_api_key),
         denial_facts_extracted=denial_facts_extracted,
+        consensus=consensus.model_dump(mode="json"),
+        revision_count=drafting_result.revision_count,
+        revision_history=[r.model_dump() for r in drafting_result.revision_history],
+        document_sha256=document_sha256,
+        pdf_download_url=f"/api/v1/billnyay/cases/{case_id}/appeal/pdf",
     )
+
+
+@router.get("/cases/{case_id}/appeal/pdf")
+async def download_appeal_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
+    """Downloads the exact signed PDF generated by the most recent POST .../appeal
+    for this case (#66). Renders strictly from the stored bytes — never regenerated
+    on the fly — so what is downloaded always matches what was hashed and signed."""
+    await require_case_consent(case_id, db)
+
+    result = await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
+    appeal_record = result.scalar_one_or_none()
+    if appeal_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No appeal has been drafted for this case yet. "
+                f"POST /api/v1/billnyay/cases/{case_id}/appeal first."
+            ),
+        )
+
+    return Response(
+        content=appeal_record.pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=appeal_{case_id}.pdf"},
+    )
+
+
+@router.get("/cases/{case_id}/appeal/verify")
+async def verify_appeal_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
+    """Verifies the stored appeal PDF's integrity (#66): recomputes its SHA-256 and
+    checks the stored HMAC signature. This proves the stored bytes were not altered
+    since ArogyaRakshak generated and signed them — it is NOT a licensed digital
+    signature certificate (DSC) under the IT Act, 2000; see
+    billnyay.tools.pdf_integrity for what this can and cannot vouch for.
+    """
+    await require_case_consent(case_id, db)
+
+    result = await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
+    appeal_record = result.scalar_one_or_none()
+    if appeal_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No appeal has been drafted for this case yet. "
+                f"POST /api/v1/billnyay/cases/{case_id}/appeal first."
+            ),
+        )
+
+    recomputed_hash = compute_sha256(appeal_record.pdf_bytes)
+    hash_matches_stored = recomputed_hash == appeal_record.sha256_hash
+    signature_valid = verify_signature(
+        appeal_record.pdf_bytes, appeal_record.hmac_signature, settings.document_signing_secret
+    )
+
+    return {
+        "case_id": case_id,
+        "sha256_hash": appeal_record.sha256_hash,
+        "hash_matches_stored_bytes": hash_matches_stored,
+        "signature_valid": signature_valid,
+        "note": (
+            "This confirms the stored PDF is byte-for-byte what ArogyaRakshak generated "
+            "and signed. It is not a licensed digital signature certificate (DSC) under "
+            "the IT Act, 2000."
+        ),
+    }
+
+
+@router.get("/cases/{case_id}/icd-audit", response_model=ICDProcedureAuditItem)
+async def audit_icd_procedure(case_id: str, db: AsyncSession = Depends(get_db)):
+    """Flags whether the billed procedure(s) look clinically consistent with the
+    diagnosis's ICD-10 code (#64), using a curated reference subset — see
+    billnyay.agents.icd_audit for its coverage and honesty caveats."""
+    await require_case_consent(case_id, db)
+
+    diagnosis_result = await db.execute(
+        select(KadiEntity).join(KadiCase.entities)
+        .where(KadiCase.id == case_id, KadiEntity.type == "diagnosis")
+    )
+    diagnosis_entity = diagnosis_result.scalars().first()
+    diagnosis_text = diagnosis_entity.name if diagnosis_entity else ""
+
+    procedure_result = await db.execute(
+        select(KadiEntity).join(KadiCase.entities)
+        .where(KadiCase.id == case_id, KadiEntity.type == "procedure")
+    )
+    procedures_billed = [e.name for e in procedure_result.scalars().all() if e.name]
+
+    return audit_icd_procedure_consistency(diagnosis_text, procedures_billed)
+
+
+@router.get("/grievance/registration-status", response_model=RegistrationStatusResult)
+async def grievance_registration_status(
+    complaint_reference: str = Query(..., description="Bima Bharosa complaint reference number")
+):
+    """Mock Bima Bharosa portal registration-status check (#67). See
+    billnyay.tools.bima_bharosa_crawler for why this is deliberately mock-only —
+    ArogyaRakshak is not authorized to automate interactions with the live portal."""
+    return check_registration_status_mock(complaint_reference)
 
 
 @router.post("/cases/{case_id}/grievance", response_model=GrievanceResponse)
 async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
-    """Auto-drafts an IRDAI Bima Bharosa portal complaint package."""
+    """Auto-drafts an IRDAI Bima Bharosa portal complaint package (#51).
+
+    Previously this built a fixed generic sentence ("room categories benchmarking
+    deviations") and cited an unverified "Rule 14" for every case, regardless of what
+    was actually in the uploaded document — exactly the kind of case-independent
+    templating the no-fabrication principle rules out for a document filed with a
+    regulator. This now reuses the same Auditor Agent extraction draft_appeal runs, so
+    the complaint reflects this case's actual denial code/reason/procedure — or
+    honestly reports them as not extracted, via `denial_facts_extracted`.
+    """
     case = await require_case_consent(case_id, db)
 
+    entities_result = await db.execute(
+        select(KadiEntity).join(KadiCase.entities)
+        .where(KadiCase.id == case_id)
+        .where(KadiEntity.type == "document_text")
+    )
+    texts = [e.value for e in entities_result.scalars().all() if e.value]
+    combined_text = "\n".join(texts) if texts else ""
+
+    if settings.groq_api_key:
+        client = GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
+    else:
+        client = GroqClientFallback()
+
+    denial = run_auditor_agent(client=client, denial_text=combined_text) if combined_text else None
+    denial_facts_extracted = denial is not None and not client.used_fallback
+    if denial is None:
+        denial = StructuredDenial(
+            denial_code=UNSPECIFIED_FIELD,
+            insurer_reason_snippet=UNSPECIFIED_FIELD,
+            policy_clause_text=UNSPECIFIED_FIELD,
+            procedure_denied=UNSPECIFIED_FIELD,
+            confidence_score=0.0,
+            raw_evidence_chunks=[],
+        )
+
     complaint_text = (
-        f"Grievance Complaint filed under Bima Bharosa.\n"
+        "Grievance Complaint filed under IRDAI Bima Bharosa Portal.\n"
         f"Case Reference: {case_id}\n"
-        f"Details: The insurer has failed to reimburse room categories benchmarking deviations "
-        f"despite IRDAI compliant appeals. Total disputed amount is ₹{case.total_charged:.2f}.\n"
-        f"Requesting regulatory investigation under Rule 14."
+        f"Denial/Reference Code: {denial.denial_code}\n"
+        f"Procedure/Service Disputed: {denial.procedure_denied}\n"
+        f"Insurer's Stated Reason: {denial.insurer_reason_snippet}\n"
+        f"Disputed Amount: Rs. {case.total_charged:.2f}\n"
+        "The policyholder disputes the above rejection/deduction and seeks reversal "
+        "under the IRDAI (Protection of Policyholders' Interests) Regulations."
     )
 
     # Required fields structure for manual copying
     bb_fields = {
-        "Complaint Type": "Partial Payment / Unfair Deduction",
+        "Complaint Type": "Claim Rejection / Unfair Deduction",
         "Insurer Category": "Health Insurance Company",
         "Disputed Amount": f"{case.total_charged:.2f}",
         "Policyholder Consent": "Yes",
@@ -510,6 +703,7 @@ async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
     return {
         "case_id": case_id,
         "complaint_text": complaint_text,
+        "denial_facts_extracted": denial_facts_extracted,
         "bima_bharosa_fields": bb_fields,
         "deep_link": "https://bimabharosa.irdai.gov.in/RegisterNewGrievance",
     }

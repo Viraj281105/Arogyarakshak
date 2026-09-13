@@ -86,7 +86,10 @@ jobs:
           pip install -c apps/api/constraints-cpu.txt -e packages/bimanyay
           pip install -c apps/api/constraints-cpu.txt -e packages/schemesetu
           pip install -c apps/api/constraints-cpu.txt -e packages/dawacheck
-          pip install pytest pytest-asyncio pytest-cov aiosqlite httpx ruff reportlab
+          # PyMuPDF (fitz) is test-only: apps/api/tests/test_api.py's _pdf_text() reads
+          # generated PDFs back to verify content. It is not an app runtime dependency
+          # (apps/api/requirements.txt), so it belongs with the other test tooling here.
+          pip install pytest pytest-asyncio pytest-cov aiosqlite httpx ruff reportlab PyMuPDF==1.24.1
 
       - name: Python Code Syntax & Lint Check (Ruff)
         run: |

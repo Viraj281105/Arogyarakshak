@@ -9,9 +9,12 @@ Enforcement reads the **persisted** case row, never a per-request field, so a cl
 cannot grant itself access by sending ``consent_opt_in: true`` on the module call. The
 only way to set it is at case creation, which is the patient's own action.
 
-Modules that consume Kadi case context (BillNyay, DaaviSetu) must call
-``require_case_consent``. Modules that take all their input from the request body and
-read no case context (SchemeSetu, DawaCheck) are out of scope by design.
+Modules that consume Kadi case context (BillNyay, DaaviSetu; DawaCheck's
+``GET /cases/{case_id}/benchmark``; SchemeSetu's ``POST /cases/{case_id}/eligibility``)
+must call ``require_case_consent``. A module route that takes all its input from the
+request body and reads no case context (SchemeSetu's ``POST /eligibility``; DawaCheck's
+``POST /benchmark``) is out of scope by design — consent enforcement is a per-route
+decision based on whether that route reads case entities, not a per-module one.
 """
 
 import logging

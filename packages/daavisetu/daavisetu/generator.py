@@ -20,6 +20,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
+from daavisetu.schema import FORM_SECTIONS
+
 
 class ClaimData(BaseModel):
     policy_number: str = Field(..., description="Insurance policy ID")
@@ -28,6 +30,55 @@ class ClaimData(BaseModel):
     diagnosis: str = Field(..., description="ICD-10 clinical diagnosis code or description")
     estimated_cost: float = Field(..., description="Estimated treatment cost")
     treatment_plan: str = Field(..., description="Summary of medical procedure or treatment plan")
+    sum_insured: Optional[float] = Field(
+        None,
+        description="Policy's maximum sum insured, as declared by the policyholder. "
+        "Policy-limit validation (#84) is skipped when this is not supplied — "
+        "ArogyaRakshak never guesses a policy's coverage limit.",
+    )
+
+
+class PolicyLimitCheck(BaseModel):
+    """Result of comparing an estimated cost against a declared policy sum insured."""
+
+    sum_insured: float
+    estimated_cost: float
+    exceeds_limit: bool
+    shortfall_amount: float = Field(
+        ..., description="Amount by which estimated_cost exceeds sum_insured; 0 when within limit."
+    )
+    note: str
+
+
+def check_policy_limit(estimated_cost: float, sum_insured: Optional[float]) -> Optional[PolicyLimitCheck]:
+    """Flags an estimated cost that exceeds the policyholder's declared sum insured.
+
+    Returns None when no sum insured was declared — absence of the field must never be
+    read as "within limit", so callers must not treat None as a clean bill of health.
+    """
+    if sum_insured is None:
+        return None
+
+    exceeds = estimated_cost > sum_insured
+    shortfall = round(estimated_cost - sum_insured, 2) if exceeds else 0.0
+    note = (
+        f"Estimated cost (₹{estimated_cost:,.2f}) exceeds the declared sum insured "
+        f"(₹{sum_insured:,.2f}) by ₹{shortfall:,.2f}. The insurer may only approve "
+        "cashless treatment up to the policy limit; the balance would typically be "
+        "payable out of pocket or via reimbursement under a separate policy."
+        if exceeds
+        else (
+            f"Estimated cost (₹{estimated_cost:,.2f}) is within the declared sum "
+            f"insured (₹{sum_insured:,.2f})."
+        )
+    )
+    return PolicyLimitCheck(
+        sum_insured=sum_insured,
+        estimated_cost=estimated_cost,
+        exceeds_limit=exceeds,
+        shortfall_amount=shortfall,
+        note=note,
+    )
 
 
 class ClaimPackage(BaseModel):
@@ -36,6 +87,9 @@ class ClaimPackage(BaseModel):
     form_filled_pdf_path: Optional[str] = None
     form_filled_pdf_url: Optional[str] = None
     status: str = Field("ready_for_review", description='"ready_for_review" | "completed"')
+    policy_limit_check: Optional[PolicyLimitCheck] = Field(
+        None, description="Set only when the claim declared a sum_insured (#84)."
+    )
 
 
 def generate_preauth_pdf(claim_id: str, claim_input: ClaimData) -> bytes:
@@ -98,24 +152,26 @@ def generate_preauth_pdf(claim_id: str, claim_input: ClaimData) -> bytes:
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#06b6d4")))
     story.append(Spacer(1, 10))
 
-    # Form Fields Table
+    # Form Fields Table. Labels come from daavisetu.schema.FORM_SECTIONS — the same
+    # constants the universal claim-form JSON Schema (#79) annotates its fields with —
+    # so the rendered form and the schema cannot silently drift apart.
     table_data = [
         [
-            Paragraph("1. PATIENT FULL NAME", cell_label_style),
+            Paragraph(FORM_SECTIONS["patient_name"], cell_label_style),
             Paragraph(claim_input.patient_name, cell_val_style),
-            Paragraph("2. HEALTH INSURANCE POLICY ID", cell_label_style),
+            Paragraph(FORM_SECTIONS["policy_number"], cell_label_style),
             Paragraph(claim_input.policy_number, cell_val_style),
         ],
         [
-            Paragraph("3. NETWORK HOSPITAL NAME", cell_label_style),
+            Paragraph(FORM_SECTIONS["hospital_name"], cell_label_style),
             Paragraph(claim_input.hospital_name, cell_val_style),
-            Paragraph("4. ESTIMATED ADMISSION EXPENSES", cell_label_style),
+            Paragraph(FORM_SECTIONS["estimated_cost"], cell_label_style),
             Paragraph(f"INR {claim_input.estimated_cost:,.2f}", cell_val_style),
         ],
         [
-            Paragraph("5. PROVISIONAL / CLINICAL DIAGNOSIS", cell_label_style),
+            Paragraph(FORM_SECTIONS["diagnosis"], cell_label_style),
             Paragraph(claim_input.diagnosis, cell_val_style),
-            Paragraph("6. PROPOSED MEDICAL PROCEDURE", cell_label_style),
+            Paragraph(FORM_SECTIONS["treatment_plan"], cell_label_style),
             Paragraph(claim_input.treatment_plan, cell_val_style),
         ],
     ]
@@ -135,6 +191,22 @@ def generate_preauth_pdf(claim_id: str, claim_input: ClaimData) -> bytes:
     )
     story.append(t)
     story.append(Spacer(1, 14))
+
+    # Policy-limit warning (#84) — only rendered when a sum insured was actually
+    # declared and the estimate exceeds it. Never asserted when sum_insured is None:
+    # silence here must not be mistaken for "within limit".
+    limit_check = check_policy_limit(claim_input.estimated_cost, claim_input.sum_insured)
+    if limit_check and limit_check.exceeds_limit:
+        warn_style = ParagraphStyle(
+            "PolicyLimitWarning",
+            parent=base["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#b91c1c"),
+        )
+        story.append(Paragraph(f"⚠ POLICY LIMIT ALERT: {limit_check.note}", warn_style))
+        story.append(Spacer(1, 10))
 
     # Declarations section
     dec_style = ParagraphStyle(
@@ -177,6 +249,7 @@ def generate_claim_package(case_id: str, claim_input: ClaimData) -> ClaimPackage
         form_filled_pdf_path=f"/api/v1/daavisetu/cases/{case_id}/claim/pdf",
         form_filled_pdf_url=f"/api/v1/daavisetu/cases/{case_id}/claim/pdf",
         status="ready_for_review",
+        policy_limit_check=check_policy_limit(claim_input.estimated_cost, claim_input.sum_insured),
     )
 
     logger.info(f"[DaaviSetu] Created claim package {package.claim_id} with status {package.status}")

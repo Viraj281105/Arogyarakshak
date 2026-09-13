@@ -5,17 +5,21 @@ Benchmarks MRP against NPPA ceiling prices and suggests generic alternatives.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
+
+from dawacheck.reference_data import (
+    NPPA_REFERENCE_DATA,
+    REFERENCE_SOURCE,
+    extract_dosage_mg,
+    find_exact_or_alias,
+    find_ingredient_family,
+    find_phonetic_match,
+    strip_dosage_token,
+)
 
 logger = logging.getLogger("DawaCheck.Checker")
 logger.setLevel(logging.INFO)
-
-
-# Provenance for every benchmark returned. The reference table below is a curated subset
-# of NPPA Schedule-I, not the full ~800-formulation list, and callers must be able to say
-# so rather than presenting it as complete national price-control data.
-REFERENCE_SOURCE = "NPPA Schedule-I (curated subset)"
 
 
 class MedicineBenchmark(BaseModel):
@@ -35,93 +39,93 @@ class MedicineBenchmark(BaseModel):
     reference_entry_count: int = Field(
         0, description="Number of formulations in the reference table used for this lookup."
     )
+    match_method: str = Field(
+        "exact_or_alias",
+        description=(
+            "How the brand name was resolved to a reference entry: 'exact_or_alias' "
+            "(direct name/alias match), 'ingredient_dosage_variant' (same active "
+            "ingredient, different strength than the reference entry — price scaled "
+            "proportionally), or 'fuzzy_phonetic' (Double Metaphone spelling/OCR-variant "
+            "match — lowest confidence, should be shown to the user as a suggestion, "
+            "not asserted as certain)."
+        ),
+    )
+    dosage_normalized: bool = Field(
+        False,
+        description="True when the ceiling price was scaled from a different reference "
+        "strength to match the queried dosage, rather than read directly from the table.",
+    )
+    reference_dosage_mg: Optional[float] = Field(
+        None, description="Strength (mg) of the matched reference entry."
+    )
+    queried_dosage_mg: Optional[float] = Field(
+        None, description="Strength (mg) parsed from the query brand name/dosage hint, if any."
+    )
 
 
-def benchmark_medicine(brand_name: str, mrp: float) -> Optional[MedicineBenchmark]:
-    """Checks medicine MRP against NPPA ceiling prices (mock database check)."""
+def benchmark_medicine(
+    brand_name: str, mrp: float, dosage_hint: Optional[str] = None
+) -> Optional[MedicineBenchmark]:
+    """Checks medicine MRP against NPPA ceiling prices.
+
+    Resolution order (most to least confident):
+      1. Exact reference key, substring, or known alias.
+      2. Same active ingredient at a different strength — ceiling price is scaled
+         proportionally to the queried dosage (#73).
+      3. Double Metaphone phonetic match on the ingredient name, for spelling/OCR
+         variants not covered by the alias list (#72).
+    Returns None when none of these resolve, rather than guessing.
+    """
     logger.info(f"[DawaCheck] Benchmarking medicine: {brand_name} with MRP: {mrp}")
-    
-    # Comprehensive NPPA Schedule-I database lookup
-    # Sourced brand names to active ingredients, ceiling prices & Jan Aushadhi generic equivalents
-    nppa_database = {
-        "paracetamol 650mg": {
-            "active_ingredient": "Paracetamol 650mg",
-            "ceiling_price": 2.30,
-            "generic_info": "Generic Paracetamol 650mg available at PMBJP Jan Aushadhi Kendras for ₹0.80/tablet (65% savings).",
-            "aliases": ["dolo 650", "dolo 650mg", "crocin 650", "crocin 650mg", "calpol 650", "pacimol 650"],
-        },
-        "amoxicillin 500mg": {
-            "active_ingredient": "Amoxicillin 500mg",
-            "ceiling_price": 7.50,
-            "generic_info": "Generic Amoxicillin 500mg available at PMBJP Jan Aushadhi for ₹2.40/capsule (68% savings).",
-            "aliases": ["mox 500", "novamox 500", "amoxil 500"],
-        },
-        "augmentin 625": {
-            "active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)",
-            "ceiling_price": 20.10,
-            "generic_info": "Generic Amoxyclav 625mg available at PMBJP Kendras for ₹6.50/tablet (68% savings).",
-            "aliases": ["augmentin 625 duo", "augmentin 625 duo tablet", "moxikind cv 625", "clavum 625"],
-        },
-        "metformin 500mg": {
-            "active_ingredient": "Metformin Hydrochloride 500mg SR",
-            "ceiling_price": 2.15,
-            "generic_info": "Generic Metformin 500mg SR available at PMBJP Jan Aushadhi for ₹0.45/tablet (79% savings).",
-            "aliases": ["metformin 500mg sr", "glycomet 500", "glyciphage 500", "metformin sr"],
-        },
-        "meropenem 1g": {
-            "active_ingredient": "Meropenem 1000mg Powder for Injection",
-            "ceiling_price": 850.00,
-            "generic_info": "Generic Meropenem 1g Injection available at Jan Aushadhi stores for ₹245.00/vial (71% savings).",
-            "aliases": ["meropenem 1g injection", "meronem 1g", "meromac 1g"],
-        },
-        "pantoprazole 40mg": {
-            "active_ingredient": "Pantoprazole 40mg",
-            "ceiling_price": 3.20,
-            "generic_info": "Generic Pantoprazole 40mg available at PMBJP Kendras for ₹0.90/tablet (72% savings).",
-            "aliases": ["pan 40", "pantocid 40", "pantodac 40"],
-        },
-        "azithromycin 500mg": {
-            "active_ingredient": "Azithromycin 500mg",
-            "ceiling_price": 21.50,
-            "generic_info": "Generic Azithromycin 500mg available at PMBJP Jan Aushadhi for ₹8.00/tablet (63% savings).",
-            "aliases": ["azithral 500", "aziwok 500", "zithrox 500"],
-        },
-    }
 
     norm_query = brand_name.lower().strip()
-    matched_data = None
+    queried_dosage_mg = extract_dosage_mg(brand_name)
+    if queried_dosage_mg is None and dosage_hint:
+        queried_dosage_mg = extract_dosage_mg(str(dosage_hint))
+
     matched_key = None
+    matched_data = None
+    match_method = "exact_or_alias"
 
-    # 1. Exact match
-    if norm_query in nppa_database:
-        matched_data = nppa_database[norm_query]
-        matched_key = norm_query
+    hit = find_exact_or_alias(norm_query)
+    if hit:
+        matched_key, matched_data = hit
 
-    # 2. Alias / Substring matching
     if not matched_data:
-        for primary_key, entry in nppa_database.items():
-            if primary_key in norm_query or norm_query in primary_key:
-                matched_data = entry
-                matched_key = primary_key
-                break
-            for alias in entry.get("aliases", []):
-                if alias in norm_query or norm_query in alias:
-                    matched_data = entry
-                    matched_key = primary_key
-                    break
-            if matched_data:
-                break
+        bare_query = strip_dosage_token(norm_query)
+        if bare_query:
+            family = find_ingredient_family(bare_query)
+            if family:
+                matched_key, matched_data = family[0]
+                match_method = "ingredient_dosage_variant"
+
+    if not matched_data:
+        phon_hit = find_phonetic_match(norm_query)
+        if phon_hit:
+            matched_key, matched_data = phon_hit
+            match_method = "fuzzy_phonetic"
 
     if not matched_data:
         # Absent from the curated subset — NOT evidence that the drug is uncontrolled.
         logger.warning(
             "[DawaCheck] '%s' is not in the curated reference list (%d formulations).",
             brand_name,
-            len(nppa_database),
+            len(NPPA_REFERENCE_DATA),
         )
         return None
 
     ceiling = matched_data["ceiling_price"]
+    reference_dosage_mg = matched_data.get("dosage_mg")
+    dosage_normalized = False
+
+    if (
+        queried_dosage_mg
+        and reference_dosage_mg
+        and abs(queried_dosage_mg - reference_dosage_mg) > 0.01
+    ):
+        ceiling = round(ceiling * (queried_dosage_mg / reference_dosage_mg), 4)
+        dosage_normalized = True
+
     is_over = mrp > ceiling
     dev_percentage = ((mrp - ceiling) / ceiling) * 100 if is_over else 0.0
 
@@ -129,7 +133,7 @@ def benchmark_medicine(brand_name: str, mrp: float) -> Optional[MedicineBenchmar
         brand_name=brand_name,
         active_ingredient=matched_data["active_ingredient"],
         mrp=mrp,
-        nppa_ceiling_price=ceiling,
+        nppa_ceiling_price=round(ceiling, 2),
         is_overcharged=is_over,
         deviation_percentage=round(dev_percentage, 2),
         # Derived, not asserted: only true when the reference entry actually records a
@@ -140,8 +144,60 @@ def benchmark_medicine(brand_name: str, mrp: float) -> Optional[MedicineBenchmar
             "No generic equivalent is recorded for this formulation in the reference list.",
         ),
         data_source=REFERENCE_SOURCE,
-        reference_entry_count=len(nppa_database),
+        reference_entry_count=len(NPPA_REFERENCE_DATA),
+        match_method=match_method,
+        dosage_normalized=dosage_normalized,
+        reference_dosage_mg=reference_dosage_mg,
+        queried_dosage_mg=queried_dosage_mg,
     )
-    
-    logger.info(f"[DawaCheck] Benchmarked {brand_name}: Overcharged={benchmark.is_overcharged}")
+
+    logger.info(
+        "[DawaCheck] Benchmarked %s via %s: Overcharged=%s",
+        brand_name,
+        match_method,
+        benchmark.is_overcharged,
+    )
     return benchmark
+
+
+def benchmark_from_known_generic(
+    brand_name: str,
+    mrp: float,
+    active_ingredient: str,
+    ceiling_price: float,
+    dosage_hint: Optional[str] = None,
+) -> MedicineBenchmark:
+    """Builds a benchmark from a mapping already resolved elsewhere (e.g. a DawaCheck
+    brand->generic mapping learned from an earlier lookup), instead of re-running the
+    matcher against the static reference table.
+
+    Used as a fallback when a brand name is not in the curated reference list or its
+    aliases/phonetic variants, but a prior lookup already recorded its generic and
+    ceiling price (see the DawaCheck-Kadi case integration endpoint, issue #27).
+    """
+    queried_dosage_mg = extract_dosage_mg(brand_name)
+    if queried_dosage_mg is None and dosage_hint:
+        queried_dosage_mg = extract_dosage_mg(str(dosage_hint))
+
+    is_over = mrp > ceiling_price
+    dev_percentage = ((mrp - ceiling_price) / ceiling_price) * 100 if is_over else 0.0
+
+    return MedicineBenchmark(
+        brand_name=brand_name,
+        active_ingredient=active_ingredient,
+        mrp=mrp,
+        nppa_ceiling_price=round(ceiling_price, 2),
+        is_overcharged=is_over,
+        deviation_percentage=round(dev_percentage, 2),
+        generic_substitute_available=False,
+        generic_substitute_store_info=(
+            "Resolved from a previously recorded DawaCheck brand mapping; no fresh "
+            "generic-availability note is attached to this entry."
+        ),
+        data_source="DawaCheck learned mapping",
+        reference_entry_count=len(NPPA_REFERENCE_DATA),
+        match_method="learned_mapping",
+        dosage_normalized=False,
+        reference_dosage_mg=None,
+        queried_dosage_mg=queried_dosage_mg,
+    )
