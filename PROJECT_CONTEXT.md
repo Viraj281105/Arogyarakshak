@@ -52,14 +52,14 @@ flowchart TD
 3. **BimaNyay (`packages/bimanyay`)**: Post-denial dispute engine auditing claim repudiations against the **IRDAI Master Circular (May 29, 2024)**; auto-generates 3-tier appeals (GRO, Bima Bharosa, Ombudsman Form VI) and tracks statutory SLAs.
 4. **SchemeSetu (`packages/schemesetu`)**: Matches low-income demographics and clinical diagnoses against **PMJAY** (national) and **MJPJAY** (Maharashtra) eligibility rules; locates empanelled network hospitals.
 5. **DawaCheck (`packages/dawacheck`)**: Verifies medicine MRP against NPPA Schedule-I price control caps; recommends low-cost bioequivalent generic substitutes at PMBJP Jan Aushadhi Kendras.
-6. **Kadi (`packages/kadi`)**: Central shared intelligence layer providing unified document parsing, phonetic transliteration (**IndicXlit**), and cross-lingual semantic matching (**IndicSBERT**).
+6. **Kadi (`packages/kadi`)**: Central shared intelligence layer providing unified document parsing, entity resolution (edit distance, rule-based cross-script phonetics, optional **IndicSBERT** semantic matching; **IndicXlit** is not used — see ADR-006), ABDM FHIR bundle import, a case graph projection and consent-bounded module auto-triggering.
 
 ---
 
 ## 4. Architecture Snapshot
 
 - **Backend Gateway (`apps/api`)**: FastAPI async application running under Uvicorn. Implements versioned `/api/v1` routing, async database engine (`asyncpg`), and real-time Server-Sent Events (SSE) status streams.
-- **Database & Search**: PostgreSQL 16 with `pgvector` extension for persistent storage and vector embeddings. In-memory `FAISS` indexes in `kadi/vector_store.py` for rapid candidate blocking.
+- **Database & Search**: PostgreSQL 16 (pgvector image; no vector columns or similarity queries are used). `kadi/vector_store.py` is an unwired FAISS/pgvector scaffold — no FAISS index exists. Entity-resolution candidates are blocked by case and entity type instead (ADR-006).
 - **LLM Reasoning**: Groq API cloud client (Target model: `openai/gpt-oss-120b`). Deprecated models (`llama3-70b`) are strictly barred.
 - **Frontend Clients**:
   - `apps/web`: Next.js 16 App Router, React 19, TypeScript, Vanilla CSS design tokens (Mobile-first, 320px–1280px+, WCAG 2.1 AA).
@@ -124,10 +124,10 @@ arogyarakshak/
 | **Backend Framework** | FastAPI | `0.115.12` | Asynchronous REST & SSE endpoints. |
 | **Database ORM** | SQLAlchemy | `2.0.38` | Async sessions with `asyncpg`. |
 | **Database** | PostgreSQL | `pg16` | Containerized with `pgvector/pgvector:pg16`. |
-| **Vector Engine** | FAISS | In-memory | Candidate blocking & similarity scoring. |
+| **Vector Engine** | FAISS | *planned* | Unwired scaffold; not used. |
 | **LLM Inference** | Groq API | `openai/gpt-oss-120b` | High-throughput cloud inference. |
-| **Transliteration** | IndicXlit | AI4Bharat | Phonetic mapping across Indic scripts. |
-| **Embeddings** | IndicSBERT | L3Cube Pune | Cross-lingual sentence similarity. |
+| **Cross-Script Matching** | Rule-based (Kadi) | — | Devanagari romanization + Indic phonetic keys. IndicXlit is not used (#29). |
+| **Embeddings** | IndicSBERT | L3Cube Pune, optional | Cross-lingual similarity; off unless `KADI_SEMANTIC_MATCHING=true`. |
 | **Web Client** | Next.js | `16.3.0` / React `19.2.4` | App Router, mobile-first, trilingual UI. |
 | **Mobile Client** | Expo / React Native | TypeScript | Document scanner & SLA push alerts. |
 
@@ -198,7 +198,7 @@ None. Ready for Product Phase 2 when directed by user.
 
 ### P1 — High (Core Integration)
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
-- [ ] **IndicXlit & IndicSBERT Integration in Kadi**: Connect entity resolution scoring formula combining string distance, transliteration, and embeddings.
+- [x] **Kadi Entity Resolution (Phase 3)**: string similarity + rule-based cross-script phonetics + optional IndicSBERT, merge/ask/new branching and feedback-calibrated thresholds (ADR-006). IndicXlit remains blocked on fairseq / Python 3.11 (#29).
 - [ ] **Mobile Push SLA Alerts**: Local notifications for 15-day GRO and Bima Bharosa statutory deadlines.
 
 ### P2 — Medium (Evaluation & QA)

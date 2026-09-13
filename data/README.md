@@ -23,10 +23,12 @@ In accordance with project rules, every record and benchmark must cite an authen
 | `invoices_receipts_ocr/` | Images & Annotations | `kadi`, `billnyay` | Ground-truth dataset for hospital billing layout and OCR token extraction. |
 | `prescriptions_handwritten/` | Images | `kadi`, `dawacheck` | Sample doctor prescription dataset for OCR and entity extraction stress-testing. |
 | `indian_medical_insurance_policy/` | PDFs / Text | `bimanyay`, `daavisetu` | Representative Indian retail health insurance policy terms & exclusions. |
-| `health_insurance_claims_synthetic/`| CSV / Structured | `bimanyay` | Synthetic insurance claims and repudiation logs for grievance evaluation. |
-| `healthcare_fraud_detection/` | Tabular | `billnyay` | Procedure code anomaly and overutilization detection dataset. |
-| `mendeley_insurance_claims/` | Tabular / Text | `bimanyay`, `daavisetu` | Open-access insurance claim dispute benchmark dataset. |
-| `sparcs_inpatient_discharges/` | Tabular | `kadi` | De-identified hospital inpatient discharge dataset for procedure extraction verification. |
+| `health_insurance_claims_synthetic/`| CSV / Structured | `bimanyay` | **Mock scaffold** (2 rows written by `download_datasets.py`), not a dataset. |
+| `healthcare_fraud_detection/` | Tabular | `billnyay` | **Mock scaffold** (2 rows written by `download_datasets.py`), not a dataset. |
+| `mendeley_insurance_claims/` | Tabular / Text | `bimanyay`, `daavisetu` | **Mock scaffold** (1 row of a motor-insurance fraud schema written by `download_datasets.py`). It is not a claim-dispute benchmark and contains no dispute outcomes. |
+| `sparcs_inpatient_discharges/` | Tabular | `kadi` | **Mock scaffold** (2 rows written by `download_datasets.py`), not a dataset. |
+
+> No historical IRDAI / Insurance Ombudsman dispute-outcome data exists in this repository, which is why BillNyay's outcome estimator (#90) returns `INSUFFICIENT_EVIDENCE`. The Kadi entity-resolution evaluation set (`packages/kadi/tests/fixtures/entity_pairs_curated_synthetic.jsonl`) is hand-curated and synthetic.
 
 ---
 

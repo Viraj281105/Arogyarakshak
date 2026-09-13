@@ -15,11 +15,15 @@ Kadi (कड़ी — "link in a chain") is the connective infrastructure that 
   - Diagnoses & procedure codes (ICD-10 mapping).
   - Medications (brand, active ingredient, dosage, quantity).
   - Billing line items (room rent, ICU, procedures, consultations, consumables).
-- **Phonetic & Cross-Script Entity Resolution**:
-  - Catches spelling variations via edit distance and token overlap.
-  - Matches transliterated names across Latin and Devanagari scripts using **IndicXlit** (AI4Bharat). *(planned — not implemented)*
-  - Matches cross-lingual translated medical concepts (e.g. *Fever* ↔ *बुखार*) using **IndicSBERT** (L3Cube). *(planned — not implemented)*
-- **Consent Boundary**: Enforces patient opt-in (`consent_opt_in`) before sharing extracted context across modules.
+- **Entity Resolution** (`kadi/resolution/`, ADR-006):
+  - Catches spelling and qualifier variations via edit distance and fuzzy token overlap, with deterministic conflict guards for strength, dosage form, laterality, variant letters and opposite prefixes (#28).
+  - Matches names across Latin and Devanagari scripts with rule-based romanization and Indic phonetic keys (#89). **IndicXlit** (AI4Bharat) is *not used*: its fairseq dependency has no Python 3.11 wheels (#29, open).
+  - Optionally matches cross-lingual translated concepts (e.g. *Fever* ↔ *बुखार*) with **IndicSBERT** (L3Cube). Off by default (`KADI_SEMANTIC_MATCHING`, #30); semantic similarity can lead to an ask, never to a merge.
+  - Merge / ask-user / new-entity branching (#31); thresholds are recalibrated from user answers with a bounded deterministic procedure — not RLHF (#88). Evaluated on a hand-curated synthetic pair set (`docs/evaluation/entity-resolution.md`).
+- **Case Knowledge Graph** (`kadi/graph.py`, #86): on-request node-link projection of a case's entities with evidence on every edge. There is no graph database, and no clinical relationships are inferred.
+- **ABDM Record Import** (`kadi/fhir_import.py`, #54): parses a client-supplied FHIR R4 bundle into case context through entity resolution. There is no live ABDM gateway pull (sandbox registration is pending) and no NRCeS profile validation.
+- **Auto-Triggering** (`kadi/triggers.py`, `apps/api/app/auto_triggers.py`, #32): consent-bounded, read-only module checks run when a case has enough context; DaaviSetu claims are never auto-run.
+- **Consent Boundary**: Enforces patient opt-in (`consent_opt_in`) before sharing extracted context across modules. Federated / zero-knowledge consent verification across nodes is a design only (ADR-007).
 - **In-Memory Vector Search** *(planned)*: `kadi/vector_store.py` is a scaffold for FAISS/pgvector indexes. It contains no FAISS and is not wired into any endpoint.
 - **Direct-Identifier Redaction**: `kadi/redaction.py` strips names, contact details and government IDs from any text retained after extraction (ADR-003).
 
@@ -117,7 +121,7 @@ DawaCheck empowers patients to reduce recurring pharmaceutical expenses.
 
 | Module | Primary Scope (What It OWNS) | Out of Scope (What It DOES NOT DO) |
 |---|---|---|
-| **Kadi** | Shared entity extraction, cross-script resolution, vector store, consent. | No legal rules, no pricing benchmarks. |
+| **Kadi** | Shared entity extraction, entity resolution (incl. rule-based cross-script), case graph projection, ABDM bundle import, auto-triggers, consent. (Vector store: unwired scaffold.) | No legal rules, no pricing benchmarks. |
 | **BillNyay** | Hospital bill line items vs CGHS rates; hospital overcharge appeals. | Does not audit insurance denials or check drug MRPs. |
 | **DaaviSetu** | Pre-claim cashless pre-auth & reimbursement application forms. | Does not handle denials, appeals, or hospital rates. |
 | **BimaNyay** | Post-denial insurance repudiation audit, IRDAI appeals, SLA tracking. | Does not audit hospital bills vs CGHS (leaves to BillNyay). |

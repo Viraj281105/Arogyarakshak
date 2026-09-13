@@ -68,13 +68,16 @@ python -m pip install --upgrade pip
 # 2. Install FastAPI dependencies
 pip install -r apps/api/requirements.txt
 
-# 3. Register all packages in editable mode
-pip install -e packages/kadi
-pip install -e packages/billnyay
-pip install -e packages/daavisetu
-pip install -e packages/bimanyay
-pip install -e packages/schemesetu
-pip install -e packages/dawacheck
+# 3. Register all packages in editable mode. -c keeps torch/torchvision on the CPU-only
+#    build (see apps/api/constraints-cpu.txt). [semantic] is optional: it adds
+#    sentence-transformers for Kadi's IndicSBERT signal (ADR-006), which stays off unless
+#    KADI_SEMANTIC_MATCHING=true and downloads a ~950 MB model on first use.
+pip install -c apps/api/constraints-cpu.txt -e "packages/kadi[semantic]"
+pip install -c apps/api/constraints-cpu.txt -e packages/billnyay
+pip install -c apps/api/constraints-cpu.txt -e packages/daavisetu
+pip install -c apps/api/constraints-cpu.txt -e packages/bimanyay
+pip install -c apps/api/constraints-cpu.txt -e packages/schemesetu
+pip install -c apps/api/constraints-cpu.txt -e packages/dawacheck
 
 # 4. Install test harness
 pip install pytest pytest-asyncio aiosqlite httpx

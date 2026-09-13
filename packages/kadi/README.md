@@ -15,10 +15,15 @@
   - Devanagari and Latin script text extraction.
 - **Vector Store & Indexing (`kadi/vector_store.py`)**:
   - In-memory FAISS similarity indexes for sub-second entity matching and fast blocking. *(planned — not implemented)*
-- **Entity Resolution (Cross-Script & Semantic)**:
-  - Surface string distance (Levenshtein / Token overlap)
-  - Phonetic transliteration matching via **IndicXlit** (`ai4bharat-transliteration`) *(planned — not implemented)*
-  - Cross-lingual semantic similarity via **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`) *(planned — not implemented)*
+- **Entity Resolution (`kadi/resolution/`, ADR-006)**:
+  - Surface string similarity: Levenshtein, fuzzy token overlap, and conflict guards for strength, dosage form, laterality, variant letters and opposite prefixes (#28)
+  - Cross-script phonetic matching: rule-based Devanagari romanization + Indic phonetic keys (#89). **IndicXlit** (`ai4bharat-transliteration`) is not used — fairseq has no Python 3.11 wheels (#29)
+  - Cross-lingual semantic similarity via **IndicSBERT** (`l3cube-pune/indic-sentence-similarity-sbert`) — optional `kadi[semantic]` extra, off unless `KADI_SEMANTIC_MATCHING=true` (#30)
+  - Merge / ask-user / new-entity branching (#31) and feedback-calibrated thresholds, not RLHF (#88)
+  - Evaluation: `kadi/resolution/evaluation.py` and `scripts/evaluate_entity_resolution.py` over a hand-curated synthetic pair set
+- **Case graph (`kadi/graph.py`, #86)**: typed node-link projection of a case's entities with per-edge evidence; no graph database.
+- **ABDM FHIR import (`kadi/fhir_import.py`, #54)**: client-supplied FHIR R4 bundle -> entity mentions; drops Patient/Practitioner resources. No live gateway pull.
+- **Auto-trigger readiness (`kadi/triggers.py`, #32)**: which module checks a case has enough context for.
 
 ---
 
@@ -30,6 +35,10 @@ packages/kadi/
 │   ├── vector_store.py      # Vector index scaffold (no FAISS yet; unwired)
 │   ├── redaction.py         # Direct-identifier removal before persistence
 │   ├── line_items.py        # Shared billing line-item parsing
+│   ├── resolution/          # Entity resolution: similarity, transliteration, phonetic, semantic, resolver, calibration, evaluation
+│   ├── graph.py             # Case knowledge-graph projection (#86)
+│   ├── fhir_import.py       # ABDM/FHIR bundle -> entity mentions (#54)
+│   ├── triggers.py          # Auto-trigger readiness rules (#32)
 │   ├── ocr/
 │   │   ├── ocr_parser.py    # Optical character recognition parser
 │   │   └── tests/           # OCR parser test suite

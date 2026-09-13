@@ -31,7 +31,7 @@ flowchart TD
     subgraph SharedLayer ["Shared Infrastructure (packages/kadi)"]
         OCR["Shared OCR (Devanagari & Latin)"]
         Extraction["Entity Normalization Pipeline"]
-        Resolution["Entity Normalisation &amp; De-identification"]
+        Resolution["Entity Resolution (merge / ask / new) &amp; De-identification"]
         FAISS_Idx["Vector Store (planned)"]
     end
 
@@ -68,11 +68,11 @@ flowchart TD
 | **Backend Gateway** | **FastAPI** | `0.115.x` | High-performance async Python web framework with automatic OpenAPI documentation. |
 | **ASGI Server** | **Uvicorn** | `0.34.x` | Production-grade ASGI server with uvloop event loop. |
 | **ORM & Driver** | **SQLAlchemy + asyncpg** | `2.0.x` / `0.30.x` | Fully asynchronous relational database management. |
-| **Database** | **PostgreSQL + pgvector** | `pg16` | Relational persistence combined with native vector similarity searches. |
+| **Database** | **PostgreSQL** (pgvector image) | `pg16` | Relational persistence. The pgvector extension ships in the image but is unused — no vector columns or similarity queries exist. |
 | **Vector Index** *(planned)* | **FAISS / pgvector** | — | Similarity matching for candidate blocking. Scaffold only — `kadi/vector_store.py` is not wired into any endpoint. |
 | **LLM Inference** | **Groq API** | Default: `openai/gpt-oss-120b` | High-throughput cloud inference engine. Deprecated Llama models are prohibited. |
-| **Transliteration** *(planned)* | **IndicXlit (AI4Bharat)**| — | Phonetic cross-script transliteration for Indian regional languages. Not implemented — no code path uses it. |
-| **Cross-Lingual Embeddings** *(planned)* | **IndicSBERT (L3Cube)** | — | High-precision Hindi/Marathi/English semantic sentence similarity. Not implemented — no code path uses it. |
+| **Cross-Script Matching** | **Rule-based romanization + Indic phonetic keys** | — | Implemented in `kadi/resolution` (#89). IndicXlit (AI4Bharat) is not used: its fairseq dependency has no Python 3.11 wheels (#29). |
+| **Cross-Lingual Embeddings** *(optional)* | **IndicSBERT (L3Cube)** | `sentence-transformers<5` | Optional entity-resolution signal, off unless `KADI_SEMANTIC_MATCHING=true`; the model downloads on first use (ADR-006). |
 | **Web Frontend** | **Next.js (App Router)** | `15/16` / React `19` | Modern React client with trilingual i18n scaffolding. |
 | **Mobile App** | **React Native + Expo** | TypeScript | Cross-platform mobile client with camera document edge detection. |
 | **Containerization** | **Docker Compose** | Compose v2 | Multi-container local orchestration (Postgres, API, Web). |

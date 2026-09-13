@@ -99,7 +99,7 @@ To preserve maintainability, no two modules perform overlapping tasks:
 - **Backend**: [FastAPI](https://fastapi.tiangolo.com) 0.115 with asynchronous request pipeline (`uvicorn`, `asyncpg`, `pydantic-settings`).
 - **Database**: [PostgreSQL 16](https://www.postgresql.org). *(Planned: pgvector / FAISS similarity indexes — `packages/kadi/kadi/vector_store.py` is a scaffold and is not yet wired into any endpoint.)*
 - **LLM Reasoning**: [Groq Cloud](https://groq.com) high-speed inference engine (Default model: `openai/gpt-oss-120b`).
-- **Indic NLP** *(planned, not implemented)*: **IndicXlit** transliteration and **IndicSBERT** embeddings for cross-lingual entity resolution — tracked in issues #29, #30.
+- **Indic NLP**: rule-based Devanagari romanization and Indic phonetic keys for cross-script entity resolution (#89), plus **IndicSBERT** cross-lingual similarity as an optional, off-by-default signal (#30, ADR-006). **IndicXlit** is not used — its fairseq dependency has no Python 3.11 wheels (#29).
 - **Web Frontend**: [Next.js 15/16](https://nextjs.org) App Router, React 19, TypeScript, Vanilla CSS design tokens.
 - **Mobile App**: [React Native](https://reactnative.dev) with Expo and an in-app camera document capture flow. *(Edge detection / auto-cropping is not implemented.)*
 - **Containerization**: Docker Compose v2.
