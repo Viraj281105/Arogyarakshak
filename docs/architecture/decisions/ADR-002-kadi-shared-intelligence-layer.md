@@ -12,7 +12,7 @@ Duplicated parsers caused inconsistent schema outputs, wasted inference tokens, 
 ## Decision
 We established **Kadi (`packages/kadi`)** as shared infrastructure:
 1. Kadi is **not** an isolated application module; it is the platform's central data extraction and entity resolution foundation.
-2. All document OCR, entity extraction, phonetic transliteration (**IndicXlit**), and cross-lingual semantic matching (**IndicSBERT**) live exclusively in Kadi.
+2. All document OCR and entity extraction live exclusively in Kadi. Phonetic transliteration (**IndicXlit**) and cross-lingual semantic matching (**IndicSBERT**) are the designated location for this logic once built, but are not implemented — Kadi currently matches names via edit-distance/token-overlap only (see `docs/architecture/components.md`).
 3. Once Kadi extracts context into `kadi_cases`, any authorized module can query the case entities without requesting re-uploads.
 
 ## Consequences

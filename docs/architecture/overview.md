@@ -71,8 +71,8 @@ flowchart TD
 | **Database** | **PostgreSQL + pgvector** | `pg16` | Relational persistence combined with native vector similarity searches. |
 | **Vector Index** *(planned)* | **FAISS / pgvector** | — | Similarity matching for candidate blocking. Scaffold only — `kadi/vector_store.py` is not wired into any endpoint. |
 | **LLM Inference** | **Groq API** | Default: `openai/gpt-oss-120b` | High-throughput cloud inference engine. Deprecated Llama models are prohibited. |
-| **Transliteration** | **IndicXlit (AI4Bharat)**| — | Phonetic cross-script transliteration for Indian regional languages. |
-| **Cross-Lingual Embeddings** | **IndicSBERT (L3Cube)** | — | High-precision Hindi/Marathi/English semantic sentence similarity. |
+| **Transliteration** *(planned)* | **IndicXlit (AI4Bharat)**| — | Phonetic cross-script transliteration for Indian regional languages. Not implemented — no code path uses it. |
+| **Cross-Lingual Embeddings** *(planned)* | **IndicSBERT (L3Cube)** | — | High-precision Hindi/Marathi/English semantic sentence similarity. Not implemented — no code path uses it. |
 | **Web Frontend** | **Next.js (App Router)** | `15/16` / React `19` | Modern React client with trilingual i18n scaffolding. |
 | **Mobile App** | **React Native + Expo** | TypeScript | Cross-platform mobile client with camera document edge detection. |
 | **Containerization** | **Docker Compose** | Compose v2 | Multi-container local orchestration (Postgres, API, Web). |
