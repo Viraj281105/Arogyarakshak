@@ -89,6 +89,65 @@ def test_schemesetu_eligibility():
     assert by_scheme["MJPJAY"]["estimated_eligibility"] == "eligible"
 
 
+# ---------------------------------------------------------------------------
+# SchemeSetu <-> Kadi integration (#23): auto-filling medical_need from case context,
+# while income/location_state/category — never derivable from a bill — stay required.
+# ---------------------------------------------------------------------------
+
+
+def test_schemesetu_case_eligibility_resolves_medical_need_from_kadi_entities():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Diagnosis: Acute Appendicitis\n")},
+    ).status_code == 202
+
+    payload = {"income": 120000.0, "location_state": "Maharashtra", "category": "General"}
+    res = client.post(f"/api/v1/schemesetu/cases/{case_id}/eligibility", json=payload)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert len(data) > 0
+    by_scheme = {s["scheme_name"].split(" ")[0]: s for s in data}
+    assert set(by_scheme) == {"PMJAY", "MJPJAY"}
+
+
+def test_schemesetu_case_eligibility_requires_consent():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": False}).json()["id"]
+    payload = {"income": 120000.0, "location_state": "Maharashtra"}
+    res = client.post(f"/api/v1/schemesetu/cases/{case_id}/eligibility", json=payload)
+    assert res.status_code == 403
+
+
+def test_schemesetu_case_eligibility_requires_medical_need_when_none_extractable():
+    """No document uploaded => nothing to resolve medical_need from => 422, not a guess."""
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    payload = {"income": 120000.0, "location_state": "Maharashtra"}
+    res = client.post(f"/api/v1/schemesetu/cases/{case_id}/eligibility", json=payload)
+    assert res.status_code == 422
+
+
+def test_schemesetu_case_eligibility_explicit_medical_need_overrides_extraction():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("bill.txt", b"Diagnosis: Acute Appendicitis\n")},
+    ).status_code == 202
+
+    payload = {
+        "income": 120000.0,
+        "location_state": "Maharashtra",
+        "medical_need": "Coronary artery bypass graft",
+    }
+    res = client.post(f"/api/v1/schemesetu/cases/{case_id}/eligibility", json=payload)
+    assert res.status_code == 200
+
+
+def test_schemesetu_case_eligibility_unknown_case_returns_404():
+    payload = {"income": 120000.0, "location_state": "Maharashtra"}
+    res = client.post("/api/v1/schemesetu/cases/CASE-doesnotexist/eligibility", json=payload)
+    assert res.status_code == 404
+
+
 def test_bimanyay_analyze():
     payload = {
         "policy_number": "POL-554433",
@@ -488,6 +547,27 @@ def test_billnyay_grievance_unknown_case_returns_404():
     assert response.status_code == 404
 
 
+def test_billnyay_grievance_reflects_this_case_not_a_fixed_template():
+    """Regression (#51): the complaint previously read 'room categories benchmarking
+    deviations' and cited 'Rule 14' for every case, regardless of the actual denial.
+    It must now reflect this case's own denial details and disclose whether they were
+    really extracted (GROQ_API_KEY is unset in this test environment, so the fallback
+    path runs and denial_facts_extracted must say so honestly)."""
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/grievance")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "room categories benchmarking deviations" not in data["complaint_text"]
+    assert "Rule 14" not in data["complaint_text"]
+    assert "IRDAI (Protection of Policyholders' Interests) Regulations" in data["complaint_text"]
+    assert data["case_id"] in data["complaint_text"]
+    assert "denial_facts_extracted" in data
+    assert isinstance(data["denial_facts_extracted"], bool)
+    # Disputed Amount must reflect this case's own total_charged, not a fixed figure.
+    assert data["bima_bharosa_fields"]["Disputed Amount"] == f"{900.0:.2f}"
+
+
 # ---------------------------------------------------------------------------
 # BillNyay audit: three-state benchmarking.
 # Regression: unmatched items previously defaulted cghs_benchmark to the charged
@@ -880,6 +960,78 @@ def test_daavisetu_resubmission_updates_the_same_claim():
     assert "POL-CARE-998877" in text
     assert "Sunita R Deshmukh" in text
     assert "POL-STAR-774411" not in text, "stale policy number still rendered"
+
+
+# ---------------------------------------------------------------------------
+# DaaviSetu: universal claim form schema (#79), policy-limit validation (#84),
+# and the ZIP claim package assembler (#81).
+# ---------------------------------------------------------------------------
+
+
+def test_claim_form_schema_endpoint_is_case_independent():
+    res = client.get("/api/v1/daavisetu/claim-form-schema")
+    assert res.status_code == 200
+    schema = res.json()
+    assert schema["properties"]["patient_name"]["x-form-section"] == "1. PATIENT FULL NAME"
+    assert schema["properties"]["sum_insured"]["x-form-group"] == "policy"
+
+
+def test_daavisetu_claim_flags_cost_exceeding_sum_insured():
+    payload = dict(SUBMITTED_CLAIM)
+    payload["estimated_cost"] = 200000.0
+    payload["sum_insured"] = 100000.0
+
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    assert client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", CLAIM_DOC)}
+    ).status_code == 202
+
+    res = client.post(f"/api/v1/daavisetu/cases/{case_id}/claim", json=payload)
+    assert res.status_code == 200, res.text
+    check = res.json()["policy_limit_check"]
+    assert check is not None
+    assert check["exceeds_limit"] is True
+    assert check["shortfall_amount"] == 100000.0
+
+    text = _pdf_text(client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").content)
+    assert "POLICY LIMIT ALERT" in text
+
+
+def test_daavisetu_claim_without_sum_insured_skips_policy_limit_check():
+    case_id, package = _case_with_submitted_claim()
+    assert package["policy_limit_check"] is None
+
+    text = _pdf_text(client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/pdf").content)
+    assert "POLICY LIMIT ALERT" not in text
+
+
+def test_daavisetu_claim_package_zip_contains_pdf_and_manifest():
+    case_id, _ = _case_with_submitted_claim()
+    res = client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/package")
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/zip"
+
+    import zipfile
+    from io import BytesIO
+
+    with zipfile.ZipFile(BytesIO(res.content)) as zf:
+        names = set(zf.namelist())
+        assert "manifest.txt" in names
+        assert "preauth_form.pdf" in names
+        assert zf.read("preauth_form.pdf").startswith(b"%PDF")
+        manifest = zf.read("manifest.txt").decode("utf-8")
+        assert "does NOT include a copy of your original scanned hospital bill" in manifest
+
+
+def test_daavisetu_claim_package_requires_a_submitted_claim():
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    res = client.get(f"/api/v1/daavisetu/cases/{case_id}/claim/package")
+    assert res.status_code == 409
+
+
+def test_daavisetu_claim_package_unknown_case_returns_404():
+    res = client.get("/api/v1/daavisetu/cases/CASE-doesnotexist/claim/package")
+    assert res.status_code == 404
 
 
 # ---------------------------------------------------------------------------

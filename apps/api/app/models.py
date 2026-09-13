@@ -146,6 +146,9 @@ class DaaviSetuClaim(Base):
     diagnosis = Column(String, nullable=False)
     estimated_cost = Column(Float, default=0.0)
     treatment_plan = Column(String, nullable=False)
+    # Policyholder-declared sum insured (#84). Nullable: policy-limit validation is
+    # skipped, never assumed, when the policyholder hasn't supplied a limit.
+    sum_insured = Column(Float, nullable=True)
 
     status = Column(String, default="ready_for_review")  # ready_for_review, completed
     created_at = Column(DateTime, default=datetime.utcnow)

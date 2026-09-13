@@ -5,7 +5,7 @@ Handles claim and pre-authorization document generation.
 """
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,8 @@ from app.database import get_db
 from app.models import DaaviSetuClaim, KadiCase, KadiEntity
 # Import daavisetu packages
 from daavisetu.generator import generate_claim_package, generate_preauth_pdf, ClaimData, ClaimPackage
+from daavisetu.package_assembler import build_claim_package_zip
+from daavisetu.schema import get_claim_form_json_schema
 
 logger = logging.getLogger("arogyarakshak.api.daavisetu")
 router = APIRouter()
@@ -36,6 +38,12 @@ class PreAuthFormRequest(BaseModel):
     treatment_plan: Optional[str] = Field(None, description="Proposed surgical/medical procedure")
     estimated_cost: Optional[float] = Field(
         None, ge=0, description="Estimated treatment cost; defaults to the audited case total"
+    )
+    sum_insured: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Policy's maximum sum insured, as declared by the policyholder. "
+        "Policy-limit validation (#84) is skipped when omitted.",
     )
 
 
@@ -109,8 +117,9 @@ async def generate_pre_auth_form(
         diagnosis=diagnosis,
         estimated_cost=estimated_cost,
         treatment_plan=treatment,
+        sum_insured=req.sum_insured,
     )
-    
+
     package = generate_claim_package(case_id=case_id, claim_input=claim_input)
 
     # 4. Persist the submitted form. This is what the PDF download renders, so the
@@ -130,6 +139,7 @@ async def generate_pre_auth_form(
     claim_record.diagnosis = claim_input.diagnosis
     claim_record.estimated_cost = claim_input.estimated_cost
     claim_record.treatment_plan = claim_input.treatment_plan
+    claim_record.sum_insured = claim_input.sum_insured
     claim_record.status = package.status
 
     await db.commit()
@@ -140,17 +150,12 @@ async def generate_pre_auth_form(
     return package
 
 
-@router.get("/cases/{case_id}/claim/pdf")
-async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
-    """Downloads the compiled IRDAI Standard Pre-Authorization Form (Annexure-B) PDF.
+async def _load_submitted_claim(case_id: str, db: AsyncSession) -> DaaviSetuClaim:
+    """Fetches the case's submitted claim, or raises 409 rather than guessing.
 
-    Renders strictly from the claim submitted via POST .../claim. Nothing on this form is
-    invented: a pre-authorization form is signed and filed with an insurer, so a
-    fabricated policy number or a placeholder patient name would be worse than no form.
-    If no claim has been submitted yet, this returns 409 rather than guessing.
+    Shared by the PDF and ZIP-package downloads (#81): both must render strictly from
+    what was actually submitted via POST .../claim, never from a reconstructed default.
     """
-    await require_case_consent(case_id, db)
-
     claim_result = await db.execute(
         select(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id)
     )
@@ -163,15 +168,33 @@ async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db))
                 f"POST /api/v1/daavisetu/cases/{case_id}/claim first."
             ),
         )
+    return claim_record
 
-    claim_input = ClaimData(
+
+def _claim_data_from_record(claim_record: DaaviSetuClaim) -> ClaimData:
+    return ClaimData(
         policy_number=claim_record.policy_number,
         patient_name=claim_record.patient_name,
         hospital_name=claim_record.hospital_name,
         diagnosis=claim_record.diagnosis,
         estimated_cost=claim_record.estimated_cost,
         treatment_plan=claim_record.treatment_plan,
+        sum_insured=claim_record.sum_insured,
     )
+
+
+@router.get("/cases/{case_id}/claim/pdf")
+async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
+    """Downloads the compiled IRDAI Standard Pre-Authorization Form (Annexure-B) PDF.
+
+    Renders strictly from the claim submitted via POST .../claim. Nothing on this form is
+    invented: a pre-authorization form is signed and filed with an insurer, so a
+    fabricated policy number or a placeholder patient name would be worse than no form.
+    If no claim has been submitted yet, this returns 409 rather than guessing.
+    """
+    await require_case_consent(case_id, db)
+    claim_record = await _load_submitted_claim(case_id, db)
+    claim_input = _claim_data_from_record(claim_record)
 
     pdf_bytes = generate_preauth_pdf(claim_id=claim_record.id, claim_input=claim_input)
     return Response(
@@ -179,3 +202,44 @@ async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db))
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=preauth_{case_id}.pdf"},
     )
+
+
+@router.get("/cases/{case_id}/claim/package")
+async def download_claim_package(case_id: str, db: AsyncSession = Depends(get_db)):
+    """Downloads a ZIP claim package (#81): the pre-auth PDF, a redacted case-summary
+    text excerpt (if Kadi extracted one), and a manifest disclosing exactly what is and
+    is not included — see daavisetu.package_assembler for why the original scanned bill
+    cannot be included (ArogyaRakshak's zero-retention policy never stores it).
+    """
+    await require_case_consent(case_id, db)
+    claim_record = await _load_submitted_claim(case_id, db)
+    claim_input = _claim_data_from_record(claim_record)
+    pdf_bytes = generate_preauth_pdf(claim_id=claim_record.id, claim_input=claim_input)
+
+    text_entity_result = await db.execute(
+        select(KadiEntity)
+        .join(KadiCase.entities)
+        .where(KadiCase.id == case_id, KadiEntity.type == "document_text")
+    )
+    text_entity = text_entity_result.scalars().first()
+    case_summary_text = text_entity.value if text_entity else None
+
+    zip_bytes = build_claim_package_zip(
+        claim_id=claim_record.id,
+        case_id=case_id,
+        preauth_pdf_bytes=pdf_bytes,
+        case_summary_text=case_summary_text,
+    )
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=claim_package_{case_id}.zip"},
+    )
+
+
+@router.get("/claim-form-schema")
+async def claim_form_schema() -> Dict[str, Any]:
+    """Returns the universal claim form JSON Schema (#79): DaaviSetu's canonical claim
+    fields, annotated with the Annexure-B form section each maps to. Static and
+    case-independent, so it takes no case_id and no consent check."""
+    return get_claim_form_json_schema()

@@ -167,6 +167,11 @@ class GrievanceResponse(BaseModel):
     complaint_text: str
     bima_bharosa_fields: Dict[str, str] = {}
     deep_link: str
+    # False when the Auditor could not extract real denial facts from the uploaded
+    # document (no GROQ_API_KEY, or the call fell back). The complaint is then built on
+    # UNSPECIFIED_FIELD placeholders instead of a fabricated denial code/reason —
+    # mirrors AppealResponse.denial_facts_extracted for the same reason.
+    denial_facts_extracted: bool = True
 
 
 # --- Groq LLM Client & Fallback -----------------------------------------------
@@ -488,20 +493,57 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/cases/{case_id}/grievance", response_model=GrievanceResponse)
 async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
-    """Auto-drafts an IRDAI Bima Bharosa portal complaint package."""
+    """Auto-drafts an IRDAI Bima Bharosa portal complaint package (#51).
+
+    Previously this built a fixed generic sentence ("room categories benchmarking
+    deviations") and cited an unverified "Rule 14" for every case, regardless of what
+    was actually in the uploaded document — exactly the kind of case-independent
+    templating the no-fabrication principle rules out for a document filed with a
+    regulator. This now reuses the same Auditor Agent extraction draft_appeal runs, so
+    the complaint reflects this case's actual denial code/reason/procedure — or
+    honestly reports them as not extracted, via `denial_facts_extracted`.
+    """
     case = await require_case_consent(case_id, db)
 
+    entities_result = await db.execute(
+        select(KadiEntity).join(KadiCase.entities)
+        .where(KadiCase.id == case_id)
+        .where(KadiEntity.type == "document_text")
+    )
+    texts = [e.value for e in entities_result.scalars().all() if e.value]
+    combined_text = "\n".join(texts) if texts else ""
+
+    if settings.groq_api_key:
+        client = GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
+    else:
+        client = GroqClientFallback()
+
+    denial = run_auditor_agent(client=client, denial_text=combined_text) if combined_text else None
+    denial_facts_extracted = denial is not None and not client.used_fallback
+    if denial is None:
+        denial = StructuredDenial(
+            denial_code=UNSPECIFIED_FIELD,
+            insurer_reason_snippet=UNSPECIFIED_FIELD,
+            policy_clause_text=UNSPECIFIED_FIELD,
+            procedure_denied=UNSPECIFIED_FIELD,
+            confidence_score=0.0,
+            raw_evidence_chunks=[],
+        )
+
     complaint_text = (
-        f"Grievance Complaint filed under Bima Bharosa.\n"
+        "Grievance Complaint filed under IRDAI Bima Bharosa Portal.\n"
         f"Case Reference: {case_id}\n"
-        f"Details: The insurer has failed to reimburse room categories benchmarking deviations "
-        f"despite IRDAI compliant appeals. Total disputed amount is ₹{case.total_charged:.2f}.\n"
-        f"Requesting regulatory investigation under Rule 14."
+        f"Denial/Reference Code: {denial.denial_code}\n"
+        f"Procedure/Service Disputed: {denial.procedure_denied}\n"
+        f"Insurer's Stated Reason: {denial.insurer_reason_snippet}\n"
+        f"Disputed Amount: Rs. {case.total_charged:.2f}\n"
+        "The policyholder disputes the above rejection/deduction and seeks reversal "
+        "under the IRDAI (Protection of Policyholders' Interests) Regulations."
     )
 
     # Required fields structure for manual copying
     bb_fields = {
-        "Complaint Type": "Partial Payment / Unfair Deduction",
+        "Complaint Type": "Claim Rejection / Unfair Deduction",
         "Insurer Category": "Health Insurance Company",
         "Disputed Amount": f"{case.total_charged:.2f}",
         "Policyholder Consent": "Yes",
@@ -510,6 +552,7 @@ async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
     return {
         "case_id": case_id,
         "complaint_text": complaint_text,
+        "denial_facts_extracted": denial_facts_extracted,
         "bima_bharosa_fields": bb_fields,
         "deep_link": "https://bimabharosa.irdai.gov.in/RegisterNewGrievance",
     }
