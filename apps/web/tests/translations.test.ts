@@ -126,6 +126,33 @@ describe('Web UI Capability Claim Integrity', () => {
       );
     });
   });
+
+  test('schemesetu provisional-result disclosure vocabulary is fully localized', () => {
+    const keys = ['criteriaEvaluated', 'criteriaNotEvaluated', 'provisionalNotice'] as const;
+    languages.forEach((lang) => {
+      const schemesetu = translations[lang].modules.schemesetu;
+      keys.forEach((key) => {
+        assert.ok(
+          schemesetu[key] && schemesetu[key].trim().length > 0,
+          `Missing schemesetu.${key} in ${lang}`
+        );
+      });
+    });
+  });
+
+  test('dawacheck dataset provenance disclosure is fully localized and keeps its placeholder', () => {
+    languages.forEach((lang) => {
+      const dawacheck = translations[lang].modules.dawacheck;
+      assert.ok(
+        dawacheck.dataSourceNotice && dawacheck.dataSourceNotice.trim().length > 0,
+        `Missing dawacheck.dataSourceNotice in ${lang}`
+      );
+      assert.ok(
+        dawacheck.dataSourceNotice.includes('{count}'),
+        `dataSourceNotice in ${lang} lost its {count} placeholder`
+      );
+    });
+  });
 });
 
 describe('Web Consent Vocabulary', () => {

@@ -150,6 +150,26 @@ export const SchemeSetuScreen: React.FC = () => {
                 ))}
               </View>
             )}
+
+            {scheme.is_provisional && (
+              <View style={{ marginTop: spacing.sm, paddingTop: spacing.xs, borderTopWidth: 1, borderColor: colors.borderSubtle }}>
+                <Text style={{ color: '#f59e0b', fontSize: 11, lineHeight: 16 }}>
+                  ⓘ {m.provisionalNotice}
+                </Text>
+                {scheme.criteria_not_evaluated.length > 0 && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+                    <Text style={{ fontWeight: '600' }}>{m.criteriaNotEvaluated}: </Text>
+                    {scheme.criteria_not_evaluated.join(', ')}
+                  </Text>
+                )}
+                {scheme.criteria_evaluated.length > 0 && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
+                    <Text style={{ fontWeight: '600' }}>{m.criteriaEvaluated}: </Text>
+                    {scheme.criteria_evaluated.join(', ')}
+                  </Text>
+                )}
+              </View>
+            )}
           </Card>
         );
       })}

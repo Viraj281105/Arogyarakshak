@@ -162,4 +162,22 @@ describe('Web Forms Must Not Pre-Fill Fabricated Data', () => {
       'analyze button must be disabled while the dossier is incomplete'
     );
   });
+
+  test('SchemeSetu renders the provisional-result disclosure, not just types it', () => {
+    // Regression: is_provisional/criteria_evaluated/criteria_not_evaluated were declared
+    // on the SchemeResult TS interface but never referenced in JSX, so the backend's
+    // honesty disclosure never reached the user.
+    const src = readFileSync(join(moduleDir, 'SchemeSetuView.tsx'), 'utf-8');
+    assert.ok(/scheme\.is_provisional/.test(src), 'is_provisional must gate a rendered notice');
+    assert.ok(/scheme\.criteria_not_evaluated/.test(src), 'criteria_not_evaluated must be rendered');
+    assert.ok(/scheme\.criteria_evaluated/.test(src), 'criteria_evaluated must be rendered');
+  });
+
+  test('DawaCheck renders the dataset provenance disclosure, not just types it', () => {
+    // Regression: data_source/reference_entry_count were declared on the response type
+    // but never rendered, so users could not tell the curated ~7-formulation subset
+    // apart from full NPPA Schedule-I coverage.
+    const src = readFileSync(join(moduleDir, 'DawaCheckView.tsx'), 'utf-8');
+    assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
+  });
 });

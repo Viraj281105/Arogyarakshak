@@ -115,6 +115,9 @@ export interface MobileTranslations {
       notEligible: string;
       howToClaim: string;
       noMatches: string;
+      criteriaEvaluated: string;
+      criteriaNotEvaluated: string;
+      provisionalNotice: string;
     };
     dawacheck: {
       title: string;
@@ -136,6 +139,7 @@ export interface MobileTranslations {
       genericAvailable: string;
       statutoryNoticeTitle: string;
       statutoryNoticeBody: string;
+      dataSourceNotice: string;
     };
   };
   common: {
@@ -265,6 +269,9 @@ export const translations: Record<Language, MobileTranslations> = {
         notEligible: 'Not Eligible',
         howToClaim: 'How to Claim at Empaneled Hospital:',
         noMatches: 'No government health scheme matches found for the given criteria.',
+        criteriaEvaluated: 'Evaluated for this result',
+        criteriaNotEvaluated: 'NOT evaluated — verify with official records',
+        provisionalNotice: 'Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.',
       },
       dawacheck: {
         title: 'DawaCheck',
@@ -286,6 +293,7 @@ export const translations: Record<Language, MobileTranslations> = {
         genericAvailable: '💊 Low-Cost Generic Substitute Available (Jan Aushadhi)',
         statutoryNoticeTitle: '💡 Statutory Consumer Right (DPCO 2013)',
         statutoryNoticeBody: 'Under the Drugs (Prices Control) Order, 2013 and the Essential Commodities Act, 1955, charging above the notified NPPA ceiling price is an illegal punishable offence. Retail pharmacies are statutorily required to dispense equivalent generic formulations upon request.',
+        dataSourceNotice: 'Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.',
       },
     },
     common: {
@@ -413,6 +421,9 @@ export const translations: Record<Language, MobileTranslations> = {
         notEligible: 'पात्र नहीं',
         howToClaim: 'अस्पताल में लाभ कैसे प्राप्त करें:',
         noMatches: 'दी गई जानकारी के आधार पर कोई योजना मेल नहीं खाई।',
+        criteriaEvaluated: 'इस परिणाम हेतु जाँचे गए आधार',
+        criteriaNotEvaluated: 'जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें',
+        provisionalNotice: 'यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।',
       },
       dawacheck: {
         title: 'दवाचेक',
@@ -434,6 +445,7 @@ export const translations: Record<Language, MobileTranslations> = {
         genericAvailable: '💊 कम लागत वाला जेनेरिक विकल्प उपलब्ध (जन औषधि)',
         statutoryNoticeTitle: '💡 वैधानिक उपभोक्ता अधिकार (डीपीसीओ 2013)',
         statutoryNoticeBody: 'ड्रग्स प्राइस कंट्रोल ऑर्डर, 2013 एवं आवश्यक वस्तु अधिनियम के तहत एनपीपीए मूल्य सीमा से अधिक वसूलना एक दंडनीय अपराध है। फार्मेसी द्वारा जेनेरिक विकल्प उपलब्ध कराना अनिवार्य है।',
+        dataSourceNotice: 'यह जांच NPPA अनुसूची-I की {count} चयनित दवाओं की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।',
       },
     },
     common: {
@@ -561,6 +573,9 @@ export const translations: Record<Language, MobileTranslations> = {
         notEligible: 'अपात्र',
         howToClaim: 'रुग्णालयात लाभ कसा मिळवावा:',
         noMatches: 'दिलेल्या माहितीनुसार कोणतीही शासकीय योजना आढळली नाही.',
+        criteriaEvaluated: 'या निकालासाठी तपासलेले निकष',
+        criteriaNotEvaluated: 'तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा',
+        provisionalNotice: 'हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.',
       },
       dawacheck: {
         title: 'दवाचेक',
@@ -582,6 +597,7 @@ export const translations: Record<Language, MobileTranslations> = {
         genericAvailable: '💊 परवडणारा जेनेरिक पर्याय उपलब्ध (जन औषधी)',
         statutoryNoticeTitle: '💡 वैधानिक ग्राहक हक्क (डीपीसीओ २०१३)',
         statutoryNoticeBody: 'औषध किंमत नियंत्रण आदेश (डीपीसीओ २०१३) आणि अत्यावश्यक वस्तू कायद्यानुसार एनपीपीए कमाल दरापेक्षा जास्त आकारणे हा गुन्हा आहे. औषध विक्रेत्यांनी विचारणा केल्यास जेनेरिक पर्याय देणे बंधनकारक आहे.',
+        dataSourceNotice: 'ही तपासणी NPPA अनुसूची-१ मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.',
       },
     },
     common: {

@@ -173,6 +173,18 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
               💊 <strong>Generic Alternative:</strong> {result.generic_substitute_store_info}
             </div>
           )}
+
+          {/* Dataset Provenance Disclosure */}
+          <div
+            style={{
+              marginTop: "0.75rem",
+              padding: "0.65rem 1rem",
+              fontSize: "0.78rem",
+              color: "var(--status-warning)",
+            }}
+          >
+            ⓘ {t.dataSourceNotice.replace("{count}", String(result.reference_entry_count))}
+          </div>
         </div>
       )}
 

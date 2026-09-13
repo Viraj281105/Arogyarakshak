@@ -175,6 +175,10 @@ class GroqClient:
     def __init__(self, api_key: str, model: str):
         self.api_key = api_key
         self.model = model
+        # Set when a live call fails and this instance silently served a canned
+        # fallback response instead. Callers must check this before claiming any
+        # fact drawn from that response was actually extracted from the document.
+        self.used_fallback = False
 
     def generate(self, prompt: str, system: str = "", **kwargs) -> str:
         # Only request a JSON response format when the calling agent actually wants
@@ -207,6 +211,7 @@ class GroqClient:
                 return res["choices"][0]["message"]["content"]
         except Exception as e:
             logger.warning(f"[GroqClient] Cloud inference call failed: {e}. Falling back.")
+            self.used_fallback = True
             return GroqClientFallback().generate(prompt, system=system, **kwargs)
 
 
@@ -281,7 +286,13 @@ class GroqClientFallback:
     Auditor's JSON to every caller (the previous behaviour) made the Barrister emit a
     JSON blob as its "appeal letter", so the fallback is dispatched per agent using the
     system instruction each agent sends.
+
+    Every response here (including `_FALLBACK_DENIAL_JSON`) is a canned template, not
+    anything read from the user's document. `used_fallback` lets callers tell the two
+    apart instead of trusting that a parseable response means real extraction happened.
     """
+
+    used_fallback = True
 
     def generate(self, prompt: str, system: str = "", **kwargs) -> str:
         sys_text = (system or "").lower()
@@ -417,7 +428,10 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         client = GroqClientFallback()
 
     denial = run_auditor_agent(client=client, denial_text=combined_text)
-    denial_facts_extracted = denial is not None
+    # A canned fallback response always parses into a valid StructuredDenial, so
+    # "denial is not None" alone can't distinguish real extraction from a template
+    # (e.g. DEN-999 / confidence 0.95) served because no live LLM call happened.
+    denial_facts_extracted = denial is not None and not client.used_fallback
     if denial is None:
         # The Auditor could not extract denial facts. Downstream agents are typed against
         # this model, so a neutral placeholder is supplied — but it must read as "unknown",

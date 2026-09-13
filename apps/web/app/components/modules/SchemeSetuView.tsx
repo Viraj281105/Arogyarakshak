@@ -194,6 +194,30 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
                       </ol>
                     </div>
                   )}
+
+                  {scheme.is_provisional && (
+                    <div
+                      style={{
+                        marginTop: "0.75rem",
+                        paddingTop: "0.75rem",
+                        borderTop: "1px solid var(--border-subtle)",
+                        fontSize: "0.75rem",
+                        color: "var(--status-warning)",
+                      }}
+                    >
+                      ⓘ {t.provisionalNotice}
+                      {scheme.criteria_not_evaluated.length > 0 && (
+                        <div style={{ marginTop: "0.35rem", color: "var(--text-secondary)" }}>
+                          <strong>{t.criteriaNotEvaluated}:</strong> {scheme.criteria_not_evaluated.join(", ")}
+                        </div>
+                      )}
+                      {scheme.criteria_evaluated.length > 0 && (
+                        <div style={{ marginTop: "0.25rem", color: "var(--text-secondary)" }}>
+                          <strong>{t.criteriaEvaluated}:</strong> {scheme.criteria_evaluated.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

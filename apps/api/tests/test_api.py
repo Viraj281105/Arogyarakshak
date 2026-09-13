@@ -1143,6 +1143,19 @@ def test_appeal_letter_contains_no_fake_denial_code():
     assert isinstance(data["denial_facts_extracted"], bool)
 
 
+def test_offline_fallback_never_claims_denial_facts_were_extracted():
+    """Regression: the offline Auditor fallback (DEN-999 / confidence 0.95) always
+    parses into a valid StructuredDenial, so `denial is not None` alone can't tell a
+    templated response apart from a real extraction. Without GROQ_API_KEY configured,
+    every /appeal call runs on that canned template, and denial_facts_extracted must
+    say so rather than reporting True on fabricated facts."""
+    from app.config import settings
+
+    case_id = _case_with_document()
+    data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
+    assert data["denial_facts_extracted"] is bool(settings.groq_api_key)
+
+
 def test_dawacheck_unknown_medicine_does_not_claim_it_is_uncontrolled():
     res = client.post(
         "/api/v1/dawacheck/benchmark", json={"brand_name": "Zyxwvu 999", "mrp": 100.0}

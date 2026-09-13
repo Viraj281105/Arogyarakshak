@@ -227,6 +227,11 @@ export const DawaCheckScreen: React.FC = () => {
               </Text>
             </View>
           )}
+
+          {/* Dataset Provenance Disclosure */}
+          <Text style={{ color: '#f59e0b', fontSize: 11, lineHeight: 16, marginTop: 10 }}>
+            ⓘ {m.dataSourceNotice.replace('{count}', String(result.reference_entry_count))}
+          </Text>
         </Card>
       )}
 

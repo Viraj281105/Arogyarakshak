@@ -106,6 +106,9 @@ export interface Translations {
       pmjayCard: string;
       mjpjayCard: string;
       maxCoverage: string;
+      criteriaEvaluated: string;
+      criteriaNotEvaluated: string;
+      provisionalNotice: string;
     };
     dawacheck: {
       title: string;
@@ -118,6 +121,7 @@ export interface Translations {
       nppaCeiling: string;
       statusOvercharged: string;
       statusFair: string;
+      dataSourceNotice: string;
     };
   };
   footer: {
@@ -236,6 +240,9 @@ export const translations: Record<Language, Translations> = {
         pmjayCard: "Ayushman Bharat PM-JAY (₹5 Lakh / Year / Family)",
         mjpjayCard: "Mahatma Jyotirao Phule Jan Arogya Yojana (MJPJAY)",
         maxCoverage: "Maximum Financial Protection",
+        criteriaEvaluated: "Evaluated for this result",
+        criteriaNotEvaluated: "NOT evaluated — verify with official records",
+        provisionalNotice: "Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.",
       },
       dawacheck: {
         title: "DawaCheck — NPPA Ceiling Price Benchmark",
@@ -248,6 +255,7 @@ export const translations: Record<Language, Translations> = {
         nppaCeiling: "NPPA Ceiling Price",
         statusOvercharged: "Overcharged vs Statutory Cap",
         statusFair: "Compliant with NPPA Cap",
+        dataSourceNotice: "Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.",
       },
     },
     footer: {
@@ -364,6 +372,9 @@ export const translations: Record<Language, Translations> = {
         pmjayCard: "आयुष्मान भारत PM-JAY (₹5 लाख प्रति वर्ष/परिवार)",
         mjpjayCard: "महात्मा ज्योतिराव फुले जन आरोग्य योजना (MJPJAY)",
         maxCoverage: "अधिकतम वित्तीय सुरक्षा",
+        criteriaEvaluated: "इस परिणाम हेतु जाँचे गए आधार",
+        criteriaNotEvaluated: "जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें",
+        provisionalNotice: "यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
       },
       dawacheck: {
         title: "दवाचेक — NPPA अधिकतम मूल्य जांच",
@@ -376,6 +387,7 @@ export const translations: Record<Language, Translations> = {
         nppaCeiling: "NPPA अधिकतम कानूनी दर",
         statusOvercharged: "अधिकतम सीमा से अधिक वसूला गया",
         statusFair: "NPPA नियमों के अनुसार उचित",
+        dataSourceNotice: "यह जांच NPPA शेड्यूल-I की {count} चयनित औषधियों की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।",
       },
     },
     footer: {
@@ -492,6 +504,9 @@ export const translations: Record<Language, Translations> = {
         pmjayCard: "आयुष्मान भारत PM-JAY (₹5 लाख प्रति वर्ष/कुटुंब)",
         mjpjayCard: "महात्मा ज्योतिराव फुले जन आरोग्य योजना (MJPJAY)",
         maxCoverage: "कमाल आर्थिक संरक्षण",
+        criteriaEvaluated: "या निकालासाठी तपासलेले निकष",
+        criteriaNotEvaluated: "तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा",
+        provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
       },
       dawacheck: {
         title: "दवाचेक — NPPA औषध कमाल दर तपासणी",
@@ -504,6 +519,7 @@ export const translations: Record<Language, Translations> = {
         nppaCeiling: "NPPA शासकीय कमाल दर",
         statusOvercharged: "शासकीय कमाल दरापेक्षा जास्त आकारणी",
         statusFair: "NPPA नियमानुसार योग्य दर",
+        dataSourceNotice: "ही तपासणी NPPA शेड्यूल-I मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.",
       },
     },
     footer: {
