@@ -15,6 +15,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# Source, not a build artifact: the web app's client contracts (e.g. resolution.ts).
+!apps/web/app/lib/
 lib64/
 parts/
 sdist/
@@ -245,4 +247,5 @@ Thumbs.db
 # Agent worktrees (Claude Code / AI tooling)
 # ──────────────────────────────────────────────────────────────────────
 .claude/worktrees/
+.claude/launch.json
 
