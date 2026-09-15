@@ -11,6 +11,7 @@ from typing import List
 from pydantic import BaseModel, Field
 
 from schemesetu.thresholds import MJPJAY, PMJAY, Citation, format_inr
+from schemesetu.dialect_normalizer import normalize_state_name
 
 logger = logging.getLogger("SchemeSetu.Agent")
 logger.setLevel(logging.INFO)
@@ -70,6 +71,14 @@ def check_eligibility(request: EligibilityRequest) -> List[SchemeResult]:
     logger.info(f"[SchemeSetu] Assessing eligibility for state: {request.location_state}")
     income_note = _income_note(request.income)
 
+    # MJPJAY's state check is an exact match against {"maharashtra", "mh"}. Without
+    # normalization, a Devanagari ("महाराष्ट्र"), misspelled ("Maharastra"), or
+    # city-name ("Mumbai") input silently fails the check with no explanation — MJPJAY
+    # just does not appear, indistinguishable from genuinely not qualifying. See
+    # dialect_normalizer.py for what this table does and does not cover.
+    state_normalization = normalize_state_name(request.location_state)
+    matching_state = state_normalization.normalized or request.location_state
+
     # PMJAY (national): eligibility rests on listing, occupation or age, none of which is
     # collected, so the verdict can only be "ambiguous" whatever the income.
     results = [
@@ -89,14 +98,20 @@ def check_eligibility(request: EligibilityRequest) -> List[SchemeResult]:
     ]
 
     # MJPJAY (Maharashtra): covers all families in the state, so stated residence decides.
-    if MJPJAY.applies_to_state(request.location_state):
+    if MJPJAY.applies_to_state(matching_state):
+        normalization_note = ""
+        if state_normalization.was_normalized:
+            normalization_note = (
+                f' (interpreted "{state_normalization.original_input}" as Maharashtra'
+                f" based on {'a known spelling/Devanagari variant' if state_normalization.normalization_basis == 'devanagari_or_spelling_variant' else 'the city name you entered'})"
+            )
         results.append(
             SchemeResult(
                 scheme_name=MJPJAY.scheme_name,
                 estimated_eligibility="eligible",
                 reason=(
-                    f"Stated residence is Maharashtra. {MJPJAY.official_basis} Residence was not "
-                    f"verified against documents. {income_note}"
+                    f"Stated residence is Maharashtra{normalization_note}. {MJPJAY.official_basis} "
+                    f"Residence was not verified against documents. {income_note}"
                 ),
                 claim_guide_steps=list(MJPJAY.verification_steps),
                 criteria_evaluated=["state_of_residence"],

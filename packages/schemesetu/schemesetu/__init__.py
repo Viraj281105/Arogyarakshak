@@ -8,6 +8,7 @@ from .agent import check_eligibility, EligibilityRequest, SchemeResult
 from .reasoning_agent import reason_about_eligibility, EligibilityReasoning, ReasoningStep
 from .trend_estimator import project_future_eligibility, EligibilityTrendResult, IncomeDataPoint
 from .transition_adviser import advise_transition, TransitionAdvice
+from .dialect_normalizer import normalize_state_name, NormalizedState
 
 __all__ = [
     "check_eligibility",
@@ -21,5 +22,7 @@ __all__ = [
     "IncomeDataPoint",
     "advise_transition",
     "TransitionAdvice",
+    "normalize_state_name",
+    "NormalizedState",
 ]
 
