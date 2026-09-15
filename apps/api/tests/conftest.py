@@ -5,6 +5,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app as fastapi_app
 from app.database import Base, get_db
 from app.rate_limit import limiter as rate_limiter
+from app.latency_metrics import tracker as latency_tracker
 import app.models  # Ensure models are imported to register with metadata
 
 # Use a file-based SQLite database for reliable test persistence across connection lifetimes
@@ -33,6 +34,16 @@ def reset_rate_limiter():
     rate_limiter.reset()
     yield
     rate_limiter.reset()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def reset_latency_tracker():
+    """Same rationale as reset_rate_limiter — the latency tracker is a module-level
+    singleton; without a reset, samples from unrelated tests would pollute a test that
+    asserts a specific sample count or percentile."""
+    latency_tracker.reset()
+    yield
+    latency_tracker.reset()
 
 
 @pytest.fixture(autouse=True, scope="function")

@@ -1527,6 +1527,70 @@ def test_dawacheck_translate_instructions_requires_no_case_consent():
     assert res.status_code == 200
 
 
+def test_latency_metrics_is_empty_before_any_upload():
+    res = client.get("/api/v1/kadi/metrics/latency")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["sample_count"] == 0
+    assert data["target_seconds"] == 10.0
+
+
+def test_latency_metrics_records_a_sample_after_a_real_upload_completes():
+    """#116: proves latency is measured from an actual end-to-end run through the real
+    pipeline (upload -> OCR -> extraction -> entity resolution -> database write), not
+    a synthetic/mocked duration."""
+    _case_with_document()  # runs the real pipeline synchronously under TestClient
+
+    res = client.get("/api/v1/kadi/metrics/latency")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["sample_count"] == 1
+    assert data["p50_seconds"] is not None
+    assert data["p50_seconds"] >= 0
+    assert data["single_process_only"] is True
+
+
+def test_latency_metrics_flags_a_case_exceeding_the_10_second_target():
+    """Deterministic proof the compliance check actually fires against the endpoint's
+    real response, without waiting 10 real seconds in the test suite: records a
+    synthetic over-target sample directly on the same tracker instance the endpoint
+    reads from, then verifies GET /metrics/latency reports it as a violation."""
+    from app.api.v1.endpoints.kadi import latency_tracker
+
+    latency_tracker.record("CASE-synthetic-slow", 15.0, "completed")
+
+    res = client.get("/api/v1/kadi/metrics/latency")
+    data = res.json()
+    assert data["violations"] >= 1
+    assert data["compliance_rate"] < 1.0
+    assert data["max_seconds"] >= 15.0
+
+
+def test_latency_metrics_records_failed_outcomes_too():
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    case_id = res_case.json()["id"]
+    # An empty/corrupt document trips the extraction_ok=False path (parse_document
+    # cannot read it), which is the "failed" terminal event this metric must also cover.
+    upload = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("corrupt.pdf", b"%PDF-1.4\ncorrupted garbage not a real pdf")},
+    )
+    assert upload.status_code == 202
+
+    res = client.get("/api/v1/kadi/metrics/latency/recent")
+    assert res.status_code == 200
+    samples = res.json()
+    assert any(s["case_id"] == case_id and s["outcome"] == "failed" for s in samples)
+
+
+def test_latency_metrics_recent_endpoint_respects_limit():
+    for _ in range(3):
+        _case_with_document()
+    res = client.get("/api/v1/kadi/metrics/latency/recent?limit=2")
+    assert res.status_code == 200
+    assert len(res.json()) == 2
+
+
 def test_schemesetu_discloses_what_it_did_not_evaluate():
     """Category and medical need are collected but never used — say so."""
     res = client.post(

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import hashlib
 import os
 import secrets
+import time
 import uuid
 import logging
 import json
@@ -29,6 +30,7 @@ from app.background import get_background_session
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
+from app.latency_metrics import tracker as latency_tracker, LatencySummary, LatencySample
 from app.kadi_resolution import (
     ALL_TYPES_SCOPE,
     DecisionAlreadyResolved,
@@ -118,7 +120,35 @@ async def _document_already_ingested(session: AsyncSession, case_id: str, digest
 
 
 def _duplicate_event() -> Dict[str, Any]:
-    return {"status": "completed", "progress": 100, "log": DUPLICATE_DOCUMENT_LOG, "duplicate_document": True}
+    return {
+        "status": "completed",
+        "progress": 100,
+        "log": DUPLICATE_DOCUMENT_LOG,
+        "duplicate_document": True,
+        "timestamp": time.time(),
+    }
+
+
+def _record_case_latency(case_id: str, outcome: str) -> None:
+    """Records end-to-end processing time (#116): upload_received -> terminal event.
+
+    Looks up the start timestamp from the case's own event stream rather than threading
+    an extra parameter through every call site — `processing_status[case_id][0]` is
+    always the `upload_received` event, set once at upload before any background task
+    is queued. Silently no-ops if the stream is missing or malformed (e.g. evicted by
+    `_evict_stale_status_entries` under extreme load) rather than raising — a metrics
+    hook must never be able to fail the request it is measuring.
+    """
+    events = processing_status.get(case_id)
+    if not events:
+        return
+    start_ts = events[0].get("timestamp")
+    if start_ts is None:
+        return
+    duration = time.time() - start_ts
+    if duration < 0:
+        return
+    latency_tracker.record(case_id, duration, outcome)
 
 
 # --- Pydantic Schemas ---------------------------------------------------------
@@ -262,6 +292,7 @@ async def process_document_background(
                 "progress": 100,
                 "log": reason,
             })
+            _record_case_latency(case_id, "failed")
             return
 
         text = parsed.get("full_text_content", "")
@@ -287,12 +318,14 @@ async def process_document_background(
             if not case:
                 logger.error(f"Case {case_id} not found during background processing.")
                 processing_status[case_id].append({"status": "failed", "progress": 100, "log": "Failed: Case not found"})
+                _record_case_latency(case_id, "failed")
                 return
 
             # Re-checked here as well as at upload: two identical uploads can be queued
             # before either finishes.
             if await _document_already_ingested(session, case_id, digest):
                 processing_status[case_id].append(_duplicate_event())
+                _record_case_latency(case_id, "completed")
                 return
 
             mentions: List[MentionInput] = []
@@ -399,6 +432,7 @@ async def process_document_background(
         if insights:
             completion += f" {len(insights)} module check(s) ran automatically."
         processing_status[case_id].append({"status": "completed", "progress": 100, "log": completion})
+        _record_case_latency(case_id, "completed")
         logger.info(
             "Background task succeeded for case=%s: %d new entities, %d merged, %d pending review.",
             case_id, summary.created, summary.merged, summary.pending_review,
@@ -416,6 +450,7 @@ async def process_document_background(
             "log": "Document processing failed. Please try uploading the document again.",
             "error_id": error_id,
         })
+        _record_case_latency(case_id, "failed")
 
 
 # --- Route Implementations ----------------------------------------------------
@@ -485,12 +520,20 @@ async def upload_document(
     # Bound the in-memory status map so repeated uploads cannot grow it without limit.
     _evict_stale_status_entries()
 
-    received = {"status": "upload_received", "progress": 10, "log": "Upload received. Queueing document extraction task..."}
+    received = {
+        "status": "upload_received",
+        "progress": 10,
+        "log": "Upload received. Queueing document extraction task...",
+        "timestamp": time.time(),
+    }
     digest = hashlib.sha256(file_bytes).hexdigest()
 
     # 4. The same document uploaded twice used to duplicate every entity and double the
     #    case total. Nothing is re-extracted.
     if await _document_already_ingested(db, case_id, digest):
+        # Not recorded as a latency sample: no background task — and therefore no
+        # OCR/extraction/write — ever runs on this path, so its near-zero duration would
+        # dilute the metric rather than measure the pipeline #116 targets.
         processing_status[case_id] = [received, _duplicate_event()]
         response.status_code = status.HTTP_200_OK
         return {
@@ -535,6 +578,26 @@ async def stream_processing_status(case_id: str):
             await asyncio.sleep(0.3)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/metrics/latency", response_model=LatencySummary)
+async def latency_metrics_summary():
+    """End-to-end processing time monitoring (#116): p50/p95/max/mean over the most
+    recent uploads that actually ran the OCR -> extraction -> entity-resolution ->
+    database-write pipeline, checked against the project's 10-second target.
+
+    In-memory, single-process, bounded — see app/latency_metrics.py. No case data is
+    exposed here, only durations and outcomes, so this route carries no consent
+    requirement (compare app/consent.py's per-route rule).
+    """
+    return latency_tracker.summary()
+
+
+@router.get("/metrics/latency/recent", response_model=List[LatencySample])
+async def latency_metrics_recent(limit: int = Query(20, ge=1, le=200)):
+    """Most recent individual latency samples, newest first — for spotting which
+    specific uploads are driving p95/max rather than only the aggregate."""
+    return latency_tracker.recent(limit=limit)
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetailResponse)
