@@ -10,6 +10,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 import hashlib
 import os
+import secrets
 import uuid
 import logging
 import json
@@ -422,7 +423,12 @@ async def process_document_background(
 @router.post("/cases", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
     """Creates a new patient case session."""
-    case_id = f"CASE-{uuid.uuid4().hex[:8]}"
+    # 16 hex chars (64 bits) rather than 8 (32 bits): with no authentication gating case
+    # access (see app/consent.py and docs/architecture/decisions/ for the accepted-risk
+    # note), the id itself is the only thing standing between a guesser and a patient's
+    # extracted entities. secrets.token_hex is a CSPRNG; uuid4's hex is also CSPRNG-backed
+    # in CPython but token_hex states the security intent explicitly at the call site.
+    case_id = f"CASE-{secrets.token_hex(8)}"
     case = KadiCase(
         id=case_id,
         consent_opt_in=case_in.consent_opt_in,

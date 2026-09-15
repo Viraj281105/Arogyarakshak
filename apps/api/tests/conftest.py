@@ -4,6 +4,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app as fastapi_app
 from app.database import Base, get_db
+from app.rate_limit import limiter as rate_limiter
 import app.models  # Ensure models are imported to register with metadata
 
 # Use a file-based SQLite database for reliable test persistence across connection lifetimes
@@ -25,12 +26,22 @@ TestingSessionLocal = async_sessionmaker(
 
 
 @pytest.fixture(autouse=True, scope="function")
+def reset_rate_limiter():
+    """The rate limiter is a module-level singleton shared across the whole pytest
+    session (same as `processing_status`) — without a reset, one test's request volume
+    would count against the next test's limit and produce spurious 429s."""
+    rate_limiter.reset()
+    yield
+    rate_limiter.reset()
+
+
+@pytest.fixture(autouse=True, scope="function")
 def setup_database():
     """Fixture to create all tables before each test and drop them after."""
     import asyncio
     import app.models
     from app.database import Base as db_base
-    
+
     async def create_tables():
         async with engine.begin() as conn:
             await conn.run_sync(db_base.metadata.create_all)

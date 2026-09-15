@@ -17,6 +17,7 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `CORS_ORIGINS` | No | `*` | Comma-separated list of allowed CORS origins. Example: `http://localhost:3000,https://arogyarakshak.in` |
 | `MAX_UPLOAD_BYTES` | No | `10485760` (10 MB) | Maximum accepted document upload size. Larger uploads return `413`. |
 | `SSE_TIMEOUT_SECONDS` | No | `120` | Maximum lifetime of a `/stream` connection before it closes with a `timeout` event. |
+| `RATE_LIMIT_PER_MINUTE` | No | `120` | Requests allowed per client IP per 60-second window before `429 Too Many Requests`. See ADR-008 — this exists because the API has no authentication. |
 
 > **Note on CORS:** when `CORS_ORIGINS` is a wildcard (the default), credentialed cross-origin
 > requests are disabled automatically — a wildcard origin combined with credentials would let
