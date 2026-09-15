@@ -17,18 +17,12 @@
 
 ## 2. Current Project Status
 
-- **Current Phase:** Product Phase 1 Audit & System Hardening Complete (All P0, P1, P2 audit findings resolved and runtime-verified; Product Phase 2 not yet started).
+- **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 139 backend pytest tests passing; 27 mobile tests passing; 25 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
-- **Primary Focus:** Ready for Product Phase 2 (IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`).
-- **Last Major Milestone:** Remaining Product Phase 1 Audit Fixes Completed & Verified:
-  1. `kadi.py` background session resolved via `get_background_session()` with FastAPI dependency override and eager relationship loading (`selectinload`), guaranteeing end-to-end entity persistence in test, local, and Docker environments.
-  2. `CameraScanScreen.tsx` routing updated so `documentType === "general"` routes to `BillNyay` with `caseId` preserved.
-  3. Web `page.tsx` dummy document fallback completely removed; real file selection strictly required.
-  4. CGHS rate schedule resolution made robust with `billnyay.__file__` package path lookup, verified by automated test (`len(CGHS_RATES) > 20`).
-  5. `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
-  6. EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
-- **Active Blockers:** None.
+- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
+- **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
+- **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
+- **Active Blockers:** None for currently assigned work.
 
 ---
 
@@ -38,7 +32,7 @@ ArogyaRakshak addresses five critical healthcare friction points through non-ove
 
 ```mermaid
 flowchart TD
-    Doc["Patient Documents<br/>(Bill / Prescription / Denial Letter / Policy)"] --> Kadi["KADI Shared Intelligence Layer<br/>OCR · Entity Extraction · IndicXlit/IndicSBERT Resolution"]
+    Doc["Patient Documents<br/>(Bill / Prescription / Denial Letter / Policy)"] --> Kadi["KADI Shared Intelligence Layer<br/>OCR · Entity Extraction · Rule-based Cross-Script Resolution<br/>(+ optional IndicSBERT; IndicXlit not used — ADR-006)"]
     
     Kadi <--> BN["1. BillNyay<br/>Hospital Bill Audit vs CGHS"]
     Kadi <--> DS["2. DaaviSetu<br/>Pre-Claim Form Automation"]
@@ -216,27 +210,27 @@ None. Ready for Product Phase 2 when directed by user.
 ```text
 Phase 1: Foundations (COMPLETED)
 ├── Monorepo scaffolding, Docker Compose, CI pipeline
-├── Kadi shared extraction, FAISS vector store, OCR parser
+├── Kadi shared extraction, OCR parser (FAISS vector store: planned, unwired scaffold — see ADR-002/components.md, never built)
 ├── BillNyay 5-agent chain, DaaviSetu pre-auth generator
 ├── SchemeSetu rule-based eligibility checker, DawaCheck NPPA price checker
 └── Repository-wide documentation & test infrastructure overhaul
 
-Phase 2: Module Builds & BimaNyay (ACTIVE)
+Phase 2: Module Builds & BimaNyay (COMPLETED — all assigned issues closed 2026-09-13)
 ├── Scaffold packages/bimanyay and 5-agent dispute pipeline
 ├── Build self-reported Grievance SLA escalation tracker
 ├── Mount /api/v1/bimanyay endpoints in FastAPI
-└── Scaffold apps/mobile (Expo React Native) with camera edge detection
+└── Scaffold apps/mobile (Expo React Native) with camera capture (plain expo-camera, no edge detection — README corrected)
 
-Phase 3: Entity Resolution & Cross-Module Intelligence (NEXT)
-├── Integrate IndicXlit (transliteration) and IndicSBERT (cross-lingual)
-├── Implement confidence-scored merge/ask-user branching in Kadi
+Phase 3: Entity Resolution & Cross-Module Intelligence (COMPLETED — all assigned issues closed 2026-09-13)
+├── IndicSBERT cross-lingual semantic signal integrated, optional/off by default (ADR-006). IndicXlit transliteration was NOT achieved — blocked on fairseq/Python 3.11 wheels, #29 remains open.
+├── Confidence-scored merge/ask-user branching in Kadi implemented and evaluated (docs/evaluation/entity-resolution.md)
 ├── Auto-triggering: one document upload surfaces insights across all modules
 └── Mobile app multi-module screen assembly (BillNyay, BimaNyay, DaaviSetu, SchemeSetu, DawaCheck)
 
-Phase 4: Multilingual & Evaluation (LATER)
-├── Devanagari OCR validation on real/synthetic self-donated documents
-├── Terminology QA pass on Hindi & Marathi appeal drafts
-└── Quantitative evaluation execution (PEA >= 92%, BMA >= 88%, CRMA >= 90%, WER < 8%)
+Phase 4: Multilingual & Evaluation (ACTIVE — 2026-09-15)
+├── DawaCheck prescription-shorthand translator (#97), SchemeSetu regional state-name normalization (#95), Hindi/Marathi BillNyay appeal letters (#39)
+├── E2E latency monitoring harness measured and documented (#116, docs/evaluation/latency.md)
+└── Remaining: PEA/BMA/CFMA/CRMA/WER evaluation harnesses (#102–#115, not yet built)
 
 Phase 5: Submission & Demo Polish (FUTURE)
 ├── Final deployment (college server / staging host)
@@ -510,8 +504,11 @@ Successfully fixed and verified all Product Phase 1 issues based on the independ
     - Mobile: `npm test` passed **27/27 tests**; `npm run type-check` passed **0 errors**.
     - CI Guardrails: `python scripts/ci_guardrails.py` passed **5/5 checks**.
 
-### Current State
-Product Phase 1 audit fixes are 100% complete and verified. Product Phase 2 has NOT been started.
+### Current State (as of the entry above, historical)
+Product Phase 1 audit fixes were 100% complete and verified at this point in the log. **This
+entry is historical, not current** — Phases 2 and 3 have since been completed (all assigned
+issues closed 2026-09-13) and Phase 4 is now in progress. See §2 "Current Project Status" at
+the top of this document for the live status.
 
 ### Recommended Next Action
 When authorized by the user, begin Product Phase 2:
