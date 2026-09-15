@@ -28,6 +28,41 @@ def _scorecard(status: str, overall_score: int, issues=None) -> JudgeScorecard:
     )
 
 
+def test_language_reaches_the_barrister_on_every_call_including_revisions(monkeypatch):
+    """#39: a language selected once at the endpoint must survive every re-draft in
+    the self-correction loop, not just the first attempt."""
+    monkeypatch.setattr(
+        "billnyay.agents.feedback_loop.run_judge_agent",
+        lambda *a, **kw: _scorecard("needs_revision", 40, issues=[]),
+    )
+    captured_languages = []
+
+    class CapturingClient:
+        def generate(self, *args, **kwargs):
+            captured_languages.append(kwargs.get("language"))
+            return "L" * 400
+
+    draft_with_self_correction(CapturingClient(), max_attempts=1, language="mr")
+
+    assert captured_languages == ["mr", "mr"]  # initial draft + 1 revision
+
+
+def test_language_defaults_to_english(monkeypatch):
+    monkeypatch.setattr(
+        "billnyay.agents.feedback_loop.run_judge_agent",
+        lambda *a, **kw: _scorecard("approve", 85),
+    )
+    captured_languages = []
+
+    class CapturingClient:
+        def generate(self, *args, **kwargs):
+            captured_languages.append(kwargs.get("language"))
+            return "M" * 400
+
+    draft_with_self_correction(CapturingClient())
+    assert captured_languages == ["en"]
+
+
 def test_no_revision_needed_when_judge_approves_first_draft(monkeypatch):
     monkeypatch.setattr(
         "billnyay.agents.feedback_loop.run_judge_agent",

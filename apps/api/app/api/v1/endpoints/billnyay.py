@@ -184,6 +184,9 @@ class AppealResponse(BaseModel):
     # .../appeal/verify.
     document_sha256: str
     pdf_download_url: str
+    # #39 — the language the letter was actually drafted in (en/hi/mr), confirming the
+    # request's ?language= was honoured rather than silently ignored.
+    language: str = "en"
 
 
 class GrievanceResponse(BaseModel):
@@ -307,6 +310,75 @@ Yours faithfully,
 The Insured
 """
 
+# Hindi/Marathi offline fallback letters (#39): with GROQ_API_KEY unset — the documented
+# default deployment state — the LLM path never runs, so without these a user who chose
+# Hindi/Marathi in the UI still received the English fallback above regardless of their
+# language selection. Same canned-template caveat as the English version: not read from
+# the user's document, only a structurally valid placeholder.
+_FALLBACK_APPEAL_LETTER_HI = """विषय: दावा अस्वीकृति / बिलिंग विचलन के विरुद्ध औपचारिक प्रतिनिधित्व एवं अपील की सूचना
+
+शिकायत निवारण अधिकारी के नाम,
+
+प्रस्तावना
+यह प्रतिनिधित्व IRDAI (पॉलिसीधारक हितों का संरक्षण) विनियमों के अंतर्गत, उल्लिखित दावे के संबंध में सूचित
+अस्वीकृति/कटौती के विरुद्ध प्रस्तुत किया जा रहा है। पॉलिसीधारक इस अस्वीकृति पर आपत्ति दर्ज करता है और
+सांविधिक समयावधि के भीतर इसकी वापसी की माँग करता है।
+
+खंड I - चिकित्सीय औचित्य एवं चिकित्सा आवश्यकता
+अस्पताल में भर्ती होने के दौरान निरंतर चिकित्सीय निगरानी के साथ एक सक्रिय उपचार प्रक्रिया अपनाई गई।
+स्थापित देखभाल मानक ऐसे भर्ती को चिकित्सकीय रूप से आवश्यक मानते हैं। उपचार करने वाले चिकित्सक के
+अभिलेख बिल की गई प्रक्रियाओं एवं उपभोग्य सामग्रियों की आवश्यकता की पुष्टि करते हैं।
+
+खंड II - सांविधिक एवं IRDAI विनियामक प्रावधान
+अस्पष्ट या गैर-विशिष्ट अपवर्जन खंडों के आधार पर अस्वीकृति, अपवर्जन खंडों के मानकीकरण संबंधी IRDAI
+परिपत्र के तहत अनुमन्य नहीं है। दावा की गई चिकित्सा व्ययों में मनमानी कमी, या निपटान में अस्पष्टीकृत विलंब,
+उपभोक्ता संरक्षण अधिनियम, 2019 के अंतर्गत एक अनुचित व्यापार व्यवहार भी है। दावा समीक्षा समिति की सहमति
+के बिना कोई भी अस्वीकृति वैध नहीं है।
+
+खंड III - औपचारिक माँग एवं प्रत्यावर्तन हेतु समयसीमा
+पॉलिसीधारक IRDAI द्वारा अनिवार्य तीस (30) दिनों के भीतर अस्वीकृति/कटौती पर पुनर्विचार एवं इसे वापस लेने
+की माँग करता है। ऐसा न होने पर, पॉलिसीधारक IRDAI बीमा भरोसा पोर्टल एवं तत्पश्चात संबंधित बीमा लोकपाल
+के समक्ष मामला ले जाने का अधिकार सुरक्षित रखता है।
+
+भवदीय,
+पॉलिसीधारक
+"""
+
+_FALLBACK_APPEAL_LETTER_MR = """विषय: दावा नकार / बिलिंग तफावतीविरुद्ध औपचारिक निवेदन आणि अपील सूचना
+
+तक्रार निवारण अधिकारी यांना,
+
+प्रस्तावना
+हे निवेदन IRDAI (पॉलिसीधारक हितसंरक्षण) विनियमांतर्गत, संबंधित दाव्याबाबत कळवलेल्या नकार/कपातीविरुद्ध
+सादर केले जात आहे. पॉलिसीधारक या नकाराबाबत आक्षेप नोंदवत असून वैधानिक मुदतीत तो मागे घेण्याची मागणी
+करत आहे.
+
+विभाग I - वैद्यकीय औचित्य आणि वैद्यकीय गरज
+रुग्णालयात दाखल असताना सातत्यपूर्ण वैद्यकीय देखरेखीसह सक्रिय उपचार प्रक्रिया राबवण्यात आली. प्रस्थापित
+काळजी मानके अशा दाखलतेला वैद्यकीयदृष्ट्या आवश्यक मानतात. उपचार करणाऱ्या डॉक्टरांच्या नोंदी बिल
+केलेल्या प्रक्रिया व उपभोग्य वस्तूंच्या गरजेस पुष्टी देतात.
+
+विभाग II - वैधानिक आणि IRDAI नियामक तरतुदी
+अस्पष्ट किंवा विशिष्ट नसलेल्या वगळणी कलमांच्या आधारे नकार देणे, वगळणी कलमांच्या प्रमाणीकरणाबाबतच्या
+IRDAI परिपत्रकांतर्गत अनुज्ञेय नाही. दावा केलेल्या वैद्यकीय खर्चात अनियंत्रित कपात, किंवा निपटाऱ्यात
+अस्पष्ट विलंब, ग्राहक संरक्षण कायदा, 2019 अंतर्गत अनुचित व्यापार पद्धत ठरते. दावा पुनरावलोकन समितीच्या
+संमतीशिवाय कोणताही नकार वैध नाही.
+
+विभाग III - औपचारिक मागणी आणि परतफेडीसाठी कालमर्यादा
+पॉलिसीधारक IRDAI ने अनिवार्य केलेल्या तीस (30) दिवसांच्या आत नकार/कपातीचा पुनर्विचार करून तो मागे
+घेण्याची मागणी करत आहे. असे न झाल्यास, पॉलिसीधारक हे प्रकरण IRDAI विमा भरोसा पोर्टलकडे आणि त्यानंतर
+संबंधित विमा लोकपालाकडे नेण्याचा अधिकार राखून ठेवतो.
+
+आपला विश्वासू,
+पॉलिसीधारक
+"""
+
+_FALLBACK_APPEAL_LETTERS = {
+    "en": _FALLBACK_APPEAL_LETTER,
+    "hi": _FALLBACK_APPEAL_LETTER_HI,
+    "mr": _FALLBACK_APPEAL_LETTER_MR,
+}
+
 
 class GroqClientFallback:
     """Deterministic offline stand-in used when GROQ_API_KEY is not configured.
@@ -332,8 +404,10 @@ class GroqClientFallback:
             return _FALLBACK_CLINICAL_JSON
 
         if "barrister agent" in sys_text or not json_mode:
-            logger.warning("[GroqClientFallback] Returning fallback appeal letter.")
-            return _FALLBACK_APPEAL_LETTER
+            language = (kwargs.get("language") or "en").lower()
+            letter = _FALLBACK_APPEAL_LETTERS.get(language, _FALLBACK_APPEAL_LETTER)
+            logger.warning("[GroqClientFallback] Returning fallback appeal letter (language=%s).", language)
+            return letter
 
         logger.warning("[GroqClientFallback] Returning fallback denial JSON block.")
         return _FALLBACK_DENIAL_JSON
@@ -442,8 +516,17 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
 
 
 @router.post("/cases/{case_id}/appeal", response_model=AppealResponse)
-async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
+async def draft_appeal(
+    case_id: str,
+    language: str = Query("en", description="Appeal letter language: en, hi, or mr (#39)."),
+    db: AsyncSession = Depends(get_db),
+):
     """Runs the 5-agent pipeline to generate an IRDAI-compliant appeal letter."""
+    if language not in ("en", "hi", "mr"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported language '{language}'. Use en, hi, or mr.",
+        )
     # 1. Fetch case details
     await require_case_consent(case_id, db)
 
@@ -506,6 +589,7 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         denial_details=denial,
         clinical_evidence=clinical_evidence,
         regulatory_evidence=regulatory_evidence,
+        language=language,
     )
     if drafting_result is None:
         logger.error("[BillNyay] Barrister Agent returned no appeal letter for case %s", case_id)
@@ -548,6 +632,7 @@ async def draft_appeal(case_id: str, db: AsyncSession = Depends(get_db)):
         revision_history=[r.model_dump() for r in drafting_result.revision_history],
         document_sha256=document_sha256,
         pdf_download_url=f"/api/v1/billnyay/cases/{case_id}/appeal/pdf",
+        language=language,
     )
 
 

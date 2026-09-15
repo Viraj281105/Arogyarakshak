@@ -51,6 +51,7 @@ def draft_with_self_correction(
     clinical_evidence: Any = None,
     regulatory_evidence: Any = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    language: str = "en",
 ) -> Optional[DraftingResult]:
     """Drafts an appeal letter, automatically revising it while the Judge reports
     `needs_revision`, up to `max_attempts` additional drafts.
@@ -63,6 +64,7 @@ def draft_with_self_correction(
         denial_details=denial_details,
         clinical_evidence=clinical_evidence,
         regulatory_evidence=regulatory_evidence,
+        language=language,
     )
     if not appeal_letter:
         return None
@@ -89,6 +91,7 @@ def draft_with_self_correction(
             clinical_evidence=clinical_evidence,
             regulatory_evidence=regulatory_evidence,
             critique=critique,
+            language=language,
         )
         attempts += 1
         if not revised:

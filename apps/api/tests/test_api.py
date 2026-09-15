@@ -530,6 +530,39 @@ def test_billnyay_appeal_scorecard_is_well_formed():
         assert 0 <= subs[key] <= 100, f"sub_score {key} out of range"
 
 
+def test_billnyay_appeal_defaults_to_english():
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    assert response.status_code == 200
+    assert response.json()["language"] == "en"
+
+
+@pytest.mark.parametrize("lang", ["hi", "mr"])
+def test_billnyay_appeal_honours_requested_language_in_offline_fallback(lang):
+    """#39: with GROQ_API_KEY unset (this test environment's default), the appeal
+    letter previously stayed English regardless of the requested language. The
+    offline fallback must now return the matching localized canned letter, and the
+    response must disclose which language was actually drafted."""
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal?language={lang}")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["language"] == lang
+    letter = data["appeal_letter"]
+    assert len(letter) > 300
+    # Devanagari script must actually be present — not an untranslated English letter
+    # with the language field merely relabelled.
+    assert any("ऀ" <= ch <= "ॿ" for ch in letter), (
+        f"Appeal letter for language={lang} contains no Devanagari text: {letter[:200]}"
+    )
+
+
+def test_billnyay_appeal_rejects_unsupported_language():
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal?language=fr")
+    assert response.status_code == 422
+
+
 def test_billnyay_appeal_unknown_case_returns_404():
     response = client.post("/api/v1/billnyay/cases/CASE-doesnotexist/appeal")
     assert response.status_code == 404
