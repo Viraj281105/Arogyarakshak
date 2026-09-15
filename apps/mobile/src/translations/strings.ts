@@ -161,6 +161,10 @@ export interface MobileTranslations {
       statutoryNoticeTitle: string;
       statutoryNoticeBody: string;
       dataSourceNotice: string;
+      prescriptionTranslatorTitle: string;
+      prescriptionInputPlaceholder: string;
+      translateBtn: string;
+      unrecognizedNotice: string;
     };
   };
   common: {
@@ -336,6 +340,10 @@ export const translations: Record<Language, MobileTranslations> = {
         statutoryNoticeTitle: '💡 Statutory Consumer Right (DPCO 2013)',
         statutoryNoticeBody: 'Under the Drugs (Prices Control) Order, 2013 and the Essential Commodities Act, 1955, charging above the notified NPPA ceiling price is an illegal punishable offence. Retail pharmacies are statutorily required to dispense equivalent generic formulations upon request.',
         dataSourceNotice: 'Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.',
+        prescriptionTranslatorTitle: 'Prescription Shorthand Translator',
+        prescriptionInputPlaceholder: "Paste doctor's instructions, e.g. Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: 'Translate Instructions',
+        unrecognizedNotice: 'Not recognized (not a standard abbreviation this tool knows): {tokens}',
       },
     },
     common: {
@@ -509,6 +517,10 @@ export const translations: Record<Language, MobileTranslations> = {
         statutoryNoticeTitle: '💡 वैधानिक उपभोक्ता अधिकार (डीपीसीओ 2013)',
         statutoryNoticeBody: 'ड्रग्स प्राइस कंट्रोल ऑर्डर, 2013 एवं आवश्यक वस्तु अधिनियम के तहत एनपीपीए मूल्य सीमा से अधिक वसूलना एक दंडनीय अपराध है। फार्मेसी द्वारा जेनेरिक विकल्प उपलब्ध कराना अनिवार्य है।',
         dataSourceNotice: 'यह जांच NPPA अनुसूची-I की {count} चयनित दवाओं की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।',
+        prescriptionTranslatorTitle: 'पर्ची संक्षिप्त शब्द अनुवादक',
+        prescriptionInputPlaceholder: 'डॉक्टर के निर्देश यहाँ चिपकाएँ, जैसे Tab. Dolo 650mg TDS x 5 days',
+        translateBtn: 'निर्देश अनुवाद करें',
+        unrecognizedNotice: 'पहचान नहीं हुई (यह मानक संक्षिप्त शब्द नहीं है): {tokens}',
       },
     },
     common: {
@@ -682,6 +694,10 @@ export const translations: Record<Language, MobileTranslations> = {
         statutoryNoticeTitle: '💡 वैधानिक ग्राहक हक्क (डीपीसीओ २०१३)',
         statutoryNoticeBody: 'औषध किंमत नियंत्रण आदेश (डीपीसीओ २०१३) आणि अत्यावश्यक वस्तू कायद्यानुसार एनपीपीए कमाल दरापेक्षा जास्त आकारणे हा गुन्हा आहे. औषध विक्रेत्यांनी विचारणा केल्यास जेनेरिक पर्याय देणे बंधनकारक आहे.',
         dataSourceNotice: 'ही तपासणी NPPA अनुसूची-१ मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.',
+        prescriptionTranslatorTitle: 'प्रिस्क्रिप्शन संक्षिप्त शब्द भाषांतरक',
+        prescriptionInputPlaceholder: 'डॉक्टरांच्या सूचना येथे चिकटवा, उदा. Tab. Dolo 650mg TDS x 5 days',
+        translateBtn: 'सूचनांचे भाषांतर करा',
+        unrecognizedNotice: 'ओळखले गेले नाही (हा प्रमाणित संक्षेप नाही): {tokens}',
       },
     },
     common: {

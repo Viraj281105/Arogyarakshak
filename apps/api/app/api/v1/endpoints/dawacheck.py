@@ -23,6 +23,10 @@ from dawacheck.checker import (
     benchmark_medicine,
     MedicineBenchmark,
 )
+from dawacheck.prescription_translator import (
+    translate_prescription_shorthand,
+    PrescriptionTranslation,
+)
 
 logger = logging.getLogger("arogyarakshak.api.dawacheck")
 router = APIRouter()
@@ -32,6 +36,17 @@ router = APIRouter()
 class BenchRequest(BaseModel):
     brand_name: str = Field(..., description="Brand name of the medicine", json_schema_extra={"example": "Paracetamol 650mg"})
     mrp: float = Field(..., description="Maximum Retail Price (MRP) per tablet/unit", json_schema_extra={"example": 3.5})
+
+
+class TranslateInstructionsRequest(BaseModel):
+    instructions: str = Field(
+        ...,
+        description="Free-text doctor instructions containing dosage-frequency shorthand.",
+        json_schema_extra={"example": "Tab. Dolo 650mg TDS x 5 days"},
+    )
+    language: str = Field(
+        "en", description="Target language for the translated meaning: en, hi, or mr."
+    )
 
 
 class CaseMedicineBenchmark(BaseModel):
@@ -66,6 +81,28 @@ async def check_medicine_pricing(req: BenchRequest):
             },
         )
     return benchmark
+
+
+@router.post(
+    "/translate-instructions",
+    response_model=PrescriptionTranslation,
+    status_code=status.HTTP_200_OK,
+)
+async def translate_instructions(req: TranslateInstructionsRequest):
+    """Expands Latin-derived prescription frequency shorthand (TDS, BD, HS, ...) into
+    plain language, in the requested language (#97).
+
+    Request-body-only, like `/benchmark` — reads no case context, so it is exempt from
+    cross-module consent by design (see app.consent). Only the fixed, standard
+    abbreviation set in dawacheck.prescription_translator.SHORTHAND_REFERENCE is
+    translated; anything else is returned in `unrecognized_tokens` rather than guessed.
+    """
+    if req.language not in ("en", "hi", "mr"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported language '{req.language}'. Use en, hi, or mr.",
+        )
+    return translate_prescription_shorthand(req.instructions, language=req.language)  # type: ignore[arg-type]
 
 
 async def _lookup_generic_mapping(

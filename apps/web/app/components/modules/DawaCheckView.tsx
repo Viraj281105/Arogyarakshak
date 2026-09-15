@@ -19,6 +19,20 @@ interface MedicineBenchmarkResponse {
   reference_entry_count: number;
 }
 
+interface TranslatedInstruction {
+  token: string;
+  recognized: boolean;
+  meaning_en: string;
+  translated: string;
+}
+
+interface PrescriptionTranslationResponse {
+  original_text: string;
+  language: string;
+  instructions: TranslatedInstruction[];
+  unrecognized_tokens: string[];
+}
+
 interface DawaCheckViewProps {
   currentLang: Language;
 }
@@ -31,6 +45,16 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
   const [brandName, setBrandName] = useState("");
   const [mrp, setMrp] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+
+  const translateApi = useApi<PrescriptionTranslationResponse>();
+  const [instructionsText, setInstructionsText] = useState("");
+
+  const handleTranslate = async () => {
+    if (!instructionsText.trim()) return;
+    await translateApi.execute("/api/v1/dawacheck/translate-instructions", {
+      body: { instructions: instructionsText.trim(), language: currentLang },
+    });
+  };
 
   const handleSearch = async () => {
     const mrpVal = parseFloat(mrp);
@@ -253,6 +277,51 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
         }}
       >
         💡 <strong>DPCO 2013 Provision:</strong> Charging above the notified NPPA ceiling price is an offence under the Essential Commodities Act, 1955. Retail pharmacies must mandatorily display generic bio-equivalents.
+      </div>
+
+      <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.08))", paddingTop: "1.25rem" }}>
+        <h3 style={{ marginBottom: "0.75rem" }}>{t.prescriptionTranslatorTitle}</h3>
+        <textarea
+          className="textarea-field"
+          rows={2}
+          style={{ width: "100%", marginBottom: "0.75rem" }}
+          placeholder={t.prescriptionInputPlaceholder}
+          value={instructionsText}
+          onChange={(e) => setInstructionsText(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleTranslate}
+          disabled={translateApi.loading || !instructionsText.trim()}
+        >
+          {t.translateBtn}
+        </button>
+
+        {translateApi.data && (
+          <div style={{ marginTop: "1rem" }}>
+            {translateApi.data.instructions.length === 0 ? (
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>—</p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                {translateApi.data.instructions.map((instr, idx) => (
+                  <span
+                    key={idx}
+                    className={`badge ${instr.recognized ? "badge-success" : "badge-danger"}`}
+                    title={instr.recognized ? t.recognizedBadge : undefined}
+                  >
+                    {instr.token} {instr.recognized ? `→ ${instr.translated}` : "?"}
+                  </span>
+                ))}
+              </div>
+            )}
+            {translateApi.data.unrecognized_tokens.length > 0 && (
+              <p style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                ⓘ {t.unrecognizedNotice.replace("{tokens}", translateApi.data.unrecognized_tokens.join(", "))}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

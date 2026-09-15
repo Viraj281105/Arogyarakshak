@@ -146,6 +146,11 @@ export interface Translations {
       statusFair: string;
       dataSourceNotice: string;
       complianceCol: string;
+      prescriptionTranslatorTitle: string;
+      prescriptionInputPlaceholder: string;
+      translateBtn: string;
+      unrecognizedNotice: string;
+      recognizedBadge: string;
     };
   };
   resolution: {
@@ -332,6 +337,11 @@ export const translations: Record<Language, Translations> = {
         statusFair: "Compliant with NPPA Cap",
         dataSourceNotice: "Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.",
         complianceCol: "Compliance Status",
+        prescriptionTranslatorTitle: "Prescription Shorthand Translator",
+        prescriptionInputPlaceholder: "Paste doctor's instructions, e.g. Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: "Translate Instructions",
+        unrecognizedNotice: "Not recognized (not a standard abbreviation this tool knows): {tokens}",
+        recognizedBadge: "Recognized",
       },
     },
     footer: {
@@ -502,6 +512,11 @@ export const translations: Record<Language, Translations> = {
         statusFair: "NPPA नियमों के अनुसार उचित",
         dataSourceNotice: "यह जांच NPPA शेड्यूल-I की {count} चयनित औषधियों की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।",
         complianceCol: "अनुपालन स्थिति",
+        prescriptionTranslatorTitle: "पर्ची संक्षिप्त शब्द अनुवादक",
+        prescriptionInputPlaceholder: "डॉक्टर के निर्देश यहाँ चिपकाएँ, जैसे Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: "निर्देश अनुवाद करें",
+        unrecognizedNotice: "पहचान नहीं हुई (यह मानक संक्षिप्त शब्द नहीं है): {tokens}",
+        recognizedBadge: "पहचाना गया",
       },
     },
     footer: {
@@ -672,6 +687,11 @@ export const translations: Record<Language, Translations> = {
         statusFair: "NPPA नियमानुसार योग्य दर",
         dataSourceNotice: "ही तपासणी NPPA शेड्यूल-I मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.",
         complianceCol: "अनुपालन स्थिती",
+        prescriptionTranslatorTitle: "प्रिस्क्रिप्शन संक्षिप्त शब्द भाषांतरक",
+        prescriptionInputPlaceholder: "डॉक्टरांच्या सूचना येथे चिकटवा, उदा. Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: "सूचनांचे भाषांतर करा",
+        unrecognizedNotice: "ओळखले गेले नाही (हा प्रमाणित संक्षेप नाही): {tokens}",
+        recognizedBadge: "ओळखले गेले",
       },
     },
     footer: {

@@ -298,6 +298,15 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
   });
 
+  it('DawaCheckScreen wires the prescription shorthand translator to the API, not just to local state', () => {
+    // Regression guard for #97: the translator UI must actually call the backend
+    // endpoint (which enforces the fixed, non-fabricated shorthand reference), not
+    // reimplement its own guess at what TDS/BD/QD mean client-side.
+    const src = readFileSync(join(screenDir, 'DawaCheckScreen.tsx'), 'utf-8');
+    assert.ok(/api\.dawacheck\.translateInstructions/.test(src), 'must call api.dawacheck.translateInstructions');
+    assert.ok(/unrecognized_tokens/.test(src), 'must surface unrecognized tokens rather than hide them');
+  });
+
   it('BimaNyayScreen lets the user choose all 4 denial categories, not just the hardcoded default', () => {
     // Regression: denialCategory state defaulted to 'PED_NON_DISCLOSURE' with no UI control
     // to change it, so a mobile user describing a room-rent, investigation-only, or

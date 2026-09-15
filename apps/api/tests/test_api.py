@@ -1451,6 +1451,49 @@ def test_dawacheck_result_declares_its_provenance():
     assert data["generic_substitute_store_info"]
 
 
+def test_dawacheck_translate_instructions_expands_shorthand_in_hindi():
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "Tab. Dolo 650mg TDS x 5 days", "language": "hi"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    tokens = {i["token"].upper(): i for i in data["instructions"]}
+    assert tokens["TDS"]["recognized"] is True
+    assert tokens["TDS"]["translated"] == "दिन में तीन बार"
+    assert data["unrecognized_tokens"] == []
+
+
+def test_dawacheck_translate_instructions_flags_unrecognized_shorthand_honestly():
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "Tab. X 5mg ZZZ", "language": "en"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "ZZZ" in data["unrecognized_tokens"]
+    zzz = next(i for i in data["instructions"] if i["token"] == "ZZZ")
+    assert zzz["recognized"] is False
+    assert zzz["translated"] == ""
+
+
+def test_dawacheck_translate_instructions_rejects_unsupported_language():
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "TDS", "language": "fr"},
+    )
+    assert res.status_code == 422
+
+
+def test_dawacheck_translate_instructions_requires_no_case_consent():
+    """Request-body-only route, like /benchmark — must not require a case at all."""
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "BD", "language": "mr"},
+    )
+    assert res.status_code == 200
+
+
 def test_schemesetu_discloses_what_it_did_not_evaluate():
     """Category and medical need are collected but never used — say so."""
     res = client.post(

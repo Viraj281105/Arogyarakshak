@@ -13,6 +13,8 @@ import {
   SchemeResult,
   DawaCheckBenchmarkRequest,
   DawaCheckBenchmarkResponse,
+  TranslateInstructionsRequest,
+  PrescriptionTranslationResponse,
   IncomeProfileRequest,
   IncomeProfileResponse,
   ResolutionDecision,
@@ -102,5 +104,7 @@ export const api = {
   dawacheck: {
     benchmark: (data: DawaCheckBenchmarkRequest) =>
       apiClient.post<DawaCheckBenchmarkResponse>('/api/v1/dawacheck/benchmark', data),
+    translateInstructions: (data: TranslateInstructionsRequest) =>
+      apiClient.post<PrescriptionTranslationResponse>('/api/v1/dawacheck/translate-instructions', data),
   },
 };

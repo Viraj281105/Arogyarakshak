@@ -244,6 +244,25 @@ export interface DawaCheckBenchmarkResponse {
   reference_entry_count: number;
 }
 
+export interface TranslateInstructionsRequest {
+  instructions: string;
+  language: 'en' | 'hi' | 'mr';
+}
+
+export interface TranslatedInstruction {
+  token: string;
+  recognized: boolean;
+  meaning_en: string;
+  translated: string;
+}
+
+export interface PrescriptionTranslationResponse {
+  original_text: string;
+  language: string;
+  instructions: TranslatedInstruction[];
+  unrecognized_tokens: string[];
+}
+
 export interface ApiError {
   message: string;
   detail?: string;
