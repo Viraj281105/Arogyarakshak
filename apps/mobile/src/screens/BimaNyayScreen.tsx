@@ -154,6 +154,28 @@ export const BimaNyayScreen: React.FC = () => {
           value={deniedAmount}
           onChangeText={setDeniedAmount}
         />
+        <Text style={[styles.cardTitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.xs }]}>
+          {m.denialCategoryLabel}
+        </Text>
+        <View style={[styles.row, { flexWrap: 'wrap', marginBottom: spacing.sm }]}>
+          {(
+            [
+              ['PED_NON_DISCLOSURE', m.denialCategoryPedNonDisclosure],
+              ['ROOM_RENT_CAPPING', m.denialCategoryRoomRentCapping],
+              ['INVESTIGATION_ONLY', m.denialCategoryInvestigationOnly],
+              ['DELAYED_INTIMATION', m.denialCategoryDelayedIntimation],
+            ] as const
+          ).map(([value, label]) => (
+            <Button
+              key={value}
+              title={label}
+              onPress={() => setDenialCategory(value)}
+              variant={denialCategory === value ? 'primary' : 'secondary'}
+              size="sm"
+              style={{ marginRight: spacing.xs, marginBottom: spacing.xs }}
+            />
+          ))}
+        </View>
         <TextInput
           style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
           placeholder={m.denialReason}

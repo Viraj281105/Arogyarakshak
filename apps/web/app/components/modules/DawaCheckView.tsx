@@ -133,7 +133,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
                   <th>{t.genericName}</th>
                   <th>{t.mrp}</th>
                   <th>{t.nppaCeiling}</th>
-                  <th>Compliance Status</th>
+                  <th>{t.complianceCol}</th>
                 </tr>
               </thead>
               <tbody>
@@ -213,7 +213,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
                   <th>{t.genericName}</th>
                   <th>{t.mrp}</th>
                   <th>{t.nppaCeiling}</th>
-                  <th>Compliance Status</th>
+                  <th>{t.complianceCol}</th>
                 </tr>
               </thead>
               <tbody>

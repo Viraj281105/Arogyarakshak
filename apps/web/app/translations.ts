@@ -44,6 +44,7 @@ export interface Translations {
       chargedCol: string;
       cghsCol: string;
       varianceCol: string;
+      statusCol: string;
       disputeGrounds: string;
       notBenchmarked: string;
       withinBenchmark: string;
@@ -63,6 +64,10 @@ export interface Translations {
       claimedAmount: string;
       deniedAmount: string;
       denialCategory: string;
+      denialCategoryPedNonDisclosure: string;
+      denialCategoryRoomRentCapping: string;
+      denialCategoryInvestigationOnly: string;
+      denialCategoryDelayedIntimation: string;
       denialReason: string;
       diagnosis: string;
       analyzeBtn: string;
@@ -80,6 +85,11 @@ export interface Translations {
       tier1Label: string;
       tier2Label: string;
       tier3Label: string;
+      tier1Desc: string;
+      tier2Desc: string;
+      tier3Desc: string;
+      activeBadge: string;
+      pendingBadge: string;
     };
     daavisetu: {
       title: string;
@@ -101,6 +111,7 @@ export interface Translations {
       desc: string;
       annualIncome: string;
       state: string;
+      socialCategory: string;
       medicalNeed: string;
       checkBtn: string;
       eligibleSchemes: string;
@@ -134,6 +145,7 @@ export interface Translations {
       statusOvercharged: string;
       statusFair: string;
       dataSourceNotice: string;
+      complianceCol: string;
     };
   };
   resolution: {
@@ -218,6 +230,7 @@ export const translations: Record<Language, Translations> = {
         chargedCol: "Hospital Charged",
         cghsCol: "Statutory Benchmark",
         varianceCol: "Excess Surcharge",
+        statusCol: "Audit Status",
         disputeGrounds: "Dispute Grounds: Overcharging violates Supreme Court Consumer Protection precedents and standardized CGHS tariff guidelines.",
         notBenchmarked: "No CGHS benchmark",
         withinBenchmark: "Within Benchmark",
@@ -237,6 +250,10 @@ export const translations: Record<Language, Translations> = {
         claimedAmount: "Total Claimed (₹)",
         deniedAmount: "Disallowed / Denied (₹)",
         denialCategory: "Denial Category",
+        denialCategoryPedNonDisclosure: "Pre-Existing Disease Non-Disclosure",
+        denialCategoryRoomRentCapping: "Room Rent Proportionate Deduction",
+        denialCategoryInvestigationOnly: "Observation / Diagnostic Hospitalization Only",
+        denialCategoryDelayedIntimation: "Delayed Claim Intimation / Submission",
         denialReason: "Repudiation Reason Quoted by Insurer",
         diagnosis: "Primary Clinical Diagnosis",
         analyzeBtn: "Audit Denial Grounds & Draft Appeals",
@@ -254,6 +271,11 @@ export const translations: Record<Language, Translations> = {
         tier1Label: "Tier 1 (GRO): 15-Day Resolution Window",
         tier2Label: "Tier 2 (Bima Bharosa): 15-Day Regulatory Escalation",
         tier3Label: "Tier 3 (Ombudsman): 365-Day Limitation Period",
+        tier1Desc: "Formal appeal pending with {insurer} GRO. Mandatory resolution window: 15 days.",
+        tier2Desc: "Escalate via IRDAI Bima Bharosa portal if GRO fails to resolve or rejects claim.",
+        tier3Desc: "Complaint to Insurance Ombudsman within 1 year (Ombudsman Rules 2017, r.14(3)(b)). Award binding on insurer; capped at ₹50 lakh incl. expenses (r.17(3)(ii), as amended by G.S.R. 828(E), 09.11.2023).",
+        activeBadge: "ACTIVE",
+        pendingBadge: "PENDING",
       },
       daavisetu: {
         title: "DaaviSetu — Cashless Pre-Authorization Automation",
@@ -275,6 +297,7 @@ export const translations: Record<Language, Translations> = {
         desc: "Intelligent eligibility assessment across Ayushman Bharat PM-JAY and State healthcare programs.",
         annualIncome: "Annual Family Income (₹)",
         state: "Domicile State",
+        socialCategory: "Social Category",
         medicalNeed: "Required Medical Procedure / Specialty",
         checkBtn: "Check Scheme Eligibility",
         eligibleSchemes: "Eligible Government Health Schemes",
@@ -308,6 +331,7 @@ export const translations: Record<Language, Translations> = {
         statusOvercharged: "Overcharged vs Statutory Cap",
         statusFair: "Compliant with NPPA Cap",
         dataSourceNotice: "Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.",
+        complianceCol: "Compliance Status",
       },
     },
     footer: {
@@ -376,6 +400,7 @@ export const translations: Record<Language, Translations> = {
         chargedCol: "अस्पताल शुल्क",
         cghsCol: "मानक दर",
         varianceCol: "अतिरिक्त राशि",
+        statusCol: "लेखा-परीक्षा स्थिति",
         disputeGrounds: "आपत्ति का आधार: अत्यधिक शुल्क सर्वोच्च न्यायालय के उपभोक्ता संरक्षण निर्णयों और CGHS नियमों का उल्लंघन करता है।",
         notBenchmarked: "कोई CGHS मानक नहीं",
         withinBenchmark: "मानक के भीतर",
@@ -395,6 +420,10 @@ export const translations: Record<Language, Translations> = {
         claimedAmount: "कुल दावा राशि (₹)",
         deniedAmount: "अस्वीकृत / काटी गई राशि (₹)",
         denialCategory: "अस्वीकृति श्रेणी",
+        denialCategoryPedNonDisclosure: "पूर्व-मौजूदा बीमारी की जानकारी न देना",
+        denialCategoryRoomRentCapping: "कमरे के किराए की आनुपातिक कटौती",
+        denialCategoryInvestigationOnly: "केवल जांच / निदान हेतु अस्पताल में भर्ती",
+        denialCategoryDelayedIntimation: "दावे की देर से सूचना / प्रस्तुति",
         denialReason: "कंपनी द्वारा दिया गया कारण",
         diagnosis: "मुख्य बीमारी / निदान",
         analyzeBtn: "अस्वीकृति की विधिक जांच करें व अपील ड्राफ्ट करें",
@@ -412,6 +441,11 @@ export const translations: Record<Language, Translations> = {
         tier1Label: "स्तर 1 (GRO): 15-दिन समाधान विंडो",
         tier2Label: "स्तर 2 (बीमा भरोसा): 15-दिन विनियामक एस्केलेशन",
         tier3Label: "स्तर 3 (लोकपाल): 365-दिन परिसीमा अवधि",
+        tier1Desc: "{insurer} GRO के समक्ष औपचारिक अपील लंबित है। अनिवार्य समाधान अवधि: 15 दिन।",
+        tier2Desc: "यदि GRO समाधान नहीं करता या दावा अस्वीकार करता है, तो IRDAI बीमा भरोसा पोर्टल के माध्यम से आगे बढ़ाएं।",
+        tier3Desc: "1 वर्ष के भीतर बीमा लोकपाल को शिकायत करें (लोकपाल नियम 2017, नियम 14(3)(b))। निर्णय बीमा कंपनी पर बाध्यकारी; खर्च सहित अधिकतम ₹50 लाख तक सीमित (नियम 17(3)(ii), G.S.R. 828(E), दिनांक 09.11.2023 द्वारा संशोधित)।",
+        activeBadge: "सक्रिय",
+        pendingBadge: "लंबित",
       },
       daavisetu: {
         title: "दावेसेतु — कैशलेस प्री-ऑथराइजेशन ऑटोमेशन",
@@ -433,6 +467,7 @@ export const translations: Record<Language, Translations> = {
         desc: "आयुष्मान भारत PM-JAY एवं राज्य स्तरीय स्वास्थ्य योजनाओं में पात्रता की त्वरित जांच।",
         annualIncome: "वार्षिक पारिवारिक आय (₹)",
         state: "मूल निवासी राज्य",
+        socialCategory: "सामाजिक वर्ग",
         medicalNeed: "चिकित्सीय उपचार की आवश्यकता",
         checkBtn: "पात्रता जांचें",
         eligibleSchemes: "पात्र सरकारी योजनाएं",
@@ -466,6 +501,7 @@ export const translations: Record<Language, Translations> = {
         statusOvercharged: "अधिकतम सीमा से अधिक वसूला गया",
         statusFair: "NPPA नियमों के अनुसार उचित",
         dataSourceNotice: "यह जांच NPPA शेड्यूल-I की {count} चयनित औषधियों की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।",
+        complianceCol: "अनुपालन स्थिति",
       },
     },
     footer: {
@@ -534,6 +570,7 @@ export const translations: Record<Language, Translations> = {
         chargedCol: "हॉस्पिटल शुल्क",
         cghsCol: "शासकीय दर",
         varianceCol: "अतिरिक्त रक्कम",
+        statusCol: "लेखापरीक्षा स्थिती",
         disputeGrounds: "तक्रारीचा आधार: जास्त दर आकारणी सर्वोच्च न्यायालयाच्या ग्राहक संरक्षण नियमांचा व CGHS दरांचा भंग करते.",
         notBenchmarked: "CGHS मानक उपलब्ध नाही",
         withinBenchmark: "मानकाच्या आत",
@@ -553,6 +590,10 @@ export const translations: Record<Language, Translations> = {
         claimedAmount: "एकूण दावा रक्कम (₹)",
         deniedAmount: "नाकारलेली / कपात केलेली रक्कम (₹)",
         denialCategory: "नकाराचा प्रकार",
+        denialCategoryPedNonDisclosure: "आधीच्या आजाराची माहिती न दिल्याने नकार",
+        denialCategoryRoomRentCapping: "खोलीच्या भाड्याची प्रमाणशीर कपात",
+        denialCategoryInvestigationOnly: "केवळ तपासणी / निदानासाठी रुग्णालयात दाखल",
+        denialCategoryDelayedIntimation: "दाव्याची उशिरा सूचना / सादरीकरण",
         denialReason: "विमा कंपनीने दिलेले कारण",
         diagnosis: "मुख्य आजार / निदान",
         analyzeBtn: "नकाराची कायदेशीर तपासणी करा व अपील ड्राफ्ट मिळवा",
@@ -570,6 +611,11 @@ export const translations: Record<Language, Translations> = {
         tier1Label: "स्तर 1 (GRO): 15-दिवस मुदत",
         tier2Label: "स्तर 2 (विमा भरोसा): 15-दिवस एस्केलेशन",
         tier3Label: "स्तर 3 (लोकपाल): 365-दिवस मुदत",
+        tier1Desc: "{insurer} GRO कडे औपचारिक अपील प्रलंबित आहे. अनिवार्य निराकरण कालावधी: 15 दिवस.",
+        tier2Desc: "GRO ने निराकरण न केल्यास किंवा दावा नाकारल्यास IRDAI विमा भरोसा पोर्टलद्वारे पुढे न्या.",
+        tier3Desc: "1 वर्षाच्या आत विमा लोकपालकडे तक्रार करा (लोकपाल नियम 2017, नियम 14(3)(b)). निर्णय विमा कंपनीवर बंधनकारक; खर्चासह जास्तीत जास्त ₹50 लाखांपर्यंत मर्यादित (नियम 17(3)(ii), G.S.R. 828(E), दिनांक 09.11.2023 नुसार सुधारित).",
+        activeBadge: "सक्रिय",
+        pendingBadge: "प्रलंबित",
       },
       daavisetu: {
         title: "दावेसेतु — कॅशलेस प्री-ऑथरायझेशन ऑटोमेशन",
@@ -591,6 +637,7 @@ export const translations: Record<Language, Translations> = {
         desc: "आयुष्मान भारत PM-JAY आणि महात्मा ज्योतिराव फुले जन आरोग्य योजनेतील (MJPJAY) पात्रता तपासणी.",
         annualIncome: "वार्षिक कौटुंबिक उत्पन्न (₹)",
         state: "राज्य",
+        socialCategory: "सामाजिक प्रवर्ग",
         medicalNeed: "आवश्यक वैद्यकीय उपचार",
         checkBtn: "पात्रता तपासा",
         eligibleSchemes: "पात्र शासकीय योजना",
@@ -624,6 +671,7 @@ export const translations: Record<Language, Translations> = {
         statusOvercharged: "शासकीय कमाल दरापेक्षा जास्त आकारणी",
         statusFair: "NPPA नियमानुसार योग्य दर",
         dataSourceNotice: "ही तपासणी NPPA शेड्यूल-I मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.",
+        complianceCol: "अनुपालन स्थिती",
       },
     },
     footer: {

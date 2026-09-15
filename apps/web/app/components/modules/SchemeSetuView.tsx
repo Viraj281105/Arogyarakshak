@@ -126,7 +126,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
 
         <div className="grid-2" style={{ marginBottom: "1.25rem" }}>
           <div>
-            <label className="input-label">Social Category</label>
+            <label className="input-label">{t.socialCategory}</label>
             <select
               className="select-field"
               value={category}

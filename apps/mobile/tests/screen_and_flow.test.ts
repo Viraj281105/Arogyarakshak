@@ -297,4 +297,19 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     const src = readFileSync(join(screenDir, 'DawaCheckScreen.tsx'), 'utf-8');
     assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
   });
+
+  it('BimaNyayScreen lets the user choose all 4 denial categories, not just the hardcoded default', () => {
+    // Regression: denialCategory state defaulted to 'PED_NON_DISCLOSURE' with no UI control
+    // to change it, so a mobile user describing a room-rent, investigation-only, or
+    // delayed-intimation denial was silently audited against the wrong statutory rule and
+    // handed a legal appeal letter for a dispute they did not have.
+    const src = readFileSync(join(screenDir, 'BimaNyayScreen.tsx'), 'utf-8');
+    assert.ok(/onPress=\{\(\) => setDenialCategory\(value\)\}/.test(src), 'denial category buttons must call setDenialCategory dynamically');
+    ['ROOM_RENT_CAPPING', 'INVESTIGATION_ONLY', 'DELAYED_INTIMATION', 'PED_NON_DISCLOSURE'].forEach((value) => {
+      assert.ok(
+        src.includes(`'${value}'`),
+        `BimaNyayScreen must offer denial category '${value}' as a selectable option`
+      );
+    });
+  });
 });

@@ -98,6 +98,11 @@ export interface MobileTranslations {
       policyAge: string;
       claimedAmount: string;
       deniedAmount: string;
+      denialCategoryLabel: string;
+      denialCategoryPedNonDisclosure: string;
+      denialCategoryRoomRentCapping: string;
+      denialCategoryInvestigationOnly: string;
+      denialCategoryDelayedIntimation: string;
       denialReason: string;
       diagnosis: string;
       auditBtn: string;
@@ -268,6 +273,11 @@ export const translations: Record<Language, MobileTranslations> = {
         policyAge: 'Policy Age (Years)',
         claimedAmount: 'Claimed Amount (₹)',
         deniedAmount: 'Denied / Deducted Amount (₹)',
+        denialCategoryLabel: 'Denial Category',
+        denialCategoryPedNonDisclosure: 'Pre-Existing Disease Non-Disclosure',
+        denialCategoryRoomRentCapping: 'Room Rent Proportionate Deduction',
+        denialCategoryInvestigationOnly: 'Observation / Diagnostic Hospitalization Only',
+        denialCategoryDelayedIntimation: 'Delayed Claim Intimation / Submission',
         denialReason: 'Reason for Denial (from rejection letter)',
         diagnosis: 'Clinical Diagnosis',
         auditBtn: '⚖️ Audit Grounds & Draft 3-Tier Appeals',
@@ -436,6 +446,11 @@ export const translations: Record<Language, MobileTranslations> = {
         policyAge: 'पॉलिसी की अवधि (वर्ष)',
         claimedAmount: 'दावा की गई राशि (₹)',
         deniedAmount: 'अस्वीकृत / काटी गई राशि (₹)',
+        denialCategoryLabel: 'अस्वीकृति श्रेणी',
+        denialCategoryPedNonDisclosure: 'पूर्व-मौजूदा बीमारी की जानकारी न देना',
+        denialCategoryRoomRentCapping: 'कमरे के किराए की आनुपातिक कटौती',
+        denialCategoryInvestigationOnly: 'केवल जांच / निदान हेतु अस्पताल में भर्ती',
+        denialCategoryDelayedIntimation: 'दावे की देर से सूचना / प्रस्तुति',
         denialReason: 'अस्वीकृति का कारण (पत्र अनुसार)',
         diagnosis: 'रोग का निदान',
         auditBtn: '⚖️ अस्वीकृति की जांच करें व 3-स्तरीय अपील बनाएं',
@@ -604,6 +619,11 @@ export const translations: Record<Language, MobileTranslations> = {
         policyAge: 'पॉलिसीचे वय (वर्षे)',
         claimedAmount: 'मागणी केलेली रक्कम (₹)',
         deniedAmount: 'नाकारलेली / कापलेली रक्कम (₹)',
+        denialCategoryLabel: 'नकाराचा प्रकार',
+        denialCategoryPedNonDisclosure: 'आधीच्या आजाराची माहिती न दिल्याने नकार',
+        denialCategoryRoomRentCapping: 'खोलीच्या भाड्याची प्रमाणशीर कपात',
+        denialCategoryInvestigationOnly: 'केवळ तपासणी / निदानासाठी रुग्णालयात दाखल',
+        denialCategoryDelayedIntimation: 'दाव्याची उशिरा सूचना / सादरीकरण',
         denialReason: 'नकाराचे कारण (पत्रातील)',
         diagnosis: 'रोगनिदान',
         auditBtn: '⚖️ नकाराचे परीक्षण करा व ३-स्तरीय अपील बनवा',

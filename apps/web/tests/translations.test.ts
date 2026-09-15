@@ -1,5 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 import { translations, Language } from '../app/translations';
 
 describe('Web Trilingual Localization Integrity', () => {
@@ -206,6 +208,55 @@ describe('Phase 3 Review and Disclosure Copy', () => {
       for (const key of ['saveToCaseLabel', 'savedTriggered', 'savedNotReady', 'savedNoChange'] as const) {
         assert.ok(modules.schemesetu[key].trim().length > 0, `Missing schemesetu.${key} in ${lang}`);
       }
+    });
+  });
+});
+
+describe('Phase 4 — no hardcoded English literals in trilingual views', () => {
+  const languages: Language[] = ['en', 'hi', 'mr'];
+
+  test('billnyay status column, schemesetu social category, dawacheck compliance column, and all bimanyay denial-category options are localized in every language', () => {
+    languages.forEach((lang) => {
+      const modules = translations[lang].modules;
+      assert.ok(modules.billnyay.statusCol.trim().length > 0, `Missing billnyay.statusCol in ${lang}`);
+      assert.ok(modules.dawacheck.complianceCol.trim().length > 0, `Missing dawacheck.complianceCol in ${lang}`);
+      assert.ok(modules.schemesetu.socialCategory.trim().length > 0, `Missing schemesetu.socialCategory in ${lang}`);
+      for (const key of [
+        'denialCategoryPedNonDisclosure',
+        'denialCategoryRoomRentCapping',
+        'denialCategoryInvestigationOnly',
+        'denialCategoryDelayedIntimation',
+        'tier1Desc',
+        'tier2Desc',
+        'tier3Desc',
+        'activeBadge',
+        'pendingBadge',
+      ] as const) {
+        assert.ok(modules.bimanyay[key].trim().length > 0, `Missing bimanyay.${key} in ${lang}`);
+      }
+    });
+  });
+
+  test('component source no longer contains the hardcoded English literals found by the audit', () => {
+    const webAppDir = path.join(__dirname, '..', 'app', 'components', 'modules');
+    const bannedLiterals: Record<string, string[]> = {
+      'BillNyayView.tsx': ['<th>Audit Status</th>'],
+      'DawaCheckView.tsx': ['<th>Compliance Status</th>'],
+      'SchemeSetuView.tsx': ['>Social Category<'],
+      'BimaNyayView.tsx': [
+        '>Room Rent Proportionate Deduction<',
+        '>Pre-Existing Disease Non-Disclosure<',
+        '>Observation / Diagnostic Hospitalization Only<',
+        '>Delayed Claim Intimation / Submission<',
+        '>ACTIVE<',
+        '>PENDING<',
+      ],
+    };
+    Object.entries(bannedLiterals).forEach(([file, literals]) => {
+      const source = fs.readFileSync(path.join(webAppDir, file), 'utf-8');
+      literals.forEach((literal) => {
+        assert.ok(!source.includes(literal), `${file} still hardcodes English literal: ${literal}`);
+      });
     });
   });
 });
