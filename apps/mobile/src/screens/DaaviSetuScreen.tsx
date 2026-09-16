@@ -69,18 +69,23 @@ export const DaaviSetuScreen: React.FC = () => {
       setResult(claimRes);
     } catch (err) {
       const apiErr = err as ApiError;
+      let queuedId: string | null = null;
       if (activeCaseId) {
-        await enqueueAction('SUBMIT_PREAUTH', {
+        queuedId = await enqueueAction('SUBMIT_PREAUTH', {
           caseId: activeCaseId,
           claimData,
         });
-        setOfflineQueued(true);
+        setOfflineQueued(!!queuedId);
       }
-      setError(
-        !isOnline
-          ? 'Device is offline. Pre-authorization request queued; will sync automatically when reconnected.'
-          : `${apiErr.message || 'Failed to generate pre-auth package.'}${activeCaseId ? ' (Queued for offline retry)' : ''}`
-      );
+      if (activeCaseId && !queuedId) {
+        setError('Could not save this for offline retry — please try again when back online.');
+      } else {
+        setError(
+          !isOnline
+            ? 'Device is offline. Pre-authorization request queued; will sync automatically when reconnected.'
+            : `${apiErr.message || 'Failed to generate pre-auth package.'}${queuedId ? ' (Queued for offline retry)' : ''}`
+        );
+      }
     } finally {
       setLoading(false);
     }

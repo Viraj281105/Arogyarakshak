@@ -45,13 +45,18 @@ export const SchemeSetuScreen: React.FC = () => {
       setResults(data);
     } catch (err) {
       const apiErr = err as ApiError;
-      await enqueueAction('CHECK_SCHEME', payload);
-      setOfflineQueued(true);
-      setError(
-        !isOnline
-          ? 'Device is offline. Eligibility check queued; will sync automatically when reconnected.'
-          : `${apiErr.message || 'Failed to check eligibility.'} (Queued for offline retry)`
-      );
+      const queuedId = await enqueueAction('CHECK_SCHEME', payload);
+      if (queuedId) {
+        setOfflineQueued(true);
+        setError(
+          !isOnline
+            ? 'Device is offline. Eligibility check queued; will sync automatically when reconnected.'
+            : `${apiErr.message || 'Failed to check eligibility.'} (Queued for offline retry)`
+        );
+      } else {
+        setOfflineQueued(false);
+        setError('Could not save this for offline retry — please try again when back online.');
+      }
     } finally {
       setLoading(false);
     }

@@ -65,16 +65,21 @@ export const BimaNyayScreen: React.FC = () => {
       setTimeline(timelineResult);
     } catch (err) {
       const apiErr = err as ApiError;
-      await enqueueAction('ANALYZE_DENIAL', {
+      const queuedId = await enqueueAction('ANALYZE_DENIAL', {
         data: analysisPayload,
         language,
       });
-      setOfflineQueued(true);
-      setError(
-        !isOnline
-          ? 'Device is offline. Denial audit queued; will sync automatically when reconnected.'
-          : `${apiErr.message || 'Failed to analyze denial.'} (Queued for offline retry)`
-      );
+      if (queuedId) {
+        setOfflineQueued(true);
+        setError(
+          !isOnline
+            ? 'Device is offline. Denial audit queued; will sync automatically when reconnected.'
+            : `${apiErr.message || 'Failed to analyze denial.'} (Queued for offline retry)`
+        );
+      } else {
+        setOfflineQueued(false);
+        setError('Could not save this for offline retry — please try again when back online.');
+      }
     } finally {
       setLoading(false);
     }

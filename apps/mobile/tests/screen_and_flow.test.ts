@@ -334,3 +334,39 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     });
   });
 });
+
+describe('Mobile Screens Must Not Fabricate Offline-Queue Success', () => {
+  const screenDir = join(process.cwd(), 'src', 'screens');
+
+  // useOfflineQueue's own string | null contract is covered by the "Offline Queue
+  // Honesty (P2)" suite in byod_and_api.test.ts. This suite only covers the 4 screens
+  // that were left as a wiring follow-up there.
+
+  const screens = [
+    { file: 'BimaNyayScreen', action: 'ANALYZE_DENIAL' },
+    { file: 'DaaviSetuScreen', action: 'SUBMIT_PREAUTH' },
+    { file: 'DawaCheckScreen', action: 'BENCHMARK_MEDICINE' },
+    { file: 'SchemeSetuScreen', action: 'CHECK_SCHEME' },
+  ];
+
+  screens.forEach(({ file, action }) => {
+    it(`${file} branches on enqueueAction's return value instead of always claiming success`, () => {
+      const src = readFileSync(join(screenDir, `${file}.tsx`), 'utf-8');
+
+      // Must capture the return value (not just fire-and-forget await enqueueAction(...)).
+      assert.ok(
+        new RegExp(`queuedId\\s*=\\s*await enqueueAction\\('${action}'`).test(src),
+        `${file} must capture enqueueAction('${action}') return value into a variable`
+      );
+
+      // Must actually branch on it.
+      assert.ok(/if\s*\(\s*queuedId\s*\)|if\s*\(\s*!queuedId\s*\)|!!queuedId/.test(src), `${file} must branch on the queuedId result`);
+
+      // Must show an honest failure message when persistence failed, not the generic queued copy.
+      assert.ok(
+        /Could not save this for offline retry/.test(src),
+        `${file} must show an honest failure message when enqueueAction returns null`
+      );
+    });
+  });
+});
