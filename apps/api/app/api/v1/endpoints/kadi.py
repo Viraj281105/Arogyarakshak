@@ -28,6 +28,7 @@ from sqlalchemy.orm import selectinload
 from app.auto_triggers import readiness_for_case, run_auto_triggers
 from app.background import get_background_session
 from app.config import settings
+from app.case_auth import generate_case_access_token, require_case_access
 from app.consent import require_case_consent
 from app.database import get_db
 from app.latency_metrics import tracker as latency_tracker, LatencySummary, LatencySample
@@ -164,6 +165,17 @@ class CaseResponse(BaseModel):
     created_at: Any
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CaseCreatedResponse(CaseResponse):
+    # Returned ONLY here, exactly once. Every other case-reading response uses
+    # CaseResponse (no access_token field) so the secret is never echoed back on a
+    # later GET — losing it means the case is permanently unrecoverable by design, the
+    # same trade-off as an API key shown once at creation.
+    access_token: str = Field(
+        ..., description="Case access token (ADR-009). Store it — it is shown only once "
+        "and is required on every subsequent request for this case."
+    )
 
 
 class EntityResponse(BaseModel):
@@ -455,25 +467,33 @@ async def process_document_background(
 
 # --- Route Implementations ----------------------------------------------------
 
-@router.post("/cases", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
 async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
-    """Creates a new patient case session."""
-    # 16 hex chars (64 bits) rather than 8 (32 bits): with no authentication gating case
-    # access (see app/consent.py and docs/architecture/decisions/ for the accepted-risk
-    # note), the id itself is the only thing standing between a guesser and a patient's
-    # extracted entities. secrets.token_hex is a CSPRNG; uuid4's hex is also CSPRNG-backed
-    # in CPython but token_hex states the security intent explicitly at the call site.
+    """Creates a new patient case session and its one-time access token (ADR-009)."""
+    # 16 hex chars (64 bits) rather than 8 (32 bits): raises the cost of blindly guessing
+    # a case id, but — per ADR-008/ADR-009 — entropy alone is not authorization. The
+    # access_token below is the actual authorization boundary; every subsequent
+    # case-scoped request must present it.
     case_id = f"CASE-{secrets.token_hex(8)}"
+    plaintext_token, token_hash = generate_case_access_token()
     case = KadiCase(
         id=case_id,
         consent_opt_in=case_in.consent_opt_in,
         status="active",
-        total_charged=0.0
+        total_charged=0.0,
+        access_token_hash=token_hash,
     )
     db.add(case)
     await db.commit()
     await db.refresh(case)
-    return case
+    return CaseCreatedResponse(
+        id=case.id,
+        status=case.status,
+        consent_opt_in=case.consent_opt_in,
+        total_charged=case.total_charged,
+        created_at=case.created_at,
+        access_token=plaintext_token,
+    )
 
 
 @router.post("/cases/{case_id}/upload", status_code=status.HTTP_202_ACCEPTED)
@@ -482,15 +502,10 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     response: Response,
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
 ):
     """Uploads a clinical or financial document, scheduling background OCR extraction."""
-    # 1. Verify case exists
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
     # 2. Validate the declared document type before reading anything into memory.
     filename = file.filename or ""
     extension = os.path.splitext(filename)[1].lower()
@@ -563,18 +578,44 @@ async def upload_document(
 
 
 @router.get("/cases/{case_id}/stream")
-async def stream_processing_status(case_id: str):
-    """Event stream route providing real-time document processing updates."""
+async def stream_processing_status(
+    case_id: str,
+    request: Request,
+    case: KadiCase = Depends(require_case_access),
+):
+    """Event stream route providing real-time document processing updates.
+
+    Fixes 3 confirmed issues in the previous implementation:
+    1. No case-existence/ownership check — `require_case_access` now enforces both (a
+       nonexistent or unauthorized case is rejected before the generator ever starts,
+       instead of holding a connection open forever polling an empty list).
+    2. `settings.sse_timeout_seconds` was defined and unit-tested for its VALUE, but never
+       actually read by this generator — the loop was unconditional `while True`. It is
+       now enforced: the stream emits a `timeout` event and closes after that many seconds.
+    3. No disconnect check — a client that closed its connection kept the generator (and
+       its `asyncio.sleep` polling loop) alive server-side indefinitely. `request.is_disconnected()`
+       is now checked every iteration.
+    """
     async def event_generator():
         last_index = 0
+        started_at = time.time()
         while True:
+            if await request.is_disconnected():
+                logger.info("SSE client disconnected for case %s; stopping stream.", case_id)
+                return
+
+            elapsed = time.time() - started_at
+            if elapsed > settings.sse_timeout_seconds:
+                yield f"data: {json.dumps({'status': 'timeout', 'progress': 100, 'log': 'Stream timed out waiting for processing to complete.'})}\n\n"
+                return
+
             status_list = processing_status.get(case_id, [])
             if last_index < len(status_list):
                 for item in status_list[last_index:]:
                     yield f"data: {json.dumps(item)}\n\n"
                 last_index = len(status_list)
                 if status_list and status_list[-1].get("status") in ["completed", "failed"]:
-                    break
+                    return
             await asyncio.sleep(0.3)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -601,13 +642,12 @@ async def latency_metrics_recent(limit: int = Query(20, ge=1, le=200)):
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetailResponse)
-async def get_case(case_id: str, db: AsyncSession = Depends(get_db)):
+async def get_case(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Retrieves case details and all associated extracted entities."""
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
     # Load entities
     entities_result = await db.execute(
         select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id)
@@ -628,15 +668,15 @@ async def list_resolution_decisions(
     status_filter: Optional[str] = Query(
         None, alias="status", pattern="^(pending|auto_merged|confirmed|rejected|split|superseded)$"
     ),
+    case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Entity-resolution decisions for this case. `status=pending` lists the "are these the
     same?" questions awaiting the user; `auto_merged` lists merges the user can dispute.
 
     Not consent-gated: like GET /cases/{case_id}, it only exposes Kadi's own context for
-    the case, not another module's view of it (see app.consent)."""
-    if await db.get(KadiCase, case_id) is None:
-        raise HTTPException(status_code=404, detail="Case not found")
+    the case, not another module's view of it (see app.consent). Still access-gated
+    (app.case_auth) — every case-scoped route is, regardless of consent."""
     query = select(KadiResolutionDecision).where(KadiResolutionDecision.case_id == case_id)
     if status_filter:
         query = query.where(KadiResolutionDecision.status == status_filter)
@@ -651,6 +691,7 @@ async def submit_resolution_feedback(
     case_id: str,
     decision_id: str,
     body: ResolutionFeedbackRequest,
+    _case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Applies the user's answer and records it as a calibration label.
@@ -659,6 +700,9 @@ async def submit_resolution_feedback(
     - pending + same_entity=false -> both entities are kept
     - auto_merged + false         -> the merge is split back into its own entity
     """
+    # apply_feedback needs entities eagerly loaded, which the plain row from
+    # require_case_access does not have — re-fetched here rather than adding
+    # selectinload to every route's dependency for the one caller that needs it.
     case = await _load_case_with_entities(db, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -759,11 +803,15 @@ async def resolution_calibration(db: AsyncSession = Depends(get_db)):
 # --- Case knowledge graph (#86) -----------------------------------------------
 
 @router.get("/cases/{case_id}/graph", response_model=CaseGraph)
-async def case_graph(case_id: str, db: AsyncSession = Depends(get_db)):
+async def case_graph(
+    case_id: str,
+    _case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Typed node-link graph of this case's entities. Every edge carries its evidence.
 
     Not consent-gated, for the same reason as GET /cases/{case_id}: it is Kadi's own view
-    of the case, not another module's."""
+    of the case, not another module's. Still access-gated (app.case_auth)."""
     case = await _load_case_with_entities(db, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -801,10 +849,14 @@ async def case_graph(case_id: str, db: AsyncSession = Depends(get_db)):
 # --- Auto-triggered module insights (#32) -------------------------------------
 
 @router.get("/cases/{case_id}/insights")
-async def case_insights(case_id: str, db: AsyncSession = Depends(get_db)):
+async def case_insights(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Readiness of every module check for this case, and the latest result of each check
     Kadi ran automatically. Consent-gated: these are other modules' analyses of the case."""
-    case = await require_case_consent(case_id, db)
+    case = require_case_consent(case)
     readiness = await readiness_for_case(db, case)
     rows = (
         await db.execute(select(KadiModuleInsight).where(KadiModuleInsight.case_id == case_id))
@@ -839,7 +891,12 @@ def _parse_iso_date(value: Optional[str]) -> Optional[datetime]:
 
 
 @router.post("/cases/{case_id}/abdm/import", response_model=AbdmImportResponse)
-async def import_abdm_records(case_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+async def import_abdm_records(
+    case_id: str,
+    request: Request,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Imports a FHIR R4 Bundle of ABHA-linked health records into this case's context.
 
     The bundle is supplied by the client; this service does not pull from the ABDM
@@ -847,7 +904,7 @@ async def import_abdm_records(case_id: str, request: Request, db: AsyncSession =
     only enters the shared cross-module context of a case whose patient opted in. Imported
     entities go through the same entity resolution as uploads.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
 
     body = bytearray()
     async for chunk in request.stream():

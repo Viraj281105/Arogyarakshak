@@ -19,8 +19,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-arogyarakshak}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arogyarakshak}
       POSTGRES_DB: ${POSTGRES_DB:-arogyarakshak}
+    # Bound to localhost only (P0-5): the `api` service reaches postgres over the
+    # internal Docker network by service name (see DATABASE_URL below) and does not need
+    # this host port mapping at all. It exists solely for host-side debugging (psql,
+    # pgAdmin, a local client) — "5432:5432" previously bound to 0.0.0.0, exposing
+    # Postgres (with its default arogyarakshak/arogyarakshak credentials) to the whole
+    # network/internet on any host where inbound 5432 is not separately firewalled.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

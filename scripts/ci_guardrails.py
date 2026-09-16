@@ -210,6 +210,26 @@ def check_cpu_only_torch_pin() -> list[str]:
     return errors
 
 
+def check_docker_postgres_binding() -> list[str]:
+    """Postgres must never bind to every interface on the host (P0-5): the `api`
+    service reaches it over the internal Docker network by service name
+    (DATABASE_URL=...@postgres:5432/...), so a host port mapping is only for local
+    debugging and must be localhost-only. Guards against docker-compose.yml regressing
+    to an unbound "5432:5432" (which binds 0.0.0.0) without anyone noticing."""
+    errors = []
+    compose_file = ROOT_DIR / "docker-compose.yml"
+    if not compose_file.exists():
+        return ["Postgres Binding: docker-compose.yml is missing."]
+
+    content = compose_file.read_text(encoding="utf-8")
+    if re.search(r'^\s*-\s*"5432:5432"\s*$', content, re.MULTILINE):
+        errors.append(
+            'Postgres Binding: docker-compose.yml binds "5432:5432" (all interfaces). '
+            'Use "127.0.0.1:5432:5432" or remove the port mapping entirely.'
+        )
+    return errors
+
+
 def main() -> int:
     print("=" * 60)
     print("  ArogyaRakshak CI Guardrails & Invariant Verification")
@@ -217,7 +237,7 @@ def main() -> int:
 
     all_errors = []
 
-    print("[1/6] Checking BYOD Zero-Retention Invariants...")
+    print("[1/7] Checking BYOD Zero-Retention Invariants...")
     byod_errors = check_byod_zero_retention()
     if byod_errors:
         all_errors.extend(byod_errors)
@@ -225,7 +245,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: Zero persistent document directories.")
 
-    print("[2/6] Checking Model Grounding Guard...")
+    print("[2/7] Checking Model Grounding Guard...")
     model_errors = check_model_grounding()
     if model_errors:
         all_errors.extend(model_errors)
@@ -233,7 +253,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: No prohibited deprecated models.")
 
-    print("[3/6] Checking Monorepo Package Hygiene...")
+    print("[3/7] Checking Monorepo Package Hygiene...")
     pkg_errors = check_package_hygiene()
     if pkg_errors:
         all_errors.extend(pkg_errors)
@@ -241,7 +261,7 @@ def main() -> int:
     else:
         print(f"  ✓ PASSED: All {len(REQUIRED_PACKAGES)} packages lowercase & valid.")
 
-    print("[4/6] Checking Database Table Prefix Conventions...")
+    print("[4/7] Checking Database Table Prefix Conventions...")
     db_errors = check_database_table_prefixes()
     if db_errors:
         all_errors.extend(db_errors)
@@ -249,7 +269,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: All ORM tables strictly prefixed by module.")
 
-    print("[5/6] Scanning for Accidental API Key Leaks...")
+    print("[5/7] Scanning for Accidental API Key Leaks...")
     sec_errors = check_secret_patterns()
     if sec_errors:
         all_errors.extend(sec_errors)
@@ -257,13 +277,21 @@ def main() -> int:
     else:
         print("  ✓ PASSED: No sensitive API keys detected.")
 
-    print("[6/6] Checking CPU-Only PyTorch Pin (Kadi/EasyOCR)...")
+    print("[6/7] Checking CPU-Only PyTorch Pin (Kadi/EasyOCR)...")
     torch_errors = check_cpu_only_torch_pin()
     if torch_errors:
         all_errors.extend(torch_errors)
         print(f"  ❌ Failed with {len(torch_errors)} violation(s)")
     else:
         print("  ✓ PASSED: torch/torchvision pinned to CPU wheels in Dockerfile & CI.")
+
+    print("[7/7] Checking Postgres Is Not Bound to All Interfaces...")
+    pg_errors = check_docker_postgres_binding()
+    if pg_errors:
+        all_errors.extend(pg_errors)
+        print(f"  ❌ Failed with {len(pg_errors)} violation(s)")
+    else:
+        print("  ✓ PASSED: Postgres port mapping is localhost-only.")
 
     print("=" * 60)
     if all_errors:

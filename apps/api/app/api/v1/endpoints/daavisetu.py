@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.case_auth import require_case_access
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
@@ -64,11 +65,11 @@ def _first_entity(entities, entity_type: str) -> Optional[str]:
 async def generate_pre_auth_form(
     case_id: str,
     req: PreAuthFormRequest,
-    db: AsyncSession = Depends(get_db)
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
 ):
     """Pre-populates a cashless pre-authorization form based on user input and case entities."""
-    # 1. Fetch case
-    case = await require_case_consent(case_id, db)
+    case = require_case_consent(case)
 
     # 2. Gather entities extracted from this case's uploaded documents.
     entities_result = await db.execute(
@@ -186,7 +187,11 @@ def _claim_data_from_record(claim_record: DaaviSetuClaim) -> ClaimData:
 
 
 @router.get("/cases/{case_id}/claim/pdf")
-async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
+async def download_preauth_pdf(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Downloads the compiled IRDAI Standard Pre-Authorization Form (Annexure-B) PDF.
 
     Renders strictly from the claim submitted via POST .../claim. Nothing on this form is
@@ -194,7 +199,7 @@ async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db))
     fabricated policy number or a placeholder patient name would be worse than no form.
     If no claim has been submitted yet, this returns 409 rather than guessing.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     claim_record = await _load_submitted_claim(case_id, db)
     claim_input = _claim_data_from_record(claim_record)
 
@@ -207,13 +212,17 @@ async def download_preauth_pdf(case_id: str, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/cases/{case_id}/claim/package")
-async def download_claim_package(case_id: str, db: AsyncSession = Depends(get_db)):
+async def download_claim_package(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Downloads a ZIP claim package (#81): the pre-auth PDF, a redacted case-summary
     text excerpt (if Kadi extracted one), and a manifest disclosing exactly what is and
     is not included — see daavisetu.package_assembler for why the original scanned bill
     cannot be included (ArogyaRakshak's zero-retention policy never stores it).
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     claim_record = await _load_submitted_claim(case_id, db)
     claim_input = _claim_data_from_record(claim_record)
     pdf_bytes = generate_preauth_pdf(claim_id=claim_record.id, claim_input=claim_input)
@@ -272,14 +281,17 @@ async def inspect_claim_template(template: UploadFile = File(...)):
 
 @router.post("/cases/{case_id}/claim/fill-template")
 async def fill_claim_template(
-    case_id: str, template: UploadFile = File(...), db: AsyncSession = Depends(get_db)
+    case_id: str,
+    template: UploadFile = File(...),
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
 ):
     """Fills a caller-supplied fillable PDF template with this case's submitted claim
     fields (#80). The template's AcroForm field names must match DaaviSetu's canonical
     names (patient_name, policy_number, hospital_name, diagnosis, treatment_plan,
     estimated_cost) — use POST /claim-template/inspect first to check a template's
     actual field names before relying on this to fill it correctly."""
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     claim_record = await _load_submitted_claim(case_id, db)
     claim_input = _claim_data_from_record(claim_record)
 

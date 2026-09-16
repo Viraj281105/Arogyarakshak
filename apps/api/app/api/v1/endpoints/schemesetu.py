@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auto_triggers import run_triggers_in_background, upsert_insight
+from app.case_auth import require_case_access
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import KadiCase, KadiEntity, KadiModuleInsight, SchemeSetuCaseProfile
@@ -78,7 +79,10 @@ async def check_scheme_eligibility(intake: IntakeEligibilityRequest):
     "/cases/{case_id}/eligibility", response_model=List[SchemeResult], status_code=status.HTTP_200_OK
 )
 async def check_case_scheme_eligibility(
-    case_id: str, intake: CaseIntakeEligibilityRequest, db: AsyncSession = Depends(get_db)
+    case_id: str,
+    intake: CaseIntakeEligibilityRequest,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
 ):
     """Checks scheme eligibility using context Kadi extracted for this case (#23).
 
@@ -86,7 +90,7 @@ async def check_case_scheme_eligibility(
     the request-body-only /eligibility route above, so it requires the case's
     consent_opt_in (see app.consent) before returning anything.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     try:
         return await build_case_eligibility(
             case_id,
@@ -174,6 +178,7 @@ async def save_income_profile(
     case_id: str,
     body: IncomeProfileRequest,
     background_tasks: BackgroundTasks,
+    case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Saves the case's income profile and, when a scheme newly applies (first profile,
@@ -183,7 +188,7 @@ async def save_income_profile(
     Only annual income and state are stored. State decides which schemes apply; income is
     recorded but non-determinative, so an income change alone never queues a run.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
 
     stored = await db.get(SchemeSetuCaseProfile, case_id)
     previous = IncomeProfile(annual_income_inr=stored.annual_income_inr, state=stored.state) if stored else None
@@ -230,8 +235,12 @@ async def save_income_profile(
 
 
 @router.get("/cases/{case_id}/income-profile", response_model=StoredIncomeProfile)
-async def get_income_profile(case_id: str, db: AsyncSession = Depends(get_db)):
-    await require_case_consent(case_id, db)
+async def get_income_profile(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    require_case_consent(case)
     stored = await db.get(SchemeSetuCaseProfile, case_id)
     if stored is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No income profile saved for this case")
@@ -241,9 +250,13 @@ async def get_income_profile(case_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/cases/{case_id}/income-profile", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_income_profile(case_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_income_profile(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Withdraws the income profile. The scheme insight derived from it is deleted too."""
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     stored = await db.get(SchemeSetuCaseProfile, case_id)
     if stored is not None:
         await db.delete(stored)

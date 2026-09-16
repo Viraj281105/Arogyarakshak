@@ -2,8 +2,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.auth_test_client import AuthAwareTestClient
 
-client = TestClient(app)
+# ADR-009: case-scoped routes now require a per-case access token. AuthAwareTestClient
+# transparently carries the token returned by each case this client creates to that
+# case's later requests, so the several hundred pre-existing tests below — none of which
+# are testing authorization — do not need per-call header wiring. See
+# tests/auth_test_client.py and tests/test_case_authorization.py (the tests that DO
+# exercise the authorization boundary directly).
+client = AuthAwareTestClient(app)
 
 
 def test_health_endpoint():
@@ -1360,8 +1367,13 @@ def test_status_map_is_bounded():
         processing_status.clear()
 
 
-def test_sse_stream_has_a_bounded_timeout():
-    """An unknown case must not hold a connection open forever."""
+def test_sse_stream_timeout_setting_is_sane():
+    """Only checks the configured VALUE is sane. This used to be titled
+    'test_sse_stream_has_a_bounded_timeout' and claimed in its docstring to prove "an
+    unknown case must not hold a connection open forever" without ever calling the
+    endpoint — the setting existed but the stream generator never read it (P0-2). The
+    real behavioral proof (existence check, real timeout enforcement, disconnect
+    handling) now lives in tests/test_sse_stream.py."""
     from app.config import settings
 
     assert settings.sse_timeout_seconds > 0
@@ -1589,6 +1601,20 @@ def test_latency_metrics_recent_endpoint_respects_limit():
     res = client.get("/api/v1/kadi/metrics/latency/recent?limit=2")
     assert res.status_code == 200
     assert len(res.json()) == 2
+
+
+def test_uses_default_database_credentials_detects_the_dev_fallback():
+    """P0-5: the app must be able to recognise docker-compose.yml's fallback
+    arogyarakshak:arogyarakshak dev credentials so it can warn loudly at startup if they
+    reach a real deployment, rather than staying silent about a critical misconfiguration."""
+    from app.main import uses_default_database_credentials
+
+    assert uses_default_database_credentials(
+        "postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak"
+    ) is True
+    assert uses_default_database_credentials(
+        "postgresql://prod_user:S3cure-R4nd0m-P4ssw0rd@db.internal:5432/arogyarakshak"
+    ) is False
 
 
 def test_schemesetu_discloses_what_it_did_not_evaluate():

@@ -34,6 +34,13 @@ def redact_database_url(url: str) -> str:
         return "<unparseable DATABASE_URL>"
 
 
+def uses_default_database_credentials(url: str) -> bool:
+    """True when DATABASE_URL still carries docker-compose.yml's fallback dev
+    credentials (arogyarakshak:arogyarakshak) — a critical, silent misconfiguration if
+    it reaches a real deployment (P0-5)."""
+    return "arogyarakshak:arogyarakshak@" in url
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — runs database creation and logs startup configuration."""
@@ -41,6 +48,17 @@ async def lifespan(app: FastAPI):
     logger.info("GROQ_MODEL = %s", settings.groq_model)
     # The URL embeds the database password; log it masked.
     logger.info("DATABASE_URL = %s", redact_database_url(settings.database_url))
+
+    # P0-5: the well-known default dev credentials (docker-compose.yml's fallback)
+    # reaching a real deployment would be a critical, silent misconfiguration —
+    # surfaced loudly at startup rather than left to be discovered later.
+    if uses_default_database_credentials(settings.database_url):
+        logger.warning(
+            "DATABASE_URL uses the default development credentials "
+            "(arogyarakshak:arogyarakshak). This is fine for local development only — "
+            "set POSTGRES_PASSWORD (and DATABASE_URL) to a strong, unique value before "
+            "any deployment reachable outside your own machine."
+        )
 
     if settings.groq_api_key:
         logger.info("GROQ_API_KEY is configured — LLM-backed extraction and drafting enabled.")

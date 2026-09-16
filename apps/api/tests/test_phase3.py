@@ -12,7 +12,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.api.v1.endpoints.kadi import processing_status
@@ -20,8 +19,11 @@ from app.background import get_background_session
 from app.config import settings
 from app.main import app, redact_database_url
 from app.models import KadiModuleInsight, KadiResolutionDecision, SchemeSetuCaseProfile
+from tests.auth_test_client import AuthAwareTestClient
 
-client = TestClient(app)
+# ADR-009: see tests/auth_test_client.py — carries each case's access token to this
+# client's later requests for that case automatically.
+client = AuthAwareTestClient(app)
 
 FHIR_FIXTURE = (
     Path(__file__).resolve().parents[3]

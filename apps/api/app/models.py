@@ -45,6 +45,12 @@ class KadiCase(Base):
     total_charged = Column(Float, default=0.0)
     status = Column(String, default="active")  # active, completed, archived
     consent_opt_in = Column(Boolean, default=False)
+    # SHA-256 hash of a per-case access token, generated once at creation and returned to
+    # the caller only in that response (see app/case_auth.py, ADR-009). The plaintext
+    # token is never stored. Nullable only so schema creation never fails on a stray old
+    # row from before this column existed — app.case_auth.require_case_access treats a
+    # null/empty hash as "this case can never be authorized" rather than "open access".
+    access_token_hash = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
