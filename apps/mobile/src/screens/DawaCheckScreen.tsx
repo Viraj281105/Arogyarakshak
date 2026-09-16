@@ -6,7 +6,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge } from '../components';
-import { api, DawaCheckBenchmarkResponse, ApiError } from '../api';
+import { api, DawaCheckBenchmarkResponse, PrescriptionTranslationResponse, ApiError } from '../api';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
@@ -27,10 +27,31 @@ const QUICK_SAMPLES: QuickSample[] = [
 export const DawaCheckScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { colors, spacing, typography } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { enqueueAction } = useOfflineQueue();
   const { isOnline } = useNetworkStatus();
   const m = t.modules.dawacheck;
+
+  // Prescription shorthand translator (#97)
+  const [instructionsText, setInstructionsText] = useState('');
+  const [translation, setTranslation] = useState<PrescriptionTranslationResponse | null>(null);
+  const [translating, setTranslating] = useState(false);
+
+  const handleTranslate = async () => {
+    if (!instructionsText.trim()) return;
+    setTranslating(true);
+    try {
+      const res = await api.dawacheck.translateInstructions({
+        instructions: instructionsText.trim(),
+        language,
+      });
+      setTranslation(res);
+    } catch {
+      // Best-effort feature; translation failure should not block the rest of the screen.
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   // Search state
   // The MRP drives an "overcharged" verdict, so it must be the price the user actually
@@ -234,6 +255,43 @@ export const DawaCheckScreen: React.FC = () => {
           </Text>
         </Card>
       )}
+
+      {/* Prescription Shorthand Translator (#97) */}
+      <Card style={{ marginBottom: spacing.md }}>
+        <Text style={[styles.cardTitle, { color: colors.textPrimary, marginBottom: spacing.sm }]}>
+          {m.prescriptionTranslatorTitle}
+        </Text>
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+          placeholder={m.prescriptionInputPlaceholder}
+          placeholderTextColor={colors.textMuted}
+          value={instructionsText}
+          onChangeText={setInstructionsText}
+          multiline
+        />
+        <Button
+          title={m.translateBtn}
+          onPress={handleTranslate}
+          variant="secondary"
+          disabled={translating || !instructionsText.trim()}
+        />
+        {translation && translation.instructions.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
+            {translation.instructions.map((instr, idx) => (
+              <Badge
+                key={idx}
+                label={instr.recognized ? `${instr.token} → ${instr.translated}` : `${instr.token} ?`}
+                variant={instr.recognized ? 'success' : 'danger'}
+              />
+            ))}
+          </View>
+        )}
+        {translation && translation.unrecognized_tokens.length > 0 && (
+          <Text style={{ color: '#f59e0b', fontSize: 11, lineHeight: 16, marginTop: spacing.xs }}>
+            ⓘ {m.unrecognizedNotice.replace('{tokens}', translation.unrecognized_tokens.join(', '))}
+          </Text>
+        )}
+      </Card>
 
       {/* Statutory DPCO 2013 Provision Notice */}
       <View style={[styles.advisoryCard, { backgroundColor: 'rgba(6, 182, 212, 0.08)', borderColor: 'rgba(6, 182, 212, 0.2)' }]}>

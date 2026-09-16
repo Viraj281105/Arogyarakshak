@@ -230,6 +230,9 @@ describe('Mobile BillNyay Audit Result Contract', () => {
       assert.ok(schemesetu.criteriaEvaluated?.trim().length > 0, `criteriaEvaluated missing in ${lang}`);
       assert.ok(schemesetu.criteriaNotEvaluated?.trim().length > 0, `criteriaNotEvaluated missing in ${lang}`);
       assert.ok(schemesetu.provisionalNotice?.trim().length > 0, `provisionalNotice missing in ${lang}`);
+      for (const key of ['provisionallyEligible', 'needsVerification', 'howToVerify', 'nonDeterminative', 'officialSources'] as const) {
+        assert.ok(schemesetu[key]?.trim().length > 0, `${key} missing in ${lang}`);
+      }
 
       const dawacheck = translations[lang].modules.dawacheck;
       assert.ok(dawacheck.dataSourceNotice?.trim().length > 0, `dataSourceNotice missing in ${lang}`);
@@ -293,5 +296,29 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     // full NPPA Schedule-I coverage.
     const src = readFileSync(join(screenDir, 'DawaCheckScreen.tsx'), 'utf-8');
     assert.ok(/result\.reference_entry_count/.test(src), 'reference_entry_count must be rendered');
+  });
+
+  it('DawaCheckScreen wires the prescription shorthand translator to the API, not just to local state', () => {
+    // Regression guard for #97: the translator UI must actually call the backend
+    // endpoint (which enforces the fixed, non-fabricated shorthand reference), not
+    // reimplement its own guess at what TDS/BD/QD mean client-side.
+    const src = readFileSync(join(screenDir, 'DawaCheckScreen.tsx'), 'utf-8');
+    assert.ok(/api\.dawacheck\.translateInstructions/.test(src), 'must call api.dawacheck.translateInstructions');
+    assert.ok(/unrecognized_tokens/.test(src), 'must surface unrecognized tokens rather than hide them');
+  });
+
+  it('BimaNyayScreen lets the user choose all 4 denial categories, not just the hardcoded default', () => {
+    // Regression: denialCategory state defaulted to 'PED_NON_DISCLOSURE' with no UI control
+    // to change it, so a mobile user describing a room-rent, investigation-only, or
+    // delayed-intimation denial was silently audited against the wrong statutory rule and
+    // handed a legal appeal letter for a dispute they did not have.
+    const src = readFileSync(join(screenDir, 'BimaNyayScreen.tsx'), 'utf-8');
+    assert.ok(/onPress=\{\(\) => setDenialCategory\(value\)\}/.test(src), 'denial category buttons must call setDenialCategory dynamically');
+    ['ROOM_RENT_CAPPING', 'INVESTIGATION_ONLY', 'DELAYED_INTIMATION', 'PED_NON_DISCLOSURE'].forEach((value) => {
+      assert.ok(
+        src.includes(`'${value}'`),
+        `BimaNyayScreen must offer denial category '${value}' as a selectable option`
+      );
+    });
   });
 });

@@ -38,15 +38,39 @@ def format_clinical_evidence(ev: Any) -> str:
         return "- Medical necessity established under standard clinical guidelines."
 
 
+_LANGUAGE_INSTRUCTIONS = {
+    "hi": (
+        "Write the ENTIRE letter in formal, legally-registered Hindi (Devanagari script). "
+        "Keep statute/regulation names, policy numbers, monetary amounts, and PubMed ids "
+        "in their original form — do not translate proper nouns, citations, or figures."
+    ),
+    "mr": (
+        "Write the ENTIRE letter in formal, legally-registered Marathi (Devanagari script). "
+        "Keep statute/regulation names, policy numbers, monetary amounts, and PubMed ids "
+        "in their original form — do not translate proper nouns, citations, or figures."
+    ),
+}
+
+
 def run_barrister_agent(
     client,
     denial_details: StructuredDenial = None,
     clinical_evidence: EvidenceList = None,
     regulatory_evidence: Dict[str, Any] = None,
     critique: str = None,
+    language: str = "en",
     **kwargs,
 ) -> Optional[str]:
-    """Generates a formal IRDAI appeal letter."""
+    """Generates a formal IRDAI appeal letter, in English, Hindi, or Marathi (#39: the
+    Phase 0 finding that LLM-generated output stayed English-only regardless of the
+    user's selected language, unlike BimaNyay's templated multilingual letters).
+
+    `language` also reaches the offline fallback (GroqClientFallback in
+    apps/api/.../billnyay.py) via the `language` kwarg passed to `client.generate`, so a
+    deployment without GROQ_API_KEY configured — the documented default — still returns
+    a localized letter rather than silently falling back to English.
+    """
+    lang = (language or "en").lower()
     denial = denial_details
     clinical_text = format_clinical_evidence(clinical_evidence)
 
@@ -65,6 +89,9 @@ def run_barrister_agent(
         "Write in formal legal prose. No placeholders. No bracketed instructions.\n"
         "Do not add introductory or concluding conversational chat text. Output ONLY the letter text."
     )
+
+    if lang in _LANGUAGE_INSTRUCTIONS:
+        sys_instr += f"\n\n{_LANGUAGE_INSTRUCTIONS[lang]}"
 
     if critique:
         sys_instr += f"\n\nJUDGE FEEDBACK: Address these points in your revision: '{critique}'"
@@ -92,13 +119,14 @@ REQUIRED APPEAL LETTER STRUCTURE:
 
 Generate the full appeal letter text now:"""
 
-    logger.info("[Barrister] Generating appeal letter via LLM...")
+    logger.info("[Barrister] Generating appeal letter via LLM (language=%s)...", lang)
     appeal_text = client.generate(
         prompt=prompt,
         system=sys_instr,
         temperature=0.3,
         max_tokens=2048,
         json_mode=False,
+        language=lang,
     )
 
     if not appeal_text or len(appeal_text.strip()) < 100:

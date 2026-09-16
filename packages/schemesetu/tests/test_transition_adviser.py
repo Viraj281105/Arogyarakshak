@@ -29,13 +29,14 @@ def test_relocating_into_maharashtra_gains_mjpjay():
     assert any("mjpjay" in step.lower() for step in advice.checklist)
 
 
-def test_income_rise_losing_pmjay_eligibility():
+def test_income_change_alone_is_not_a_transition():
+    """Regression: a rise past the old unverified Rs 2.5L heuristic used to 'lose' PMJAY."""
     previous = EligibilityRequest(income=200000.0, location_state="Karnataka", medical_need="Surgery")
     current = EligibilityRequest(income=500000.0, location_state="Karnataka", medical_need="Surgery")
 
     advice = advise_transition(previous, current)
-    assert advice.transition_detected is True
-    assert "Lost eligibility: PMJAY" in advice.note
+    assert advice.transition_detected is False
+    assert advice.checklist == []
 
 
 def test_from_and_to_scheme_labels_reflect_eligible_sets():

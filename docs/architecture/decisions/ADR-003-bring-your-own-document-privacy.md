@@ -24,10 +24,10 @@ We adopted a strict **Bring-Your-Own-Document (BYOD)** architecture:
    describe the stored data as anonymous.
 
 3. **Enforced Consent Boundary**: `consent_opt_in` defaults to `false` and is enforced
-   server-side from the stored case record. Modules that read Kadi context (BillNyay,
-   DaaviSetu) return `403` without it; a client cannot grant consent by sending a flag on the
-   module request.
-3. **Opt-in Consent Boundary**: Data is never shared across modules without explicit patient consent via `consent_opt_in`.
+   server-side from the stored case record. Routes that read Kadi case context return `403`
+   without it (the current per-route list is maintained in `apps/api/app/consent.py`); a
+   client cannot grant consent by sending a flag on the module request.
+4. **Opt-in Consent Boundary**: Data is never shared across modules without explicit patient consent via `consent_opt_in`. Auto-triggered module checks (#32) re-read the stored consent before running. Only a SHA-256 digest of each ingested document is kept, for duplicate detection — never the document.
 
 ## Consequences
 ### Positive

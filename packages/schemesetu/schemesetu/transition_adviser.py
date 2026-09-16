@@ -3,10 +3,11 @@ SchemeSetu — Scheme-to-Scheme Transition Adviser (#71).
 
 Generates a transition checklist when a patient's estimated eligibility changes between
 PMJAY (national) and MJPJAY (Maharashtra state) — e.g. relocating into/out of
-Maharashtra, or crossing an income threshold. Built entirely on the same eligibility
+Maharashtra. Income changes alone never produce a transition: neither scheme defines an
+income ceiling in the cited official criteria. Built entirely on the same eligibility
 rules `schemesetu.agent.check_eligibility` already evaluates; it adds no new
 eligibility criteria of its own; the checklist items are standard scheme-transfer
-housekeeping steps (address/ration-card update, empanelment re-verification), not
+housekeeping steps (address/ration-card update, network-hospital check), not
 scheme-specific legal advice.
 """
 
@@ -14,9 +15,10 @@ from typing import List, Set
 from pydantic import BaseModel
 
 from schemesetu.agent import EligibilityRequest, SchemeResult, check_eligibility
+from schemesetu.thresholds import MJPJAY, PMJAY
 
-_PMJAY = "PMJAY (Ayushman Bharat)"
-_MJPJAY = "MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)"
+_PMJAY = PMJAY.scheme_name
+_MJPJAY = MJPJAY.scheme_name
 
 
 class TransitionAdvice(BaseModel):
@@ -63,8 +65,8 @@ def advise_transition(previous: EligibilityRequest, current: EligibilityRequest)
     if _PMJAY in lost or _MJPJAY in gained:
         checklist.extend(
             [
-                "Obtain the Maharashtra-specific health card (Orange/Yellow ration card linkage) required for MJPJAY.",
-                "Confirm your hospital is empanelled under MJPJAY specifically — PMJAY and MJPJAY empanelment lists differ.",
+                "Ask the Arogyamitra at an MJPJAY network hospital which documents (for example a ration card) you need to show.",
+                "Confirm your hospital is an MJPJAY network hospital before admission.",
             ]
         )
     if not checklist:

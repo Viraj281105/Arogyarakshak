@@ -122,6 +122,8 @@ export const SchemeSetuScreen: React.FC = () => {
       {/* Results */}
       {results && results.map((scheme, idx) => {
         const isEligible = scheme.estimated_eligibility === 'eligible';
+        // 'ambiguous' means the engine could not decide — never render it as "Not Eligible".
+        const isAmbiguous = scheme.estimated_eligibility === 'ambiguous';
         return (
           <Card key={idx} style={{ marginBottom: spacing.sm }}>
             <View style={[styles.row, { marginBottom: spacing.xs }]}>
@@ -129,8 +131,8 @@ export const SchemeSetuScreen: React.FC = () => {
                 {scheme.scheme_name}
               </Text>
               <Badge
-                label={isEligible ? `${(scheme.confidence_score * 100).toFixed(0)}% ${m.match}` : m.notEligible}
-                variant={isEligible ? 'success' : 'danger'}
+                label={isEligible ? m.provisionallyEligible : isAmbiguous ? m.needsVerification : m.notEligible}
+                variant={isEligible ? 'success' : isAmbiguous ? 'warning' : 'danger'}
               />
             </View>
 
@@ -138,10 +140,10 @@ export const SchemeSetuScreen: React.FC = () => {
               {scheme.reason}
             </Text>
 
-            {isEligible && scheme.claim_guide_steps.length > 0 && (
+            {(isEligible || isAmbiguous) && scheme.claim_guide_steps.length > 0 && (
               <View style={{ marginTop: spacing.xs }}>
                 <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13, marginBottom: 4 }}>
-                  {m.howToClaim}
+                  {isEligible ? m.howToClaim : m.howToVerify}
                 </Text>
                 {scheme.claim_guide_steps.map((step, sIdx) => (
                   <Text key={sIdx} style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 18, paddingLeft: 8 }}>
@@ -166,6 +168,18 @@ export const SchemeSetuScreen: React.FC = () => {
                   <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
                     <Text style={{ fontWeight: '600' }}>{m.criteriaEvaluated}: </Text>
                     {scheme.criteria_evaluated.join(', ')}
+                  </Text>
+                )}
+                {scheme.non_determinative_factors.length > 0 && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
+                    <Text style={{ fontWeight: '600' }}>{m.nonDeterminative}: </Text>
+                    {scheme.non_determinative_factors.join(', ')}
+                  </Text>
+                )}
+                {scheme.sources.length > 0 && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+                    <Text style={{ fontWeight: '600' }}>{m.officialSources}: </Text>
+                    {scheme.sources.map((source) => `${source.document} — ${source.publisher}${source.date ? ` (${source.date})` : ''} ${source.url}`).join('; ')}
                   </Text>
                 )}
               </View>

@@ -70,20 +70,27 @@ def audit_claim_denial(input_data: ClaimDenialInput) -> Tuple[bool, float, str, 
         )
 
     # 3. Room Rent Proportionate Deductions
+    # No IRDAI provision backing this ground has been verified against a primary source.
+    # Checked 2026-09-13: IRDAI/HLT/REG/CIR/194/07/2020 (22.07.2020, Consolidated Guidelines on
+    # Product Filing), previously cited here, contains no proportionate-deduction clause, and
+    # IRDAI/HLT/REG/CIR/193/07/2020 mentions proportionate deduction only in model policy wording
+    # and a sample CIS. Both were superseded by Master Circular IRDAI/HLT/CIR/PRO/84/5/2024
+    # (29.05.2024, Annexure-6). Do not re-add either as authority for this ground.
     elif "ROOM_RENT" in category:
         is_wrongful = True
         reversal_probability = 0.90
         primary_grounds = (
-            "Insurer applied proportionate deductions across medical charges. Under IRDAI circulars, "
-            "proportionate deductions can ONLY apply to associate room charges and cannot be levied on "
-            "ICU charges, scheduled medications, or medical implants."
+            "Insurer applied proportionate deductions across medical charges. The IRDAI provision said to "
+            "limit proportionate deductions to room-linked charges (excluding ICU charges, medicines and "
+            "implants) has NOT been verified against a primary source, so it must not be cited as settled law. "
+            "Ask the insurer to identify the policy clause relied on and to show the deduction calculation."
         )
         violations.append(
             RegulatoryViolation(
-                statute_or_circular="IRDAI Guidelines on Standardization of Health Insurance",
-                clause_reference="Circular Ref: IRDAI/HLT/REG/CIR/194/07/2020",
-                violation_summary="Illegal proportionate deduction applied to non-room-rent items (ICU/implants/medicines).",
-                legal_remedy="Demand recalculation of room rent sub-limit strictly adhering to mandated sub-clause exclusions."
+                statute_or_circular="IRDAI provision not verified",
+                clause_reference="UNVERIFIED — no primary-source citation",
+                violation_summary="Proportionate deduction applied to non-room-rent items (ICU/implants/medicines).",
+                legal_remedy="Request the insurer's itemised deduction calculation and the exact policy clause and IRDAI provision relied upon."
             )
         )
 

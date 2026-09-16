@@ -17,18 +17,12 @@
 
 ## 2. Current Project Status
 
-- **Current Phase:** Product Phase 1 Audit & System Hardening Complete (All P0, P1, P2 audit findings resolved and runtime-verified; Product Phase 2 not yet started).
+- **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
-- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules fully wired to real backend endpoints on both Web and Mobile; 139 backend pytest tests passing; 27 mobile tests passing; 25 web tests passing; Next.js 16 production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 100% passing).
-- **Primary Focus:** Ready for Product Phase 2 (IndicXlit / IndicSBERT cross-lingual entity resolution in `packages/kadi`).
-- **Last Major Milestone:** Remaining Product Phase 1 Audit Fixes Completed & Verified:
-  1. `kadi.py` background session resolved via `get_background_session()` with FastAPI dependency override and eager relationship loading (`selectinload`), guaranteeing end-to-end entity persistence in test, local, and Docker environments.
-  2. `CameraScanScreen.tsx` routing updated so `documentType === "general"` routes to `BillNyay` with `caseId` preserved.
-  3. Web `page.tsx` dummy document fallback completely removed; real file selection strictly required.
-  4. CGHS rate schedule resolution made robust with `billnyay.__file__` package path lookup, verified by automated test (`len(CGHS_RATES) > 20`).
-  5. `useOfflineQueue` wired into all statutory mobile screen actions (`BENCHMARK_MEDICINE`, `CHECK_SCHEME`, `SUBMIT_PREAUTH`, `ANALYZE_DENIAL`).
-  6. EasyOCR / Torch / OpenCV compatibility resolved on supported development environment (`torchvision==0.18.1+cpu`, `numpy<2.0.0`), verified with real image OCR extraction and persistence.
-- **Active Blockers:** None.
+- **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
+- **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
+- **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
+- **Active Blockers:** None for currently assigned work.
 
 ---
 
@@ -38,7 +32,7 @@ ArogyaRakshak addresses five critical healthcare friction points through non-ove
 
 ```mermaid
 flowchart TD
-    Doc["Patient Documents<br/>(Bill / Prescription / Denial Letter / Policy)"] --> Kadi["KADI Shared Intelligence Layer<br/>OCR · Entity Extraction · IndicXlit/IndicSBERT Resolution"]
+    Doc["Patient Documents<br/>(Bill / Prescription / Denial Letter / Policy)"] --> Kadi["KADI Shared Intelligence Layer<br/>OCR · Entity Extraction · Rule-based Cross-Script Resolution<br/>(+ optional IndicSBERT; IndicXlit not used — ADR-006)"]
     
     Kadi <--> BN["1. BillNyay<br/>Hospital Bill Audit vs CGHS"]
     Kadi <--> DS["2. DaaviSetu<br/>Pre-Claim Form Automation"]
@@ -50,16 +44,16 @@ flowchart TD
 1. **BillNyay (`packages/billnyay`)**: Audits hospital bills line-by-line against Central Government Health Scheme (CGHS) benchmark rates; drafts dispute representation letters to hospital billing management.
 2. **DaaviSetu (`packages/daavisetu`)**: Pre-claim automation pre-populating cashless pre-authorization forms and reimbursement claim packages for major private insurers.
 3. **BimaNyay (`packages/bimanyay`)**: Post-denial dispute engine auditing claim repudiations against the **IRDAI Master Circular (May 29, 2024)**; auto-generates 3-tier appeals (GRO, Bima Bharosa, Ombudsman Form VI) and tracks statutory SLAs.
-4. **SchemeSetu (`packages/schemesetu`)**: Matches low-income demographics and clinical diagnoses against **PMJAY** (national) and **MJPJAY** (Maharashtra) eligibility rules; locates empanelled network hospitals.
+4. **SchemeSetu (`packages/schemesetu`)**: Reports provisional **PMJAY** (national) and **MJPJAY** (Maharashtra) eligibility from official criteria cited in `schemesetu/thresholds.py`. Income is non-determinative (neither scheme defines an income ceiling); PMJAY is always `ambiguous` because its criteria (SECC-2011 listing, ASHA/AWW/AWH family, age 70+) are not collected. Empanelled-hospital location is *(planned — not implemented)*.
 5. **DawaCheck (`packages/dawacheck`)**: Verifies medicine MRP against NPPA Schedule-I price control caps; recommends low-cost bioequivalent generic substitutes at PMBJP Jan Aushadhi Kendras.
-6. **Kadi (`packages/kadi`)**: Central shared intelligence layer providing unified document parsing, phonetic transliteration (**IndicXlit**), and cross-lingual semantic matching (**IndicSBERT**).
+6. **Kadi (`packages/kadi`)**: Central shared intelligence layer providing unified document parsing, entity resolution (edit distance, rule-based cross-script phonetics, optional **IndicSBERT** semantic matching; **IndicXlit** is not used — see ADR-006), ABDM FHIR bundle import, a case graph projection and consent-bounded module auto-triggering.
 
 ---
 
 ## 4. Architecture Snapshot
 
 - **Backend Gateway (`apps/api`)**: FastAPI async application running under Uvicorn. Implements versioned `/api/v1` routing, async database engine (`asyncpg`), and real-time Server-Sent Events (SSE) status streams.
-- **Database & Search**: PostgreSQL 16 with `pgvector` extension for persistent storage and vector embeddings. In-memory `FAISS` indexes in `kadi/vector_store.py` for rapid candidate blocking.
+- **Database & Search**: PostgreSQL 16 (pgvector image; no vector columns or similarity queries are used). `kadi/vector_store.py` is an unwired FAISS/pgvector scaffold — no FAISS index exists. Entity-resolution candidates are blocked by case and entity type instead (ADR-006).
 - **LLM Reasoning**: Groq API cloud client (Target model: `openai/gpt-oss-120b`). Deprecated models (`llama3-70b`) are strictly barred.
 - **Frontend Clients**:
   - `apps/web`: Next.js 16 App Router, React 19, TypeScript, Vanilla CSS design tokens (Mobile-first, 320px–1280px+, WCAG 2.1 AA).
@@ -99,7 +93,7 @@ arogyarakshak/
 │   ├── billnyay/                # Hospital bill audit (5-agent reasoning chain)
 │   ├── daavisetu/               # Pre-claim cashless pre-auth form generator
 │   ├── bimanyay/                # Claim denial dispute & IRDAI appeal tracker
-│   ├── schemesetu/              # PMJAY/MJPJAY RAG reasoning & ONNX embeddings
+│   ├── schemesetu/              # PMJAY/MJPJAY rule-based eligibility (no RAG, no embeddings)
 │   └── dawacheck/               # NPPA Schedule-I price verification & generics
 ├── data/                        # Government rate schedules (CGHS) and raw test sets
 ├── docs/                        # Complete documentation portal (architecture, guides, ADRs)
@@ -124,10 +118,10 @@ arogyarakshak/
 | **Backend Framework** | FastAPI | `0.115.12` | Asynchronous REST & SSE endpoints. |
 | **Database ORM** | SQLAlchemy | `2.0.38` | Async sessions with `asyncpg`. |
 | **Database** | PostgreSQL | `pg16` | Containerized with `pgvector/pgvector:pg16`. |
-| **Vector Engine** | FAISS | In-memory | Candidate blocking & similarity scoring. |
+| **Vector Engine** | FAISS | *planned* | Unwired scaffold; not used. |
 | **LLM Inference** | Groq API | `openai/gpt-oss-120b` | High-throughput cloud inference. |
-| **Transliteration** | IndicXlit | AI4Bharat | Phonetic mapping across Indic scripts. |
-| **Embeddings** | IndicSBERT | L3Cube Pune | Cross-lingual sentence similarity. |
+| **Cross-Script Matching** | Rule-based (Kadi) | — | Devanagari romanization + Indic phonetic keys. IndicXlit is not used (#29). |
+| **Embeddings** | IndicSBERT | L3Cube Pune, optional | Cross-lingual similarity; off unless `KADI_SEMANTIC_MATCHING=true`. |
 | **Web Client** | Next.js | `16.3.0` / React `19.2.4` | App Router, mobile-first, trilingual UI. |
 | **Mobile Client** | Expo / React Native | TypeScript | Document scanner & SLA push alerts. |
 
@@ -143,7 +137,6 @@ arogyarakshak/
 | **BillNyay 5-Agent Pipeline** | Complete (all 5 agents wired) | `packages/billnyay/billnyay/agents/`| `packages/billnyay/README.md` | Yes (`test_agents.py`, `test_api.py`) |
 | **DaaviSetu Pre-Auth Generator** | Complete | `packages/daavisetu/daavisetu/generator.py` | `packages/daavisetu/README.md` | Yes (`test_daavisetu.py`) |
 | **SchemeSetu Eligibility Agent** | Complete (rule-based, not RAG) | `packages/schemesetu/schemesetu/agent.py` | `packages/schemesetu/README.md` | Yes (`test_schemesetu.py`) |
-| **SchemeSetu Offline Embedder** | Scaffold (not wired) | `packages/schemesetu/schemesetu/embeddings.py`| `packages/schemesetu/README.md` | No — contains no ONNX code and is used by no endpoint |
 | **DawaCheck NPPA Benchmarking** | Complete | `packages/dawacheck/dawacheck/checker.py` | `packages/dawacheck/README.md` | Yes (`test_dawacheck.py`) |
 | **SSE Real-Time Stream** | Complete | `apps/api/app/api/v1/endpoints/kadi.py` | `docs/architecture/data-flow.md` | Yes (`test_api.py`) |
 | **FastAPI Gateway & Models** | Complete | `apps/api/app/` | `apps/api/README.md` | Yes (`test_api.py`) |
@@ -198,7 +191,7 @@ None. Ready for Product Phase 2 when directed by user.
 
 ### P1 — High (Core Integration)
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
-- [ ] **IndicXlit & IndicSBERT Integration in Kadi**: Connect entity resolution scoring formula combining string distance, transliteration, and embeddings.
+- [x] **Kadi Entity Resolution (Phase 3)**: string similarity + rule-based cross-script phonetics + optional IndicSBERT, merge/ask/new branching and feedback-calibrated thresholds (ADR-006). IndicXlit remains blocked on fairseq / Python 3.11 (#29).
 - [ ] **Mobile Push SLA Alerts**: Local notifications for 15-day GRO and Bima Bharosa statutory deadlines.
 
 ### P2 — Medium (Evaluation & QA)
@@ -217,27 +210,27 @@ None. Ready for Product Phase 2 when directed by user.
 ```text
 Phase 1: Foundations (COMPLETED)
 ├── Monorepo scaffolding, Docker Compose, CI pipeline
-├── Kadi shared extraction, FAISS vector store, OCR parser
+├── Kadi shared extraction, OCR parser (FAISS vector store: planned, unwired scaffold — see ADR-002/components.md, never built)
 ├── BillNyay 5-agent chain, DaaviSetu pre-auth generator
-├── SchemeSetu RAG & ONNX embedding fallback, DawaCheck NPPA price checker
+├── SchemeSetu rule-based eligibility checker, DawaCheck NPPA price checker
 └── Repository-wide documentation & test infrastructure overhaul
 
-Phase 2: Module Builds & BimaNyay (ACTIVE)
+Phase 2: Module Builds & BimaNyay (COMPLETED — all assigned issues closed 2026-09-13)
 ├── Scaffold packages/bimanyay and 5-agent dispute pipeline
 ├── Build self-reported Grievance SLA escalation tracker
 ├── Mount /api/v1/bimanyay endpoints in FastAPI
-└── Scaffold apps/mobile (Expo React Native) with camera edge detection
+└── Scaffold apps/mobile (Expo React Native) with camera capture (plain expo-camera, no edge detection — README corrected)
 
-Phase 3: Entity Resolution & Cross-Module Intelligence (NEXT)
-├── Integrate IndicXlit (transliteration) and IndicSBERT (cross-lingual)
-├── Implement confidence-scored merge/ask-user branching in Kadi
+Phase 3: Entity Resolution & Cross-Module Intelligence (COMPLETED — all assigned issues closed 2026-09-13)
+├── IndicSBERT cross-lingual semantic signal integrated, optional/off by default (ADR-006). IndicXlit transliteration was NOT achieved — blocked on fairseq/Python 3.11 wheels, #29 remains open.
+├── Confidence-scored merge/ask-user branching in Kadi implemented and evaluated (docs/evaluation/entity-resolution.md)
 ├── Auto-triggering: one document upload surfaces insights across all modules
 └── Mobile app multi-module screen assembly (BillNyay, BimaNyay, DaaviSetu, SchemeSetu, DawaCheck)
 
-Phase 4: Multilingual & Evaluation (LATER)
-├── Devanagari OCR validation on real/synthetic self-donated documents
-├── Terminology QA pass on Hindi & Marathi appeal drafts
-└── Quantitative evaluation execution (PEA >= 92%, BMA >= 88%, CRMA >= 90%, WER < 8%)
+Phase 4: Multilingual & Evaluation (ACTIVE — 2026-09-15)
+├── DawaCheck prescription-shorthand translator (#97), SchemeSetu regional state-name normalization (#95), Hindi/Marathi BillNyay appeal letters (#39)
+├── E2E latency monitoring harness measured and documented (#116, docs/evaluation/latency.md)
+└── Remaining: PEA/BMA/CFMA/CRMA/WER evaluation harnesses (#102–#115, not yet built)
 
 Phase 5: Submission & Demo Polish (FUTURE)
 ├── Final deployment (college server / staging host)
@@ -353,6 +346,13 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-09-13
+- **SchemeSetu income criteria replaced with cited official criteria** (`packages/schemesetu/schemesetu/thresholds.py`):
+  - The PMJAY ₹2,50,000 and MJPJAY ₹1,50,000 limits (`UNVERIFIED_PROJECT_HEURISTIC`) were removed. Official sources define no single income ceiling: AB PM-JAY uses SECC-2011 deprivation/occupational criteria, state-verified databases, ASHA/AWW/AWH families and all persons aged 70+ irrespective of income (PIB releases 2116209, 28 Mar 2025, and 2053883, 11 Sep 2024); MJPJAY covers all families in Maharashtra under the GR dated 28 July 2023, integrated scheme from 1 July 2024 (Government of Maharashtra district portals; the GR text and jeevandayee.gov.in could not be retrieved).
+  - Income is now non-determinative everywhere (`agent.py`, `reasoning_agent.py`, `triggers.py` #92, `trend_estimator.py`, `transition_adviser.py`, `apps/api/app/auto_triggers.py`). PMJAY is always `ambiguous` with verification steps; MJPJAY follows state of residence; results carry `criteria_provenance` and `sources`; `confidence_score` removed.
+  - The #92 trigger fires when a scheme newly applies (first profile or move into Maharashtra) and returns `NO_CHANGE` otherwise; income changes alone never fire.
+  - Web `SchemeSetuView` and mobile `SchemeSetuScreen` render `ambiguous` as "Verification needed" (not "Not Eligible") and show sources. New hi/mr strings need native-speaker QA.
 
 ### 2026-09-09
 - **Documentation Directory Restructuring & Modernization**:
@@ -504,8 +504,11 @@ Successfully fixed and verified all Product Phase 1 issues based on the independ
     - Mobile: `npm test` passed **27/27 tests**; `npm run type-check` passed **0 errors**.
     - CI Guardrails: `python scripts/ci_guardrails.py` passed **5/5 checks**.
 
-### Current State
-Product Phase 1 audit fixes are 100% complete and verified. Product Phase 2 has NOT been started.
+### Current State (as of the entry above, historical)
+Product Phase 1 audit fixes were 100% complete and verified at this point in the log. **This
+entry is historical, not current** — Phases 2 and 3 have since been completed (all assigned
+issues closed 2026-09-13) and Phase 4 is now in progress. See §2 "Current Project Status" at
+the top of this document for the live status.
 
 ### Recommended Next Action
 When authorized by the user, begin Product Phase 2:

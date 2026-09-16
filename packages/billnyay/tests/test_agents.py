@@ -137,6 +137,71 @@ def test_run_barrister_agent_passes_prose_mode_to_client():
     assert "Barrister Agent" in captured["system"]
 
 
+def test_run_barrister_agent_defaults_to_english_with_no_language_instruction():
+    captured = {}
+
+    class CapturingClient:
+        def generate(self, prompt, system="", **kwargs):
+            captured.update(kwargs)
+            captured["system"] = system
+            return "C" * 400
+
+    run_barrister_agent(
+        CapturingClient(),
+        denial_details=_denial(),
+        clinical_evidence=EvidenceList(root=[]),
+        regulatory_evidence={"legal_points": []},
+    )
+    assert captured["language"] == "en"
+    assert "Hindi" not in captured["system"]
+    assert "Marathi" not in captured["system"]
+
+
+@pytest.mark.parametrize("lang,lang_name", [("hi", "Hindi"), ("mr", "Marathi")])
+def test_run_barrister_agent_instructs_the_llm_to_write_in_the_requested_language(lang, lang_name):
+    """#39: the Phase 0 finding was that LLM-generated output stayed English-only
+    regardless of the user's chosen language. The system prompt must carry an explicit
+    instruction, and the `language` kwarg must reach client.generate so the offline
+    fallback (GroqClientFallback) can pick the matching canned letter."""
+    captured = {}
+
+    class CapturingClient:
+        def generate(self, prompt, system="", **kwargs):
+            captured.update(kwargs)
+            captured["system"] = system
+            return "D" * 400
+
+    run_barrister_agent(
+        CapturingClient(),
+        denial_details=_denial(),
+        clinical_evidence=EvidenceList(root=[]),
+        regulatory_evidence={"legal_points": []},
+        language=lang,
+    )
+    assert captured["language"] == lang
+    assert lang_name in captured["system"]
+    # Proper nouns, figures and citations must survive translation, not be transliterated.
+    assert "do not translate proper nouns, citations, or figures" in captured["system"]
+
+
+def test_run_barrister_agent_language_is_case_insensitive():
+    captured = {}
+
+    class CapturingClient:
+        def generate(self, prompt, system="", **kwargs):
+            captured.update(kwargs)
+            return "E" * 400
+
+    run_barrister_agent(
+        CapturingClient(),
+        denial_details=_denial(),
+        clinical_evidence=EvidenceList(root=[]),
+        regulatory_evidence={"legal_points": []},
+        language="HI",
+    )
+    assert captured["language"] == "hi"
+
+
 def test_format_clinical_evidence_handles_evidence_list_and_empty():
     evidence = EvidenceList(
         root=[

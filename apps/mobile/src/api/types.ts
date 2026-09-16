@@ -14,10 +14,70 @@ export interface CaseResponse {
 }
 
 export interface UploadResponse {
+  /** "processing", or "duplicate" when this exact document was already ingested into the case. */
   status: string;
   message: string;
   case_id: string;
   filename: string;
+}
+
+// --- Kadi entity resolution (#31, #88) ---
+export type ResolutionSignalStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'NOT_APPLICABLE';
+
+export interface ResolutionSignal {
+  signal: 'lexical' | 'phonetic' | 'semantic';
+  status: ResolutionSignalStatus;
+  score: number | null;
+  detail: string;
+}
+
+export interface ResolutionDecision {
+  id: string;
+  entity_type: string;
+  action: 'MERGE' | 'ASK';
+  status: string;
+  source: string;
+  /** Similarity evidence in [0, 1] — not a probability. */
+  confidence: number;
+  mention_name: string | null;
+  mention_entity_id: string | null;
+  candidate_entity_id: string;
+  candidate_name: string;
+  signals: ResolutionSignal[];
+  reasons: string[];
+  feedback_same_entity: boolean | null;
+}
+
+export interface ResolutionFeedbackResponse {
+  decision: ResolutionDecision;
+  calibration: {
+    scope: string;
+    status: 'CALIBRATED' | 'INSUFFICIENT_EVIDENCE';
+    merge_threshold: number;
+    ask_threshold: number;
+    sample_count: number;
+    reasons: string[];
+  }[];
+}
+
+// --- SchemeSetu consent-bounded income profile (#92) ---
+export interface IncomeProfileRequest {
+  annual_income_inr: number;
+  state: string;
+}
+
+export interface IncomeProfileResponse {
+  case_id: string;
+  annual_income_inr: number;
+  state: string;
+  trigger: {
+    status: 'FIRE' | 'NO_CHANGE' | 'INSUFFICIENT_EVIDENCE';
+    reason: string;
+    /** Income alone never triggers a run: no evaluated scheme defines an income ceiling. */
+    income_role: 'NON_DETERMINATIVE';
+  };
+  background_eligibility: 'queued' | 'not_ready' | 'not_triggered';
+  missing_context: string[];
 }
 
 // --- BillNyay ---
@@ -101,6 +161,8 @@ export interface RegulatoryViolation {
 export interface BimaNyayAnalysisResponse {
   is_wrongful_denial: boolean;
   reversal_probability_score: number;
+  /** Always "HEURISTIC_PRIOR_NOT_HISTORICAL": a rule prior, not a probability from past outcomes. */
+  probability_basis?: 'HEURISTIC_PRIOR_NOT_HISTORICAL';
   primary_dispute_grounds: string;
   regulatory_violations: RegulatoryViolation[];
   level_1_gro_appeal: string;
@@ -139,17 +201,27 @@ export interface SchemeSetuEligibilityRequest {
   medical_need: string;
 }
 
+export interface SchemeSource {
+  url: string;
+  document: string;
+  publisher: string;
+  date: string | null;
+}
+
 export interface SchemeResult {
   scheme_name: string;
-  estimated_eligibility: string;
-  /** Heuristic prior for the matched rule branch, not a calibrated probability. */
-  confidence_score: number;
+  estimated_eligibility: 'eligible' | 'ineligible' | 'ambiguous';
   reason: string;
+  /** How to claim when eligible; how to verify when ambiguous. */
   claim_guide_steps: string[];
   criteria_evaluated: string[];
+  /** Recorded but never decisive: neither scheme defines an official income ceiling. */
+  non_determinative_factors: string[];
   /** Eligibility factors the engine does not check; the result stays provisional. */
   criteria_not_evaluated: string[];
   is_provisional: boolean;
+  criteria_provenance: string;
+  sources: SchemeSource[];
 }
 
 // --- DawaCheck ---
@@ -170,6 +242,25 @@ export interface DawaCheckBenchmarkResponse {
   /** Provenance of the ceiling price — the reference list is a curated subset. */
   data_source: string;
   reference_entry_count: number;
+}
+
+export interface TranslateInstructionsRequest {
+  instructions: string;
+  language: 'en' | 'hi' | 'mr';
+}
+
+export interface TranslatedInstruction {
+  token: string;
+  recognized: boolean;
+  meaning_en: string;
+  translated: string;
+}
+
+export interface PrescriptionTranslationResponse {
+  original_text: string;
+  language: string;
+  instructions: TranslatedInstruction[];
+  unrecognized_tokens: string[];
 }
 
 export interface ApiError {

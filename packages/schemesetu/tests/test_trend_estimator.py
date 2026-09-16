@@ -51,8 +51,8 @@ def test_target_year_within_range_is_not_extrapolation():
 
 
 def test_projected_eligibility_reflects_projected_income_not_raw_history():
-    """A trend crossing the PMJAY threshold must change the eligibility verdict —
-    proves the projection actually feeds check_eligibility, not the raw last value."""
+    """The projected figure (not the raw last value) is what check_eligibility records —
+    and, with no official income ceiling, a rising trend must not flip PMJAY to ineligible."""
     history = [
         IncomeDataPoint(year=2020, annual_income=100000.0),
         IncomeDataPoint(year=2021, annual_income=200000.0),
@@ -61,7 +61,8 @@ def test_projected_eligibility_reflects_projected_income_not_raw_history():
     result = project_future_eligibility(history, target_year=2023, location_state="Maharashtra")
     assert result.projected_income == 400000.0
     pmjay = next(r for r in result.projected_eligibility if "PMJAY" in r.scheme_name)
-    assert pmjay.estimated_eligibility == "ineligible"
+    assert "Rs 4,00,000" in pmjay.reason
+    assert pmjay.estimated_eligibility == "ambiguous"
 
 
 def test_data_points_used_reflects_history_length():

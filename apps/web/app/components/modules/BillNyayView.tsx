@@ -183,7 +183,7 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId 
                       <th>{t.chargedCol}</th>
                       <th>{t.cghsCol}</th>
                       <th>{t.varianceCol}</th>
-                      <th>Audit Status</th>
+                      <th>{t.statusCol}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -315,7 +315,7 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId 
                   <th>{t.chargedCol}</th>
                   <th>{t.cghsCol}</th>
                   <th>{t.varianceCol}</th>
-                  <th>Audit Status</th>
+                  <th>{t.statusCol}</th>
                 </tr>
               </thead>
               <tbody>

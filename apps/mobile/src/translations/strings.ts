@@ -33,6 +33,17 @@ export interface MobileTranslations {
     consentRequired: string;
     scanFirst: string;
   };
+  resolution: {
+    title: string;
+    intro: string;
+    mentionLabel: string;
+    existingLabel: string;
+    confidenceLabel: string;
+    confirmBtn: string;
+    rejectBtn: string;
+    unavailable: string;
+    uncalibratedNote: string;
+  };
   modules: {
     billnyay: {
       title: string;
@@ -87,11 +98,17 @@ export interface MobileTranslations {
       policyAge: string;
       claimedAmount: string;
       deniedAmount: string;
+      denialCategoryLabel: string;
+      denialCategoryPedNonDisclosure: string;
+      denialCategoryRoomRentCapping: string;
+      denialCategoryInvestigationOnly: string;
+      denialCategoryDelayedIntimation: string;
       denialReason: string;
       diagnosis: string;
       auditBtn: string;
       auditing: string;
       reversalScore: string;
+      heuristicDisclosure: string;
       wrongful: string;
       copyDraft: string;
       groTab: string;
@@ -111,9 +128,13 @@ export interface MobileTranslations {
       medicalNeed: string;
       checkBtn: string;
       checking: string;
-      match: string;
+      provisionallyEligible: string;
+      needsVerification: string;
       notEligible: string;
       howToClaim: string;
+      howToVerify: string;
+      nonDeterminative: string;
+      officialSources: string;
       noMatches: string;
       criteriaEvaluated: string;
       criteriaNotEvaluated: string;
@@ -140,6 +161,10 @@ export interface MobileTranslations {
       statutoryNoticeTitle: string;
       statutoryNoticeBody: string;
       dataSourceNotice: string;
+      prescriptionTranslatorTitle: string;
+      prescriptionInputPlaceholder: string;
+      translateBtn: string;
+      unrecognizedNotice: string;
     };
   };
   common: {
@@ -186,6 +211,17 @@ export const translations: Record<Language, MobileTranslations> = {
       consentText: 'I consent to transient analysis of this document.',
       consentRequired: 'Please give consent before scanning.',
       scanFirst: 'Scan a document first — consent is captured during the scan.',
+    },
+    resolution: {
+      title: 'Please confirm possible duplicates',
+      intro: 'Kadi found entries in your documents that may refer to the same thing. Nothing is merged until you confirm.',
+      mentionLabel: 'New entry',
+      existingLabel: 'Already in this case',
+      confidenceLabel: 'Match score',
+      confirmBtn: 'Same — merge',
+      rejectBtn: 'Different — keep both',
+      unavailable: 'not available',
+      uncalibratedNote: 'Match scores are similarity estimates, not probabilities.',
     },
     modules: {
       billnyay: {
@@ -241,11 +277,17 @@ export const translations: Record<Language, MobileTranslations> = {
         policyAge: 'Policy Age (Years)',
         claimedAmount: 'Claimed Amount (₹)',
         deniedAmount: 'Denied / Deducted Amount (₹)',
+        denialCategoryLabel: 'Denial Category',
+        denialCategoryPedNonDisclosure: 'Pre-Existing Disease Non-Disclosure',
+        denialCategoryRoomRentCapping: 'Room Rent Proportionate Deduction',
+        denialCategoryInvestigationOnly: 'Observation / Diagnostic Hospitalization Only',
+        denialCategoryDelayedIntimation: 'Delayed Claim Intimation / Submission',
         denialReason: 'Reason for Denial (from rejection letter)',
         diagnosis: 'Clinical Diagnosis',
         auditBtn: '⚖️ Audit Grounds & Draft 3-Tier Appeals',
         auditing: 'Auditing Regulatory Precedents...',
         reversalScore: 'Reversal Probability:',
+        heuristicDisclosure: 'Rule-based estimate for this denial category — not derived from historical dispute outcomes.',
         wrongful: 'Wrongful Repudiation Detected',
         copyDraft: '📋 Copy Selected Appeal Draft',
         groTab: 'Tier 1: GRO',
@@ -265,13 +307,17 @@ export const translations: Record<Language, MobileTranslations> = {
         medicalNeed: 'Required Medical Procedure / Specialty',
         checkBtn: '🔍 Check Government Health Schemes',
         checking: 'Assessing Scheme Guidelines...',
-        match: 'Match',
+        provisionallyEligible: 'Provisionally eligible',
+        needsVerification: 'Verification needed',
         notEligible: 'Not Eligible',
         howToClaim: 'How to Claim at Empaneled Hospital:',
+        howToVerify: 'How to verify:',
+        nonDeterminative: 'Recorded but not used to decide (no official income ceiling)',
+        officialSources: 'Official sources',
         noMatches: 'No government health scheme matches found for the given criteria.',
         criteriaEvaluated: 'Evaluated for this result',
         criteriaNotEvaluated: 'NOT evaluated — verify with official records',
-        provisionalNotice: 'Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.',
+        provisionalNotice: 'Provisional estimate only. The criteria listed as not evaluated (such as SECC-2011 listing, age and documents) are not checked by this tool, so this is not a final eligibility decision.',
       },
       dawacheck: {
         title: 'DawaCheck',
@@ -294,6 +340,10 @@ export const translations: Record<Language, MobileTranslations> = {
         statutoryNoticeTitle: '💡 Statutory Consumer Right (DPCO 2013)',
         statutoryNoticeBody: 'Under the Drugs (Prices Control) Order, 2013 and the Essential Commodities Act, 1955, charging above the notified NPPA ceiling price is an illegal punishable offence. Retail pharmacies are statutorily required to dispense equivalent generic formulations upon request.',
         dataSourceNotice: 'Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.',
+        prescriptionTranslatorTitle: 'Prescription Shorthand Translator',
+        prescriptionInputPlaceholder: "Paste doctor's instructions, e.g. Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: 'Translate Instructions',
+        unrecognizedNotice: 'Not recognized (not a standard abbreviation this tool knows): {tokens}',
       },
     },
     common: {
@@ -338,6 +388,17 @@ export const translations: Record<Language, MobileTranslations> = {
       consentText: 'मैं इस दस्तावेज़ के अस्थायी विश्लेषण की सहमति देता हूँ।',
       consentRequired: 'कृपया स्कैन करने से पहले सहमति दें।',
       scanFirst: 'पहले दस्तावेज़ स्कैन करें — सहमति स्कैन के समय ली जाती है।',
+    },
+    resolution: {
+      title: 'संभावित दोहराव की पुष्टि करें',
+      intro: 'Kadi को आपके दस्तावेज़ों में ऐसी प्रविष्टियाँ मिलीं जो एक ही चीज़ हो सकती हैं। आपकी पुष्टि के बिना कुछ भी मिलाया नहीं जाता।',
+      mentionLabel: 'नई प्रविष्टि',
+      existingLabel: 'इस केस में पहले से',
+      confidenceLabel: 'मिलान स्कोर',
+      confirmBtn: 'एक ही हैं — मिलाएँ',
+      rejectBtn: 'अलग हैं — दोनों रखें',
+      unavailable: 'उपलब्ध नहीं',
+      uncalibratedNote: 'मिलान स्कोर समानता का अनुमान है, संभावना नहीं।',
     },
     modules: {
       billnyay: {
@@ -393,11 +454,17 @@ export const translations: Record<Language, MobileTranslations> = {
         policyAge: 'पॉलिसी की अवधि (वर्ष)',
         claimedAmount: 'दावा की गई राशि (₹)',
         deniedAmount: 'अस्वीकृत / काटी गई राशि (₹)',
+        denialCategoryLabel: 'अस्वीकृति श्रेणी',
+        denialCategoryPedNonDisclosure: 'पूर्व-मौजूदा बीमारी की जानकारी न देना',
+        denialCategoryRoomRentCapping: 'कमरे के किराए की आनुपातिक कटौती',
+        denialCategoryInvestigationOnly: 'केवल जांच / निदान हेतु अस्पताल में भर्ती',
+        denialCategoryDelayedIntimation: 'दावे की देर से सूचना / प्रस्तुति',
         denialReason: 'अस्वीकृति का कारण (पत्र अनुसार)',
         diagnosis: 'रोग का निदान',
         auditBtn: '⚖️ अस्वीकृति की जांच करें व 3-स्तरीय अपील बनाएं',
         auditing: 'विधिक नियमों की जांच हो रही है...',
         reversalScore: 'अपील सफलता संभावना:',
+        heuristicDisclosure: 'इस अस्वीकृति श्रेणी के लिए नियम-आधारित अनुमान — पिछले विवादों के वास्तविक परिणामों पर आधारित नहीं।',
         wrongful: 'अनुचित अस्वीकृति पाई गई',
         copyDraft: '📋 चयनित अपील ड्राफ्ट कॉपी करें',
         groTab: 'स्तर 1: जीआरओ (GRO)',
@@ -417,13 +484,17 @@ export const translations: Record<Language, MobileTranslations> = {
         medicalNeed: 'आवश्यक चिकित्सा उपचार / विशेषज्ञता',
         checkBtn: '🔍 स्वास्थ्य योजना पात्रता जांचें',
         checking: 'योजना नियमों की समीक्षा हो रही है...',
-        match: 'अनुकूल',
+        provisionallyEligible: 'अस्थायी रूप से पात्र',
+        needsVerification: 'पुष्टि आवश्यक',
         notEligible: 'पात्र नहीं',
         howToClaim: 'अस्पताल में लाभ कैसे प्राप्त करें:',
+        howToVerify: 'पात्रता की पुष्टि कैसे करें:',
+        nonDeterminative: 'दर्ज किया गया, पर निर्णय में उपयोग नहीं (कोई आधिकारिक आय-सीमा नहीं)',
+        officialSources: 'आधिकारिक स्रोत',
         noMatches: 'दी गई जानकारी के आधार पर कोई योजना मेल नहीं खाई।',
         criteriaEvaluated: 'इस परिणाम हेतु जाँचे गए आधार',
         criteriaNotEvaluated: 'जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें',
-        provisionalNotice: 'यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।',
+        provisionalNotice: 'यह केवल एक अस्थायी अनुमान है। “जाँचे नहीं गए” के रूप में सूचीबद्ध मानदंड (जैसे SECC-2011 सूची, आयु और दस्तावेज़) इस टूल द्वारा नहीं जाँचे जाते, इसलिए यह अंतिम पात्रता निर्णय नहीं है।',
       },
       dawacheck: {
         title: 'दवाचेक',
@@ -446,6 +517,10 @@ export const translations: Record<Language, MobileTranslations> = {
         statutoryNoticeTitle: '💡 वैधानिक उपभोक्ता अधिकार (डीपीसीओ 2013)',
         statutoryNoticeBody: 'ड्रग्स प्राइस कंट्रोल ऑर्डर, 2013 एवं आवश्यक वस्तु अधिनियम के तहत एनपीपीए मूल्य सीमा से अधिक वसूलना एक दंडनीय अपराध है। फार्मेसी द्वारा जेनेरिक विकल्प उपलब्ध कराना अनिवार्य है।',
         dataSourceNotice: 'यह जांच NPPA अनुसूची-I की {count} चयनित दवाओं की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।',
+        prescriptionTranslatorTitle: 'पर्ची संक्षिप्त शब्द अनुवादक',
+        prescriptionInputPlaceholder: 'डॉक्टर के निर्देश यहाँ चिपकाएँ, जैसे Tab. Dolo 650mg TDS x 5 days',
+        translateBtn: 'निर्देश अनुवाद करें',
+        unrecognizedNotice: 'पहचान नहीं हुई (यह मानक संक्षिप्त शब्द नहीं है): {tokens}',
       },
     },
     common: {
@@ -490,6 +565,17 @@ export const translations: Record<Language, MobileTranslations> = {
       consentText: 'मी या दस्तऐवजाच्या तात्पुरत्या विश्लेषणास संमती देतो.',
       consentRequired: 'कृपया स्कॅन करण्यापूर्वी संमती द्या.',
       scanFirst: 'आधी दस्तऐवज स्कॅन करा — संमती स्कॅनवेळी घेतली जाते.',
+    },
+    resolution: {
+      title: 'संभाव्य दुहेरी नोंदींची खात्री करा',
+      intro: 'Kadi ला तुमच्या कागदपत्रांमध्ये अशा नोंदी सापडल्या ज्या एकाच गोष्टीबद्दल असू शकतात. तुमच्या खात्रीशिवाय काहीही एकत्र केले जात नाही.',
+      mentionLabel: 'नवीन नोंद',
+      existingLabel: 'या केसमध्ये आधीपासून',
+      confidenceLabel: 'जुळणी गुण',
+      confirmBtn: 'एकच आहेत — एकत्र करा',
+      rejectBtn: 'वेगळे आहेत — दोन्ही ठेवा',
+      unavailable: 'उपलब्ध नाही',
+      uncalibratedNote: 'जुळणी गुण हे साम्याचा अंदाज आहेत, संभाव्यता नाही.',
     },
     modules: {
       billnyay: {
@@ -545,11 +631,17 @@ export const translations: Record<Language, MobileTranslations> = {
         policyAge: 'पॉलिसीचे वय (वर्षे)',
         claimedAmount: 'मागणी केलेली रक्कम (₹)',
         deniedAmount: 'नाकारलेली / कापलेली रक्कम (₹)',
+        denialCategoryLabel: 'नकाराचा प्रकार',
+        denialCategoryPedNonDisclosure: 'आधीच्या आजाराची माहिती न दिल्याने नकार',
+        denialCategoryRoomRentCapping: 'खोलीच्या भाड्याची प्रमाणशीर कपात',
+        denialCategoryInvestigationOnly: 'केवळ तपासणी / निदानासाठी रुग्णालयात दाखल',
+        denialCategoryDelayedIntimation: 'दाव्याची उशिरा सूचना / सादरीकरण',
         denialReason: 'नकाराचे कारण (पत्रातील)',
         diagnosis: 'रोगनिदान',
         auditBtn: '⚖️ नकाराचे परीक्षण करा व ३-स्तरीय अपील बनवा',
         auditing: 'कायदेशीर नियमांची तपासणी सुरू आहे...',
         reversalScore: 'अपील यशाची शक्यता:',
+        heuristicDisclosure: 'या नाकारण्याच्या प्रकारासाठी नियमांवर आधारित अंदाज — मागील वादांच्या प्रत्यक्ष निकालांवर आधारित नाही.',
         wrongful: 'अयोग्य नकार आढळला',
         copyDraft: '📋 निवडलेला अपील मसुदा कॉपी करा',
         groTab: 'स्तर १: जीआरओ (GRO)',
@@ -569,13 +661,17 @@ export const translations: Record<Language, MobileTranslations> = {
         medicalNeed: 'आवश्यक वैद्यकीय उपचार / शस्त्रक्रिया',
         checkBtn: '🔍 शासकीय योजना पात्रता तपासा',
         checking: 'योजनेच्या अटी तपासल्या जात आहेत...',
-        match: 'पात्र',
+        provisionallyEligible: 'तात्पुरते पात्र',
+        needsVerification: 'पडताळणी आवश्यक',
         notEligible: 'अपात्र',
         howToClaim: 'रुग्णालयात लाभ कसा मिळवावा:',
+        howToVerify: 'पात्रतेची पडताळणी कशी करावी:',
+        nonDeterminative: 'नोंदवले, पण निर्णयासाठी वापरले नाही (अधिकृत उत्पन्न मर्यादा नाही)',
+        officialSources: 'अधिकृत स्रोत',
         noMatches: 'दिलेल्या माहितीनुसार कोणतीही शासकीय योजना आढळली नाही.',
         criteriaEvaluated: 'या निकालासाठी तपासलेले निकष',
         criteriaNotEvaluated: 'तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा',
-        provisionalNotice: 'हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.',
+        provisionalNotice: 'हा फक्त प्राथमिक अंदाज आहे. “तपासले गेलेले नाहीत” म्हणून दिलेले निकष (उदा. SECC-2011 यादी, वय आणि कागदपत्रे) या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.',
       },
       dawacheck: {
         title: 'दवाचेक',
@@ -598,6 +694,10 @@ export const translations: Record<Language, MobileTranslations> = {
         statutoryNoticeTitle: '💡 वैधानिक ग्राहक हक्क (डीपीसीओ २०१३)',
         statutoryNoticeBody: 'औषध किंमत नियंत्रण आदेश (डीपीसीओ २०१३) आणि अत्यावश्यक वस्तू कायद्यानुसार एनपीपीए कमाल दरापेक्षा जास्त आकारणे हा गुन्हा आहे. औषध विक्रेत्यांनी विचारणा केल्यास जेनेरिक पर्याय देणे बंधनकारक आहे.',
         dataSourceNotice: 'ही तपासणी NPPA अनुसूची-१ मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.',
+        prescriptionTranslatorTitle: 'प्रिस्क्रिप्शन संक्षिप्त शब्द भाषांतरक',
+        prescriptionInputPlaceholder: 'डॉक्टरांच्या सूचना येथे चिकटवा, उदा. Tab. Dolo 650mg TDS x 5 days',
+        translateBtn: 'सूचनांचे भाषांतर करा',
+        unrecognizedNotice: 'ओळखले गेले नाही (हा प्रमाणित संक्षेप नाही): {tokens}',
       },
     },
     common: {

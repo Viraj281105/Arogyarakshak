@@ -1,10 +1,13 @@
 """
 SchemeSetu — Eligibility Trend Estimator (#70).
 
-Projects a future PMJAY/MJPJAY eligibility estimate from income data points the caller
-actually supplies (e.g. a family's declared income over the last few years), using
-ordinary least-squares linear regression against the same real, already-documented
-PMJAY (Rs 2.5L) / MJPJAY (Rs 1.5L, Maharashtra) thresholds `schemesetu.agent` uses today.
+Projects a family's income from data points the caller actually supplies (e.g. declared
+income over the last few years) using ordinary least-squares linear regression, and runs
+`schemesetu.agent.check_eligibility` on the projected figure.
+
+Neither PMJAY nor MJPJAY defines an annual income ceiling in the official sources cited in
+`schemesetu.thresholds`, so income is non-determinative: the projected income is reported
+in each result's reason but cannot change a verdict. Only the state of residence can.
 
 ArogyaRakshak has no real historical demographic dataset to draw from — no SECC-2011
 microdata, no scheme-enrolment trend data, nothing wired into any code path (see
@@ -61,8 +64,8 @@ def project_future_eligibility(
     category: str = "General",
     medical_need: str = "Not specified",
 ) -> EligibilityTrendResult:
-    """Projects income at `target_year` via linear trend and checks it against the
-    real scheme thresholds.
+    """Projects income at `target_year` via linear trend and runs the eligibility
+    rules on it (income is recorded there, never decisive).
 
     Requires at least 2 historical data points — a single point has no trend to
     project, and zero points would mean inventing one.

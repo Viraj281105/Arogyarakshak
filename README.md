@@ -77,7 +77,7 @@ flowchart TD
 | **[BillNyay](packages/billnyay)** | **Hospital Bill Audit** | **CGHS Rate Schedules** | Line-item overcharge audit report; formal overcharge dispute representation letter to hospital billing. |
 | **[DaaviSetu](packages/daavisetu)** | **Claim Application Automation** *(Pre-Claim)* | **Standard Insurer Templates** | Pre-populated cashless pre-authorization form; reimbursement claim package ready for portal submission. |
 | **[BimaNyay](packages/bimanyay)** | **Denial Disputes & Appeals** *(Post-Denial)* | **IRDAI 2024 Master Circular** | Legal audit of repudiation codes (5-yr moratorium, TAT breaches); 3-tier appeals (GRO, Bima Bharosa, Ombudsman Form VI); statutory SLA countdown tracker. |
-| **[SchemeSetu](packages/schemesetu)** | **Healthcare Scheme Advisor** | **PMJAY & MJPJAY Rules** | Income/state eligibility determination and benefit guides. *(Empanelled-hospital locator not implemented.)* |
+| **[SchemeSetu](packages/schemesetu)** | **Healthcare Scheme Advisor** | **PMJAY & MJPJAY Rules** | Provisional eligibility from cited official criteria (income is non-determinative) with verification and claim guides. *(Empanelled-hospital locator not implemented.)* |
 | **[DawaCheck](packages/dawacheck)** | **Medicine Pricing & Generics** | **NPPA Schedule-I Price Orders** | MRP overcharge detection and generic substitute guidance. *(Backed by a small in-code ceiling table, not the full NPPA list; no store map.)* |
 
 ---
@@ -99,7 +99,7 @@ To preserve maintainability, no two modules perform overlapping tasks:
 - **Backend**: [FastAPI](https://fastapi.tiangolo.com) 0.115 with asynchronous request pipeline (`uvicorn`, `asyncpg`, `pydantic-settings`).
 - **Database**: [PostgreSQL 16](https://www.postgresql.org). *(Planned: pgvector / FAISS similarity indexes — `packages/kadi/kadi/vector_store.py` is a scaffold and is not yet wired into any endpoint.)*
 - **LLM Reasoning**: [Groq Cloud](https://groq.com) high-speed inference engine (Default model: `openai/gpt-oss-120b`).
-- **Indic NLP** *(planned, not implemented)*: **IndicXlit** transliteration and **IndicSBERT** embeddings for cross-lingual entity resolution — tracked in issues #29, #30.
+- **Indic NLP**: rule-based Devanagari romanization and Indic phonetic keys for cross-script entity resolution (#89), plus **IndicSBERT** cross-lingual similarity as an optional, off-by-default signal (#30, ADR-006). **IndicXlit** is not used — its fairseq dependency has no Python 3.11 wheels (#29).
 - **Web Frontend**: [Next.js 15/16](https://nextjs.org) App Router, React 19, TypeScript, Vanilla CSS design tokens.
 - **Mobile App**: [React Native](https://reactnative.dev) with Expo and an in-app camera document capture flow. *(Edge detection / auto-cropping is not implemented.)*
 - **Containerization**: Docker Compose v2.

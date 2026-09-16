@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     # an unknown case holds a connection open forever.
     sse_timeout_seconds: int = 120
 
+    # --- Rate limiting ----------------------------------------------------------
+    # There is no authentication (see docs/architecture/decisions/ADR-008 — accepted
+    # risk for this project's scope). Without a request cap, an unauthenticated caller
+    # can enumerate CASE-xxxxxxxx ids or hammer the LLM-backed endpoints without limit.
+    # Per-client-IP fixed-window count, single process — see app/rate_limit.py.
+    rate_limit_per_minute: int = 120
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

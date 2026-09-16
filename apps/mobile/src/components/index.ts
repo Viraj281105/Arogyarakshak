@@ -4,3 +4,4 @@ export * from './Badge';
 export * from './Header';
 export * from './OfflineBanner';
 export * from './AgentStreamVisualizer';
+export * from './ResolutionReviewCard';

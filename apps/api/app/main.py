@@ -18,9 +18,20 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.database import engine, Base
 from app.api.v1.api import api_router
+from app.rate_limit import limiter
 
 logger = logging.getLogger("arogyarakshak.api")
 logging.basicConfig(level=logging.INFO)
+
+
+def redact_database_url(url: str) -> str:
+    """The connection URL with its password replaced by ***."""
+    from sqlalchemy.engine import make_url
+
+    try:
+        return make_url(url).render_as_string(hide_password=True)
+    except Exception:
+        return "<unparseable DATABASE_URL>"
 
 
 @asynccontextmanager
@@ -28,7 +39,8 @@ async def lifespan(app: FastAPI):
     """Application lifespan — runs database creation and logs startup configuration."""
     logger.info("ArogyaRakshak API starting up...")
     logger.info("GROQ_MODEL = %s", settings.groq_model)
-    logger.info("DATABASE_URL = %s", settings.database_url)
+    # The URL embeds the database password; log it masked.
+    logger.info("DATABASE_URL = %s", redact_database_url(settings.database_url))
 
     if settings.groq_api_key:
         logger.info("GROQ_API_KEY is configured — LLM-backed extraction and drafting enabled.")
@@ -79,6 +91,30 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Accept", "Authorization"],
 )
+
+
+# --- Rate Limiting Middleware ---------------------------------------------------
+# See app/rate_limit.py for why this exists (no authentication) and its scope
+# limitation (single-process, in-memory).
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    client_key = request.client.host if request.client else "unknown"
+    allowed, retry_after = limiter.check(client_key)
+    if not allowed:
+        logger.warning("Rate limit exceeded for client %s on %s", client_key, request.url.path)
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "detail": "Rate limit exceeded. Please slow down and try again shortly.",
+                "retry_after_seconds": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+    return await call_next(request)
 
 
 # --- Global Exception Handlers ------------------------------------------------

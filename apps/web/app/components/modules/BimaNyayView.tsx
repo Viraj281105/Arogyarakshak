@@ -15,6 +15,8 @@ interface RegulatoryViolation {
 interface DisputeAuditResult {
   is_wrongful_denial: boolean;
   reversal_probability_score: number;
+  /** "HEURISTIC_PRIOR_NOT_HISTORICAL": a rule prior, not a probability from past outcomes. */
+  probability_basis?: string;
   primary_dispute_grounds: string;
   regulatory_violations: RegulatoryViolation[];
   level_1_gro_appeal: string;
@@ -166,10 +168,10 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
           <div>
             <label className="input-label">{t.denialCategory}</label>
             <select className="select-field" value={denialCategory} onChange={(e) => setDenialCategory(e.target.value)}>
-              <option value="PED_NON_DISCLOSURE">Pre-Existing Disease Non-Disclosure</option>
-              <option value="ROOM_RENT_CAPPING">Room Rent Proportionate Deduction</option>
-              <option value="INVESTIGATION_ONLY">Observation / Diagnostic Hospitalization Only</option>
-              <option value="DELAYED_INTIMATION">Delayed Claim Intimation / Submission</option>
+              <option value="PED_NON_DISCLOSURE">{t.denialCategoryPedNonDisclosure}</option>
+              <option value="ROOM_RENT_CAPPING">{t.denialCategoryRoomRentCapping}</option>
+              <option value="INVESTIGATION_ONLY">{t.denialCategoryInvestigationOnly}</option>
+              <option value="DELAYED_INTIMATION">{t.denialCategoryDelayedIntimation}</option>
             </select>
           </div>
           <div>
@@ -228,6 +230,7 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
               <div className="stat-val" style={{ color: result.is_wrongful_denial ? "var(--brand-emerald)" : "var(--status-danger)" }}>
                 {(result.reversal_probability_score * 100).toFixed(0)}%
               </div>
+              <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: "0.35rem" }}>{t.heuristicDisclosure}</div>
               {result.is_wrongful_denial && (
                 <span className="badge badge-success" style={{ marginTop: "0.5rem" }}>
                   ✓ {t.wrongfulBadge}
@@ -354,10 +357,10 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <strong style={{ color: "var(--text-primary)" }}>{t.tier1Label}</strong>
-                      <span className="badge badge-info">ACTIVE</span>
+                      <span className="badge badge-info">{t.activeBadge}</span>
                     </div>
                     <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                      Formal appeal pending with {insurerName} GRO. Mandatory resolution window: 15 days.
+                      {t.tier1Desc.replace("{insurer}", insurerName || t.insurerName)}
                     </p>
                   </div>
                 </div>
@@ -365,10 +368,10 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <strong style={{ color: "var(--text-secondary)" }}>{t.tier2Label}</strong>
-                      <span className="badge" style={{ background: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>PENDING</span>
+                      <span className="badge" style={{ background: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>{t.pendingBadge}</span>
                     </div>
                     <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                      Escalate via IRDAI Bima Bharosa portal if GRO fails to resolve or rejects claim.
+                      {t.tier2Desc}
                     </p>
                   </div>
                 </div>
@@ -376,10 +379,10 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <strong style={{ color: "var(--text-secondary)" }}>{t.tier3Label}</strong>
-                      <span className="badge" style={{ background: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>PENDING</span>
+                      <span className="badge" style={{ background: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>{t.pendingBadge}</span>
                     </div>
                     <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                      Binding arbitration with Insurance Ombudsman within 1 year. Awards up to ₹50 Lakhs.
+                      {t.tier3Desc}
                     </p>
                   </div>
                 </div>

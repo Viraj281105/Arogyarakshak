@@ -48,6 +48,22 @@ def test_room_rent_illegal_deduction():
     assert result.is_wrongful_denial is True
     assert result.reversal_probability_score >= 0.85
     assert "proportionate deductions" in result.primary_dispute_grounds.lower()
+    # IRDAI/HLT/REG/CIR/194/07/2020 has no proportionate-deduction clause, so it must not be
+    # cited for one; until a provision is verified the citation is marked unverified.
+    for v in result.regulatory_violations:
+        assert "194/07/2020" not in v.statute_or_circular + v.clause_reference
+    assert any("UNVERIFIED" in v.clause_reference for v in result.regulatory_violations)
+
+
+def test_ombudsman_tier_cites_award_limit():
+    timeline = calculate_grievance_timeline(insurer_name="Star Health", date_initiated="2026-03-01")
+    instructions = timeline.timeline_events[2].instructions
+    # Rule 17(3)(ii) cap raised from thirty to fifty lakh by G.S.R. 828(E) dated 09.11.2023.
+    assert "INR 50 lakh" in instructions
+    assert "rule 17(3)(ii)" in instructions
+    assert "G.S.R. 828(E)" in instructions
+    # The Ombudsman passes an award under rule 17; it is not arbitration.
+    assert "arbitration" not in instructions.lower()
 
 
 def test_delayed_intimation_denial():

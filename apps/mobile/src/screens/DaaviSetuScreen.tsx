@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge } from '../components';
+import { Card, Button, Badge, ResolutionReviewCard } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -220,6 +220,8 @@ export const DaaviSetuScreen: React.FC = () => {
           )}
         </Card>
       )}
+
+      <ResolutionReviewCard caseId={caseId} />
     </ScrollView>
   );
 };

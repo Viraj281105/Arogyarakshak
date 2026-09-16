@@ -92,6 +92,13 @@ For the final academic and production evaluation, ArogyaRakshak measures five pr
 | **OCR Word Error Rate (WER)** | `< 8%` | Character and word error rate on noisy Devanagari and Latin doctor prescriptions and receipts. |
 | **End-to-End Audit Latency** | `< 10 sec` | Total wall-clock time from document upload to completed SSE stream. |
 
+**Status (2026-09-15):** End-to-End Audit Latency now has a working monitoring harness —
+`app/latency_metrics.py`, `GET /api/v1/kadi/metrics/latency`, and
+`scripts/evaluate_latency.py` — see [`docs/evaluation/latency.md`](../evaluation/latency.md)
+for measured results and their limitations (#116). PEA, BMA, CFMA, CRMA, and WER/CER
+remain targets with no measurement harness (#102–#115 still open); the table above states
+what this project aims for, not what has been verified for those five.
+
 ---
 
 ## 5. Adding Tests for New Features

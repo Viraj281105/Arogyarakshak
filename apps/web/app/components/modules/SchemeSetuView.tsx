@@ -5,24 +5,42 @@ import { Language, translations } from "../../translations";
 import { useApi } from "../../hooks/useApi";
 
 // --- API Response Type (matching backend SchemeResult schema) ---
+interface SchemeSource {
+  url: string;
+  document: string;
+  publisher: string;
+  date: string | null;
+}
+
 interface SchemeResult {
   scheme_name: string;
-  estimated_eligibility: string; // "eligible" | "ineligible" | "ambiguous"
-  /** Heuristic prior for the matched rule branch, not a calibrated probability. */
-  confidence_score: number;
+  estimated_eligibility: "eligible" | "ineligible" | "ambiguous";
   reason: string;
+  /** How to claim when eligible; how to verify when ambiguous. */
   claim_guide_steps: string[];
   criteria_evaluated: string[];
+  /** Recorded but never decisive: neither scheme defines an official income ceiling. */
+  non_determinative_factors: string[];
   /** Factors the engine does not check; the determination stays provisional. */
   criteria_not_evaluated: string[];
   is_provisional: boolean;
+  criteria_provenance: string;
+  sources: SchemeSource[];
+}
+
+// PUT /api/v1/schemesetu/cases/{case_id}/income-profile (#92)
+interface IncomeProfileSaveResult {
+  background_eligibility: "queued" | "not_ready" | "not_triggered";
+  missing_context: string[];
+  trigger: { status: "FIRE" | "NO_CHANGE" | "INSUFFICIENT_EVIDENCE"; income_role: string };
 }
 
 interface SchemeSetuViewProps {
   currentLang: Language;
+  caseId?: string | null;
 }
 
-export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) => {
+export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, caseId }) => {
   const t = translations[currentLang].modules.schemesetu;
   const api = useApi<SchemeResult[]>();
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -32,6 +50,9 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
   const [category, setCategory] = useState("General");
   const [medicalNeed, setMedicalNeed] = useState("");
   const [hasChecked, setHasChecked] = useState(false);
+  // Opt-in, unchecked by default: income is stored against a case only when the patient asks.
+  const [saveToCase, setSaveToCase] = useState(false);
+  const profileApi = useApi<IncomeProfileSaveResult>();
 
   const handleCheck = async () => {
     const incomeVal = parseFloat(income);
@@ -45,6 +66,12 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
         medical_need: medicalNeed,
       },
     });
+    if (caseId && saveToCase) {
+      await profileApi.execute(`/api/v1/schemesetu/cases/${encodeURIComponent(caseId)}/income-profile`, {
+        method: "PUT",
+        body: { annual_income_inr: incomeVal, state },
+      });
+    }
   };
 
   const results = api.data;
@@ -99,7 +126,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
 
         <div className="grid-2" style={{ marginBottom: "1.25rem" }}>
           <div>
-            <label className="input-label">Social Category</label>
+            <label className="input-label">{t.socialCategory}</label>
             <select
               className="select-field"
               value={category}
@@ -123,6 +150,13 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
           </div>
         </div>
 
+        {caseId && (
+          <label style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontSize: "0.85rem", marginBottom: "1rem" }}>
+            <input type="checkbox" checked={saveToCase} onChange={(e) => setSaveToCase(e.target.checked)} />
+            <span>{t.saveToCaseLabel}</span>
+          </label>
+        )}
+
         <button
           type="button"
           className="btn btn-primary"
@@ -133,6 +167,30 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
           {api.loading ? "Checking eligibility..." : `🔍 ${t.checkBtn}`}
         </button>
       </div>
+
+      {profileApi.data && (
+        <div
+          role="status"
+          style={{
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            fontSize: "0.85rem",
+          }}
+        >
+          {profileApi.data.background_eligibility === "queued"
+            ? t.savedTriggered
+            : profileApi.data.background_eligibility === "not_ready"
+            ? t.savedNotReady
+            : t.savedNoChange}
+        </div>
+      )}
+      {profileApi.error && (
+        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          ⚠️ {typeof profileApi.error === "string" ? profileApi.error : "Could not save the income profile."}
+        </div>
+      )}
 
       {/* Error State */}
       {api.error && (
@@ -158,11 +216,19 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
           <div className="grid-2">
             {results.map((scheme, idx) => {
               const isEligible = scheme.estimated_eligibility === "eligible";
-              const borderColor = isEligible ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.2)";
-              const badgeClass = isEligible ? "badge-success" : "badge-danger";
+              // "ambiguous" means the engine could not decide — never render it as "Not Eligible".
+              const isAmbiguous = scheme.estimated_eligibility === "ambiguous";
+              const borderColor = isEligible
+                ? "rgba(16, 185, 129, 0.3)"
+                : isAmbiguous
+                ? "rgba(245, 158, 11, 0.3)"
+                : "rgba(239, 68, 68, 0.2)";
+              const badgeClass = isEligible ? "badge-success" : isAmbiguous ? "badge-warning" : "badge-danger";
               const badgeText = isEligible
-                ? `${(scheme.confidence_score * 100).toFixed(0)}% Match`
-                : "Not Eligible";
+                ? t.provisionallyEligible
+                : isAmbiguous
+                ? t.verificationNeeded
+                : t.notEligible;
 
               return (
                 <div
@@ -184,9 +250,9 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
                     {scheme.reason}
                   </p>
 
-                  {isEligible && scheme.claim_guide_steps.length > 0 && (
+                  {(isEligible || isAmbiguous) && scheme.claim_guide_steps.length > 0 && (
                     <div style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
-                      <strong style={{ color: "var(--text-primary)" }}>How to Claim:</strong>
+                      <strong style={{ color: "var(--text-primary)" }}>{isEligible ? t.howToClaim : t.howToVerify}</strong>
                       <ol style={{ paddingLeft: "1.25rem", marginTop: "0.25rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
                         {scheme.claim_guide_steps.map((step, sIdx) => (
                           <li key={sIdx}>{step}</li>
@@ -216,6 +282,27 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
                           <strong>{t.criteriaEvaluated}:</strong> {scheme.criteria_evaluated.join(", ")}
                         </div>
                       )}
+                      {scheme.non_determinative_factors.length > 0 && (
+                        <div style={{ marginTop: "0.25rem", color: "var(--text-secondary)" }}>
+                          <strong>{t.nonDeterminative}:</strong> {scheme.non_determinative_factors.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {scheme.sources.length > 0 && (
+                    <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                      <strong>{t.officialSources}:</strong>
+                      <ul style={{ paddingLeft: "1.25rem", marginTop: "0.25rem", lineHeight: 1.5 }}>
+                        {scheme.sources.map((source) => (
+                          <li key={source.url}>
+                            <a href={source.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-cyan)" }}>
+                              {source.document}
+                            </a>
+                            {` — ${source.publisher}${source.date ? ` (${source.date})` : ""}`}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -268,7 +355,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang }) =
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                 <strong style={{ color: "var(--brand-cyan)", fontSize: "1.05rem" }}>Ayushman Bharat PM-JAY</strong>
-                <span className="badge badge-success">98% Match</span>
+                <span className="badge badge-warning">{t.verificationNeeded}</span>
               </div>
               <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
                 National flagship cashless secondary and tertiary hospitalization cover.

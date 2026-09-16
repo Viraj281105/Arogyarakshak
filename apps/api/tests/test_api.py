@@ -83,10 +83,15 @@ def test_schemesetu_eligibility():
     by_scheme = {s["scheme_name"].split(" ")[0]: s for s in data}
     assert set(by_scheme) == {"PMJAY", "MJPJAY"}, "Maharashtra must yield both schemes"
 
-    # 1.2L is under the 2.5L PMJAY threshold but over the 1.5L MJPJAY threshold.
-    assert by_scheme["PMJAY"]["estimated_eligibility"] == "eligible"
-    assert by_scheme["PMJAY"]["claim_guide_steps"], "eligible schemes must carry next steps"
+    # No official income ceiling exists for either scheme. PM-JAY rests on SECC-2011 listing,
+    # ASHA/AWW/AWH status or age 70+ (none collected); MJPJAY covers all Maharashtra families.
+    assert by_scheme["PMJAY"]["estimated_eligibility"] == "ambiguous"
+    assert by_scheme["PMJAY"]["claim_guide_steps"], "ambiguous schemes must say how to verify"
     assert by_scheme["MJPJAY"]["estimated_eligibility"] == "eligible"
+    for scheme in data:
+        assert "confidence_score" not in scheme, "no heuristic score may accompany a cited rule"
+        assert scheme["sources"] and all(s["url"].startswith("https://") for s in scheme["sources"])
+        assert scheme["criteria_provenance"] in {"OFFICIAL_SOURCE_CITED", "OFFICIAL_RESTATEMENT_CITED"}
 
 
 # ---------------------------------------------------------------------------
@@ -523,6 +528,39 @@ def test_billnyay_appeal_scorecard_is_well_formed():
         "hallucination_risk",
     ):
         assert 0 <= subs[key] <= 100, f"sub_score {key} out of range"
+
+
+def test_billnyay_appeal_defaults_to_english():
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    assert response.status_code == 200
+    assert response.json()["language"] == "en"
+
+
+@pytest.mark.parametrize("lang", ["hi", "mr"])
+def test_billnyay_appeal_honours_requested_language_in_offline_fallback(lang):
+    """#39: with GROQ_API_KEY unset (this test environment's default), the appeal
+    letter previously stayed English regardless of the requested language. The
+    offline fallback must now return the matching localized canned letter, and the
+    response must disclose which language was actually drafted."""
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal?language={lang}")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["language"] == lang
+    letter = data["appeal_letter"]
+    assert len(letter) > 300
+    # Devanagari script must actually be present — not an untranslated English letter
+    # with the language field merely relabelled.
+    assert any("ऀ" <= ch <= "ॿ" for ch in letter), (
+        f"Appeal letter for language={lang} contains no Devanagari text: {letter[:200]}"
+    )
+
+
+def test_billnyay_appeal_rejects_unsupported_language():
+    case_id = _case_with_document()
+    response = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal?language=fr")
+    assert response.status_code == 422
 
 
 def test_billnyay_appeal_unknown_case_returns_404():
@@ -1446,6 +1484,113 @@ def test_dawacheck_result_declares_its_provenance():
     assert data["generic_substitute_store_info"]
 
 
+def test_dawacheck_translate_instructions_expands_shorthand_in_hindi():
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "Tab. Dolo 650mg TDS x 5 days", "language": "hi"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    tokens = {i["token"].upper(): i for i in data["instructions"]}
+    assert tokens["TDS"]["recognized"] is True
+    assert tokens["TDS"]["translated"] == "दिन में तीन बार"
+    assert data["unrecognized_tokens"] == []
+
+
+def test_dawacheck_translate_instructions_flags_unrecognized_shorthand_honestly():
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "Tab. X 5mg ZZZ", "language": "en"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "ZZZ" in data["unrecognized_tokens"]
+    zzz = next(i for i in data["instructions"] if i["token"] == "ZZZ")
+    assert zzz["recognized"] is False
+    assert zzz["translated"] == ""
+
+
+def test_dawacheck_translate_instructions_rejects_unsupported_language():
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "TDS", "language": "fr"},
+    )
+    assert res.status_code == 422
+
+
+def test_dawacheck_translate_instructions_requires_no_case_consent():
+    """Request-body-only route, like /benchmark — must not require a case at all."""
+    res = client.post(
+        "/api/v1/dawacheck/translate-instructions",
+        json={"instructions": "BD", "language": "mr"},
+    )
+    assert res.status_code == 200
+
+
+def test_latency_metrics_is_empty_before_any_upload():
+    res = client.get("/api/v1/kadi/metrics/latency")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["sample_count"] == 0
+    assert data["target_seconds"] == 10.0
+
+
+def test_latency_metrics_records_a_sample_after_a_real_upload_completes():
+    """#116: proves latency is measured from an actual end-to-end run through the real
+    pipeline (upload -> OCR -> extraction -> entity resolution -> database write), not
+    a synthetic/mocked duration."""
+    _case_with_document()  # runs the real pipeline synchronously under TestClient
+
+    res = client.get("/api/v1/kadi/metrics/latency")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["sample_count"] == 1
+    assert data["p50_seconds"] is not None
+    assert data["p50_seconds"] >= 0
+    assert data["single_process_only"] is True
+
+
+def test_latency_metrics_flags_a_case_exceeding_the_10_second_target():
+    """Deterministic proof the compliance check actually fires against the endpoint's
+    real response, without waiting 10 real seconds in the test suite: records a
+    synthetic over-target sample directly on the same tracker instance the endpoint
+    reads from, then verifies GET /metrics/latency reports it as a violation."""
+    from app.api.v1.endpoints.kadi import latency_tracker
+
+    latency_tracker.record("CASE-synthetic-slow", 15.0, "completed")
+
+    res = client.get("/api/v1/kadi/metrics/latency")
+    data = res.json()
+    assert data["violations"] >= 1
+    assert data["compliance_rate"] < 1.0
+    assert data["max_seconds"] >= 15.0
+
+
+def test_latency_metrics_records_failed_outcomes_too():
+    res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
+    case_id = res_case.json()["id"]
+    # An empty/corrupt document trips the extraction_ok=False path (parse_document
+    # cannot read it), which is the "failed" terminal event this metric must also cover.
+    upload = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload",
+        files={"file": ("corrupt.pdf", b"%PDF-1.4\ncorrupted garbage not a real pdf")},
+    )
+    assert upload.status_code == 202
+
+    res = client.get("/api/v1/kadi/metrics/latency/recent")
+    assert res.status_code == 200
+    samples = res.json()
+    assert any(s["case_id"] == case_id and s["outcome"] == "failed" for s in samples)
+
+
+def test_latency_metrics_recent_endpoint_respects_limit():
+    for _ in range(3):
+        _case_with_document()
+    res = client.get("/api/v1/kadi/metrics/latency/recent?limit=2")
+    assert res.status_code == 200
+    assert len(res.json()) == 2
+
+
 def test_schemesetu_discloses_what_it_did_not_evaluate():
     """Category and medical need are collected but never used — say so."""
     res = client.post(
@@ -1460,7 +1605,8 @@ def test_schemesetu_discloses_what_it_did_not_evaluate():
     assert res.status_code == 200
     for scheme in res.json():
         assert scheme["is_provisional"] is True
-        assert "annual_income" in scheme["criteria_evaluated"]
+        assert "annual_income" in scheme["non_determinative_factors"]
+        assert "annual_income" not in scheme["criteria_evaluated"]
         assert "social_category" in scheme["criteria_not_evaluated"]
         assert "medical_need" in scheme["criteria_not_evaluated"]
 
@@ -1744,8 +1890,8 @@ def test_eligibility_reasoning_returns_verdict_and_trace():
     assert res.status_code == 200
     data = res.json()
     assert len(data["scheme_results"]) == 2
-    # Maharashtra: PMJAY income + MJPJAY state_of_residence + MJPJAY income = 3 steps.
-    assert len(data["reasoning_trace"]) == 3
+    # Maharashtra: PMJAY identification + PMJAY income + MJPJAY state + MJPJAY income = 4 steps.
+    assert len(data["reasoning_trace"]) == 4
     assert data["criteria_considered"]
     assert data["criteria_not_considered"]
 
@@ -1756,9 +1902,9 @@ def test_eligibility_reasoning_trace_matches_scheme_results():
     data = res.json()
 
     pmjay_result = next(r for r in data["scheme_results"] if "PMJAY" in r["scheme_name"])
-    pmjay_step = next(s for s in data["reasoning_trace"] if s["scheme"].startswith("PMJAY"))
-    assert pmjay_result["estimated_eligibility"] == "ineligible"
-    assert pmjay_step["satisfied"] is False
+    pmjay_steps = [s for s in data["reasoning_trace"] if s["scheme"].startswith("PMJAY")]
+    assert pmjay_result["estimated_eligibility"] == "ambiguous"
+    assert pmjay_steps and all(s["satisfied"] is None for s in pmjay_steps)
 
 
 def test_eligibility_trend_projects_future_eligibility():

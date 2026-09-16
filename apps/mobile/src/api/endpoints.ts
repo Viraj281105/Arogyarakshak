@@ -13,6 +13,12 @@ import {
   SchemeResult,
   DawaCheckBenchmarkRequest,
   DawaCheckBenchmarkResponse,
+  TranslateInstructionsRequest,
+  PrescriptionTranslationResponse,
+  IncomeProfileRequest,
+  IncomeProfileResponse,
+  ResolutionDecision,
+  ResolutionFeedbackResponse,
 } from './types';
 
 /**
@@ -44,6 +50,18 @@ export const api = {
 
     getCase: (caseId: string) =>
       apiClient.get<{ case: CaseResponse; entities: any[] }>(`/api/v1/kadi/cases/${caseId}`),
+
+    // "Are these the same?" questions Kadi could not decide on its own (#31).
+    getPendingResolutions: (caseId: string) =>
+      apiClient.get<ResolutionDecision[]>(
+        `/api/v1/kadi/cases/${encodeURIComponent(caseId)}/resolutions?status=pending`
+      ),
+
+    submitResolutionFeedback: (caseId: string, decisionId: string, sameEntity: boolean) =>
+      apiClient.post<ResolutionFeedbackResponse>(
+        `/api/v1/kadi/cases/${encodeURIComponent(caseId)}/resolutions/${encodeURIComponent(decisionId)}/feedback`,
+        { same_entity: sameEntity }
+      ),
   },
 
   // BillNyay Hospital Bill Audit
@@ -73,11 +91,20 @@ export const api = {
   schemesetu: {
     checkEligibility: (data: SchemeSetuEligibilityRequest) =>
       apiClient.post<SchemeResult[]>('/api/v1/schemesetu/eligibility', data),
+
+    // Consent-bounded: the API refuses (403) unless the case was created with consent (#92).
+    saveIncomeProfile: (caseId: string, data: IncomeProfileRequest) =>
+      apiClient.put<IncomeProfileResponse>(
+        `/api/v1/schemesetu/cases/${encodeURIComponent(caseId)}/income-profile`,
+        data
+      ),
   },
 
   // DawaCheck Medicine MRP & Generics
   dawacheck: {
     benchmark: (data: DawaCheckBenchmarkRequest) =>
       apiClient.post<DawaCheckBenchmarkResponse>('/api/v1/dawacheck/benchmark', data),
+    translateInstructions: (data: TranslateInstructionsRequest) =>
+      apiClient.post<PrescriptionTranslationResponse>('/api/v1/dawacheck/translate-instructions', data),
   },
 };

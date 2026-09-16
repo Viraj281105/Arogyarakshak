@@ -88,7 +88,7 @@ arogyarakshak/
 │   ├── billnyay/                # Hospital bill line-item audit vs CGHS benchmarks (5-agent chain)
 │   ├── daavisetu/               # Pre-claim cashless pre-authorization form filler
 │   ├── bimanyay/                # Post-denial insurance claim audit, IRDAI appeals & SLA tracker
-│   ├── schemesetu/              # PMJAY/MJPJAY RAG reasoning agent & semantic embeddings
+│   ├── schemesetu/              # PMJAY/MJPJAY rule-based eligibility & reasoning trace (no RAG/embeddings)
 │   └── dawacheck/               # NPPA Schedule-I medicine pricing & generic mapping
 ├── data/                        # Ingestion scripts & raw public government data (CGHS, NPPA, PMJAY)
 ├── docs/                        # Complete technical documentation, backlog, and ADRs

@@ -1,6 +1,6 @@
 # ArogyaRakshak API (`apps/api`)
 
-The backend service for **ArogyaRakshak**, built with **FastAPI**, **SQLAlchemy 2.0 (async)**, and **pgvector**. Exposes unified REST endpoints and real-time Server-Sent Events (SSE) streams for document auditing, scheme eligibility, and medicine pricing.
+The backend service for **ArogyaRakshak**, built with **FastAPI** and **SQLAlchemy 2.0 (async)** on PostgreSQL (the pgvector Docker image is used, but no vector features are). Exposes unified REST endpoints and real-time Server-Sent Events (SSE) streams for document auditing, scheme eligibility, and medicine pricing.
 
 ---
 

@@ -44,6 +44,7 @@ export interface Translations {
       chargedCol: string;
       cghsCol: string;
       varianceCol: string;
+      statusCol: string;
       disputeGrounds: string;
       notBenchmarked: string;
       withinBenchmark: string;
@@ -63,11 +64,16 @@ export interface Translations {
       claimedAmount: string;
       deniedAmount: string;
       denialCategory: string;
+      denialCategoryPedNonDisclosure: string;
+      denialCategoryRoomRentCapping: string;
+      denialCategoryInvestigationOnly: string;
+      denialCategoryDelayedIntimation: string;
       denialReason: string;
       diagnosis: string;
       analyzeBtn: string;
       analyzing: string;
       reversalScore: string;
+      heuristicDisclosure: string;
       wrongfulBadge: string;
       violationsTitle: string;
       groTab: string;
@@ -79,6 +85,11 @@ export interface Translations {
       tier1Label: string;
       tier2Label: string;
       tier3Label: string;
+      tier1Desc: string;
+      tier2Desc: string;
+      tier3Desc: string;
+      activeBadge: string;
+      pendingBadge: string;
     };
     daavisetu: {
       title: string;
@@ -100,6 +111,7 @@ export interface Translations {
       desc: string;
       annualIncome: string;
       state: string;
+      socialCategory: string;
       medicalNeed: string;
       checkBtn: string;
       eligibleSchemes: string;
@@ -109,6 +121,17 @@ export interface Translations {
       criteriaEvaluated: string;
       criteriaNotEvaluated: string;
       provisionalNotice: string;
+      provisionallyEligible: string;
+      verificationNeeded: string;
+      notEligible: string;
+      howToClaim: string;
+      howToVerify: string;
+      nonDeterminative: string;
+      officialSources: string;
+      saveToCaseLabel: string;
+      savedTriggered: string;
+      savedNotReady: string;
+      savedNoChange: string;
     };
     dawacheck: {
       title: string;
@@ -122,7 +145,27 @@ export interface Translations {
       statusOvercharged: string;
       statusFair: string;
       dataSourceNotice: string;
+      complianceCol: string;
+      prescriptionTranslatorTitle: string;
+      prescriptionInputPlaceholder: string;
+      translateBtn: string;
+      unrecognizedNotice: string;
+      recognizedBadge: string;
     };
+  };
+  resolution: {
+    title: string;
+    intro: string;
+    mentionLabel: string;
+    existingLabel: string;
+    confidenceLabel: string;
+    confirmBtn: string;
+    rejectBtn: string;
+    signalLexical: string;
+    signalPhonetic: string;
+    signalSemantic: string;
+    signalUnavailable: string;
+    uncalibratedNote: string;
   };
   footer: {
     disclaimer: string;
@@ -166,6 +209,20 @@ export const translations: Record<Language, Translations> = {
       stepAudit: "Saving Extracted Entities",
       stepComplete: "Extraction Complete — Ready for Module Audit",
     },
+    resolution: {
+      title: "Please confirm possible duplicates",
+      intro: "Kadi found entries in your documents that may refer to the same thing. Nothing is merged until you confirm.",
+      mentionLabel: "New entry",
+      existingLabel: "Already in this case",
+      confidenceLabel: "Match score",
+      confirmBtn: "Same — merge",
+      rejectBtn: "Different — keep both",
+      signalLexical: "Spelling similarity",
+      signalPhonetic: "Sound-alike (across scripts)",
+      signalSemantic: "Meaning similarity",
+      signalUnavailable: "not available",
+      uncalibratedNote: "Match scores are similarity estimates, not probabilities.",
+    },
     modules: {
       billnyay: {
         title: "BillNyay — Hospital Bill Forensic Audit",
@@ -178,6 +235,7 @@ export const translations: Record<Language, Translations> = {
         chargedCol: "Hospital Charged",
         cghsCol: "Statutory Benchmark",
         varianceCol: "Excess Surcharge",
+        statusCol: "Audit Status",
         disputeGrounds: "Dispute Grounds: Overcharging violates Supreme Court Consumer Protection precedents and standardized CGHS tariff guidelines.",
         notBenchmarked: "No CGHS benchmark",
         withinBenchmark: "Within Benchmark",
@@ -197,11 +255,16 @@ export const translations: Record<Language, Translations> = {
         claimedAmount: "Total Claimed (₹)",
         deniedAmount: "Disallowed / Denied (₹)",
         denialCategory: "Denial Category",
+        denialCategoryPedNonDisclosure: "Pre-Existing Disease Non-Disclosure",
+        denialCategoryRoomRentCapping: "Room Rent Proportionate Deduction",
+        denialCategoryInvestigationOnly: "Observation / Diagnostic Hospitalization Only",
+        denialCategoryDelayedIntimation: "Delayed Claim Intimation / Submission",
         denialReason: "Repudiation Reason Quoted by Insurer",
         diagnosis: "Primary Clinical Diagnosis",
         analyzeBtn: "Audit Denial Grounds & Draft Appeals",
         analyzing: "Auditing Clauses against IRDAI Mandates...",
         reversalScore: "Reversal Likelihood Probability",
+        heuristicDisclosure: "Rule-based estimate for this denial category — not derived from historical dispute outcomes.",
         wrongfulBadge: "Wrongful Repudiation Ground Detected",
         violationsTitle: "Statutory & Regulatory Violations",
         groTab: "Tier 1: Insurer GRO Appeal",
@@ -213,6 +276,11 @@ export const translations: Record<Language, Translations> = {
         tier1Label: "Tier 1 (GRO): 15-Day Resolution Window",
         tier2Label: "Tier 2 (Bima Bharosa): 15-Day Regulatory Escalation",
         tier3Label: "Tier 3 (Ombudsman): 365-Day Limitation Period",
+        tier1Desc: "Formal appeal pending with {insurer} GRO. Mandatory resolution window: 15 days.",
+        tier2Desc: "Escalate via IRDAI Bima Bharosa portal if GRO fails to resolve or rejects claim.",
+        tier3Desc: "Complaint to Insurance Ombudsman within 1 year (Ombudsman Rules 2017, r.14(3)(b)). Award binding on insurer; capped at ₹50 lakh incl. expenses (r.17(3)(ii), as amended by G.S.R. 828(E), 09.11.2023).",
+        activeBadge: "ACTIVE",
+        pendingBadge: "PENDING",
       },
       daavisetu: {
         title: "DaaviSetu — Cashless Pre-Authorization Automation",
@@ -234,6 +302,7 @@ export const translations: Record<Language, Translations> = {
         desc: "Intelligent eligibility assessment across Ayushman Bharat PM-JAY and State healthcare programs.",
         annualIncome: "Annual Family Income (₹)",
         state: "Domicile State",
+        socialCategory: "Social Category",
         medicalNeed: "Required Medical Procedure / Specialty",
         checkBtn: "Check Scheme Eligibility",
         eligibleSchemes: "Eligible Government Health Schemes",
@@ -242,7 +311,18 @@ export const translations: Record<Language, Translations> = {
         maxCoverage: "Maximum Financial Protection",
         criteriaEvaluated: "Evaluated for this result",
         criteriaNotEvaluated: "NOT evaluated — verify with official records",
-        provisionalNotice: "Provisional estimate only. Social category, medical need, SECC-2011 deprivation status and ration card type are not yet checked by this tool, so this is not a final eligibility decision.",
+        provisionalNotice: "Provisional estimate only. The criteria listed as not evaluated (such as SECC-2011 listing, age and documents) are not checked by this tool, so this is not a final eligibility decision.",
+        provisionallyEligible: "Provisionally eligible",
+        verificationNeeded: "Verification needed",
+        notEligible: "Not eligible",
+        howToClaim: "How to Claim:",
+        howToVerify: "How to verify:",
+        nonDeterminative: "Recorded but not used to decide (no official income ceiling)",
+        officialSources: "Official sources",
+        saveToCaseLabel: "Save my annual income and state to this case so eligibility is re-checked when new documents arrive (optional)",
+        savedTriggered: "Saved. A scheme now applies to this case — an eligibility check is running.",
+        savedNotReady: "Saved. Upload a bill or discharge summary with a diagnosis or procedure to run the scheme check.",
+        savedNoChange: "Saved. The same schemes apply as before, and a change in income alone does not change eligibility, so no new check was needed.",
       },
       dawacheck: {
         title: "DawaCheck — NPPA Ceiling Price Benchmark",
@@ -256,6 +336,12 @@ export const translations: Record<Language, Translations> = {
         statusOvercharged: "Overcharged vs Statutory Cap",
         statusFair: "Compliant with NPPA Cap",
         dataSourceNotice: "Checked against a curated subset of {count} NPPA Schedule-I formulations, not the full national list. A medicine absent from this tool is not confirmed uncontrolled.",
+        complianceCol: "Compliance Status",
+        prescriptionTranslatorTitle: "Prescription Shorthand Translator",
+        prescriptionInputPlaceholder: "Paste doctor's instructions, e.g. Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: "Translate Instructions",
+        unrecognizedNotice: "Not recognized (not a standard abbreviation this tool knows): {tokens}",
+        recognizedBadge: "Recognized",
       },
     },
     footer: {
@@ -298,6 +384,20 @@ export const translations: Record<Language, Translations> = {
       stepAudit: "निकाली गई एंटिटी सहेजी जा रही हैं",
       stepComplete: "निष्कर्षण पूर्ण — मॉड्यूल ऑडिट के लिए तैयार",
     },
+    resolution: {
+      title: "संभावित दोहराव की पुष्टि करें",
+      intro: "Kadi को आपके दस्तावेज़ों में ऐसी प्रविष्टियाँ मिलीं जो एक ही चीज़ हो सकती हैं। आपकी पुष्टि के बिना कुछ भी मिलाया नहीं जाता।",
+      mentionLabel: "नई प्रविष्टि",
+      existingLabel: "इस केस में पहले से",
+      confidenceLabel: "मिलान स्कोर",
+      confirmBtn: "एक ही हैं — मिलाएँ",
+      rejectBtn: "अलग हैं — दोनों रखें",
+      signalLexical: "वर्तनी समानता",
+      signalPhonetic: "उच्चारण समानता (लिपियों के पार)",
+      signalSemantic: "अर्थ समानता",
+      signalUnavailable: "उपलब्ध नहीं",
+      uncalibratedNote: "मिलान स्कोर समानता का अनुमान है, संभावना नहीं।",
+    },
     modules: {
       billnyay: {
         title: "बिलन्याय — अस्पताल बिल फॉरेन्सिक ऑडिट",
@@ -310,6 +410,7 @@ export const translations: Record<Language, Translations> = {
         chargedCol: "अस्पताल शुल्क",
         cghsCol: "मानक दर",
         varianceCol: "अतिरिक्त राशि",
+        statusCol: "लेखा-परीक्षा स्थिति",
         disputeGrounds: "आपत्ति का आधार: अत्यधिक शुल्क सर्वोच्च न्यायालय के उपभोक्ता संरक्षण निर्णयों और CGHS नियमों का उल्लंघन करता है।",
         notBenchmarked: "कोई CGHS मानक नहीं",
         withinBenchmark: "मानक के भीतर",
@@ -329,11 +430,16 @@ export const translations: Record<Language, Translations> = {
         claimedAmount: "कुल दावा राशि (₹)",
         deniedAmount: "अस्वीकृत / काटी गई राशि (₹)",
         denialCategory: "अस्वीकृति श्रेणी",
+        denialCategoryPedNonDisclosure: "पूर्व-मौजूदा बीमारी की जानकारी न देना",
+        denialCategoryRoomRentCapping: "कमरे के किराए की आनुपातिक कटौती",
+        denialCategoryInvestigationOnly: "केवल जांच / निदान हेतु अस्पताल में भर्ती",
+        denialCategoryDelayedIntimation: "दावे की देर से सूचना / प्रस्तुति",
         denialReason: "कंपनी द्वारा दिया गया कारण",
         diagnosis: "मुख्य बीमारी / निदान",
         analyzeBtn: "अस्वीकृति की विधिक जांच करें व अपील ड्राफ्ट करें",
         analyzing: "IRDAI नियमों के आधार पर जांच जारी...",
         reversalScore: "दावा पुनः स्वीकृत होने की संभावना",
+        heuristicDisclosure: "इस अस्वीकृति श्रेणी के लिए नियम-आधारित अनुमान — पिछले विवादों के वास्तविक परिणामों पर आधारित नहीं।",
         wrongfulBadge: "अनुचित अस्वीकृति का ठोस आधार पाया गया",
         violationsTitle: "संवैधानिक एवं विनियामक उल्लंघन",
         groTab: "स्तर 1: कंपनी GRO अपील पत्र",
@@ -345,6 +451,11 @@ export const translations: Record<Language, Translations> = {
         tier1Label: "स्तर 1 (GRO): 15-दिन समाधान विंडो",
         tier2Label: "स्तर 2 (बीमा भरोसा): 15-दिन विनियामक एस्केलेशन",
         tier3Label: "स्तर 3 (लोकपाल): 365-दिन परिसीमा अवधि",
+        tier1Desc: "{insurer} GRO के समक्ष औपचारिक अपील लंबित है। अनिवार्य समाधान अवधि: 15 दिन।",
+        tier2Desc: "यदि GRO समाधान नहीं करता या दावा अस्वीकार करता है, तो IRDAI बीमा भरोसा पोर्टल के माध्यम से आगे बढ़ाएं।",
+        tier3Desc: "1 वर्ष के भीतर बीमा लोकपाल को शिकायत करें (लोकपाल नियम 2017, नियम 14(3)(b))। निर्णय बीमा कंपनी पर बाध्यकारी; खर्च सहित अधिकतम ₹50 लाख तक सीमित (नियम 17(3)(ii), G.S.R. 828(E), दिनांक 09.11.2023 द्वारा संशोधित)।",
+        activeBadge: "सक्रिय",
+        pendingBadge: "लंबित",
       },
       daavisetu: {
         title: "दावेसेतु — कैशलेस प्री-ऑथराइजेशन ऑटोमेशन",
@@ -366,6 +477,7 @@ export const translations: Record<Language, Translations> = {
         desc: "आयुष्मान भारत PM-JAY एवं राज्य स्तरीय स्वास्थ्य योजनाओं में पात्रता की त्वरित जांच।",
         annualIncome: "वार्षिक पारिवारिक आय (₹)",
         state: "मूल निवासी राज्य",
+        socialCategory: "सामाजिक वर्ग",
         medicalNeed: "चिकित्सीय उपचार की आवश्यकता",
         checkBtn: "पात्रता जांचें",
         eligibleSchemes: "पात्र सरकारी योजनाएं",
@@ -374,7 +486,18 @@ export const translations: Record<Language, Translations> = {
         maxCoverage: "अधिकतम वित्तीय सुरक्षा",
         criteriaEvaluated: "इस परिणाम हेतु जाँचे गए आधार",
         criteriaNotEvaluated: "जाँचे नहीं गए — आधिकारिक रिकॉर्ड से पुष्टि करें",
-        provisionalNotice: "यह केवल एक अस्थायी अनुमान है। सामाजिक श्रेणी, चिकित्सीय आवश्यकता, SECC-2011 वंचन स्थिति और राशन कार्ड प्रकार की जांच अभी इस टूल द्वारा नहीं की जाती, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
+        provisionalNotice: "यह केवल एक अस्थायी अनुमान है। “जाँचे नहीं गए” के रूप में सूचीबद्ध मानदंड (जैसे SECC-2011 सूची, आयु और दस्तावेज़) इस टूल द्वारा नहीं जाँचे जाते, इसलिए यह अंतिम पात्रता निर्णय नहीं है।",
+        provisionallyEligible: "अस्थायी रूप से पात्र",
+        verificationNeeded: "पुष्टि आवश्यक",
+        notEligible: "पात्र नहीं",
+        howToClaim: "लाभ कैसे प्राप्त करें:",
+        howToVerify: "पात्रता की पुष्टि कैसे करें:",
+        nonDeterminative: "दर्ज किया गया, पर निर्णय में उपयोग नहीं (कोई आधिकारिक आय-सीमा नहीं)",
+        officialSources: "आधिकारिक स्रोत",
+        saveToCaseLabel: "मेरी वार्षिक आय और राज्य इस केस में सहेजें ताकि नए दस्तावेज़ आने पर पात्रता दोबारा जाँची जा सके (वैकल्पिक)",
+        savedTriggered: "सहेजा गया। इस केस पर अब एक योजना लागू होती है — पात्रता जाँच चल रही है।",
+        savedNotReady: "सहेजा गया। योजना जाँच के लिए निदान या प्रक्रिया वाला बिल या डिस्चार्ज सारांश अपलोड करें।",
+        savedNoChange: "सहेजा गया। पहले जैसी ही योजनाएं लागू होती हैं, और केवल आय बदलने से पात्रता नहीं बदलती, इसलिए नई जाँच की ज़रूरत नहीं थी।",
       },
       dawacheck: {
         title: "दवाचेक — NPPA अधिकतम मूल्य जांच",
@@ -388,6 +511,12 @@ export const translations: Record<Language, Translations> = {
         statusOvercharged: "अधिकतम सीमा से अधिक वसूला गया",
         statusFair: "NPPA नियमों के अनुसार उचित",
         dataSourceNotice: "यह जांच NPPA शेड्यूल-I की {count} चयनित औषधियों की सूची पर आधारित है, पूरी राष्ट्रीय सूची पर नहीं। इस सूची में न होने का अर्थ यह नहीं कि दवा मूल्य-नियंत्रण से मुक्त है।",
+        complianceCol: "अनुपालन स्थिति",
+        prescriptionTranslatorTitle: "पर्ची संक्षिप्त शब्द अनुवादक",
+        prescriptionInputPlaceholder: "डॉक्टर के निर्देश यहाँ चिपकाएँ, जैसे Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: "निर्देश अनुवाद करें",
+        unrecognizedNotice: "पहचान नहीं हुई (यह मानक संक्षिप्त शब्द नहीं है): {tokens}",
+        recognizedBadge: "पहचाना गया",
       },
     },
     footer: {
@@ -430,6 +559,20 @@ export const translations: Record<Language, Translations> = {
       stepAudit: "काढलेली माहिती जतन करत आहे",
       stepComplete: "निष्कर्षण पूर्ण — मॉड्यूल ऑडिटसाठी सज्ज",
     },
+    resolution: {
+      title: "संभाव्य दुहेरी नोंदींची खात्री करा",
+      intro: "Kadi ला तुमच्या कागदपत्रांमध्ये अशा नोंदी सापडल्या ज्या एकाच गोष्टीबद्दल असू शकतात. तुमच्या खात्रीशिवाय काहीही एकत्र केले जात नाही.",
+      mentionLabel: "नवीन नोंद",
+      existingLabel: "या केसमध्ये आधीपासून",
+      confidenceLabel: "जुळणी गुण",
+      confirmBtn: "एकच आहेत — एकत्र करा",
+      rejectBtn: "वेगळे आहेत — दोन्ही ठेवा",
+      signalLexical: "स्पेलिंग साम्य",
+      signalPhonetic: "उच्चार साम्य (लिपींच्या पलीकडे)",
+      signalSemantic: "अर्थ साम्य",
+      signalUnavailable: "उपलब्ध नाही",
+      uncalibratedNote: "जुळणी गुण हे साम्याचा अंदाज आहेत, संभाव्यता नाही.",
+    },
     modules: {
       billnyay: {
         title: "बिलन्याय — रुग्णालय बिल फॉरेन्सिक ऑडिट",
@@ -442,6 +585,7 @@ export const translations: Record<Language, Translations> = {
         chargedCol: "हॉस्पिटल शुल्क",
         cghsCol: "शासकीय दर",
         varianceCol: "अतिरिक्त रक्कम",
+        statusCol: "लेखापरीक्षा स्थिती",
         disputeGrounds: "तक्रारीचा आधार: जास्त दर आकारणी सर्वोच्च न्यायालयाच्या ग्राहक संरक्षण नियमांचा व CGHS दरांचा भंग करते.",
         notBenchmarked: "CGHS मानक उपलब्ध नाही",
         withinBenchmark: "मानकाच्या आत",
@@ -461,11 +605,16 @@ export const translations: Record<Language, Translations> = {
         claimedAmount: "एकूण दावा रक्कम (₹)",
         deniedAmount: "नाकारलेली / कपात केलेली रक्कम (₹)",
         denialCategory: "नकाराचा प्रकार",
+        denialCategoryPedNonDisclosure: "आधीच्या आजाराची माहिती न दिल्याने नकार",
+        denialCategoryRoomRentCapping: "खोलीच्या भाड्याची प्रमाणशीर कपात",
+        denialCategoryInvestigationOnly: "केवळ तपासणी / निदानासाठी रुग्णालयात दाखल",
+        denialCategoryDelayedIntimation: "दाव्याची उशिरा सूचना / सादरीकरण",
         denialReason: "विमा कंपनीने दिलेले कारण",
         diagnosis: "मुख्य आजार / निदान",
         analyzeBtn: "नकाराची कायदेशीर तपासणी करा व अपील ड्राफ्ट मिळवा",
         analyzing: "IRDAI नियमांनुसार तपासणी सुरू आहे...",
         reversalScore: "दावा मंजूर होण्याची शक्यता",
+        heuristicDisclosure: "या नाकारण्याच्या प्रकारासाठी नियमांवर आधारित अंदाज — मागील वादांच्या प्रत्यक्ष निकालांवर आधारित नाही.",
         wrongfulBadge: "विमा कंपनीचा नकार बेकायदेशीर असल्याचा पुरावा",
         violationsTitle: "कायदेशीर व विनियामक नियमभंग",
         groTab: "स्तर 1: विमा कंपनी GRO कडे अपील",
@@ -477,6 +626,11 @@ export const translations: Record<Language, Translations> = {
         tier1Label: "स्तर 1 (GRO): 15-दिवस मुदत",
         tier2Label: "स्तर 2 (विमा भरोसा): 15-दिवस एस्केलेशन",
         tier3Label: "स्तर 3 (लोकपाल): 365-दिवस मुदत",
+        tier1Desc: "{insurer} GRO कडे औपचारिक अपील प्रलंबित आहे. अनिवार्य निराकरण कालावधी: 15 दिवस.",
+        tier2Desc: "GRO ने निराकरण न केल्यास किंवा दावा नाकारल्यास IRDAI विमा भरोसा पोर्टलद्वारे पुढे न्या.",
+        tier3Desc: "1 वर्षाच्या आत विमा लोकपालकडे तक्रार करा (लोकपाल नियम 2017, नियम 14(3)(b)). निर्णय विमा कंपनीवर बंधनकारक; खर्चासह जास्तीत जास्त ₹50 लाखांपर्यंत मर्यादित (नियम 17(3)(ii), G.S.R. 828(E), दिनांक 09.11.2023 नुसार सुधारित).",
+        activeBadge: "सक्रिय",
+        pendingBadge: "प्रलंबित",
       },
       daavisetu: {
         title: "दावेसेतु — कॅशलेस प्री-ऑथरायझेशन ऑटोमेशन",
@@ -498,6 +652,7 @@ export const translations: Record<Language, Translations> = {
         desc: "आयुष्मान भारत PM-JAY आणि महात्मा ज्योतिराव फुले जन आरोग्य योजनेतील (MJPJAY) पात्रता तपासणी.",
         annualIncome: "वार्षिक कौटुंबिक उत्पन्न (₹)",
         state: "राज्य",
+        socialCategory: "सामाजिक प्रवर्ग",
         medicalNeed: "आवश्यक वैद्यकीय उपचार",
         checkBtn: "पात्रता तपासा",
         eligibleSchemes: "पात्र शासकीय योजना",
@@ -506,7 +661,18 @@ export const translations: Record<Language, Translations> = {
         maxCoverage: "कमाल आर्थिक संरक्षण",
         criteriaEvaluated: "या निकालासाठी तपासलेले निकष",
         criteriaNotEvaluated: "तपासले गेलेले नाहीत — अधिकृत नोंदींद्वारे पडताळणी करा",
-        provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. सामाजिक प्रवर्ग, वैद्यकीय गरज, SECC-2011 वंचितता स्थिती आणि रेशन कार्ड प्रकार अद्याप या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
+        provisionalNotice: "हा फक्त प्राथमिक अंदाज आहे. “तपासले गेलेले नाहीत” म्हणून दिलेले निकष (उदा. SECC-2011 यादी, वय आणि कागदपत्रे) या साधनाद्वारे तपासले जात नाहीत, त्यामुळे हा अंतिम पात्रता निर्णय नाही.",
+        provisionallyEligible: "तात्पुरते पात्र",
+        verificationNeeded: "पडताळणी आवश्यक",
+        notEligible: "अपात्र",
+        howToClaim: "लाभ कसा मिळवावा:",
+        howToVerify: "पात्रतेची पडताळणी कशी करावी:",
+        nonDeterminative: "नोंदवले, पण निर्णयासाठी वापरले नाही (अधिकृत उत्पन्न मर्यादा नाही)",
+        officialSources: "अधिकृत स्रोत",
+        saveToCaseLabel: "नवीन कागदपत्रे आल्यावर पात्रता पुन्हा तपासता यावी म्हणून माझे वार्षिक उत्पन्न आणि राज्य या केसमध्ये जतन करा (ऐच्छिक)",
+        savedTriggered: "जतन केले. या केसला आता एक योजना लागू होते — पात्रता तपासणी सुरू आहे.",
+        savedNotReady: "जतन केले. योजना तपासणीसाठी निदान किंवा प्रक्रिया असलेले बिल किंवा डिस्चार्ज सारांश अपलोड करा.",
+        savedNoChange: "जतन केले. पूर्वीप्रमाणेच योजना लागू होतात, आणि केवळ उत्पन्न बदलल्याने पात्रता बदलत नाही, त्यामुळे नवीन तपासणीची गरज नव्हती.",
       },
       dawacheck: {
         title: "दवाचेक — NPPA औषध कमाल दर तपासणी",
@@ -520,6 +686,12 @@ export const translations: Record<Language, Translations> = {
         statusOvercharged: "शासकीय कमाल दरापेक्षा जास्त आकारणी",
         statusFair: "NPPA नियमानुसार योग्य दर",
         dataSourceNotice: "ही तपासणी NPPA शेड्यूल-I मधील निवडक {count} औषधांच्या यादीवर आधारित आहे, संपूर्ण राष्ट्रीय यादीवर नाही. या यादीत नसणे म्हणजे औषध किंमत-नियंत्रणमुक्त आहे असे नाही.",
+        complianceCol: "अनुपालन स्थिती",
+        prescriptionTranslatorTitle: "प्रिस्क्रिप्शन संक्षिप्त शब्द भाषांतरक",
+        prescriptionInputPlaceholder: "डॉक्टरांच्या सूचना येथे चिकटवा, उदा. Tab. Dolo 650mg TDS x 5 days",
+        translateBtn: "सूचनांचे भाषांतर करा",
+        unrecognizedNotice: "ओळखले गेले नाही (हा प्रमाणित संक्षेप नाही): {tokens}",
+        recognizedBadge: "ओळखले गेले",
       },
     },
     footer: {

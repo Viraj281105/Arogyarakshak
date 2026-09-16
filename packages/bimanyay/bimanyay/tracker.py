@@ -74,12 +74,16 @@ def calculate_grievance_timeline(
         ),
         GrievanceTimelineEvent(
             tier="LEVEL_3_OMBUDSMAN",
-            title="Tier 3: Insurance Ombudsman Form VI Filing",
+            title="Tier 3: Insurance Ombudsman Complaint",
             deadline_date=ombudsman_deadline.isoformat(),
             status=determine_status(ombudsman_deadline, "LEVEL_3_OMBUDSMAN"),
+            # Rule citations verified 2026-09-13 against the CIO consolidated text
+            # (cioins.co.in, "as amended till 09.11.2023") and G.S.R. 828(E).
             instructions=(
-                "File Form VI with the jurisdictional Insurance Ombudsman within 1 year of claim repudiation. "
-                "The Ombudsman offers binding arbitration with awards enforceable up to INR 50 Lakhs."
+                "File a written or online complaint with the jurisdictional Insurance Ombudsman within one year "
+                "of the insurer's rejection or unsatisfactory reply (Insurance Ombudsman Rules, 2017, rule 14(3)(b)). "
+                "The award is binding on the insurer (rule 17(8)) and cannot exceed INR 50 lakh including relevant "
+                "expenses (rule 17(3)(ii), as amended by G.S.R. 828(E) dated 09.11.2023)."
             )
         )
     ]

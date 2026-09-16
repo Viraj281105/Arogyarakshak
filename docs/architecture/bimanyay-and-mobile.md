@@ -41,7 +41,7 @@ To preserve architectural clarity and modular cohesion across the project, each 
 
 | Module | What It OWNS (Exclusive Scope) | What It DOES NOT DO (Explicit Out-of-Scope) | Harmony Contract (Handoff via Kadi) |
 |---|---|---|---|
-| **Kadi** | Shared entity extraction, edit-distance/token-overlap resolution (cross-script IndicXlit + IndicSBERT matching planned, not implemented), case context persistence, consent boundaries. | No domain auditing, no legal rules, no pricing benchmarks, no UI forms. | Provides clean, normalized JSON entities to all downstream modules. |
+| **Kadi** | Shared entity extraction, entity resolution (edit distance/token overlap, rule-based cross-script phonetics, optional IndicSBERT; IndicXlit not used — ADR-006), case context persistence, consent boundaries. | No domain auditing, no legal rules, no pricing benchmarks, no UI forms. | Provides clean, normalized JSON entities to all downstream modules. |
 | **BillNyay** | Hospital bill line-item audit vs **CGHS benchmark rates**, billing anomaly heuristics (ICD-10 vs procedure), overcharge representation to hospital management. | Does not touch insurance repudiation letters, does not draft IRDAI appeals, does not check medicine MRPs. | Writes extracted hospital line items & procedure codes to Kadi for use by DaaviSetu and BimaNyay. |
 | **DaaviSetu** | **Pre-claim application**: pre-populating blank cashless pre-authorization and reimbursement claim forms for major private insurers. | Does not handle claim disputes, does not appeal denials, does not audit hospital rates or scheme eligibility. | Reads patient diagnosis and bill totals from Kadi to generate submission-ready initial claim forms. |
 | **BimaNyay** | **Post-denial dispute**: auditing insurer claim repudiations & deductions against **IRDAI regulations**, drafting 3-tier statutory appeals (GRO, Bima Bharosa, Ombudsman), SLA tracking. | Does not audit hospital bills against CGHS rates (leaves to BillNyay), does not fill pre-auth forms (leaves to DaaviSetu). | Reads hospital bill context and patient records from Kadi to build an evidence-backed dispute dossier. |
@@ -64,7 +64,7 @@ flowchart TD
     F -->|"IRDAI Token Generated - 15 Day Window"| G{"Resolution by Insurer?"}
     G -->|"Yes - Settled"| E
     G -->|"Unresolved / Rejected"| H["Tier 3: Insurance Ombudsman (CIO)"]
-    H -->|"Filing within 1 Year | Up to ₹50 Lakhs"| I["Ombudsman Hearing & Binding Award (30 Days)"]
+    H -->|"Filing within 1 Year | Award cap ₹50 lakh (Rule 17(3)(ii))"| I["Ombudsman Hearing & Binding Award (30 Days)"]
     H -->|"If award unacceptable to policyholder"| J["Consumer Forum (DCDRC / SCDRC)"]
 ```
 
@@ -85,11 +85,11 @@ flowchart TD
 
 #### Tier 3: Council for Insurance Ombudsmen (CIO)
 - **Portal**: [https://cioins.co.in](https://cioins.co.in)
-- **Authority**: Established under the **Insurance Ombudsman Rules, 2017** (amended 2021).
+- **Authority**: Established under the **Insurance Ombudsman Rules, 2017**, as amended up to G.S.R. 828(E) dated 09.11.2023 ([CIO: Insurance Ombudsman Rules](https://www.cioins.co.in/OmbudsmanRules2017)).
 - **Eligibility & Constraints**:
   - Complainant must have first approached the insurer GRO.
   - Complaint must be lodged within **1 year** of receiving the insurer's final rejection or 1 month after GRO non-response.
-  - Total claim dispute amount (claim + expenses) cannot exceed **₹50 Lakhs**.
+  - The Ombudsman cannot award compensation exceeding **₹50 lakh** (including relevant expenses) — Rule 17(3)(ii); the cap was raised from ₹30 lakh by G.S.R. 828(E) dated 09.11.2023.
   - No simultaneous petition pending in civil court or consumer forum.
 - **Cost**: **100% Free** for policyholders.
 - **Outcome**: The Ombudsman award is **fully legally binding on the insurance company** within 30 days. However, the policyholder is not bound; if dissatisfied, they can still approach the Consumer Commission.

@@ -80,7 +80,9 @@ jobs:
           # -c pins EasyOCR's transitive torch/torchvision to the CPU-only build — see
           # apps/api/constraints-cpu.txt. Without it this installs the default CUDA
           # wheel (~2.8 GB of unused nvidia-*/triton packages on a GPU-less runner).
-          pip install -c apps/api/constraints-cpu.txt -e packages/kadi
+          # [semantic] = sentence-transformers for the optional IndicSBERT signal (#30). Tests
+          # mock the encoder; installing the extra proves it resolves under the CPU pins.
+          pip install -c apps/api/constraints-cpu.txt -e "packages/kadi[semantic]"
           pip install -c apps/api/constraints-cpu.txt -e packages/billnyay
           pip install -c apps/api/constraints-cpu.txt -e packages/daavisetu
           pip install -c apps/api/constraints-cpu.txt -e packages/bimanyay
