@@ -30,8 +30,16 @@ def format_clinical_evidence(ev: Any) -> str:
         for it in items:
             title = getattr(it, "article_title", None) or it.get("article_title", "Clinical Finding")
             summary = getattr(it, "summary_of_finding", None) or it.get("summary_of_finding", "")
-            pmid = getattr(it, "pubmed_id", None) or it.get("pubmed_id", "N/A")
-            lines.append(f"- {title}: {summary} ({pmid})")
+            # P1-7: pubmed_id is never fabricated (clinician.py strips any LLM-provided
+            # value) — when present it is a genuine citation and rendered as one; when
+            # absent, the line must never carry a parenthetical that could be mistaken
+            # for one (a bare "(N/A)" after a clinical claim still reads like a citation
+            # placeholder in a legal letter).
+            pmid = getattr(it, "pubmed_id", None) or (it.get("pubmed_id") if isinstance(it, dict) else None)
+            if pmid:
+                lines.append(f"- {title}: {summary} ({pmid})")
+            else:
+                lines.append(f"- {title}: {summary}")
         return "\n".join(lines)
     except Exception as e:
         logger.error(f"Failed to format clinical evidence: {e}")

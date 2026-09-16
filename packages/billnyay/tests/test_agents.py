@@ -227,6 +227,10 @@ def test_run_clinician_agent_parses_valid_json():
     result = run_clinician_agent(MockLLMClient(response_text=payload), denial_details=_denial())
     assert isinstance(result, EvidenceList)
     assert result.root[0].article_title == "Guideline A"
+    # P1-7: even a well-formed LLM response asserting a pubmed_id must not have it
+    # survive — this system has no real PubMed/NCBI lookup, so any pubmed_id an LLM
+    # returns is an unverifiable, likely-fabricated identifier and is always discarded.
+    assert result.root[0].pubmed_id is None
 
 
 def test_run_clinician_agent_falls_back_on_garbage():
@@ -235,6 +239,9 @@ def test_run_clinician_agent_falls_back_on_garbage():
     assert isinstance(result, EvidenceList)
     assert len(result.root) >= 1
     assert "Laparoscopic Appendectomy" in result.root[0].article_title
+    # P1-7: the fallback used to hardcode a fake "PMID:38291045" into every default
+    # response — must never present a fabricated citation as real evidence.
+    assert result.root[0].pubmed_id is None
 
 
 def test_run_regulatory_agent_returns_statutes():

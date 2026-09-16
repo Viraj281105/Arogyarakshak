@@ -266,17 +266,25 @@ _FALLBACK_CLINICAL_JSON = json.dumps(
                 "article_title": "Clinical Standard of Care for Inpatient Hospitalisation",
                 "summary_of_finding": (
                     "Established clinical guidelines support inpatient admission where an active "
-                    "line of treatment and continuous monitoring are documented."
+                    "line of treatment and continuous monitoring are documented. General clinical "
+                    "reasoning — not a cited source."
                 ),
-                "pubmed_id": "PMID:38291045",
+                # P1-7: was a hardcoded fake PMID presented as a real citation in every
+                # offline-mode appeal letter. This system has no PubMed/NCBI lookup, so
+                # an invented identifier here is exactly the kind of fabricated,
+                # checkable-looking fact the no-fabrication principle forbids. Null,
+                # always — clinician.py's _strip_unverifiable_citations() also strips
+                # this defensively even if a future edit reintroduces a value here.
+                "pubmed_id": None,
             },
             {
                 "article_title": "Medical Necessity Determination in Acute Care Admissions",
                 "summary_of_finding": (
                     "Treating-physician documentation of an active line of treatment is the accepted "
-                    "determinant of medical necessity for inpatient care."
+                    "determinant of medical necessity for inpatient care. General clinical reasoning "
+                    "— not a cited source."
                 ),
-                "pubmed_id": "PMID:37554120",
+                "pubmed_id": None,
             },
         ]
     }
