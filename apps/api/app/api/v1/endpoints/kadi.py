@@ -395,12 +395,19 @@ async def process_document_background(
             # pipeline reads this to recover denial codes, insurer reasons and policy
             # clauses, so it cannot be dropped — but it must not retain the patient's
             # name, contact details or government IDs.
+            excerpt_meta: Dict[str, Any] = {"source_file": filename, "redacted": True}
+            # P0-4: an LLM-returned extraction is never trusted merely for being valid
+            # JSON — surface any integrity warnings (possible prompt-injection phrasing,
+            # or an LLM total_amount that could not be reconciled against a deterministic
+            # reading of the same text) on the persisted record rather than dropping them.
+            if extracted.extraction_warnings:
+                excerpt_meta["extraction_warnings"] = extracted.extraction_warnings
             mentions.append(
                 MentionInput(
                     "document_text",
                     "Document Text Excerpt",
                     redact_pii(text)[:1000],
-                    {"source_file": filename, "redacted": True},
+                    excerpt_meta,
                 )
             )
 
@@ -443,6 +450,8 @@ async def process_document_background(
         completion = "Document processed successfully. Entities extracted."
         if insights:
             completion += f" {len(insights)} module check(s) ran automatically."
+        if extracted.extraction_warnings:
+            completion += " Note: this extraction was flagged for review — see case details."
         processing_status[case_id].append({"status": "completed", "progress": 100, "log": completion})
         _record_case_latency(case_id, "completed")
         logger.info(

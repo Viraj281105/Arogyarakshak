@@ -1603,6 +1603,51 @@ def test_latency_metrics_recent_endpoint_respects_limit():
     assert len(res.json()) == 2
 
 
+def test_extraction_warnings_reach_the_persisted_entity_and_completion_log(monkeypatch):
+    """P0-4 end-to-end wiring: an ExtractedEntities carrying extraction_warnings (e.g.
+    flagged prompt-injection phrasing, or an unreconciled total_amount) must actually
+    reach somewhere visible — the document_text entity's meta and the SSE completion
+    log — not sit unused on a Pydantic model nobody reads."""
+    from app.api.v1.endpoints import kadi as kadi_module
+    from kadi.extraction import ExtractedEntities
+
+    flagged = ExtractedEntities(
+        hospital_name="Test Hospital",
+        total_amount=500.0,
+        extraction_warnings=["Source document text contained phrasing resembling a prompt-injection attempt: test"],
+    )
+    monkeypatch.setattr(kadi_module, "extract_entities_from_text", lambda *a, **kw: flagged)
+
+    case_id = _case_with_document(b"Consultation: 500\nTotal Amount: 500\n")
+
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    doc_text_entity = next(e for e in entities if e["type"] == "document_text")
+    assert "extraction_warnings" in doc_text_entity["meta"]
+    assert "prompt-injection" in doc_text_entity["meta"]["extraction_warnings"][0]
+
+    events = kadi_module.processing_status.get(case_id, [])
+    completed_event = next(e for e in events if e.get("status") == "completed")
+    assert "flagged for review" in completed_event["log"]
+
+
+def test_clean_extraction_leaves_no_warning_trace(monkeypatch):
+    from app.api.v1.endpoints import kadi as kadi_module
+    from kadi.extraction import ExtractedEntities
+
+    clean = ExtractedEntities(hospital_name="Test Hospital", total_amount=500.0)
+    monkeypatch.setattr(kadi_module, "extract_entities_from_text", lambda *a, **kw: clean)
+
+    case_id = _case_with_document(b"Consultation: 500\nTotal Amount: 500\n")
+
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    doc_text_entity = next(e for e in entities if e["type"] == "document_text")
+    assert "extraction_warnings" not in doc_text_entity["meta"]
+
+    events = kadi_module.processing_status.get(case_id, [])
+    completed_event = next(e for e in events if e.get("status") == "completed")
+    assert "flagged for review" not in completed_event["log"]
+
+
 def test_uses_default_database_credentials_detects_the_dev_fallback():
     """P0-5: the app must be able to recognise docker-compose.yml's fallback
     arogyarakshak:arogyarakshak dev credentials so it can warn loudly at startup if they
