@@ -7,6 +7,16 @@ scheme eligibility and medicine pricing endpoints.
 > Routes below are enumerated from the running application. The authoritative machine-readable
 > contract is `/openapi.json`; regenerate this page from it after any route change.
 
+> **Authorization (ADR-009, added 2026-09-16):** every `/cases/{case_id}/...` route
+> across every module now requires the case's access token, returned exactly once in
+> `POST /api/v1/kadi/cases`'s response body as `access_token`. Send it on every
+> subsequent request for that case as the `X-Case-Access-Token` header (the sole
+> exception is `GET /cases/{case_id}/stream`, which also accepts `?access_token=` as a
+> query parameter because the browser's native `EventSource` cannot set custom
+> headers). A case id alone is no longer sufficient — missing the header returns `401`,
+> a wrong token returns `403`. This note is a stopgap; the per-route tables below have
+> not yet been individually regenerated to show this requirement on each row.
+
 ---
 
 ## 1. Documentation & Interactive Testing

@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from app.auto_triggers import readiness_for_case, run_auto_triggers
@@ -43,12 +43,16 @@ from app.kadi_resolution import (
     resolve_and_attach,
 )
 from app.models import (
+    BillNyayAppeal,
+    DaaviSetuClaim,
     KadiCase,
     KadiCaseDocument,
     KadiEntity,
     KadiModuleInsight,
     KadiResolutionDecision,
     KadiThresholdCalibration,
+    SchemeSetuCaseProfile,
+    kadi_case_entities,
 )
 # OCR parser and extraction agent from kadi shared layer
 from kadi.ocr.ocr_parser import parse_document
@@ -667,6 +671,63 @@ async def get_case(
         "case": case,
         "entities": entities
     }
+
+
+@router.delete("/cases/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_case(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently deletes this case and everything derived from it (P1-10).
+
+    ADR-003 has always called a case's database records "transient" / linked to a
+    "temporary case UUID", but until this route existed nothing actually made that
+    true — a case, its extracted entities, its redacted document excerpt, and any
+    generated PDFs (the BillNyay appeal, the DaaviSetu pre-auth form) persisted
+    indefinitely with no way for the patient who created it to remove them. This is
+    the actual erasure mechanism that claim implied. See ADR-010 for what this does and
+    does not cover (BimaNyay's dispute records are a separate, not-yet-linked data
+    domain and are unaffected by this route).
+
+    Deletes explicitly in Python rather than relying solely on the database's
+    ON DELETE CASCADE, so behaviour is identical under SQLite (used in tests, where
+    foreign-key enforcement is not enabled by default) and Postgres (production).
+    KadiEntity rows are only deleted once they have no OTHER case association left —
+    the many-to-many schema in principle allows an entity to be shared across cases,
+    so an entity must not be destroyed out from under a different case that still
+    references it.
+    """
+    entity_ids_result = await db.execute(
+        select(kadi_case_entities.c.entity_id).where(kadi_case_entities.c.case_id == case_id)
+    )
+    entity_ids = [row[0] for row in entity_ids_result.all()]
+
+    await db.execute(delete(kadi_case_entities).where(kadi_case_entities.c.case_id == case_id))
+
+    if entity_ids:
+        still_linked_result = await db.execute(
+            select(kadi_case_entities.c.entity_id.distinct()).where(
+                kadi_case_entities.c.entity_id.in_(entity_ids)
+            )
+        )
+        still_linked = {row[0] for row in still_linked_result.all()}
+        now_orphaned = [eid for eid in entity_ids if eid not in still_linked]
+        if now_orphaned:
+            await db.execute(delete(KadiEntity).where(KadiEntity.id.in_(now_orphaned)))
+
+    await db.execute(delete(KadiCaseDocument).where(KadiCaseDocument.case_id == case_id))
+    await db.execute(delete(KadiResolutionDecision).where(KadiResolutionDecision.case_id == case_id))
+    await db.execute(delete(KadiModuleInsight).where(KadiModuleInsight.case_id == case_id))
+    await db.execute(delete(SchemeSetuCaseProfile).where(SchemeSetuCaseProfile.case_id == case_id))
+    await db.execute(delete(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
+    await db.execute(delete(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id))
+    await db.execute(delete(KadiCase).where(KadiCase.id == case_id))
+    await db.commit()
+
+    processing_status.pop(case_id, None)
+    logger.info("Case %s and all derived records permanently deleted.", case_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # --- Entity resolution: review and feedback (#31, #88) ------------------------
