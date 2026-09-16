@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     # Per-client-IP fixed-window count, single process — see app/rate_limit.py.
     rate_limit_per_minute: int = 120
 
+    # How many reverse-proxy hops in front of this API are trusted to prepend the real
+    # client IP to X-Forwarded-For (e.g. 1 behind a single nginx/load-balancer). 0
+    # (default) means "not deployed behind a trusted proxy" — the header is NEVER
+    # consulted at that setting, since any client can forge it. Only raise this when you
+    # control every hop between the trusted proxy and this API; see
+    # app/rate_limit.py::resolve_client_ip for exactly how it is used.
+    trusted_proxy_count: int = 0
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

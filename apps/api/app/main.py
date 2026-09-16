@@ -18,7 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.database import engine, Base
 from app.api.v1.api import api_router
-from app.rate_limit import limiter
+from app.rate_limit import limiter, resolve_client_ip
 
 logger = logging.getLogger("arogyarakshak.api")
 logging.basicConfig(level=logging.INFO)
@@ -120,7 +120,7 @@ async def rate_limit_middleware(request: Request, call_next):
     if request.url.path == "/health":
         return await call_next(request)
 
-    client_key = request.client.host if request.client else "unknown"
+    client_key = resolve_client_ip(request)
     allowed, retry_after = limiter.check(client_key)
     if not allowed:
         logger.warning("Rate limit exceeded for client %s on %s", client_key, request.url.path)
