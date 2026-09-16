@@ -64,3 +64,79 @@ def test_contains_direct_identifier_detects_and_clears():
 def test_redaction_is_idempotent():
     once = redact_pii(SAMPLE)
     assert redact_pii(once) == once
+
+
+# ---------------------------------------------------------------------------
+# P2: Devanagari-labelled fields. Before this fix, only English labels
+# ("Patient Name:", "Address:", ...) were redacted — a Hindi/Marathi-labelled identity
+# field survived verbatim into the persisted document_text excerpt, even though this
+# project explicitly supports trilingual documents.
+# ---------------------------------------------------------------------------
+
+HINDI_SAMPLE = (
+    "लाइफलाइन मल्टीस्पेशियलिटी अस्पताल\n"
+    "रोगी का नाम: रमेश कुलकर्णी\n"
+    "संपर्क: 9876543210\n"
+    "ईमेल: ramesh.kulkarni@example.com\n"
+    "पता: 12 एमजी रोड, पुणे\n"
+    "निदान: तीव्र एपेंडिसाइटिस\n"
+    "परामर्श: 900\n"
+    "आईसीयू: 18500\n"
+)
+
+MARATHI_SAMPLE = (
+    "लाईफलाईन मल्टिस्पेशालिटी हॉस्पिटल\n"
+    "रुग्णाचे नाव: रमेश कुलकर्णी\n"
+    "मोबाईल: 9876543210\n"
+    "पत्ता: १२ एमजी रोड, पुणे\n"
+    "निदान: तीव्र अपेंडिसायटिस\n"
+    "सल्ला: 900\n"
+)
+
+
+def test_redacts_hindi_labelled_patient_name():
+    out = redact_pii(HINDI_SAMPLE)
+    assert "रमेश कुलकर्णी" not in out
+    assert "रोगी का नाम:" in out  # label kept for structure
+    assert REDACTION_MARK in out
+
+
+def test_redacts_hindi_labelled_address():
+    out = redact_pii(HINDI_SAMPLE)
+    assert "12 एमजी रोड" not in out
+    assert "पता:" in out
+
+
+def test_redacts_marathi_labelled_patient_name():
+    out = redact_pii(MARATHI_SAMPLE)
+    assert "रमेश कुलकर्णी" not in out
+    assert "रुग्णाचे नाव:" in out
+
+
+def test_hindi_document_preserves_clinical_content():
+    """Redaction must not destroy the Devanagari clinical text downstream agents need,
+    same invariant as the English case above."""
+    out = redact_pii(HINDI_SAMPLE)
+    assert "तीव्र एपेंडिसाइटिस" in out  # diagnosis
+    assert "लाइफलाइन मल्टीस्पेशियलिटी अस्पताल" in out  # hospital name
+    assert "परामर्श: 900" in out  # billing line
+
+
+def test_devanagari_free_standing_identifiers_still_caught_by_script_independent_patterns():
+    """Email/phone/Aadhaar patterns match by character shape, not by label language —
+    confirms these already worked before this fix and still do after it."""
+    out = redact_pii(HINDI_SAMPLE)
+    assert "9876543210" not in out
+    assert "ramesh.kulkarni@example.com" not in out
+
+
+def test_contains_direct_identifier_detects_devanagari_labelled_fields():
+    assert contains_direct_identifier(HINDI_SAMPLE) is True
+    assert contains_direct_identifier(redact_pii(HINDI_SAMPLE)) is False
+    assert contains_direct_identifier(MARATHI_SAMPLE) is True
+    assert contains_direct_identifier(redact_pii(MARATHI_SAMPLE)) is False
+
+
+def test_hindi_redaction_is_idempotent():
+    once = redact_pii(HINDI_SAMPLE)
+    assert redact_pii(once) == once

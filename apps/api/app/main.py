@@ -52,6 +52,17 @@ async def lifespan(app: FastAPI):
     # P0-5: the well-known default dev credentials (docker-compose.yml's fallback)
     # reaching a real deployment would be a critical, silent misconfiguration —
     # surfaced loudly at startup rather than left to be discovered later.
+    # P2: DOCUMENT_SIGNING_SECRET signs the appeal PDF's integrity HMAC
+    # (billnyay.tools.pdf_integrity) — a real, checkable secret whose default value was
+    # never flagged at startup the way the database/CORS defaults are.
+    if settings.document_signing_secret == "dev-insecure-signing-secret-change-in-production":
+        logger.warning(
+            "DOCUMENT_SIGNING_SECRET is using the insecure development default. This is "
+            "fine for local development only — set DOCUMENT_SIGNING_SECRET to a strong, "
+            "unique value before any deployment reachable outside your own machine, or "
+            "anyone can forge a valid-looking signature for a tampered appeal PDF."
+        )
+
     if uses_default_database_credentials(settings.database_url):
         logger.warning(
             "DATABASE_URL uses the default development credentials "
@@ -106,8 +117,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if wildcard_origins else origins,
     allow_credentials=not wildcard_origins,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Accept", "Authorization"],
+    # P2: was missing PUT and DELETE. SchemeSetu's income-profile route (PUT/DELETE) and
+    # the case-deletion route (DELETE /kadi/cases/{id}, ADR-009/P1-10) were both
+    # completely unreachable from any browser client — a cross-origin PUT/DELETE sends a
+    # CORS preflight OPTIONS request first, and the browser refuses the real request
+    # when the preflight response's Access-Control-Allow-Methods doesn't list the method
+    # actually being used, independent of anything the route itself does.
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "Authorization", "X-Case-Access-Token"],
 )
 
 

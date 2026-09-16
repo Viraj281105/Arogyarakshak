@@ -68,6 +68,9 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     restart: unless-stopped
+    # Local dev only: hot reload. The image's default CMD runs a production build
+    # (`next build` + `next start`) — see apps/web/Dockerfile.
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
     ports:
       - "3000:3000"
 

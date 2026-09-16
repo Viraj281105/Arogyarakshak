@@ -1307,6 +1307,39 @@ def test_cors_does_not_pair_wildcard_origin_with_credentials():
     assert "*" not in kwargs["allow_methods"], "methods must be an explicit allow-list"
 
 
+def test_cors_allows_put_and_delete_for_income_profile_and_case_deletion():
+    """P2 (CONFIRMED, and self-inflicted by this session's own new routes): CORS
+    allow_methods previously listed only GET/POST/OPTIONS. SchemeSetu's income-profile
+    route (PUT/DELETE) and the new case-deletion route (DELETE /kadi/cases/{id},
+    ADR-009/P1-10) were both completely unreachable from any browser client — a
+    cross-origin PUT/DELETE triggers a CORS preflight OPTIONS request first, and the
+    browser refuses the real request when the method isn't in
+    Access-Control-Allow-Methods, regardless of what the route itself would have done.
+    This exercises the actual preflight response, not just the configured kwargs.
+    """
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    for method, path in [
+        ("PUT", f"/api/v1/schemesetu/cases/{case_id}/income-profile"),
+        ("DELETE", f"/api/v1/schemesetu/cases/{case_id}/income-profile"),
+        ("DELETE", f"/api/v1/kadi/cases/{case_id}"),
+    ]:
+        preflight = client.options(
+            path,
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "X-Case-Access-Token",
+            },
+        )
+        assert preflight.status_code == 200, f"{method} {path} preflight failed: {preflight.text}"
+        allowed = preflight.headers.get("access-control-allow-methods", "")
+        assert method in allowed, f"{method} not in preflight Access-Control-Allow-Methods: {allowed}"
+        allowed_headers = preflight.headers.get("access-control-allow-headers", "").lower()
+        assert "x-case-access-token" in allowed_headers, (
+            f"X-Case-Access-Token not in preflight Access-Control-Allow-Headers: {allowed_headers}"
+        )
+
+
 def test_upload_rejects_oversized_document():
     from app.config import settings
 
@@ -1646,6 +1679,15 @@ def test_clean_extraction_leaves_no_warning_trace(monkeypatch):
     events = kadi_module.processing_status.get(case_id, [])
     completed_event = next(e for e in events if e.get("status") == "completed")
     assert "flagged for review" not in completed_event["log"]
+
+
+def test_default_document_signing_secret_is_the_known_insecure_value():
+    """P2: pins the exact string main.py checks at startup, so a future edit to the
+    default in config.py that forgets to update the startup-warning check is caught
+    here instead of silently going unnoticed."""
+    from app.config import Settings
+
+    assert Settings().document_signing_secret == "dev-insecure-signing-secret-change-in-production"
 
 
 def test_uses_default_database_credentials_detects_the_dev_fallback():

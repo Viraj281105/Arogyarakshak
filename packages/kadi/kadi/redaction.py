@@ -42,6 +42,41 @@ _LABELLED_IDENTIFIER_PATTERNS: List[Tuple[Pattern[str], str]] = [
     ),
 ]
 
+# P2: the labelled-identifier patterns above only match English labels. A document with
+# a Hindi/Marathi-labelled identity field (common — this project explicitly supports
+# trilingual documents) was NOT redacted at all by the check above, even though the
+# free-standing patterns below (email/Aadhaar/PAN/phone — script-independent, matching
+# digit/character shapes) still caught those. Standard Hindi/Marathi administrative
+# vocabulary, not project-invented terms.
+_LABELLED_IDENTIFIER_PATTERNS_DEVANAGARI: List[Tuple[Pattern[str], str]] = [
+    (
+        re.compile(
+            r"(?P<label>^[^\S\n]*(?:"
+            r"रोगी(?:[^\S\n]*का)?[^\S\n]*नाम|मरीज़?(?:[^\S\n]*का)?[^\S\n]*नाम|"  # patient's name (Hindi)
+            r"रुग्णाच[ें][^\S\n]*नाव|"  # patient's name (Marathi)
+            r"पिता[^\S\n]*का[^\S\n]*नाम|माता[^\S\n]*का[^\S\n]*नाम|"  # father's/mother's name (Hindi)
+            r"वडिलांचे[^\S\n]*नाव|आईचे[^\S\n]*नाव|"  # father's/mother's name (Marathi)
+            r"पति[^\S\n]*/?[^\S\n]*पत्नी[^\S\n]*का[^\S\n]*नाम|"  # spouse's name (Hindi)
+            r"नाम|नाव"  # bare "name" (Hindi / Marathi) — kept last, most general
+            r")[^\S\n]*[:\-][^\S\n]*)[^\n]+",
+            re.MULTILINE,
+        ),
+        r"\g<label>" + REDACTION_MARK,
+    ),
+    (
+        re.compile(
+            r"(?P<label>^[^\S\n]*(?:"
+            r"पता|पत्ता|"  # address (Hindi / Marathi)
+            r"संपर्क|सम्पर्क|"  # contact
+            r"फोन|मोबाइल|मोबाईल|दूरभाष|"  # phone / mobile / telephone
+            r"ईमेल|इमेल"  # email
+            r")[^\S\n]*[:\-][^\S\n]*)[^\n]+",
+            re.MULTILINE,
+        ),
+        r"\g<label>" + REDACTION_MARK,
+    ),
+]
+
 # Free-standing identifiers that can appear anywhere in the text.
 _FREE_IDENTIFIER_PATTERNS: List[Tuple[Pattern[str], str]] = [
     # Email
@@ -71,6 +106,8 @@ def redact_pii(text: str) -> str:
     redacted = text
     for pattern, replacement in _LABELLED_IDENTIFIER_PATTERNS:
         redacted = pattern.sub(replacement, redacted)
+    for pattern, replacement in _LABELLED_IDENTIFIER_PATTERNS_DEVANAGARI:
+        redacted = pattern.sub(replacement, redacted)
     for pattern, replacement in _FREE_IDENTIFIER_PATTERNS:
         redacted = pattern.sub(replacement, redacted)
     return redacted
@@ -83,7 +120,7 @@ def contains_direct_identifier(text: str) -> bool:
     """
     if not text:
         return False
-    for pattern, _ in _LABELLED_IDENTIFIER_PATTERNS:
+    for pattern, _ in _LABELLED_IDENTIFIER_PATTERNS + _LABELLED_IDENTIFIER_PATTERNS_DEVANAGARI:
         for match in pattern.finditer(text):
             if REDACTION_MARK not in match.group(0):
                 return True
