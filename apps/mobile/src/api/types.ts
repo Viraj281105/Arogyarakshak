@@ -13,6 +13,11 @@ export interface CaseResponse {
   created_at: string;
 }
 
+export interface CaseCreatedResponse extends CaseResponse {
+  /** ADR-009: shown exactly once, here. Required on every later case-scoped request. */
+  access_token: string;
+}
+
 export interface UploadResponse {
   /** "processing", or "duplicate" when this exact document was already ingested into the case. */
   status: string;

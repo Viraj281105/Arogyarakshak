@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi } from "../../hooks/useApi";
+import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 
 // --- API Response Type (matching backend SchemeResult schema) ---
 interface SchemeSource {
@@ -38,9 +38,10 @@ interface IncomeProfileSaveResult {
 interface SchemeSetuViewProps {
   currentLang: Language;
   caseId?: string | null;
+  caseToken?: string;
 }
 
-export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, caseId }) => {
+export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.schemesetu;
   const api = useApi<SchemeResult[]>();
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -69,6 +70,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
     if (caseId && saveToCase) {
       await profileApi.execute(`/api/v1/schemesetu/cases/${encodeURIComponent(caseId)}/income-profile`, {
         method: "PUT",
+        headers: caseAuthHeaders(caseToken),
         body: { annual_income_inr: incomeVal, state },
       });
     }

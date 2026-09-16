@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ENV } from '../config/env';
+import { getCaseAccessToken, tokenHeaderForPath } from '../api/caseAuth';
 
 export interface SSEStreamEvent {
   status: 'upload_received' | 'ocr_start' | 'extraction_start' | 'database_write' | 'completed' | 'failed' | string;
@@ -86,13 +87,19 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
     if (!caseId) return;
 
     setIsStreaming(true);
-    const streamUrl = `${ENV.API_BASE_URL}/api/v1/kadi/cases/${caseId}/stream`;
+    const streamPath = `/api/v1/kadi/cases/${caseId}/stream`;
+    const streamUrl = `${ENV.API_BASE_URL}${streamPath}`;
+    // ADR-009: EventSource cannot set custom headers, so this one endpoint also accepts
+    // the token via query string — the same narrow, documented exception the web
+    // client uses. The fetch-fallback path below sends it as a header instead.
+    const token = getCaseAccessToken(caseId);
+    const streamUrlWithToken = token ? `${streamUrl}?access_token=${encodeURIComponent(token)}` : streamUrl;
 
     // 1. Check for standard EventSource (Browser / React Native EventSource polyfills)
     if (typeof (globalThis as any).EventSource !== 'undefined') {
       try {
         const ES = (globalThis as any).EventSource;
-        const es = new ES(streamUrl);
+        const es = new ES(streamUrlWithToken);
         eventSourceRef.current = es;
 
         es.onmessage = (event: any) => {
@@ -121,6 +128,7 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
           signal: controller.signal,
           headers: {
             Accept: 'text/event-stream',
+            ...tokenHeaderForPath(streamPath),
           },
         });
 

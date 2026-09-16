@@ -37,6 +37,10 @@ export default function Home() {
   const [pipelineStep, setPipelineStep] = useState<PipelineStep>(0);
   const [activeFileName, setActiveFileName] = useState<string>("");
   const [caseId, setCaseId] = useState<string>("");
+  // ADR-009: the case's one-time access token, captured from the case-creation
+  // response and held only in memory for this tab's session. Required on every
+  // subsequent case-scoped request — a case id alone is no longer sufficient.
+  const [caseToken, setCaseToken] = useState<string>("");
   const [liveLog, setLiveLog] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -93,7 +97,9 @@ export default function Home() {
 
       const caseData = await caseRes.json();
       const newCaseId: string = caseData.id;
+      const newCaseToken: string = caseData.access_token;
       setCaseId(newCaseId);
+      setCaseToken(newCaseToken);
       setLiveLog(`Case ${newCaseId} created. Uploading document for transient OCR...`);
 
       // 2. Upload document to /kadi/cases/{case_id}/upload
@@ -102,6 +108,7 @@ export default function Home() {
 
       const uploadRes = await fetch(`${API_BASE}/api/v1/kadi/cases/${newCaseId}/upload`, {
         method: "POST",
+        headers: { "X-Case-Access-Token": newCaseToken },
         body: formData,
       });
 
@@ -109,9 +116,13 @@ export default function Home() {
         throw new Error(`API /upload returned HTTP ${uploadRes.status}`);
       }
 
-      // 3. Connect real-time Server-Sent Events (SSE) stream
+      // 3. Connect real-time Server-Sent Events (SSE) stream. The browser's native
+      // EventSource cannot set custom headers, so the token travels via query string
+      // here only (ADR-009) — every other request uses the X-Case-Access-Token header.
       setLiveLog("Document received. Listening to live multi-agent SSE status stream...");
-      const es = new EventSource(`${API_BASE}/api/v1/kadi/cases/${newCaseId}/stream`);
+      const es = new EventSource(
+        `${API_BASE}/api/v1/kadi/cases/${newCaseId}/stream?access_token=${encodeURIComponent(newCaseToken)}`
+      );
 
       es.onmessage = (event) => {
         try {
@@ -147,15 +158,21 @@ export default function Home() {
         setIsProcessing(false);
       };
     } catch (err) {
-      console.warn("FastAPI backend unreachable or offline. Falling back to transient simulation:", err);
-      setLiveLog("Backend offline — executing transient simulated audit (DPDP compliant)");
-      setTimeout(() => setPipelineStep(2), 700);
-      setTimeout(() => setPipelineStep(3), 1400);
-      setTimeout(() => {
-        setPipelineStep(4);
-        setIsProcessing(false);
-        setLiveLog("Transient audit completed.");
-      }, 2100);
+      // Previously fell back to a fake "simulated audit" here — animating the pipeline
+      // to a green "completed" state and telling the user their document was processed
+      // when nothing had actually happened. That is exactly the kind of fabricated
+      // successful result the rest of this project explicitly refuses to produce
+      // elsewhere (see AuditResponse's not_benchmarked state, the 422s in DaaviSetu/
+      // BillNyay, etc.) — an upload failure must be reported honestly, not disguised.
+      console.error("Document upload/processing failed:", err);
+      setPipelineStep(0);
+      setIsProcessing(false);
+      setErrorMessage(
+        err instanceof Error
+          ? `Could not process your document: ${err.message}`
+          : "Could not process your document. Please check your connection and try again."
+      );
+      setLiveLog("");
     }
   };
 
@@ -216,7 +233,7 @@ export default function Home() {
 
         {/* Entity-resolution questions Kadi could not decide on its own (#31) */}
         {pipelineStep === 4 && !isProcessing && caseId && (
-          <EntityResolutionReview key={caseId} caseId={caseId} currentLang={currentLang} />
+          <EntityResolutionReview key={caseId} caseId={caseId} caseToken={caseToken} currentLang={currentLang} />
         )}
 
 
@@ -271,10 +288,10 @@ export default function Home() {
 
         {/* Active Module Panel */}
         <div role="tabpanel" id={`panel-${activeTab}`}>
-          {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={caseId} />}
+          {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
           {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} />}
-          {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={caseId} />}
-          {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={caseId} />}
+          {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
+          {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
           {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} />}
         </div>
       </main>

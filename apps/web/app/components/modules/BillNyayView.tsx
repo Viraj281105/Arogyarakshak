@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi } from "../../hooks/useApi";
+import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 
 // --- API Response Types (matching backend AuditResponse schema) ---
 type AuditItemStatus =
@@ -38,9 +38,10 @@ interface AuditResponse {
 interface BillNyayViewProps {
   currentLang: Language;
   caseId?: string;
+  caseToken?: string;
 }
 
-export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId }) => {
+export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.billnyay;
   const api = useApi<AuditResponse>();
   const [hasRun, setHasRun] = useState(false);
@@ -48,7 +49,9 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId 
   const handleRunAudit = async () => {
     if (!caseId) return;
     setHasRun(true);
-    await api.execute(`/api/v1/billnyay/cases/${caseId}/audit`);
+    await api.execute(`/api/v1/billnyay/cases/${caseId}/audit`, {
+      headers: caseAuthHeaders(caseToken),
+    });
   };
 
   const auditData = api.data;

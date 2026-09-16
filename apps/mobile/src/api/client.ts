@@ -1,5 +1,6 @@
 import { ENV } from '../config/env';
 import { ApiError } from './types';
+import { tokenHeaderForPath } from './caseAuth';
 
 /**
  * Robust HTTP client for ArogyaRakshak mobile services
@@ -10,6 +11,38 @@ interface RequestOptions extends RequestInit {
   timeoutMs?: number;
 }
 
+/**
+ * Normalizes a FastAPI error body's `detail` into a plain string. `detail` is a plain
+ * string for most handled errors, but FastAPI's automatic 422 validation responses send
+ * an ARRAY of {loc, msg, type} objects — passing that through as `ApiError.detail`
+ * (typed `string`) would hand callers a non-string at runtime, and any screen
+ * interpolating it directly (`${apiErr.detail}`) would render "[object Object]" instead
+ * of a readable message.
+ */
+function normalizeErrorDetail(detail: unknown): string {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (item && typeof item === 'object' && 'msg' in item) {
+        const loc = Array.isArray((item as any).loc)
+          ? (item as any).loc.filter((p: unknown) => p !== 'body').join('.')
+          : undefined;
+        return loc ? `${loc}: ${(item as any).msg}` : String((item as any).msg);
+      }
+      return typeof item === 'string' ? item : JSON.stringify(item);
+    });
+    return messages.join('; ') || 'Request validation failed.';
+  }
+  if (detail && typeof detail === 'object') {
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return 'An error occurred.';
+    }
+  }
+  return 'An error occurred.';
+}
+
 export async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const url = `${ENV.API_BASE_URL}${endpoint}`;
   const timeoutMs = options.timeoutMs ?? ENV.TIMEOUT_MS;
@@ -17,8 +50,12 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  // ADR-009: attaches this case's access token automatically when the endpoint path
+  // names a case this session has a token for. An explicit header in `options` (e.g. a
+  // deliberate test probing a wrong/foreign token) always wins over the auto-attached one.
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    ...tokenHeaderForPath(endpoint),
     ...(options.headers as Record<string, string>),
   };
 
@@ -40,7 +77,12 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
       let errorDetail: string | undefined;
       try {
         const errorJson = await response.json();
-        errorDetail = errorJson.detail || errorJson.message || JSON.stringify(errorJson);
+        errorDetail =
+          errorJson.detail !== undefined && errorJson.detail !== null
+            ? normalizeErrorDetail(errorJson.detail)
+            : typeof errorJson.message === 'string'
+            ? errorJson.message
+            : JSON.stringify(errorJson);
       } catch {
         errorDetail = await response.text();
       }

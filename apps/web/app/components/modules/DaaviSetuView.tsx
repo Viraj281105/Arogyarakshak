@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi, API_BASE } from "../../hooks/useApi";
+import { useApi, API_BASE, caseAuthHeaders } from "../../hooks/useApi";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -24,9 +24,10 @@ interface ClaimPackageResponse {
 interface DaaviSetuViewProps {
   currentLang: Language;
   caseId?: string;
+  caseToken?: string;
 }
 
-export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseId }) => {
+export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.daavisetu;
   const api = useApi<ClaimPackageResponse>();
 
@@ -37,11 +38,13 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
   const [hospital, setHospital] = useState("");
   const [treatment, setTreatment] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!caseId) return;
     if (!patientName.trim() || !policyId.trim()) return;
     await api.execute(`/api/v1/daavisetu/cases/${caseId}/claim`, {
+      headers: caseAuthHeaders(caseToken),
       body: {
         policy_number: policyId.trim(),
         patient_name: patientName.trim(),
@@ -52,6 +55,33 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
         ...(diagnosis.trim() ? { diagnosis: diagnosis.trim() } : {}),
       },
     });
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!caseId) return;
+    setDownloadError(null);
+    try {
+      // A plain <a href> cannot carry the X-Case-Access-Token header (ADR-009), so the
+      // PDF is fetched here and handed to the browser as a blob download instead.
+      const res = await fetch(`${API_BASE}/api/v1/daavisetu/cases/${caseId}/claim/pdf`, {
+        headers: caseAuthHeaders(caseToken),
+      });
+      if (!res.ok) {
+        setDownloadError(`Could not download the PDF (HTTP ${res.status}).`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `preauth_${caseId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError("Could not download the PDF. Is the backend reachable?");
+    }
   };
 
   const result = api.data;
@@ -223,16 +253,18 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
             >
               📋 Copy Package Summary
             </button>
-            <a
-              href={`${API_BASE}/api/v1/daavisetu/cases/${caseId}/claim/pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
               className="btn btn-primary"
-              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
             >
               📥 Download Form VI / Pre-Auth PDF
-            </a>
+            </button>
           </div>
+          {downloadError && (
+            <p style={{ color: "#ef4444", fontSize: "0.85rem", marginTop: "0.5rem" }}>⚠️ {downloadError}</p>
+          )}
         </div>
       )}
 

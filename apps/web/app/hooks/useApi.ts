@@ -14,6 +14,57 @@ export interface ApiState<T> {
 }
 
 /**
+ * ADR-009: builds the header carrying a case's access token. Every case-scoped request
+ * needs this; omitted (empty object) when no token is available yet, so a caller can
+ * spread it unconditionally: `headers: { ...caseAuthHeaders(caseToken) }`.
+ */
+export function caseAuthHeaders(caseToken: string | undefined | null): Record<string, string> {
+  return caseToken ? { "X-Case-Access-Token": caseToken } : {};
+}
+
+/**
+ * Normalizes a FastAPI error body's `detail` into a plain, renderable string.
+ *
+ * `detail` is a plain string for most handled errors (404/403/etc.), but FastAPI's
+ * automatic 422 validation responses send an ARRAY of {loc, msg, type} objects, and a
+ * handler can in principle send any JSON-serializable value. Rendering `detail`
+ * directly as `{error}` in JSX crashes React ("Objects are not valid as a React
+ * child") the first time a 422 or a structured detail reaches the UI — never assume
+ * it is already a string.
+ */
+export function normalizeErrorDetail(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) {
+          const loc = Array.isArray((item as { loc?: unknown[] }).loc)
+            ? (item as { loc: unknown[] }).loc.filter((p) => p !== "body").join(".")
+            : undefined;
+          const msg = String((item as { msg: unknown }).msg);
+          return loc ? `${loc}: ${msg}` : msg;
+        }
+        return typeof item === "string" ? item : JSON.stringify(item);
+      })
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join("; ") : "Request validation failed.";
+  }
+
+  if (detail && typeof detail === "object") {
+    // A structured (non-array) detail — never render it raw; summarize instead of
+    // exposing arbitrary server-internal object shapes to the UI.
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return "An error occurred.";
+    }
+  }
+
+  return "An error occurred.";
+}
+
+/**
  * Shared hook for making API calls with loading/error state management.
  * Prevents duplicate submissions and provides consistent error handling.
  */
@@ -60,9 +111,9 @@ export function useApi<T>() {
           let errorMessage = `API error: HTTP ${response.status}`;
           try {
             const errorBody = await response.json();
-            if (errorBody.detail) {
-              errorMessage = errorBody.detail;
-            } else if (errorBody.message) {
+            if (errorBody.detail !== undefined && errorBody.detail !== null) {
+              errorMessage = normalizeErrorDetail(errorBody.detail);
+            } else if (typeof errorBody.message === "string") {
               errorMessage = errorBody.message;
             }
           } catch {
