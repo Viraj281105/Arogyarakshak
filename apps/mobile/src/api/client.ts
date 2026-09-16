@@ -95,6 +95,11 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
       throw error;
     }
 
+    // A 204 No Content (e.g. DELETE /cases/{id}) has no body — calling .json() on it
+    // throws a parse error despite the request having succeeded.
+    if (response.status === 204) {
+      return undefined as T;
+    }
     return (await response.json()) as T;
   } catch (err: any) {
     clearTimeout(timeoutId);

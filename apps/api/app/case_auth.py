@@ -26,7 +26,7 @@ import logging
 import secrets
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,12 +37,25 @@ logger = logging.getLogger("arogyarakshak.api.case_auth")
 
 CASE_ACCESS_TOKEN_HEADER = "X-Case-Access-Token"
 
+# SEC-07: a query-string token is only safe for read-only requests (it can still land in
+# server access logs / browser history, which is why it is not the default — see
+# require_case_access's docstring). Accepting it for a state-changing verb as well used to
+# let anyone who obtained a token via a log/history/referrer leak use it to POST/PUT/DELETE,
+# not just read — the exact "weaker than a header" trade-off this was meant to be limited
+# to. Only GET (and HEAD, which FastAPI treats as GET) may use it.
+_QUERY_TOKEN_SAFE_METHODS = {"GET", "HEAD"}
+
 MISSING_TOKEN_DETAIL = (
     "This request requires the case's access token, returned once when the case was "
     f"created. Send it as the '{CASE_ACCESS_TOKEN_HEADER}' header. A case id alone is "
     "not sufficient authorization (ADR-009)."
 )
 INVALID_TOKEN_DETAIL = "The provided case access token is invalid for this case."
+QUERY_TOKEN_NOT_ALLOWED_DETAIL = (
+    "A query-string access_token cannot authorize this request. Send the token via the "
+    f"'{CASE_ACCESS_TOKEN_HEADER}' header instead — query-string tokens are accepted only "
+    "for safe, read-only requests (e.g. GET .../stream, GET .../claim/pdf)."
+)
 
 
 def generate_case_access_token() -> "tuple[str, str]":
@@ -56,6 +69,7 @@ def hash_case_access_token(token: str) -> str:
 
 
 async def require_case_access(
+    request: Request,
     case_id: str,
     db: AsyncSession = Depends(get_db),
     x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
@@ -64,11 +78,14 @@ async def require_case_access(
     """FastAPI dependency: loads the case and enforces its access token.
 
     Accepts the token via the ``X-Case-Access-Token`` header (every route should use
-    this) or an ``?access_token=`` query parameter (fallback ONLY for
-    GET /cases/{case_id}/stream — the browser's native EventSource cannot set custom
-    headers, and that is the sole reason this fallback exists). A query-string token is
-    weaker than a header (it can land in server access logs and browser history), which
-    is why it is not the default and is documented as a trade-off in ADR-009, not hidden.
+    this) or, for safe read-only requests ONLY (GET/HEAD — e.g. GET
+    /cases/{case_id}/stream, whose browser-native EventSource cannot set custom headers,
+    or a direct-download GET like DaaviSetu's PDF), an ``?access_token=`` query
+    parameter. A query-string token is weaker than a header (it can land in server access
+    logs and browser history), which is why it is not the default and — SEC-07 — why it
+    is REJECTED outright on any state-changing verb (POST/PUT/PATCH/DELETE): a token that
+    leaked via a log/history/referrer must not be usable to mutate or delete a case, only
+    to read it. This is a trade-off documented in ADR-009, not hidden.
 
     Order matches the existing app.consent.require_case_consent convention (404 before
     401/403): existence is not itself a secret worth hiding behind a uniform error, since
@@ -83,7 +100,16 @@ async def require_case_access(
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
-    presented_token = x_case_access_token or access_token_qs
+    if access_token_qs and request.method.upper() not in _QUERY_TOKEN_SAFE_METHODS:
+        logger.info(
+            "Denied access to case %s: query-string token rejected for %s (state-changing).",
+            case_id, request.method,
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=QUERY_TOKEN_NOT_ALLOWED_DETAIL)
+
+    presented_token = x_case_access_token or (
+        access_token_qs if request.method.upper() in _QUERY_TOKEN_SAFE_METHODS else None
+    )
     if not presented_token:
         logger.info("Denied access to case %s: no access token presented.", case_id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=MISSING_TOKEN_DETAIL)

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOfflineStorage } from './useOfflineStorage';
 import { useNetworkStatus } from './useNetworkStatus';
 import { api } from '../api';
+import { hydrateCaseAccessTokens } from '../api/caseAuth';
 
 export interface QueuedAction {
   id: string;
@@ -9,6 +10,10 @@ export interface QueuedAction {
   payload: any;
   timestamp: number;
   retryCount: number;
+  // SEC-14: set when the last replay attempt failed with 401/403 (missing/invalid case
+  // access token) — kept in the queue rather than retry-counted toward deletion, since a
+  // missing credential will not fix itself by retrying the same request again.
+  needsReauth?: boolean;
 }
 
 const QUEUE_STORAGE_KEY = 'offline_action_queue';
@@ -21,9 +26,18 @@ export function useOfflineQueue() {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const isProcessingRef = useRef<boolean>(false);
 
-  // Load queue on initial mount
+  // Load queue on initial mount. SEC-14: case access tokens are re-hydrated from
+  // secure storage FIRST and awaited before the queue is populated — otherwise
+  // setQueue([...]) below could make queue.length > 0 and fire the auto-flush effect
+  // (processQueue) while the in-memory token Map is still empty post-restart, replaying
+  // every action with no token attached at all.
   useEffect(() => {
     (async () => {
+      try {
+        await hydrateCaseAccessTokens();
+      } catch (e) {
+        console.warn('[useOfflineQueue] Failed to hydrate case access tokens:', e);
+      }
       try {
         const stored = await getItem(QUEUE_STORAGE_KEY);
         if (stored) {
@@ -95,9 +109,13 @@ export function useOfflineQueue() {
   }, [saveQueue]);
 
   // Process/replay pending actions against backend API
-  const processQueue = useCallback(async (): Promise<{ processed: number; failed: number }> => {
+  const processQueue = useCallback(async (): Promise<{
+    processed: number;
+    failed: number;
+    needsReauth: number;
+  }> => {
     if (isProcessingRef.current || queue.length === 0) {
-      return { processed: 0, failed: 0 };
+      return { processed: 0, failed: 0, needsReauth: 0 };
     }
 
     isProcessingRef.current = true;
@@ -105,6 +123,7 @@ export function useOfflineQueue() {
 
     let processedCount = 0;
     let failedCount = 0;
+    let needsReauthCount = 0;
     const remainingActions: QueuedAction[] = [];
 
     for (const action of queue) {
@@ -130,11 +149,21 @@ export function useOfflineQueue() {
         processedCount++;
       } catch (err) {
         console.warn(`[useOfflineQueue] Failed to replay action ${action.id}:`, err);
-        if (action.retryCount + 1 < MAX_RETRIES) {
-          remainingActions.push({
-            ...action,
-            retryCount: action.retryCount + 1,
-          });
+        // SEC-14: a 401/403 means this case's access token is missing or no longer
+        // valid (e.g. the case expired/was purged server-side — see app/case_retention)
+        // — replaying the SAME action again will deterministically fail again, so
+        // burning it down through MAX_RETRIES like an ordinary transient failure would
+        // just silently discard it once retries run out ("permanently jamming" it by
+        // dropping it without ever telling anyone). Instead it is kept in the queue
+        // indefinitely (not retry-counted) so it can still succeed if the token comes
+        // back (e.g. the case is re-scanned, re-issuing a token this session), and other
+        // queued actions are not blocked from processing either way.
+        const statusCode = (err as { statusCode?: number } | null)?.statusCode;
+        if (statusCode === 401 || statusCode === 403) {
+          needsReauthCount++;
+          remainingActions.push({ ...action, needsReauth: true });
+        } else if (action.retryCount + 1 < MAX_RETRIES) {
+          remainingActions.push({ ...action, retryCount: action.retryCount + 1 });
         } else {
           failedCount++;
         }
@@ -145,7 +174,7 @@ export function useOfflineQueue() {
     isProcessingRef.current = false;
     setIsProcessing(false);
 
-    return { processed: processedCount, failed: failedCount };
+    return { processed: processedCount, failed: failedCount, needsReauth: needsReauthCount };
   }, [queue, saveQueue]);
 
   // Automatically flush queue when device transitions from offline to online

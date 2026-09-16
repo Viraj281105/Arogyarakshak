@@ -1625,7 +1625,11 @@ def test_latency_metrics_records_failed_outcomes_too():
     res = client.get("/api/v1/kadi/metrics/latency/recent")
     assert res.status_code == 200
     samples = res.json()
-    assert any(s["case_id"] == case_id and s["outcome"] == "failed" for s in samples)
+    # SEC-06: the public route no longer exposes the raw case id, only a fingerprint.
+    from app.latency_metrics import _case_id_fingerprint
+    fingerprint = _case_id_fingerprint(case_id)
+    assert any(s["case_id_fingerprint"] == fingerprint and s["outcome"] == "failed" for s in samples)
+    assert not any("case_id" in s for s in samples)
 
 
 def test_latency_metrics_recent_endpoint_respects_limit():
@@ -2131,6 +2135,41 @@ def test_fill_claim_template_requires_a_submitted_claim():
         files={"template": ("template.pdf", template_bytes, "application/pdf")},
     )
     assert res.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# SEC-12: a corrupted/non-PDF template must return a controlled 4xx, never an
+# unhandled-exception 500.
+# ---------------------------------------------------------------------------
+
+
+def test_inspect_claim_template_rejects_a_non_pdf_file():
+    res = client.post(
+        "/api/v1/daavisetu/claim-template/inspect",
+        files={"template": ("template.pdf", b"this is not a pdf at all", "application/pdf")},
+    )
+    assert res.status_code == 422
+    assert res.status_code != 500
+
+
+def test_inspect_claim_template_rejects_a_truncated_pdf():
+    real_pdf = _fillable_pdf_bytes(["patient_name"])
+    truncated = real_pdf[: len(real_pdf) // 2]
+    res = client.post(
+        "/api/v1/daavisetu/claim-template/inspect",
+        files={"template": ("template.pdf", truncated, "application/pdf")},
+    )
+    assert res.status_code == 422
+
+
+def test_fill_claim_template_rejects_a_non_pdf_file():
+    case_id, _package = _case_with_submitted_claim()
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim/fill-template",
+        files={"template": ("template.pdf", b"\x00\x01not a pdf either", "application/pdf")},
+    )
+    assert res.status_code == 422
+    assert res.status_code != 500
 
 
 def test_end_to_end_is_blocked_without_consent_at_every_stage():

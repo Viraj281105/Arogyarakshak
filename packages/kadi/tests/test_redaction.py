@@ -140,3 +140,68 @@ def test_contains_direct_identifier_detects_devanagari_labelled_fields():
 def test_hindi_redaction_is_idempotent():
     once = redact_pii(HINDI_SAMPLE)
     assert redact_pii(once) == once
+
+
+# ---------------------------------------------------------------------------
+# SEC-11: whitespace/tabular layouts (no ':' or '-') and ABHA numbers.
+# ---------------------------------------------------------------------------
+
+TABULAR_SAMPLE = (
+    "Lifeline Multispeciality Hospital\n"
+    "Patient Name        Ramesh Kulkarni\n"
+    "ABHA Number         91-2345-6789-0123\n"
+    "Address             12 MG Road, Pune\n"
+    "Diagnosis           Acute Appendicitis\n"
+    "Consultation        900\n"
+)
+
+
+def test_redacts_patient_name_in_tabular_whitespace_layout():
+    """A hospital document that lays fields out as a whitespace-aligned table, with no
+    ':' or '-' separator at all, previously survived redaction entirely."""
+    out = redact_pii(TABULAR_SAMPLE)
+    assert "Ramesh Kulkarni" not in out
+    assert "Patient Name" in out
+    assert REDACTION_MARK in out
+
+
+def test_redacts_abha_number_in_tabular_layout():
+    out = redact_pii(TABULAR_SAMPLE)
+    assert "91-2345-6789-0123" not in out
+    assert "ABHA Number" in out
+
+
+def test_tabular_layout_preserves_clinical_and_billing_content():
+    out = redact_pii(TABULAR_SAMPLE)
+    assert "Acute Appendicitis" in out
+    assert "Consultation" in out and "900" in out
+    assert "Lifeline Multispeciality Hospital" in out
+
+
+def test_does_not_redact_ordinary_single_spaced_prose():
+    """A single space must never be mistaken for a tabular label separator — only 2+
+    spaces (or a tab) count, so normal sentences are untouched."""
+    text = "Name calling is not permitted on hospital premises.\n"
+    assert redact_pii(text) == text
+
+
+def test_redacts_free_standing_abha_number_without_a_label():
+    text = "ABDM health id on file: 91 2345 6789 0123 for verification.\n"
+    out = redact_pii(text)
+    assert "91 2345 6789 0123" not in out
+
+
+def test_redacts_abha_number_with_no_separators():
+    text = "Patient ABHA: 91234567890123\n"
+    out = redact_pii(text)
+    assert "91234567890123" not in out
+
+
+def test_contains_direct_identifier_detects_tabular_layout():
+    assert contains_direct_identifier(TABULAR_SAMPLE) is True
+    assert contains_direct_identifier(redact_pii(TABULAR_SAMPLE)) is False
+
+
+def test_tabular_redaction_is_idempotent():
+    once = redact_pii(TABULAR_SAMPLE)
+    assert redact_pii(once) == once

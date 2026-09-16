@@ -178,3 +178,28 @@ def test_pii_bill_yields_only_clinical_charges():
     )
     items = {i["item"]: i["charged"] for i in parse_line_items(text)}
     assert items == {"Consultation": 900.0, "ICU": 18500.0}
+
+
+# ---------------------------------------------------------------------------
+# SEC-09: unbounded line-item extraction (memory/DB exhaustion via a pathological doc).
+# ---------------------------------------------------------------------------
+
+
+def test_line_item_extraction_is_bounded_by_default():
+    from kadi.line_items import MAX_LINE_ITEMS
+
+    text = "\n".join(f"Charge {i}: {100 + i}" for i in range(MAX_LINE_ITEMS + 250))
+    items = parse_line_items(text)
+    assert len(items) == MAX_LINE_ITEMS
+
+
+def test_line_item_extraction_respects_a_custom_max_items():
+    text = "\n".join(f"Charge {i}: {100 + i}" for i in range(50))
+    items = parse_line_items(text, max_items=10)
+    assert len(items) == 10
+
+
+def test_normal_bill_is_unaffected_by_the_cap():
+    text = "\n".join(f"Item {i}: {100 + i}" for i in range(20))
+    items = parse_line_items(text)
+    assert len(items) == 20

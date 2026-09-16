@@ -75,3 +75,76 @@ def test_compute_metrics_counts_false_merges():
     assert metrics.merge_support == 4
     assert metrics.merge_precision == 0.75
     assert metrics.false_merge_rate == 0.25
+
+
+# ---------------------------------------------------------------------------
+# SEC-10: one case's feedback must not be able to recalibrate a threshold shared by
+# every other case — global calibration poisoning.
+# ---------------------------------------------------------------------------
+
+
+def _samples_from_one_source(*groups, source_id="CASE-attacker"):
+    out = []
+    for confidence, same, count in groups:
+        out.extend(
+            LabeledOutcome(confidence=confidence, same_entity=same, source_id=source_id) for _ in range(count)
+        )
+    return out
+
+
+def test_a_single_attacker_case_cannot_recalibrate_even_with_plenty_of_samples():
+    """The exact attack: one actor creates many entities under ONE case and disputes
+    them, feeding 40 systematically-wrong labels — easily clearing min_samples/
+    min_per_class — trying to walk the merge threshold down toward garbage matches."""
+    samples = _samples_from_one_source(
+        (0.60, True, 20), (0.55, True, 15), (0.50, False, 5), source_id="CASE-attacker"
+    )
+    result = calibrate_thresholds(samples)
+    assert result.status == "INSUFFICIENT_EVIDENCE"
+    assert any("distinct case" in r for r in result.reasons)
+    # Thresholds are untouched — the attacker's flood never reached the resolver.
+    assert result.thresholds == ResolutionThresholds()
+
+
+def test_feedback_from_enough_distinct_cases_still_calibrates():
+    """The fix must not break honest calibration — genuine diversity still works."""
+    samples = []
+    groups = [(0.95, True, 15), (0.85, True, 10), (0.75, True, 5), (0.80, False, 5), (0.72, False, 5)]
+    i = 0
+    for confidence, same, count in groups:
+        for _ in range(count):
+            samples.append(LabeledOutcome(confidence=confidence, same_entity=same, source_id=f"CASE-{i % 6}"))
+            i += 1
+    result = calibrate_thresholds(samples)
+    assert result.status == "CALIBRATED"
+
+
+def test_one_dominant_case_is_capped_even_among_several_distinct_sources():
+    """A more sophisticated attacker spins up exactly `min_distinct_sources` cases to
+    clear the diversity bar, but pours the bulk of the (wrong) feedback through one of
+    them. max_samples_per_source must stop that single case from dominating the pool."""
+    honest = [
+        LabeledOutcome(confidence=0.95, same_entity=True, source_id=f"CASE-honest-{i}") for i in range(20)
+    ] + [
+        LabeledOutcome(confidence=0.55, same_entity=False, source_id=f"CASE-honest-{i}") for i in range(20)
+    ]
+    # One attacker case tries to inject 200 wrong "same_entity=True" labels at low
+    # confidence, far outnumbering every honest source individually.
+    attacker_flood = [
+        LabeledOutcome(confidence=0.55, same_entity=True, source_id="CASE-attacker") for _ in range(200)
+    ]
+    result = calibrate_thresholds(honest + attacker_flood, min_distinct_sources=5, max_samples_per_source=10)
+    # The flood is capped to 10 samples — it cannot swamp the 40 honest, diverse labels.
+    assert result.status == "CALIBRATED"
+    assert result.metrics.sample_count <= 40 + 10
+
+
+def test_samples_without_a_source_id_are_not_guarded_but_still_work():
+    """Opt-in hardening: a caller that never attaches source_id (e.g. an older/simpler
+    caller) gets the pre-SEC-10 behavior, not a silent INSUFFICIENT_EVIDENCE regression."""
+    samples = _samples(
+        (0.95, True, 15), (0.85, True, 10), (0.75, True, 5),
+        (0.80, False, 5), (0.72, False, 5),
+    )
+    result = calibrate_thresholds(samples)
+    assert result.status == "CALIBRATED"

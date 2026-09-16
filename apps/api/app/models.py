@@ -51,6 +51,15 @@ class KadiCase(Base):
     # row from before this column existed — app.case_auth.require_case_access treats a
     # null/empty hash as "this case can never be authorized" rather than "open access".
     access_token_hash = Column(String, nullable=True)
+    # SEC-03: server-side retention deadline, set at creation independent of whether the
+    # client ever comes back with its access token. Before this, a case (and everything
+    # derived from it) persisted forever unless its own token holder explicitly called
+    # DELETE /cases/{id} — a client that simply lost its one-time token (closed the tab,
+    # lost the app's in-memory store, uninstalled the app) had no way to ever trigger
+    # deletion again, so the data was retained permanently by default. Nullable only so
+    # schema creation never fails on a stray pre-existing row; app.case_retention treats
+    # a null expires_at as already-expired (never as "keep forever").
+    expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -190,11 +199,19 @@ class DawaCheckGenericMapping(Base):
 
 
 class BimaNyayCase(Base):
-    """Represents an insurance claim dispute dossier."""
+    """Represents an insurance claim dispute dossier.
+
+    SEC-04: `case_id` optionally links this dispute record to a Kadi case (ADR-009's
+    access-token-authorized case). Nullable — BimaNyay can still be used stand-alone
+    (its own screen has no case-creation flow), but when a case_id IS supplied, the
+    caller must hold that case's access token (app.case_auth) and consent
+    (app.consent) before the record is created, and the record is cascade-deleted with
+    its case (ondelete=CASCADE), exactly like every other module's case-linked data."""
 
     __tablename__ = "bimanyay_cases"
 
     id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=True, index=True)
     policy_number = Column(String, index=True, nullable=False)
     insurer_name = Column(String, index=True, nullable=False)
     policy_age_years = Column(Float, default=0.0)
@@ -210,11 +227,14 @@ class BimaNyayCase(Base):
 
 
 class BimaNyayGrievance(Base):
-    """Represents a multi-tier statutory grievance tracking record."""
+    """Represents a multi-tier statutory grievance tracking record.
+
+    SEC-04: same optional case_id linkage as BimaNyayCase above."""
 
     __tablename__ = "bimanyay_grievances"
 
     id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=True, index=True)
     claim_number = Column(String, index=True, nullable=True)
     insurer_name = Column(String, index=True, nullable=False)
     current_tier = Column(String, default="LEVEL_1_GRO")

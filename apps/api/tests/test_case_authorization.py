@@ -259,6 +259,42 @@ def test_owner_without_consent_still_gets_403_from_consent_not_404_or_401():
     assert "consent" in res.json()["detail"].lower()
 
 
+# ---------------------------------------------------------------------------
+# SEC-07: a query-string token may authorize a safe GET, never a mutation
+# ---------------------------------------------------------------------------
+
+
+def test_query_string_token_cannot_authorize_a_delete():
+    """The exact SEC-07 exploit: a token that leaked via a server log, browser history,
+    or Referer header (all realistic ways a query-string token escapes) must not be
+    usable to delete the case — only a header-carried token is state-changing-safe."""
+    case_id, token = _create_case()
+    res = client.delete(f"/api/v1/kadi/cases/{case_id}?access_token={token}")
+    assert res.status_code == 401
+    assert "header" in res.json()["detail"].lower()
+
+    # Prove the case really is still there — the delete did not silently succeed.
+    res2 = client.get(f"/api/v1/kadi/cases/{case_id}", headers={"X-Case-Access-Token": token})
+    assert res2.status_code == 200
+
+
+def test_query_string_token_cannot_authorize_an_upload():
+    case_id, token = _create_case()
+    res = client.post(
+        f"/api/v1/kadi/cases/{case_id}/upload?access_token={token}",
+        files={"file": ("bill.txt", b"Consultation: 500\nTotal Amount: 500\n")},
+    )
+    assert res.status_code == 401
+
+
+def test_query_string_token_still_authorizes_a_safe_get():
+    """The carve-out this exists for (EventSource, direct-download GET) must keep
+    working — SEC-07 narrows the exposure, it does not remove the feature."""
+    case_id, token = _create_case()
+    res = client.get(f"/api/v1/kadi/cases/{case_id}?access_token={token}")
+    assert res.status_code == 200
+
+
 def test_wrong_token_is_rejected_even_before_consent_is_considered():
     """A consent-withheld case with a WRONG token must still fail on authorization
     (access-token mismatch), not be conflated with — or accidentally bypass — the

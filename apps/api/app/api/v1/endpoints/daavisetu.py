@@ -20,7 +20,7 @@ from app.models import DaaviSetuClaim, KadiCase, KadiEntity
 from daavisetu.generator import generate_claim_package, generate_preauth_pdf, ClaimData, ClaimPackage
 from daavisetu.package_assembler import build_claim_package_zip
 from daavisetu.schema import get_claim_form_json_schema
-from daavisetu.form_filler import fill_pdf_form, list_form_fields, FormFieldInfo
+from daavisetu.form_filler import fill_pdf_form, list_form_fields, FormFieldInfo, MalformedPdfError
 
 logger = logging.getLogger("arogyarakshak.api.daavisetu")
 router = APIRouter()
@@ -276,7 +276,11 @@ async def inspect_claim_template(template: UploadFile = File(...)):
     their own insurer's real template. ArogyaRakshak ships no insurer's proprietary
     form of its own — the caller supplies their own."""
     template_bytes = await _read_template_upload(template)
-    return list_form_fields(template_bytes)
+    try:
+        return list_form_fields(template_bytes)
+    except MalformedPdfError as e:
+        # SEC-12: a corrupted/non-PDF upload is a client error, not a server crash.
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
 
 @router.post("/cases/{case_id}/claim/fill-template")
@@ -304,7 +308,11 @@ async def fill_claim_template(
         "treatment_plan": claim_input.treatment_plan,
         "estimated_cost": f"{claim_input.estimated_cost:,.2f}",
     }
-    filled_bytes = fill_pdf_form(template_bytes, field_values)
+    try:
+        filled_bytes = fill_pdf_form(template_bytes, field_values)
+    except MalformedPdfError as e:
+        # SEC-12: a corrupted/non-PDF upload is a client error, not a server crash.
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
     return Response(
         content=filled_bytes,

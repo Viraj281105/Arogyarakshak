@@ -5,6 +5,7 @@ Main application initialization with CORS configuration, global error handlers,
 lifespan hooks, and versioned routing.
 """
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.case_retention import run_retention_sweep_loop
 from app.config import settings
 from app.database import engine, Base
 from app.api.v1.api import api_router
@@ -88,8 +90,25 @@ async def lifespan(app: FastAPI):
         logger.info("Database schemas verified.")
     except Exception as e:
         logger.error("Failed to verify/create database schemas: %s", e)
-        
+
+    # SEC-03: server-side case retention sweep — purges expired cases on its own
+    # schedule, independent of any client ever presenting its access token again. See
+    # app/case_retention.py.
+    logger.info(
+        "Case retention: TTL=%d day(s), sweep interval=%ds",
+        settings.case_ttl_days, settings.case_purge_interval_seconds,
+    )
+    retention_stop_event = asyncio.Event()
+    retention_task = asyncio.create_task(run_retention_sweep_loop(retention_stop_event))
+
     yield
+
+    retention_stop_event.set()
+    retention_task.cancel()
+    try:
+        await retention_task
+    except (asyncio.CancelledError, Exception):
+        pass
     logger.info("ArogyaRakshak API shutting down...")
 
 

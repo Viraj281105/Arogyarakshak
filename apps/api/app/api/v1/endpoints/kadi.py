@@ -6,7 +6,7 @@ ABDM/FHIR record import (#54), resolution feedback and threshold calibration (#8
 case knowledge graph (#86) and auto-triggered module insights (#32).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 import hashlib
 import os
@@ -19,6 +19,7 @@ import asyncio
 
 from contextlib import asynccontextmanager
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, File, BackgroundTasks, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +32,7 @@ from app.config import settings
 from app.case_auth import generate_case_access_token, require_case_access
 from app.consent import require_case_consent
 from app.database import get_db
-from app.latency_metrics import tracker as latency_tracker, LatencySummary, LatencySample
+from app.latency_metrics import tracker as latency_tracker, LatencySummary, PublicLatencySample
 from app.kadi_resolution import (
     ALL_TYPES_SCOPE,
     DecisionAlreadyResolved,
@@ -44,6 +45,9 @@ from app.kadi_resolution import (
 )
 from app.models import (
     BillNyayAppeal,
+    BimaNyayCase,
+    BimaNyayGrievance,
+    BimaNyayTimelineEvent,
     DaaviSetuClaim,
     KadiCase,
     KadiCaseDocument,
@@ -293,9 +297,14 @@ async def process_document_background(
     logger.info(f"Background task starting: OCR parsing for case={case_id}, file={filename}")
     digest = digest or hashlib.sha256(file_bytes).hexdigest()
     try:
-        # Step 1: OCR parsing
+        # Step 1: OCR parsing.
+        # SEC-01: parse_document is synchronous, CPU-heavy work (PyMuPDF page parsing,
+        # EasyOCR inference) — calling it directly here would block the single event
+        # loop for the entire OCR duration, stalling every other request (including
+        # /health and every other case's SSE stream) for as long as this document takes
+        # to read. run_in_threadpool runs it on FastAPI's worker thread pool instead.
         processing_status[case_id].append({"status": "ocr_start", "progress": 30, "log": "Running document OCR parser..."})
-        parsed = parse_document(file_bytes=file_bytes, filename=filename)
+        parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
 
         # A parse failure must stop the pipeline. Previously the parser substituted a
         # placeholder sentence, so the stream reported "processed successfully" and the
@@ -314,9 +323,15 @@ async def process_document_background(
         text = parsed.get("full_text_content", "")
         line_items = parsed.get("line_items", [])
 
-        # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic fallback)
+        # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic
+        # fallback). SEC-01: extract_entities_from_text makes a synchronous
+        # urllib.request.urlopen call (kadi/extraction.py) when GROQ_API_KEY is
+        # configured — a blocking network call directly on the event loop, same
+        # starvation risk as the OCR step above.
         processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting clinical & billing entities with Kadi agent..."})
-        extracted = extract_entities_from_text(text, api_key=settings.groq_api_key, model=settings.groq_model)
+        extracted = await run_in_threadpool(
+            extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
+        )
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
@@ -495,6 +510,9 @@ async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
         status="active",
         total_charged=0.0,
         access_token_hash=token_hash,
+        # SEC-03: server-side retention deadline, independent of the client ever coming
+        # back with its token — see app.case_retention.
+        expires_at=datetime.utcnow() + timedelta(days=settings.case_ttl_days),
     )
     db.add(case)
     await db.commit()
@@ -647,10 +665,14 @@ async def latency_metrics_summary():
     return latency_tracker.summary()
 
 
-@router.get("/metrics/latency/recent", response_model=List[LatencySample])
+@router.get("/metrics/latency/recent", response_model=List[PublicLatencySample])
 async def latency_metrics_recent(limit: int = Query(20, ge=1, le=200)):
     """Most recent individual latency samples, newest first — for spotting which
-    specific uploads are driving p95/max rather than only the aggregate."""
+    specific uploads are driving p95/max rather than only the aggregate.
+
+    SEC-06: this route is public and unauthenticated (see latency_metrics_summary's
+    docstring), so samples carry only a one-way fingerprint of each case id, never the
+    real id — a real case id is itself sensitive (ADR-008/ADR-009)."""
     return latency_tracker.recent(limit=limit)
 
 
@@ -686,9 +708,11 @@ async def delete_case(
     true — a case, its extracted entities, its redacted document excerpt, and any
     generated PDFs (the BillNyay appeal, the DaaviSetu pre-auth form) persisted
     indefinitely with no way for the patient who created it to remove them. This is
-    the actual erasure mechanism that claim implied. See ADR-010 for what this does and
-    does not cover (BimaNyay's dispute records are a separate, not-yet-linked data
-    domain and are unaffected by this route).
+    the actual erasure mechanism that claim implied. SEC-04: BimaNyay dispute/grievance
+    records that were explicitly linked to this case (case_id set — see
+    app.api.v1.endpoints.bimanyay._authorize_optional_case) are now included in this
+    cascade too; a BimaNyay record created without a case_id (its stand-alone mode)
+    has nothing to cascade from and is unaffected, same as before.
 
     Deletes explicitly in Python rather than relying solely on the database's
     ON DELETE CASCADE, so behaviour is identical under SQLite (used in tests, where
@@ -698,6 +722,19 @@ async def delete_case(
     so an entity must not be destroyed out from under a different case that still
     references it.
     """
+    await purge_case(db, case_id)
+    await db.commit()
+
+    processing_status.pop(case_id, None)
+    logger.info("Case %s and all derived records permanently deleted.", case_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+async def purge_case(db: AsyncSession, case_id: str) -> None:
+    """Deletes a case and everything derived from it. Shared by the DELETE route above
+    (client-initiated) and app.case_retention's periodic sweep (SEC-03,
+    server-initiated on expiry — does NOT depend on the client ever coming back with
+    its token). Does not commit; the caller controls the transaction boundary."""
     entity_ids_result = await db.execute(
         select(kadi_case_entities.c.entity_id).where(kadi_case_entities.c.case_id == case_id)
     )
@@ -722,12 +759,26 @@ async def delete_case(
     await db.execute(delete(SchemeSetuCaseProfile).where(SchemeSetuCaseProfile.case_id == case_id))
     await db.execute(delete(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
     await db.execute(delete(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id))
+    await _purge_bimanyay_records_for_case(db, case_id)
     await db.execute(delete(KadiCase).where(KadiCase.id == case_id))
-    await db.commit()
 
-    processing_status.pop(case_id, None)
-    logger.info("Case %s and all derived records permanently deleted.", case_id)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+async def _purge_bimanyay_records_for_case(db: AsyncSession, case_id: str) -> None:
+    """SEC-04: deletes every BimaNyay dispute/grievance record explicitly linked to
+    this case (case_id set), plus each grievance's timeline events. Explicit Python
+    deletes rather than relying solely on ON DELETE CASCADE, same rationale as the rest
+    of this route: identical behaviour under SQLite (no FK enforcement by default, used
+    in tests) and Postgres (production)."""
+    grievance_ids_result = await db.execute(
+        select(BimaNyayGrievance.id).where(BimaNyayGrievance.case_id == case_id)
+    )
+    grievance_ids = [row[0] for row in grievance_ids_result.all()]
+    if grievance_ids:
+        await db.execute(
+            delete(BimaNyayTimelineEvent).where(BimaNyayTimelineEvent.grievance_id.in_(grievance_ids))
+        )
+    await db.execute(delete(BimaNyayGrievance).where(BimaNyayGrievance.case_id == case_id))
+    await db.execute(delete(BimaNyayCase).where(BimaNyayCase.case_id == case_id))
 
 
 # --- Entity resolution: review and feedback (#31, #88) ------------------------

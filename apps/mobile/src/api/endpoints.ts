@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { setCaseAccessToken } from './caseAuth';
+import { setCaseAccessToken, clearCaseAccessToken } from './caseAuth';
 import {
   CaseResponse,
   CaseCreatedResponse,
@@ -57,6 +57,16 @@ export const api = {
 
     getCase: (caseId: string) =>
       apiClient.get<{ case: CaseResponse; entities: any[] }>(`/api/v1/kadi/cases/${caseId}`),
+
+    // SEC-03: explicit patient-initiated deletion (P1-10) — the server also purges a
+    // case automatically once its retention deadline passes (app/case_retention.py),
+    // but the patient does not have to wait for that; this control lets them ask for
+    // it now, same as before.
+    deleteCase: async (caseId: string) => {
+      const result = await apiClient.delete<void>(`/api/v1/kadi/cases/${caseId}`);
+      clearCaseAccessToken(caseId);
+      return result;
+    },
 
     // "Are these the same?" questions Kadi could not decide on its own (#31).
     getPendingResolutions: (caseId: string) =>

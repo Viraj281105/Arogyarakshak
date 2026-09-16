@@ -8,6 +8,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -558,7 +559,12 @@ async def draft_appeal(
     else:
         client = GroqClientFallback()
 
-    denial = run_auditor_agent(client=client, denial_text=combined_text)
+    # SEC-01: every agent below calls client.generate(), which is a synchronous
+    # urllib.request.urlopen(...) call to Groq (or, on the offline fallback path, a
+    # synchronous-but-instant canned return) — run off the event loop via
+    # run_in_threadpool so one in-flight appeal draft (up to 5 sequential LLM calls)
+    # cannot stall /health or any other request for the whole pipeline's duration.
+    denial = await run_in_threadpool(run_auditor_agent, client=client, denial_text=combined_text)
     # A canned fallback response always parses into a valid StructuredDenial, so
     # "denial is not None" alone can't distinguish real extraction from a template
     # (e.g. DEN-999 / confidence 0.95) served because no live LLM call happened.
@@ -578,11 +584,13 @@ async def draft_appeal(
         )
 
     # 4. Agent 2 — Clinician: synthesise medical-necessity evidence.
-    clinical_evidence = run_clinician_agent(client=client, denial_details=denial)
+    clinical_evidence = await run_in_threadpool(run_clinician_agent, client=client, denial_details=denial)
 
-    # 5. Agent 3 — Regulatory: retrieve applicable statutory provisions.
-    regulatory_evidence = run_regulatory_agent(
-        denial_data=denial.model_dump(), client=client
+    # 5. Agent 3 — Regulatory: retrieve applicable statutory provisions. (Deterministic,
+    # no network call, but kept on the threadpool for consistency with the rest of the
+    # pipeline and so it never becomes a blocking call unnoticed if that changes later.)
+    regulatory_evidence = await run_in_threadpool(
+        run_regulatory_agent, denial_data=denial.model_dump(), client=client
     )
 
     # 5b. Multi-agent consensus (#65): a transparency/triage vote across the three
@@ -596,8 +604,11 @@ async def draft_appeal(
     consensus: ConsensusResult = compute_weighted_consensus(votes)
 
     # 6-7. Agents 4 & 5 — Barrister drafts, Judge scores, with self-correcting
-    # revision (#68) when the Judge reports needs_revision.
-    drafting_result = draft_with_self_correction(
+    # revision (#68) when the Judge reports needs_revision. Can make several sequential
+    # LLM calls (draft + revisions) — the single most important call to keep off the
+    # event loop in this pipeline.
+    drafting_result = await run_in_threadpool(
+        draft_with_self_correction,
         client,
         denial_details=denial,
         clinical_evidence=clinical_evidence,
@@ -616,7 +627,9 @@ async def draft_appeal(
     # 8. Compile, sign, and persist the PDF (#66) — the exact bytes served by
     # .../appeal/pdf and checked by .../appeal/verify, so a later re-draft cannot
     # silently invalidate what was already downloaded.
-    pdf_bytes = compile_appeal_packet_bytes(appeal_letter, case_meta={"case_id": case_id})
+    pdf_bytes = await run_in_threadpool(
+        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}
+    )
     document_sha256 = compute_sha256(pdf_bytes)
     hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
 
@@ -813,7 +826,11 @@ async def draft_grievance(
     else:
         client = GroqClientFallback()
 
-    denial = run_auditor_agent(client=client, denial_text=combined_text) if combined_text else None
+    denial = (
+        await run_in_threadpool(run_auditor_agent, client=client, denial_text=combined_text)
+        if combined_text
+        else None
+    )
     denial_facts_extracted = denial is not None and not client.used_fallback
     if denial is None:
         denial = StructuredDenial(

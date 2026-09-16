@@ -24,26 +24,37 @@ Guards:
 Known bias (disclosed, not corrected): labels only exist for pairs that reached ASK or a
 disputed MERGE, so pairs the resolver confidently called NEW are under-represented.
 
-Known attack surface (P2, examined 2026-09-16, NOT fixed this pass — disclosed rather
-than silently left): recalibration is GLOBAL (scope is an entity type, or "all_types"),
-aggregating ``KadiResolutionDecision.feedback_same_entity`` across every case, with no
-per-source attribution or trust weighting. With no authentication beyond a per-case
-access token (ADR-009), nothing stops one actor from creating many cases and submitting
-systematically wrong feedback to walk the merge/ask thresholds toward an extreme —
-``min_merge_support`` defaults to just 5 labeled samples. The existing ``max_step`` /
-``bounds`` clamp (see Guards above) is real, deliberate poisoning resistance: it already
-prevents any single recalibration event from swinging the resolver, so this is not an
-unmitigated hole — but it does not prevent a patient attacker from repeating small,
-bounded nudges over many recalibration cycles to walk a threshold to its bound over
-time. A real fix needs either per-source (not per-sample) diversity requirements before
-counting feedback, or outlier/anomaly detection on submitted labels — both are
-non-trivial statistics work, not a "smallest real fix," and were not built in this
-security-remediation pass. Recorded here as a known, examined limitation rather than
-either silently ignored or overstated as solved.
+Known attack surface, FIXED (SEC-10, 2026-09-16): recalibration is GLOBAL (scope is an
+entity type, or "all_types"), aggregating ``KadiResolutionDecision.feedback_same_entity``
+across every case, with no per-source attribution or trust weighting by default. With no
+authentication beyond a per-case access token (ADR-009), nothing stops one actor from
+creating many cases and submitting systematically wrong feedback to walk the merge/ask
+thresholds toward an extreme — ``min_merge_support`` defaults to just 5 labeled samples.
+The existing ``max_step``/``bounds`` clamp (see Guards above) already prevents any single
+recalibration event from swinging the resolver, but did not stop a patient attacker from
+repeating small, bounded nudges over many recalibration cycles to walk a threshold to its
+bound over time, since every sample counted equally regardless of who submitted it.
+
+The fix is the per-source diversity requirement flagged above as the real remedy:
+``LabeledOutcome`` now optionally carries a ``source_id`` (the case id the feedback came
+from). When source ids are supplied, two additional guards apply before any recalibration
+is trusted:
+
+- ``min_distinct_sources`` — at least this many DISTINCT cases must have contributed a
+  label, not just this many labels. A single case creating many entities and disputing
+  them cannot manufacture ``min_samples`` worth of "evidence" alone.
+- ``max_samples_per_source`` — any one case's labels are capped at this many before being
+  counted, so even a case that clears the distinct-source bar cannot dominate the sample
+  pool and drag the computed precision/recall — and therefore the proposed threshold —
+  toward whatever answer it keeps giving.
+
+When no ``source_id`` is supplied (older callers, or tests that only care about the
+statistics), these guards are skipped entirely — this is opt-in hardening, not a breaking
+change to the calibration math itself.
 """
 
 import math
-from typing import List, Literal, Optional, Sequence, Tuple
+from typing import Dict, List, Literal, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -54,6 +65,10 @@ class LabeledOutcome(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     same_entity: bool
     entity_type: Optional[str] = None
+    # SEC-10: the case this feedback came from. Optional so existing callers that don't
+    # (or can't) attribute a source keep working unchanged; supplying it enables the
+    # per-source diversity guards in calibrate_thresholds below.
+    source_id: Optional[str] = None
 
 
 class CalibrationMetrics(BaseModel):
@@ -120,6 +135,35 @@ def _bounded_step(old: float, new: float, max_step: float, bounds: Tuple[float, 
     return round(new, 4)
 
 
+def _apply_source_diversity_guard(
+    samples: Sequence[LabeledOutcome],
+    *,
+    min_distinct_sources: int,
+    max_samples_per_source: int,
+) -> "Tuple[List[LabeledOutcome], int, bool]":
+    """SEC-10: caps each source's contribution and reports how many distinct sources
+    are represented. Samples with no source_id are passed through uncapped and do not
+    count toward distinct-source diversity — attribution is opt-in, not assumed."""
+    attributed = [s for s in samples if s.source_id is not None]
+    unattributed = [s for s in samples if s.source_id is None]
+
+    if not attributed:
+        return list(samples), 0, True
+
+    distinct_sources = len({s.source_id for s in attributed})
+    per_source_count: Dict[str, int] = {}
+    capped: List[LabeledOutcome] = []
+    for s in attributed:
+        seen = per_source_count.get(s.source_id, 0)
+        if seen >= max_samples_per_source:
+            continue
+        per_source_count[s.source_id] = seen + 1
+        capped.append(s)
+
+    enough_sources = distinct_sources >= min_distinct_sources
+    return capped + unattributed, distinct_sources, enough_sources
+
+
 def calibrate_thresholds(
     samples: Sequence[LabeledOutcome],
     current: Optional[ResolutionThresholds] = None,
@@ -132,12 +176,24 @@ def calibrate_thresholds(
     min_merge_support: int = 5,
     max_step: float = 0.05,
     bounds: Tuple[float, float] = (0.5, 0.99),
+    min_distinct_sources: int = 5,
+    max_samples_per_source: int = 10,
 ) -> CalibrationResult:
     current = current or ResolutionThresholds()
+
+    samples, distinct_sources, enough_sources = _apply_source_diversity_guard(
+        samples, min_distinct_sources=min_distinct_sources, max_samples_per_source=max_samples_per_source
+    )
+
     positives = [s for s in samples if s.same_entity]
     negatives = [s for s in samples if not s.same_entity]
 
     shortfalls = []
+    if not enough_sources:
+        shortfalls.append(
+            f"feedback from only {distinct_sources} distinct case(s) (need {min_distinct_sources}) — "
+            "one case's feedback cannot recalibrate a threshold shared by every case"
+        )
     if len(samples) < min_samples:
         shortfalls.append(f"{len(samples)} labeled decisions (need {min_samples})")
     if len(positives) < min_per_class:

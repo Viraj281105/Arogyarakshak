@@ -1,6 +1,6 @@
 """Unit tests for app/latency_metrics.py (#116)."""
 
-from app.latency_metrics import LatencyTracker, TARGET_LATENCY_SECONDS, _percentile
+from app.latency_metrics import LatencyTracker, TARGET_LATENCY_SECONDS, _percentile, _case_id_fingerprint
 
 
 def test_empty_tracker_summary_has_no_percentiles():
@@ -51,8 +51,8 @@ def test_recent_returns_newest_first_and_respects_limit():
 
     recent = tracker.recent(limit=2)
     assert len(recent) == 2
-    assert recent[0].case_id == "CASE-4"
-    assert recent[1].case_id == "CASE-3"
+    assert recent[0].case_id_fingerprint == _case_id_fingerprint("CASE-4")
+    assert recent[1].case_id_fingerprint == _case_id_fingerprint("CASE-3")
 
 
 def test_sample_window_is_bounded():
@@ -83,6 +83,30 @@ def test_failed_outcomes_are_recorded_distinctly_from_completed():
 
     outcomes = {s.outcome for s in tracker.recent(limit=10)}
     assert outcomes == {"completed", "failed"}
+
+
+def test_recent_never_exposes_the_raw_case_id():
+    """SEC-06: the public /metrics/latency/recent route has no authentication, so a
+    real case id (itself sensitive — ADR-008/ADR-009) must never appear in its output,
+    only a one-way fingerprint."""
+    tracker = LatencyTracker()
+    tracker.record("CASE-abcdef0123456789", 3.0, "completed")
+
+    recent = tracker.recent(limit=10)
+    assert len(recent) == 1
+    sample = recent[0]
+    assert not hasattr(sample, "case_id")
+    assert "CASE-abcdef0123456789" not in sample.model_dump_json()
+    assert sample.case_id_fingerprint == _case_id_fingerprint("CASE-abcdef0123456789")
+
+
+def test_case_id_fingerprint_is_stable_and_not_reversible_by_inspection():
+    fp1 = _case_id_fingerprint("CASE-deadbeef00000001")
+    fp2 = _case_id_fingerprint("CASE-deadbeef00000001")
+    fp3 = _case_id_fingerprint("CASE-deadbeef00000002")
+    assert fp1 == fp2
+    assert fp1 != fp3
+    assert "CASE-" not in fp1
 
 
 def test_percentile_helper_matches_known_values():

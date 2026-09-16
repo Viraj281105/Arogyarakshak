@@ -60,6 +60,42 @@ export default function Home() {
 
   const t = translations[currentLang];
 
+  // SEC-03: the server also purges a case automatically once its retention deadline
+  // passes (app/case_retention.py — does not depend on the patient coming back), but
+  // this lets them ask for the same real erasure DELETE /cases/{id} already performs
+  // (P1-10) right now, from the UI, instead of only via a direct API call.
+  const [isDeletingCase, setIsDeletingCase] = useState<boolean>(false);
+
+  const handleDeleteCase = async () => {
+    if (!caseId || !caseToken) return;
+    const confirmed = window.confirm(
+      "Delete this case permanently? This removes everything derived from it — extracted entities, audits, and any generated documents. This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    setIsDeletingCase(true);
+    setErrorMessage(null);
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/kadi/cases/${caseId}`, {
+        method: "DELETE",
+        headers: { "X-Case-Access-Token": caseToken },
+      });
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`Delete failed: HTTP ${res.status}`);
+      }
+      setCaseId("");
+      setCaseToken("");
+      setPipelineStep(0);
+      setActiveFileName("");
+      setLiveLog("");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to delete this case.");
+    } finally {
+      setIsDeletingCase(false);
+    }
+  };
+
   const handleStartAudit = async (
     file: File | null,
     fileName: string,
@@ -234,6 +270,29 @@ export default function Home() {
         {/* Entity-resolution questions Kadi could not decide on its own (#31) */}
         {pipelineStep === 4 && !isProcessing && caseId && (
           <EntityResolutionReview key={caseId} caseId={caseId} caseToken={caseToken} currentLang={currentLang} />
+        )}
+
+        {/* SEC-03: explicit patient-initiated case deletion */}
+        {caseId && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+            <button
+              type="button"
+              onClick={handleDeleteCase}
+              disabled={isDeletingCase}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--status-danger)",
+                background: "transparent",
+                color: "var(--status-danger)",
+                fontSize: "0.85rem",
+                cursor: isDeletingCase ? "not-allowed" : "pointer",
+                opacity: isDeletingCase ? 0.6 : 1,
+              }}
+            >
+              {isDeletingCase ? "Deleting…" : "🗑 Delete this case & all data"}
+            </button>
+          </div>
         )}
 
 

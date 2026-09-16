@@ -13,6 +13,7 @@ need this backed by a shared store (Prometheus, the database, etc.) to aggregate
 processes. That gap is disclosed, not hidden.
 """
 
+import hashlib
 import statistics
 import time
 from typing import Dict, List, Optional
@@ -27,10 +28,40 @@ TARGET_LATENCY_SECONDS = 10.0
 _MAX_SAMPLES = 500
 
 
+def _case_id_fingerprint(case_id: str) -> str:
+    """SEC-06: a short, one-way fingerprint of a case id — enough to tell samples from
+    the same case apart in the public metrics response, without exposing the actual
+    64-bit case identifier (which, per ADR-008/ADR-009, is itself sensitive: anyone who
+    obtains it can attempt to reach that case's data). Not reversible."""
+    return hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:12]
+
+
 class LatencySample(BaseModel):
+    """Internal record — holds the real case_id. Never returned directly by a route;
+    see PublicLatencySample for what the public API exposes."""
+
     case_id: str
     duration_seconds: float
     outcome: str = Field(..., description="'completed' or 'failed' — which terminal event was reached.")
+    timestamp: float
+
+    def to_public(self) -> "PublicLatencySample":
+        return PublicLatencySample(
+            case_id_fingerprint=_case_id_fingerprint(self.case_id),
+            duration_seconds=self.duration_seconds,
+            outcome=self.outcome,
+            timestamp=self.timestamp,
+        )
+
+
+class PublicLatencySample(BaseModel):
+    """What GET /metrics/latency/recent actually returns (SEC-06): no raw case id."""
+
+    case_id_fingerprint: str = Field(
+        ..., description="One-way fingerprint of the case id — not reversible, only for telling samples apart."
+    )
+    duration_seconds: float
+    outcome: str
     timestamp: float
 
 
@@ -95,8 +126,11 @@ class LatencyTracker:
             compliance_rate=round(1 - (violations / len(durations)), 4),
         )
 
-    def recent(self, limit: int = 20) -> List[LatencySample]:
-        return list(reversed(self._samples[-limit:]))
+    def recent(self, limit: int = 20) -> List[PublicLatencySample]:
+        """SEC-06: returns the PUBLIC view (fingerprinted case id), since this backs a
+        public, unauthenticated route. Use `self._samples` directly for anything that
+        needs the real case_id (there is no such internal caller today)."""
+        return [s.to_public() for s in reversed(self._samples[-limit:])]
 
 
 def _percentile(sorted_values: List[float], fraction: float) -> float:

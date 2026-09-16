@@ -62,6 +62,9 @@ export interface MobileTranslations {
       unmatchedNotice: string;
       scanBillBtn: string;
       activeCaseReady: string;
+      deleteCaseBtn: string;
+      deleteCaseConfirmTitle: string;
+      deleteCaseConfirmBody: string;
     };
     daavisetu: {
       title: string;
@@ -175,6 +178,7 @@ export interface MobileTranslations {
     cancel: string;
     close: string;
     loading: string;
+    delete: string;
   };
 }
 
@@ -241,6 +245,9 @@ export const translations: Record<Language, MobileTranslations> = {
         unmatchedNotice: '{count} item(s) totalling ₹{amount} have no CGHS benchmark and were NOT verified.',
         scanBillBtn: '📷 Scan Bill with Camera',
         activeCaseReady: 'Active case loaded from camera scan.',
+        deleteCaseBtn: 'Delete case',
+        deleteCaseConfirmTitle: 'Delete this case?',
+        deleteCaseConfirmBody: 'This permanently deletes this case and everything derived from it — extracted entities, audits, and any generated documents. This cannot be undone.',
       },
       daavisetu: {
         title: 'DaaviSetu',
@@ -354,6 +361,7 @@ export const translations: Record<Language, MobileTranslations> = {
       cancel: 'Cancel',
       close: 'Close',
       loading: 'Loading...',
+      delete: 'Delete',
     },
   },
   hi: {
@@ -418,6 +426,9 @@ export const translations: Record<Language, MobileTranslations> = {
         unmatchedNotice: '{count} मदों (₹{amount}) के लिए CGHS मानक नहीं है, इनकी जाँच नहीं हुई।',
         scanBillBtn: '📷 कैमरे से बिल स्कैन करें',
         activeCaseReady: 'स्कैन से सक्रिय केस लोड हो गया है।',
+        deleteCaseBtn: 'केस हटाएं',
+        deleteCaseConfirmTitle: 'क्या यह केस हटाना है?',
+        deleteCaseConfirmBody: 'यह इस केस और इससे प्राप्त सभी डेटा — निकाली गई जानकारी, ऑडिट, और जनरेट किए गए दस्तावेज़ — को स्थायी रूप से हटा देगा। इसे पूर्ववत नहीं किया जा सकता।',
       },
       daavisetu: {
         title: 'दावेसेतू',
@@ -531,6 +542,7 @@ export const translations: Record<Language, MobileTranslations> = {
       cancel: 'रद्द करें',
       close: 'बंद करें',
       loading: 'लोड हो रहा है...',
+      delete: 'हटाएं',
     },
   },
   mr: {
@@ -595,6 +607,9 @@ export const translations: Record<Language, MobileTranslations> = {
         unmatchedNotice: '{count} नोंदींसाठी (₹{amount}) CGHS मानक नाही, त्यांची पडताळणी झाली नाही.',
         scanBillBtn: '📷 कॅमेऱ्याने बिल स्कॅन करा',
         activeCaseReady: 'स्कॅनवरून सक्रिय केस लोड झाली आहे.',
+        deleteCaseBtn: 'केस हटवा',
+        deleteCaseConfirmTitle: 'ही केस हटवायची आहे का?',
+        deleteCaseConfirmBody: 'यामुळे ही केस आणि त्यातून मिळालेला सर्व डेटा — काढलेल्या नोंदी, ऑडिट्स, आणि तयार केलेली कागदपत्रे — कायमची हटवली जातील. ही क्रिया पूर्ववत करता येणार नाही.',
       },
       daavisetu: {
         title: 'दावेसेतू',
@@ -708,6 +723,7 @@ export const translations: Record<Language, MobileTranslations> = {
       cancel: 'रद्द करा',
       close: 'बंद करा',
       loading: 'लोड होत आहे...',
+      delete: 'हटवा',
     },
   },
 };

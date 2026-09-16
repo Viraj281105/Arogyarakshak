@@ -1,8 +1,9 @@
 import io
 
+import pytest
 from reportlab.pdfgen import canvas
 
-from daavisetu.form_filler import fill_pdf_form, list_form_fields
+from daavisetu.form_filler import fill_pdf_form, list_form_fields, MalformedPdfError
 
 
 def _fillable_pdf(field_names) -> bytes:
@@ -60,3 +61,38 @@ def test_fill_pdf_form_returns_valid_pdf_bytes():
     pdf_bytes = _fillable_pdf(["patient_name"])
     filled = fill_pdf_form(pdf_bytes, {"patient_name": "Test"})
     assert filled.startswith(b"%PDF")
+
+
+# ---------------------------------------------------------------------------
+# SEC-12: a corrupted/non-PDF template must raise a controlled, catchable error —
+# never an unhandled parser exception that would surface as a 500.
+# ---------------------------------------------------------------------------
+
+
+def test_list_form_fields_rejects_a_non_pdf_file():
+    with pytest.raises(MalformedPdfError):
+        list_form_fields(b"this is not a pdf at all, just plain text bytes")
+
+
+def test_list_form_fields_rejects_an_empty_file():
+    with pytest.raises(MalformedPdfError):
+        list_form_fields(b"")
+
+
+def test_list_form_fields_rejects_a_truncated_pdf():
+    real_pdf = _fillable_pdf(["patient_name"])
+    truncated = real_pdf[: len(real_pdf) // 2]
+    with pytest.raises(MalformedPdfError):
+        list_form_fields(truncated)
+
+
+def test_fill_pdf_form_rejects_a_non_pdf_file():
+    with pytest.raises(MalformedPdfError):
+        fill_pdf_form(b"\x00\x01\x02not a pdf", {"patient_name": "Test"})
+
+
+def test_fill_pdf_form_rejects_a_pdf_masquerading_random_bytes():
+    """A file merely starting with the %PDF magic bytes but otherwise garbage must
+    still be rejected cleanly, not crash partway through writing."""
+    with pytest.raises(MalformedPdfError):
+        fill_pdf_form(b"%PDF-1.4\n" + b"\xff" * 200, {"patient_name": "Test"})

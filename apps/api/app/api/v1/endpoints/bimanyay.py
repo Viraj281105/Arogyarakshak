@@ -5,16 +5,19 @@ Handles health insurance denial audits, statutory clause analysis,
 and multi-tier IRDAI grievance timeline tracking.
 """
 
+import hmac
 import logging
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.case_auth import CASE_ACCESS_TOKEN_HEADER, hash_case_access_token
+from app.consent import require_case_consent
 from app.database import get_db
-from app.models import BimaNyayCase, BimaNyayGrievance, BimaNyayTimelineEvent
+from app.models import BimaNyayCase, BimaNyayGrievance, BimaNyayTimelineEvent, KadiCase
 from bimanyay import (
     ClaimDenialInput,
     DisputeAuditResult,
@@ -25,6 +28,41 @@ from bimanyay import (
 
 logger = logging.getLogger("arogyarakshak.api.bimanyay")
 router = APIRouter()
+
+
+async def _authorize_optional_case(
+    case_id: Optional[str],
+    x_case_access_token: Optional[str],
+    db: AsyncSession,
+) -> Optional[KadiCase]:
+    """SEC-04: BimaNyay previously created dispute records with no case linkage at all —
+    unauthorized, unauthenticated, and outside the case-deletion cascade (ADR-009/#66
+    docstring: "BimaNyay's dispute records are a separate, not-yet-linked data domain").
+
+    `case_id` stays optional (BimaNyay's own screen has no case-creation flow — see
+    module docstring), preserving stand-alone use. But when a caller DOES supply one, it
+    must be authorized exactly like every other case-scoped route: the case must exist,
+    the caller must present its real access token (never merely knowing the id), and the
+    case must have opted into cross-module consent — this record becomes part of that
+    case's shared context and must be deleted when the case is.
+    """
+    if not case_id:
+        return None
+
+    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
+    case = result.scalar_one_or_none()
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    stored_hash = case.access_token_hash or ""
+    presented_hash = hash_case_access_token(x_case_access_token or "")
+    if not x_case_access_token or not stored_hash or not hmac.compare_digest(presented_hash, stored_hash):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The provided case access token is invalid for this case.",
+        )
+
+    return require_case_consent(case)
 
 
 class TimelineRequest(BaseModel):
@@ -38,19 +76,25 @@ class TimelineRequest(BaseModel):
 async def analyze_denial(
     req: ClaimDenialInput,
     language: str = "en",
+    case_id: Optional[str] = Query(
+        None, description="Optional: link this dispute record to an existing Kadi case (SEC-04)."
+    ),
+    x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Audits an insurance claim repudiation or deduction against IRDAI regulations.
     Generates 3-tier appeal documents: GRO, IRDAI Bima Bharosa, and Ombudsman in English, Hindi, or Marathi.
     """
+    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db)
     try:
         result = analyze_insurance_denial(req, language=language)
 
         # Persist audit record in database
-        case_id = str(uuid.uuid4())
+        record_id = str(uuid.uuid4())
         case_record = BimaNyayCase(
-            id=case_id,
+            id=record_id,
+            case_id=linked_case.id if linked_case else None,
             policy_number=req.policy_number,
             insurer_name=req.insurer_name,
             policy_age_years=req.policy_age_years,
@@ -77,11 +121,16 @@ async def analyze_denial(
 @router.post("/timeline", response_model=GrievanceTrackerResponse, status_code=status.HTTP_200_OK)
 async def track_timeline(
     req: TimelineRequest,
+    case_id: Optional[str] = Query(
+        None, description="Optional: link this grievance record to an existing Kadi case (SEC-04)."
+    ),
+    x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Calculates statutory milestone deadlines and SLA tracking for dispute escalation.
     """
+    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db)
     try:
         timeline = calculate_grievance_timeline(
             insurer_name=req.insurer_name,
@@ -94,6 +143,7 @@ async def track_timeline(
         grievance_id = str(uuid.uuid4())
         grievance_record = BimaNyayGrievance(
             id=grievance_id,
+            case_id=linked_case.id if linked_case else None,
             claim_number=req.claim_number,
             insurer_name=req.insurer_name,
             current_tier=req.current_tier,

@@ -15,6 +15,7 @@ logger.setLevel(logging.INFO)
 import io
 import os
 from datetime import datetime
+from xml.sax.saxutils import escape as _xml_escape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -155,24 +156,31 @@ def generate_preauth_pdf(claim_id: str, claim_input: ClaimData) -> bytes:
     # Form Fields Table. Labels come from daavisetu.schema.FORM_SECTIONS — the same
     # constants the universal claim-form JSON Schema (#79) annotates its fields with —
     # so the rendered form and the schema cannot silently drift apart.
+    #
+    # SEC-02: every value cell below is patient/policyholder-submitted (POST .../claim)
+    # or extracted-from-document text — untrusted. ReportLab's Paragraph parses its text
+    # as a small XML/HTML dialect, so an unescaped '<' either crashes the PDF build or
+    # lets submitted text inject markup into a document that is later signed and filed
+    # with an insurer. Escaped with xml.sax.saxutils.escape before rendering; normal
+    # medical text such as "Hb < 5.0 mg/dL" renders as literal text, not a crash.
     table_data = [
         [
             Paragraph(FORM_SECTIONS["patient_name"], cell_label_style),
-            Paragraph(claim_input.patient_name, cell_val_style),
+            Paragraph(_xml_escape(claim_input.patient_name), cell_val_style),
             Paragraph(FORM_SECTIONS["policy_number"], cell_label_style),
-            Paragraph(claim_input.policy_number, cell_val_style),
+            Paragraph(_xml_escape(claim_input.policy_number), cell_val_style),
         ],
         [
             Paragraph(FORM_SECTIONS["hospital_name"], cell_label_style),
-            Paragraph(claim_input.hospital_name, cell_val_style),
+            Paragraph(_xml_escape(claim_input.hospital_name), cell_val_style),
             Paragraph(FORM_SECTIONS["estimated_cost"], cell_label_style),
             Paragraph(f"INR {claim_input.estimated_cost:,.2f}", cell_val_style),
         ],
         [
             Paragraph(FORM_SECTIONS["diagnosis"], cell_label_style),
-            Paragraph(claim_input.diagnosis, cell_val_style),
+            Paragraph(_xml_escape(claim_input.diagnosis), cell_val_style),
             Paragraph(FORM_SECTIONS["treatment_plan"], cell_label_style),
-            Paragraph(claim_input.treatment_plan, cell_val_style),
+            Paragraph(_xml_escape(claim_input.treatment_plan), cell_val_style),
         ],
     ]
 
