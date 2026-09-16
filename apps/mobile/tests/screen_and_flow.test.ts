@@ -307,6 +307,18 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     assert.ok(/unrecognized_tokens/.test(src), 'must surface unrecognized tokens rather than hide them');
   });
 
+  it('CameraScanScreen actually deletes the cached photo after upload, matching its own status message', () => {
+    // P2: the "Expunging transient memory..." status message has always been shown,
+    // but nothing ever deleted the locally-cached photo takePictureAsync() writes to
+    // the device — a real local-storage privacy gap (and a UI claim that didn't match
+    // what the code did) independent of the server-side BYOD zero-retention claim.
+    const src = readFileSync(join(screenDir, 'CameraScanScreen.tsx'), 'utf-8');
+    assert.ok(/FileSystem\.deleteAsync/.test(src), 'must call FileSystem.deleteAsync to clean up the cached photo');
+    // Must run regardless of upload success/failure — i.e. inside a finally block.
+    const finallyBlock = src.slice(src.indexOf('} finally {'), src.indexOf('};', src.indexOf('} finally {')));
+    assert.ok(/FileSystem\.deleteAsync/.test(finallyBlock), 'cleanup must run in the finally block, not only on success');
+  });
+
   it('BimaNyayScreen lets the user choose all 4 denial categories, not just the hardcoded default', () => {
     // Regression: denialCategory state defaulted to 'PED_NON_DISCLOSURE' with no UI control
     // to change it, so a mobile user describing a room-rent, investigation-only, or

@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FileSystem from 'expo-file-system';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { DocumentScanType, scannerService, ScannedDocument } from '../services/scanner';
@@ -93,6 +94,21 @@ export const CameraScanScreen: React.FC = () => {
       console.warn('[CameraScan] Upload failed:', err);
       setErrorMessage(err.message || 'Failed to upload document to Kadi layer');
     } finally {
+      // P2: the status message above has always claimed "Expunging transient
+      // memory..." but nothing ever actually deleted the captured photo from the
+      // device's local cache — takePictureAsync() writes it there, and it survived
+      // indefinitely regardless of whether the upload succeeded or failed. Deleted
+      // here, in `finally`, so both outcomes clean up the local file; the server-side
+      // BYOD zero-retention claim (ADR-003) was never about this on-device copy, but
+      // leaving a photographed medical document sitting in app cache indefinitely on
+      // the patient's own device is a real local-storage privacy gap in its own right.
+      if (scannedDoc.uri && scannedDoc.uri.startsWith('file://')) {
+        try {
+          await FileSystem.deleteAsync(scannedDoc.uri, { idempotent: true });
+        } catch (cleanupErr) {
+          console.warn('[CameraScan] Failed to delete cached photo:', cleanupErr);
+        }
+      }
       setIsCapturing(false);
       setUploadStatus(null);
     }

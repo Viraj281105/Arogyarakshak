@@ -23,6 +23,23 @@ Guards:
 
 Known bias (disclosed, not corrected): labels only exist for pairs that reached ASK or a
 disputed MERGE, so pairs the resolver confidently called NEW are under-represented.
+
+Known attack surface (P2, examined 2026-09-16, NOT fixed this pass — disclosed rather
+than silently left): recalibration is GLOBAL (scope is an entity type, or "all_types"),
+aggregating ``KadiResolutionDecision.feedback_same_entity`` across every case, with no
+per-source attribution or trust weighting. With no authentication beyond a per-case
+access token (ADR-009), nothing stops one actor from creating many cases and submitting
+systematically wrong feedback to walk the merge/ask thresholds toward an extreme —
+``min_merge_support`` defaults to just 5 labeled samples. The existing ``max_step`` /
+``bounds`` clamp (see Guards above) is real, deliberate poisoning resistance: it already
+prevents any single recalibration event from swinging the resolver, so this is not an
+unmitigated hole — but it does not prevent a patient attacker from repeating small,
+bounded nudges over many recalibration cycles to walk a threshold to its bound over
+time. A real fix needs either per-source (not per-sample) diversity requirements before
+counting feedback, or outlier/anomaly detection on submitted labels — both are
+non-trivial statistics work, not a "smallest real fix," and were not built in this
+security-remediation pass. Recorded here as a known, examined limitation rather than
+either silently ignored or overstated as solved.
 """
 
 import math

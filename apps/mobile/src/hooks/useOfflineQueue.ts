@@ -38,22 +38,32 @@ export function useOfflineQueue() {
     })();
   }, [getItem]);
 
-  // Persist queue updates to storage
+  // Persist queue updates to storage. Returns whether the write actually succeeded —
+  // P2: useOfflineStorage.setItem's 50,000-CHARACTER guard does not reflect
+  // expo-secure-store's real on-device limit (Android's Keystore-backed store caps
+  // entries around ~2,048 BYTES), so a queue serialization between those two sizes can
+  // pass the app-level guard and still fail the actual platform write. setItem already
+  // catches that and returns false; this hook previously never looked at the return
+  // value, so a failed persist looked identical to a successful one to every caller.
   const saveQueue = useCallback(
-    async (newQueue: QueuedAction[]) => {
+    async (newQueue: QueuedAction[]): Promise<boolean> => {
       setQueue(newQueue);
       try {
-        await setItem(QUEUE_STORAGE_KEY, JSON.stringify(newQueue));
+        return await setItem(QUEUE_STORAGE_KEY, JSON.stringify(newQueue));
       } catch (e) {
         console.warn('[useOfflineQueue] Failed to persist offline queue:', e);
+        return false;
       }
     },
     [setItem]
   );
 
-  // Enqueue action when network is offline or request fails
+  // Enqueue action when network is offline or request fails. Returns null — instead of
+  // silently returning an id as if the action were safely queued — when the underlying
+  // persist failed, so a caller can tell the user their action was NOT actually saved
+  // for offline retry rather than showing a false "queued" confirmation.
   const enqueueAction = useCallback(
-    async (type: string, payload: any): Promise<string> => {
+    async (type: string, payload: any): Promise<string | null> => {
       const id = `act_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const newAction: QueuedAction = {
         id,
@@ -64,8 +74,8 @@ export function useOfflineQueue() {
       };
 
       const updated = [...queue, newAction];
-      await saveQueue(updated);
-      return id;
+      const saved = await saveQueue(updated);
+      return saved ? id : null;
     },
     [queue, saveQueue]
   );
