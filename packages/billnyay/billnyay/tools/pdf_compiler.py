@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
@@ -52,14 +53,23 @@ def _build_story(appeal_letter: str, styles) -> list:
     story.append(Spacer(1, 14))
 
     # Appeal Letter Paragraphs
+    # SEC-02: `appeal_letter` is LLM-drafted from document-derived (untrusted) facts —
+    # it can legitimately contain '<', '>' or '&' (e.g. "Hb < 5.0 mg/dL"). ReportLab's
+    # Paragraph parses its text as a small XML/HTML dialect, so passing that straight
+    # through either raises on malformed "tags" or, worse, lets attacker-controlled text
+    # inject real markup. Untrusted content is XML-escaped BEFORE any markup this
+    # function itself adds (the "### " heading strip, the "\n" -> "<br/>" line break) so
+    # the escaping can never touch tags the app intentionally generated.
     paragraphs = appeal_letter.split("\n\n") if appeal_letter else ["No letter text provided."]
     for p in paragraphs:
-        text = p.strip().replace("\n", "<br/>")
-        if text.startswith("### ") or text.startswith("## ") or text.startswith("# "):
-            clean_title = text.lstrip("#").strip()
+        raw = p.strip()
+        is_heading = raw.startswith("### ") or raw.startswith("## ") or raw.startswith("# ")
+        if is_heading:
+            clean_title = _xml_escape(raw.lstrip("#").strip())
             story.append(Paragraph(clean_title, styles["SectionHead"]))
             story.append(Spacer(1, 4))
         else:
+            text = _xml_escape(raw).replace("\n", "<br/>")
             story.append(Paragraph(text, styles["LetterBody"]))
             story.append(Spacer(1, 8))
 

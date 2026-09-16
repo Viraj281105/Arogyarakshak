@@ -2,8 +2,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.auth_test_client import AuthAwareTestClient
 
-client = TestClient(app)
+# ADR-009: case-scoped routes now require a per-case access token. AuthAwareTestClient
+# transparently carries the token returned by each case this client creates to that
+# case's later requests, so the several hundred pre-existing tests below — none of which
+# are testing authorization — do not need per-call header wiring. See
+# tests/auth_test_client.py and tests/test_case_authorization.py (the tests that DO
+# exercise the authorization boundary directly).
+client = AuthAwareTestClient(app)
 
 
 def test_health_endpoint():
@@ -1300,6 +1307,39 @@ def test_cors_does_not_pair_wildcard_origin_with_credentials():
     assert "*" not in kwargs["allow_methods"], "methods must be an explicit allow-list"
 
 
+def test_cors_allows_put_and_delete_for_income_profile_and_case_deletion():
+    """P2 (CONFIRMED, and self-inflicted by this session's own new routes): CORS
+    allow_methods previously listed only GET/POST/OPTIONS. SchemeSetu's income-profile
+    route (PUT/DELETE) and the new case-deletion route (DELETE /kadi/cases/{id},
+    ADR-009/P1-10) were both completely unreachable from any browser client — a
+    cross-origin PUT/DELETE triggers a CORS preflight OPTIONS request first, and the
+    browser refuses the real request when the method isn't in
+    Access-Control-Allow-Methods, regardless of what the route itself would have done.
+    This exercises the actual preflight response, not just the configured kwargs.
+    """
+    case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    for method, path in [
+        ("PUT", f"/api/v1/schemesetu/cases/{case_id}/income-profile"),
+        ("DELETE", f"/api/v1/schemesetu/cases/{case_id}/income-profile"),
+        ("DELETE", f"/api/v1/kadi/cases/{case_id}"),
+    ]:
+        preflight = client.options(
+            path,
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "X-Case-Access-Token",
+            },
+        )
+        assert preflight.status_code == 200, f"{method} {path} preflight failed: {preflight.text}"
+        allowed = preflight.headers.get("access-control-allow-methods", "")
+        assert method in allowed, f"{method} not in preflight Access-Control-Allow-Methods: {allowed}"
+        allowed_headers = preflight.headers.get("access-control-allow-headers", "").lower()
+        assert "x-case-access-token" in allowed_headers, (
+            f"X-Case-Access-Token not in preflight Access-Control-Allow-Headers: {allowed_headers}"
+        )
+
+
 def test_upload_rejects_oversized_document():
     from app.config import settings
 
@@ -1360,8 +1400,13 @@ def test_status_map_is_bounded():
         processing_status.clear()
 
 
-def test_sse_stream_has_a_bounded_timeout():
-    """An unknown case must not hold a connection open forever."""
+def test_sse_stream_timeout_setting_is_sane():
+    """Only checks the configured VALUE is sane. This used to be titled
+    'test_sse_stream_has_a_bounded_timeout' and claimed in its docstring to prove "an
+    unknown case must not hold a connection open forever" without ever calling the
+    endpoint — the setting existed but the stream generator never read it (P0-2). The
+    real behavioral proof (existence check, real timeout enforcement, disconnect
+    handling) now lives in tests/test_sse_stream.py."""
     from app.config import settings
 
     assert settings.sse_timeout_seconds > 0
@@ -1580,7 +1625,11 @@ def test_latency_metrics_records_failed_outcomes_too():
     res = client.get("/api/v1/kadi/metrics/latency/recent")
     assert res.status_code == 200
     samples = res.json()
-    assert any(s["case_id"] == case_id and s["outcome"] == "failed" for s in samples)
+    # SEC-06: the public route no longer exposes the raw case id, only a fingerprint.
+    from app.latency_metrics import _case_id_fingerprint
+    fingerprint = _case_id_fingerprint(case_id)
+    assert any(s["case_id_fingerprint"] == fingerprint and s["outcome"] == "failed" for s in samples)
+    assert not any("case_id" in s for s in samples)
 
 
 def test_latency_metrics_recent_endpoint_respects_limit():
@@ -1589,6 +1638,74 @@ def test_latency_metrics_recent_endpoint_respects_limit():
     res = client.get("/api/v1/kadi/metrics/latency/recent?limit=2")
     assert res.status_code == 200
     assert len(res.json()) == 2
+
+
+def test_extraction_warnings_reach_the_persisted_entity_and_completion_log(monkeypatch):
+    """P0-4 end-to-end wiring: an ExtractedEntities carrying extraction_warnings (e.g.
+    flagged prompt-injection phrasing, or an unreconciled total_amount) must actually
+    reach somewhere visible — the document_text entity's meta and the SSE completion
+    log — not sit unused on a Pydantic model nobody reads."""
+    from app.api.v1.endpoints import kadi as kadi_module
+    from kadi.extraction import ExtractedEntities
+
+    flagged = ExtractedEntities(
+        hospital_name="Test Hospital",
+        total_amount=500.0,
+        extraction_warnings=["Source document text contained phrasing resembling a prompt-injection attempt: test"],
+    )
+    monkeypatch.setattr(kadi_module, "extract_entities_from_text", lambda *a, **kw: flagged)
+
+    case_id = _case_with_document(b"Consultation: 500\nTotal Amount: 500\n")
+
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    doc_text_entity = next(e for e in entities if e["type"] == "document_text")
+    assert "extraction_warnings" in doc_text_entity["meta"]
+    assert "prompt-injection" in doc_text_entity["meta"]["extraction_warnings"][0]
+
+    events = kadi_module.processing_status.get(case_id, [])
+    completed_event = next(e for e in events if e.get("status") == "completed")
+    assert "flagged for review" in completed_event["log"]
+
+
+def test_clean_extraction_leaves_no_warning_trace(monkeypatch):
+    from app.api.v1.endpoints import kadi as kadi_module
+    from kadi.extraction import ExtractedEntities
+
+    clean = ExtractedEntities(hospital_name="Test Hospital", total_amount=500.0)
+    monkeypatch.setattr(kadi_module, "extract_entities_from_text", lambda *a, **kw: clean)
+
+    case_id = _case_with_document(b"Consultation: 500\nTotal Amount: 500\n")
+
+    entities = client.get(f"/api/v1/kadi/cases/{case_id}").json()["entities"]
+    doc_text_entity = next(e for e in entities if e["type"] == "document_text")
+    assert "extraction_warnings" not in doc_text_entity["meta"]
+
+    events = kadi_module.processing_status.get(case_id, [])
+    completed_event = next(e for e in events if e.get("status") == "completed")
+    assert "flagged for review" not in completed_event["log"]
+
+
+def test_default_document_signing_secret_is_the_known_insecure_value():
+    """P2: pins the exact string main.py checks at startup, so a future edit to the
+    default in config.py that forgets to update the startup-warning check is caught
+    here instead of silently going unnoticed."""
+    from app.config import Settings
+
+    assert Settings().document_signing_secret == "dev-insecure-signing-secret-change-in-production"
+
+
+def test_uses_default_database_credentials_detects_the_dev_fallback():
+    """P0-5: the app must be able to recognise docker-compose.yml's fallback
+    arogyarakshak:arogyarakshak dev credentials so it can warn loudly at startup if they
+    reach a real deployment, rather than staying silent about a critical misconfiguration."""
+    from app.main import uses_default_database_credentials
+
+    assert uses_default_database_credentials(
+        "postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak"
+    ) is True
+    assert uses_default_database_credentials(
+        "postgresql://prod_user:S3cure-R4nd0m-P4ssw0rd@db.internal:5432/arogyarakshak"
+    ) is False
 
 
 def test_schemesetu_discloses_what_it_did_not_evaluate():
@@ -2018,6 +2135,41 @@ def test_fill_claim_template_requires_a_submitted_claim():
         files={"template": ("template.pdf", template_bytes, "application/pdf")},
     )
     assert res.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# SEC-12: a corrupted/non-PDF template must return a controlled 4xx, never an
+# unhandled-exception 500.
+# ---------------------------------------------------------------------------
+
+
+def test_inspect_claim_template_rejects_a_non_pdf_file():
+    res = client.post(
+        "/api/v1/daavisetu/claim-template/inspect",
+        files={"template": ("template.pdf", b"this is not a pdf at all", "application/pdf")},
+    )
+    assert res.status_code == 422
+    assert res.status_code != 500
+
+
+def test_inspect_claim_template_rejects_a_truncated_pdf():
+    real_pdf = _fillable_pdf_bytes(["patient_name"])
+    truncated = real_pdf[: len(real_pdf) // 2]
+    res = client.post(
+        "/api/v1/daavisetu/claim-template/inspect",
+        files={"template": ("template.pdf", truncated, "application/pdf")},
+    )
+    assert res.status_code == 422
+
+
+def test_fill_claim_template_rejects_a_non_pdf_file():
+    case_id, _package = _case_with_submitted_claim()
+    res = client.post(
+        f"/api/v1/daavisetu/cases/{case_id}/claim/fill-template",
+        files={"template": ("template.pdf", b"\x00\x01not a pdf either", "application/pdf")},
+    )
+    assert res.status_code == 422
+    assert res.status_code != 500
 
 
 def test_end_to_end_is_blocked_without_consent_at_every_stage():

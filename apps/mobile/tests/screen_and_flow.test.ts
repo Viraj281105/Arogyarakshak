@@ -307,6 +307,18 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     assert.ok(/unrecognized_tokens/.test(src), 'must surface unrecognized tokens rather than hide them');
   });
 
+  it('CameraScanScreen actually deletes the cached photo after upload, matching its own status message', () => {
+    // P2: the "Expunging transient memory..." status message has always been shown,
+    // but nothing ever deleted the locally-cached photo takePictureAsync() writes to
+    // the device — a real local-storage privacy gap (and a UI claim that didn't match
+    // what the code did) independent of the server-side BYOD zero-retention claim.
+    const src = readFileSync(join(screenDir, 'CameraScanScreen.tsx'), 'utf-8');
+    assert.ok(/FileSystem\.deleteAsync/.test(src), 'must call FileSystem.deleteAsync to clean up the cached photo');
+    // Must run regardless of upload success/failure — i.e. inside a finally block.
+    const finallyBlock = src.slice(src.indexOf('} finally {'), src.indexOf('};', src.indexOf('} finally {')));
+    assert.ok(/FileSystem\.deleteAsync/.test(finallyBlock), 'cleanup must run in the finally block, not only on success');
+  });
+
   it('BimaNyayScreen lets the user choose all 4 denial categories, not just the hardcoded default', () => {
     // Regression: denialCategory state defaulted to 'PED_NON_DISCLOSURE' with no UI control
     // to change it, so a mobile user describing a room-rent, investigation-only, or
@@ -318,6 +330,42 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
       assert.ok(
         src.includes(`'${value}'`),
         `BimaNyayScreen must offer denial category '${value}' as a selectable option`
+      );
+    });
+  });
+});
+
+describe('Mobile Screens Must Not Fabricate Offline-Queue Success', () => {
+  const screenDir = join(process.cwd(), 'src', 'screens');
+
+  // useOfflineQueue's own string | null contract is covered by the "Offline Queue
+  // Honesty (P2)" suite in byod_and_api.test.ts. This suite only covers the 4 screens
+  // that were left as a wiring follow-up there.
+
+  const screens = [
+    { file: 'BimaNyayScreen', action: 'ANALYZE_DENIAL' },
+    { file: 'DaaviSetuScreen', action: 'SUBMIT_PREAUTH' },
+    { file: 'DawaCheckScreen', action: 'BENCHMARK_MEDICINE' },
+    { file: 'SchemeSetuScreen', action: 'CHECK_SCHEME' },
+  ];
+
+  screens.forEach(({ file, action }) => {
+    it(`${file} branches on enqueueAction's return value instead of always claiming success`, () => {
+      const src = readFileSync(join(screenDir, `${file}.tsx`), 'utf-8');
+
+      // Must capture the return value (not just fire-and-forget await enqueueAction(...)).
+      assert.ok(
+        new RegExp(`queuedId\\s*=\\s*await enqueueAction\\('${action}'`).test(src),
+        `${file} must capture enqueueAction('${action}') return value into a variable`
+      );
+
+      // Must actually branch on it.
+      assert.ok(/if\s*\(\s*queuedId\s*\)|if\s*\(\s*!queuedId\s*\)|!!queuedId/.test(src), `${file} must branch on the queuedId result`);
+
+      // Must show an honest failure message when persistence failed, not the generic queued copy.
+      assert.ok(
+        /Could not save this for offline retry/.test(src),
+        `${file} must show an honest failure message when enqueueAction returns null`
       );
     });
   });

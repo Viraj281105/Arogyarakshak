@@ -5,6 +5,7 @@ Main application initialization with CORS configuration, global error handlers,
 lifespan hooks, and versioned routing.
 """
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -15,10 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.case_retention import run_retention_sweep_loop
 from app.config import settings
 from app.database import engine, Base
 from app.api.v1.api import api_router
-from app.rate_limit import limiter
+from app.rate_limit import limiter, resolve_client_ip
 
 logger = logging.getLogger("arogyarakshak.api")
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +36,13 @@ def redact_database_url(url: str) -> str:
         return "<unparseable DATABASE_URL>"
 
 
+def uses_default_database_credentials(url: str) -> bool:
+    """True when DATABASE_URL still carries docker-compose.yml's fallback dev
+    credentials (arogyarakshak:arogyarakshak) — a critical, silent misconfiguration if
+    it reaches a real deployment (P0-5)."""
+    return "arogyarakshak:arogyarakshak@" in url
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — runs database creation and logs startup configuration."""
@@ -41,6 +50,28 @@ async def lifespan(app: FastAPI):
     logger.info("GROQ_MODEL = %s", settings.groq_model)
     # The URL embeds the database password; log it masked.
     logger.info("DATABASE_URL = %s", redact_database_url(settings.database_url))
+
+    # P0-5: the well-known default dev credentials (docker-compose.yml's fallback)
+    # reaching a real deployment would be a critical, silent misconfiguration —
+    # surfaced loudly at startup rather than left to be discovered later.
+    # P2: DOCUMENT_SIGNING_SECRET signs the appeal PDF's integrity HMAC
+    # (billnyay.tools.pdf_integrity) — a real, checkable secret whose default value was
+    # never flagged at startup the way the database/CORS defaults are.
+    if settings.document_signing_secret == "dev-insecure-signing-secret-change-in-production":
+        logger.warning(
+            "DOCUMENT_SIGNING_SECRET is using the insecure development default. This is "
+            "fine for local development only — set DOCUMENT_SIGNING_SECRET to a strong, "
+            "unique value before any deployment reachable outside your own machine, or "
+            "anyone can forge a valid-looking signature for a tampered appeal PDF."
+        )
+
+    if uses_default_database_credentials(settings.database_url):
+        logger.warning(
+            "DATABASE_URL uses the default development credentials "
+            "(arogyarakshak:arogyarakshak). This is fine for local development only — "
+            "set POSTGRES_PASSWORD (and DATABASE_URL) to a strong, unique value before "
+            "any deployment reachable outside your own machine."
+        )
 
     if settings.groq_api_key:
         logger.info("GROQ_API_KEY is configured — LLM-backed extraction and drafting enabled.")
@@ -59,8 +90,25 @@ async def lifespan(app: FastAPI):
         logger.info("Database schemas verified.")
     except Exception as e:
         logger.error("Failed to verify/create database schemas: %s", e)
-        
+
+    # SEC-03: server-side case retention sweep — purges expired cases on its own
+    # schedule, independent of any client ever presenting its access token again. See
+    # app/case_retention.py.
+    logger.info(
+        "Case retention: TTL=%d day(s), sweep interval=%ds",
+        settings.case_ttl_days, settings.case_purge_interval_seconds,
+    )
+    retention_stop_event = asyncio.Event()
+    retention_task = asyncio.create_task(run_retention_sweep_loop(retention_stop_event))
+
     yield
+
+    retention_stop_event.set()
+    retention_task.cancel()
+    try:
+        await retention_task
+    except (asyncio.CancelledError, Exception):
+        pass
     logger.info("ArogyaRakshak API shutting down...")
 
 
@@ -88,8 +136,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if wildcard_origins else origins,
     allow_credentials=not wildcard_origins,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Accept", "Authorization"],
+    # P2: was missing PUT and DELETE. SchemeSetu's income-profile route (PUT/DELETE) and
+    # the case-deletion route (DELETE /kadi/cases/{id}, ADR-009/P1-10) were both
+    # completely unreachable from any browser client — a cross-origin PUT/DELETE sends a
+    # CORS preflight OPTIONS request first, and the browser refuses the real request
+    # when the preflight response's Access-Control-Allow-Methods doesn't list the method
+    # actually being used, independent of anything the route itself does.
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "Authorization", "X-Case-Access-Token"],
 )
 
 
@@ -102,7 +156,7 @@ async def rate_limit_middleware(request: Request, call_next):
     if request.url.path == "/health":
         return await call_next(request)
 
-    client_key = request.client.host if request.client else "unknown"
+    client_key = resolve_client_ip(request)
     allowed, retry_after = limiter.check(client_key)
     if not allowed:
         logger.warning("Rate limit exceeded for client %s on %s", client_key, request.url.path)

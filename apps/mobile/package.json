@@ -17,6 +17,7 @@
     "expo": "~52.0.37",
     "expo-camera": "~16.0.17",
     "expo-constants": "~17.0.7",
+    "expo-file-system": "~18.0.12",
     "expo-secure-store": "~14.0.1",
     "expo-status-bar": "~2.0.1",
     "react": "18.3.1",

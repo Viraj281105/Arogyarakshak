@@ -321,10 +321,18 @@ async def recalibrate(session: AsyncSession, entity_type: str) -> List[Calibrati
                 KadiResolutionDecision.entity_type,
                 KadiResolutionDecision.confidence,
                 KadiResolutionDecision.feedback_same_entity,
+                KadiResolutionDecision.case_id,
             ).where(KadiResolutionDecision.feedback_same_entity.is_not(None))
         )
     ).all()
-    samples = [LabeledOutcome(confidence=c, same_entity=bool(f), entity_type=t) for t, c, f in rows]
+    # source_id=case_id (SEC-10): lets calibrate_thresholds require feedback from
+    # multiple distinct cases, not just multiple samples, before trusting it — one case
+    # repeatedly disputing/confirming decisions cannot alone recalibrate a threshold
+    # shared by every other case.
+    samples = [
+        LabeledOutcome(confidence=c, same_entity=bool(f), entity_type=t, source_id=case_id)
+        for t, c, f, case_id in rows
+    ]
 
     results = []
     for scope, scoped in (

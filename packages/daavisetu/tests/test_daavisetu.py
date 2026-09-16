@@ -99,3 +99,60 @@ def test_preauth_pdf_generates_without_sum_insured():
     )
     pdf_bytes = generate_preauth_pdf(claim_id="CLAIM-TEST02", claim_input=claim_input)
     assert pdf_bytes.startswith(b"%PDF")
+
+
+# ---------------------------------------------------------------------------
+# SEC-02: patient/policyholder-submitted text must never crash or inject markup into
+# the compiled PDF (ReportLab's Paragraph parses a small XML/HTML dialect).
+# ---------------------------------------------------------------------------
+
+
+def test_preauth_pdf_survives_malformed_reportlab_markup_in_patient_name():
+    """Before the fix, an unescaped '<' from a submitted field reached ReportLab's
+    Paragraph parser directly and raised (crashing the whole PDF build, i.e. a 500 on
+    every download of this claim)."""
+    claim_input = ClaimData(
+        policy_number="POL999",
+        patient_name="<script>alert(1)</script> & <unclosed",
+        hospital_name="Test Hospital",
+        diagnosis="Test Diagnosis",
+        estimated_cost=50000.0,
+        treatment_plan="Test Procedure",
+    )
+    pdf_bytes = generate_preauth_pdf(claim_id="CLAIM-TEST03", claim_input=claim_input)
+    assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_preauth_pdf_handles_ampersand_and_angle_brackets_in_diagnosis():
+    """Realistic clinical text carrying '<' — must render, not crash or vanish."""
+    claim_input = ClaimData(
+        policy_number="POL999",
+        patient_name="Test Patient",
+        hospital_name="Test Hospital & Research Centre",
+        diagnosis="Hb < 5.0 mg/dL, ALT > 200 U/L",
+        estimated_cost=50000.0,
+        treatment_plan="Test Procedure",
+    )
+    pdf_bytes = generate_preauth_pdf(claim_id="CLAIM-TEST04", claim_input=claim_input)
+    assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_preauth_pdf_survives_every_malformed_and_normal_field_combination():
+    payloads = [
+        "<b>bold-injected</b>",
+        "unterminated <tag attr='x",
+        "5 < 10 and 10 > 5",
+        "AT&T Hospital",
+        "normal clinical text with no markup at all",
+    ]
+    for payload in payloads:
+        claim_input = ClaimData(
+            policy_number=payload,
+            patient_name=payload,
+            hospital_name=payload,
+            diagnosis=payload,
+            estimated_cost=1000.0,
+            treatment_plan=payload,
+        )
+        pdf_bytes = generate_preauth_pdf(claim_id="CLAIM-FUZZ", claim_input=claim_input)
+        assert pdf_bytes.startswith(b"%PDF"), f"PDF build failed for payload: {payload!r}"

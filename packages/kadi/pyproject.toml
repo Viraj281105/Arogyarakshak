@@ -18,6 +18,11 @@ dependencies = [
     "PyMuPDF>=1.23.0",
     "numpy<2.0.0",
     "pydantic>=2.0.0",
+    # Declared explicitly rather than relied on as a hidden transitive dependency of
+    # easyocr: kadi.ocr.ocr_parser imports PIL.Image directly to check an uploaded
+    # image's declared dimensions BEFORE the expensive cv2.imdecode()/EasyOCR decode
+    # (decompression-bomb guard, see MAX_IMAGE_DIMENSION_PX/MAX_IMAGE_PIXELS).
+    "Pillow>=10.0.0",
 ]
 
 [project.optional-dependencies]

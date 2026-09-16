@@ -209,6 +209,15 @@ IDENTITY_TERMS = {
 # identifier (phone number, account number) that slipped through the label check.
 _MAX_AMOUNT_DIGITS = 10
 
+# SEC-09: a real hospital bill, even an itemized multi-day ICU stay, does not run to
+# thousands of billable lines. Without a ceiling, a pathological document (a malformed
+# OCR read that turns a scanned image into thousands of matching "noise" lines, or a
+# deliberately crafted .txt/.csv upload) can push an unbounded number of KadiEntity rows
+# into a single upload/extraction cycle — a memory and database-write exhaustion vector,
+# not a real audit improvement. Configurable per call so a caller with a genuinely
+# different bound (e.g. a test) is not forced to reach into module internals.
+MAX_LINE_ITEMS = 500
+
 
 def is_identity_line(name: str) -> bool:
     """True when the description labels an identity/contact field rather than a charge."""
@@ -310,10 +319,13 @@ def parse_line_item(line: str) -> Optional[Dict[str, Any]]:
     return {"item": name, "charged": charged}
 
 
-def parse_line_items(text: str) -> List[Dict[str, Any]]:
-    """Extracts every billable line item from a block of document text."""
+def parse_line_items(text: str, max_items: int = MAX_LINE_ITEMS) -> List[Dict[str, Any]]:
+    """Extracts every billable line item from a block of document text, up to
+    `max_items` (SEC-09) — a pathological document cannot make this grow without bound."""
     items: List[Dict[str, Any]] = []
     for line in (text or "").splitlines():
+        if len(items) >= max_items:
+            break
         item = parse_line_item(line)
         if item is not None:
             items.append(item)

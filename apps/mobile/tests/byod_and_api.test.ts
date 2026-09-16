@@ -1,5 +1,7 @@
 import test, { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { api } from '../src/api/endpoints';
 import { apiClient } from '../src/api/client';
 import { scannerService } from '../src/services/scanner';
@@ -253,5 +255,39 @@ describe('Phase 3 Kadi Resolution & Income Profile Contracts', () => {
       });
       assert.ok(translations[lang].modules.bimanyay.heuristicDisclosure.trim().length > 0);
     });
+  });
+});
+
+describe('Offline Queue Honesty (P2)', () => {
+  const hookSrc = readFileSync(join(process.cwd(), 'src', 'hooks', 'useOfflineQueue.ts'), 'utf-8');
+  const storageSrc = readFileSync(join(process.cwd(), 'src', 'hooks', 'useOfflineStorage.ts'), 'utf-8');
+
+  it('enqueueAction no longer unconditionally returns an id regardless of whether the persist succeeded', () => {
+    // Regression: useOfflineStorage.setItem's 50,000-character guard does not reflect
+    // expo-secure-store's real on-device limit (Android caps entries around ~2KB), so a
+    // write between those two sizes can silently fail the actual platform call while
+    // passing the app-level guard. setItem already catches that and returns false, but
+    // enqueueAction previously ignored it and always returned an id — showing the user
+    // a "queued for offline retry" confirmation for an action that was never actually
+    // persisted.
+    assert.ok(
+      /const saved = await saveQueue\(updated\)/.test(hookSrc),
+      'enqueueAction must capture saveQueue\'s success/failure result'
+    );
+    assert.ok(
+      /return saved \? id : null/.test(hookSrc),
+      'enqueueAction must return null (not a false "success" id) when the persist failed'
+    );
+  });
+
+  it('saveQueue propagates the underlying setItem result instead of swallowing it', () => {
+    assert.ok(
+      /return await setItem\(QUEUE_STORAGE_KEY, JSON\.stringify\(newQueue\)\)/.test(hookSrc),
+      'saveQueue must return what setItem actually reports, not assume success'
+    );
+  });
+
+  it('setItem still returns false (not throws) on a failed platform write, which enqueueAction now checks', () => {
+    assert.ok(/return false/.test(storageSrc), 'setItem must report failure via its return value');
   });
 });

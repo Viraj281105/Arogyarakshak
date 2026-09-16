@@ -210,6 +210,50 @@ def check_cpu_only_torch_pin() -> list[str]:
     return errors
 
 
+def check_docker_postgres_binding() -> list[str]:
+    """Postgres must never bind to every interface on the host (P0-5): the `api`
+    service reaches it over the internal Docker network by service name
+    (DATABASE_URL=...@postgres:5432/...), so a host port mapping is only for local
+    debugging and must be localhost-only. Guards against docker-compose.yml regressing
+    to an unbound "5432:5432" (which binds 0.0.0.0) without anyone noticing."""
+    errors = []
+    compose_file = ROOT_DIR / "docker-compose.yml"
+    if not compose_file.exists():
+        return ["Postgres Binding: docker-compose.yml is missing."]
+
+    content = compose_file.read_text(encoding="utf-8")
+    if re.search(r'^\s*-\s*"5432:5432"\s*$', content, re.MULTILINE):
+        errors.append(
+            'Postgres Binding: docker-compose.yml binds "5432:5432" (all interfaces). '
+            'Use "127.0.0.1:5432:5432" or remove the port mapping entirely.'
+        )
+    return errors
+
+
+def check_docker_api_binding() -> list[str]:
+    """SEC-13: the `api` service must never bind its host port to every interface
+    either. `web` reaches `api` over the internal Docker network by service name, so the
+    host port mapping exists only for local host-side debugging. Direct 0.0.0.0 exposure
+    puts the API on the network with no reverse proxy in front of it, which conflicts
+    with app/rate_limit.py::resolve_client_ip's assumption that X-Forwarded-For is only
+    ever trusted when TRUSTED_PROXY_COUNT is deliberately configured for a real proxy
+    topology — an unbound API port is itself a spoofing surface, not just a data-exposure
+    one, since any direct caller can add that header for free. Same guard shape as
+    check_docker_postgres_binding above."""
+    errors = []
+    compose_file = ROOT_DIR / "docker-compose.yml"
+    if not compose_file.exists():
+        return ["API Binding: docker-compose.yml is missing."]
+
+    content = compose_file.read_text(encoding="utf-8")
+    if re.search(r'^\s*-\s*"8000:8000"\s*$', content, re.MULTILINE):
+        errors.append(
+            'API Binding: docker-compose.yml binds "8000:8000" (all interfaces). '
+            'Use "127.0.0.1:8000:8000" or remove the port mapping entirely.'
+        )
+    return errors
+
+
 def main() -> int:
     print("=" * 60)
     print("  ArogyaRakshak CI Guardrails & Invariant Verification")
@@ -217,7 +261,7 @@ def main() -> int:
 
     all_errors = []
 
-    print("[1/6] Checking BYOD Zero-Retention Invariants...")
+    print("[1/8] Checking BYOD Zero-Retention Invariants...")
     byod_errors = check_byod_zero_retention()
     if byod_errors:
         all_errors.extend(byod_errors)
@@ -225,7 +269,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: Zero persistent document directories.")
 
-    print("[2/6] Checking Model Grounding Guard...")
+    print("[2/8] Checking Model Grounding Guard...")
     model_errors = check_model_grounding()
     if model_errors:
         all_errors.extend(model_errors)
@@ -233,7 +277,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: No prohibited deprecated models.")
 
-    print("[3/6] Checking Monorepo Package Hygiene...")
+    print("[3/8] Checking Monorepo Package Hygiene...")
     pkg_errors = check_package_hygiene()
     if pkg_errors:
         all_errors.extend(pkg_errors)
@@ -241,7 +285,7 @@ def main() -> int:
     else:
         print(f"  ✓ PASSED: All {len(REQUIRED_PACKAGES)} packages lowercase & valid.")
 
-    print("[4/6] Checking Database Table Prefix Conventions...")
+    print("[4/8] Checking Database Table Prefix Conventions...")
     db_errors = check_database_table_prefixes()
     if db_errors:
         all_errors.extend(db_errors)
@@ -249,7 +293,7 @@ def main() -> int:
     else:
         print("  ✓ PASSED: All ORM tables strictly prefixed by module.")
 
-    print("[5/6] Scanning for Accidental API Key Leaks...")
+    print("[5/8] Scanning for Accidental API Key Leaks...")
     sec_errors = check_secret_patterns()
     if sec_errors:
         all_errors.extend(sec_errors)
@@ -257,13 +301,29 @@ def main() -> int:
     else:
         print("  ✓ PASSED: No sensitive API keys detected.")
 
-    print("[6/6] Checking CPU-Only PyTorch Pin (Kadi/EasyOCR)...")
+    print("[6/8] Checking CPU-Only PyTorch Pin (Kadi/EasyOCR)...")
     torch_errors = check_cpu_only_torch_pin()
     if torch_errors:
         all_errors.extend(torch_errors)
         print(f"  ❌ Failed with {len(torch_errors)} violation(s)")
     else:
         print("  ✓ PASSED: torch/torchvision pinned to CPU wheels in Dockerfile & CI.")
+
+    print("[7/8] Checking Postgres Is Not Bound to All Interfaces...")
+    pg_errors = check_docker_postgres_binding()
+    if pg_errors:
+        all_errors.extend(pg_errors)
+        print(f"  ❌ Failed with {len(pg_errors)} violation(s)")
+    else:
+        print("  ✓ PASSED: Postgres port mapping is localhost-only.")
+
+    print("[8/8] Checking API Is Not Bound to All Interfaces...")
+    api_errors = check_docker_api_binding()
+    if api_errors:
+        all_errors.extend(api_errors)
+        print(f"  ❌ Failed with {len(api_errors)} violation(s)")
+    else:
+        print("  ✓ PASSED: API port mapping is localhost-only.")
 
     print("=" * 60)
     if all_errors:

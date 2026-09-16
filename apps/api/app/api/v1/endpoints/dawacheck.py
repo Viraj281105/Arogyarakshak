@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.case_auth import require_case_access
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DawaCheckGenericMapping, KadiCase, KadiEntity
@@ -142,7 +143,11 @@ async def _persist_generic_mapping(
     response_model=List[CaseMedicineBenchmark],
     status_code=status.HTTP_200_OK,
 )
-async def benchmark_case_medicines(case_id: str, db: AsyncSession = Depends(get_db)):
+async def benchmark_case_medicines(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Benchmarks every medicine Kadi extracted for this case against NPPA ceiling prices.
 
     DawaCheck's `/benchmark` route takes all its input from the request body and reads
@@ -152,7 +157,7 @@ async def benchmark_case_medicines(case_id: str, db: AsyncSession = Depends(get_
     so — like BillNyay and DaaviSetu — it requires the case's consent_opt_in
     (`require_case_consent`) before returning anything.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     results = await build_case_medicine_benchmarks(case_id, db)
     await db.commit()
     return results

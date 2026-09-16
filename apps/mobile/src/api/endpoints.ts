@@ -1,6 +1,8 @@
 import { apiClient } from './client';
+import { setCaseAccessToken, clearCaseAccessToken } from './caseAuth';
 import {
   CaseResponse,
+  CaseCreatedResponse,
   UploadResponse,
   BillNyayAuditResponse,
   DaaviSetuClaimRequest,
@@ -32,8 +34,13 @@ export const api = {
     // consent_opt_in is REQUIRED and never defaulted. The backend enforces the stored
     // value, so silently sending `true` here would have granted consent on the
     // patient's behalf without them ever being asked.
-    createCase: (data: { consent_opt_in: boolean; [key: string]: any }) =>
-      apiClient.post<CaseResponse>('/api/v1/kadi/cases', data),
+    createCase: async (data: { consent_opt_in: boolean; [key: string]: any }) => {
+      const created = await apiClient.post<CaseCreatedResponse>('/api/v1/kadi/cases', data);
+      // ADR-009: capture the one-time token so client.ts can attach it automatically to
+      // every later request for this case_id — see api/caseAuth.ts.
+      setCaseAccessToken(created.id, created.access_token);
+      return created;
+    },
 
     uploadDocument: async (
       caseId: string,
@@ -50,6 +57,16 @@ export const api = {
 
     getCase: (caseId: string) =>
       apiClient.get<{ case: CaseResponse; entities: any[] }>(`/api/v1/kadi/cases/${caseId}`),
+
+    // SEC-03: explicit patient-initiated deletion (P1-10) — the server also purges a
+    // case automatically once its retention deadline passes (app/case_retention.py),
+    // but the patient does not have to wait for that; this control lets them ask for
+    // it now, same as before.
+    deleteCase: async (caseId: string) => {
+      const result = await apiClient.delete<void>(`/api/v1/kadi/cases/${caseId}`);
+      clearCaseAccessToken(caseId);
+      return result;
+    },
 
     // "Are these the same?" questions Kadi could not decide on its own (#31).
     getPendingResolutions: (caseId: string) =>

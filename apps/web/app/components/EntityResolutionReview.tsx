@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { Language, translations } from "../translations";
-import { API_BASE } from "../hooks/useApi";
+import { API_BASE, caseAuthHeaders } from "../hooks/useApi";
 import { ResolutionDecision, formatScore, resolutionPaths, signalRows } from "../lib/resolution";
 
 interface EntityResolutionReviewProps {
   caseId: string;
+  caseToken?: string;
   currentLang: Language;
 }
 
@@ -14,7 +15,7 @@ interface EntityResolutionReviewProps {
  * "Are these the same?" prompts for Kadi's ASK decisions (#31). Nothing is merged until the
  * patient answers; each answer also feeds threshold calibration (#88).
  */
-export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ caseId, currentLang }) => {
+export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ caseId, caseToken, currentLang }) => {
   const t = translations[currentLang].resolution;
   const [decisions, setDecisions] = useState<ResolutionDecision[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -23,7 +24,7 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}${resolutionPaths.pending(caseId)}`)
+    fetch(`${API_BASE}${resolutionPaths.pending(caseId)}`, { headers: caseAuthHeaders(caseToken) })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<ResolutionDecision[]>;
@@ -42,14 +43,14 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
     return () => {
       cancelled = true;
     };
-  }, [caseId]);
+  }, [caseId, caseToken]);
 
   const answer = async (decision: ResolutionDecision, sameEntity: boolean) => {
     setBusyId(decision.id);
     try {
       const res = await fetch(`${API_BASE}${resolutionPaths.feedback(caseId, decision.id)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...caseAuthHeaders(caseToken) },
         body: JSON.stringify({ same_entity: sameEntity }),
       });
       // 409: already answered elsewhere, or the entities changed — either way it is no

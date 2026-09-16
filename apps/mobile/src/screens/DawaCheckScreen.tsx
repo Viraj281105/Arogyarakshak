@@ -90,16 +90,21 @@ export const DawaCheckScreen: React.FC = () => {
       setResult(response);
     } catch (err) {
       const apiErr = err as ApiError;
-      await enqueueAction('BENCHMARK_MEDICINE', {
+      const queuedId = await enqueueAction('BENCHMARK_MEDICINE', {
         brand_name: brandToQuery,
         mrp: mrpVal,
       });
-      setOfflineQueued(true);
-      setError(
-        !isOnline
-          ? 'Device is offline. Medicine audit queued; will sync automatically when reconnected.'
-          : `${apiErr.message || 'Failed to check medicine pricing.'} (Queued for offline retry)`
-      );
+      if (queuedId) {
+        setOfflineQueued(true);
+        setError(
+          !isOnline
+            ? 'Device is offline. Medicine audit queued; will sync automatically when reconnected.'
+            : `${apiErr.message || 'Failed to check medicine pricing.'} (Queued for offline retry)`
+        );
+      } else {
+        setOfflineQueued(false);
+        setError('Could not save this for offline retry — please try again when back online.');
+      }
     } finally {
       setLoading(false);
     }

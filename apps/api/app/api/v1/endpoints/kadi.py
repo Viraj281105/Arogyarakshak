@@ -6,7 +6,7 @@ ABDM/FHIR record import (#54), resolution feedback and threshold calibration (#8
 case knowledge graph (#86) and auto-triggered module insights (#32).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 import hashlib
 import os
@@ -19,18 +19,20 @@ import asyncio
 
 from contextlib import asynccontextmanager
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, File, BackgroundTasks, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from app.auto_triggers import readiness_for_case, run_auto_triggers
 from app.background import get_background_session
 from app.config import settings
+from app.case_auth import generate_case_access_token, require_case_access
 from app.consent import require_case_consent
 from app.database import get_db
-from app.latency_metrics import tracker as latency_tracker, LatencySummary, LatencySample
+from app.latency_metrics import tracker as latency_tracker, LatencySummary, PublicLatencySample
 from app.kadi_resolution import (
     ALL_TYPES_SCOPE,
     DecisionAlreadyResolved,
@@ -42,12 +44,19 @@ from app.kadi_resolution import (
     resolve_and_attach,
 )
 from app.models import (
+    BillNyayAppeal,
+    BimaNyayCase,
+    BimaNyayGrievance,
+    BimaNyayTimelineEvent,
+    DaaviSetuClaim,
     KadiCase,
     KadiCaseDocument,
     KadiEntity,
     KadiModuleInsight,
     KadiResolutionDecision,
     KadiThresholdCalibration,
+    SchemeSetuCaseProfile,
+    kadi_case_entities,
 )
 # OCR parser and extraction agent from kadi shared layer
 from kadi.ocr.ocr_parser import parse_document
@@ -166,6 +175,17 @@ class CaseResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CaseCreatedResponse(CaseResponse):
+    # Returned ONLY here, exactly once. Every other case-reading response uses
+    # CaseResponse (no access_token field) so the secret is never echoed back on a
+    # later GET — losing it means the case is permanently unrecoverable by design, the
+    # same trade-off as an API key shown once at creation.
+    access_token: str = Field(
+        ..., description="Case access token (ADR-009). Store it — it is shown only once "
+        "and is required on every subsequent request for this case."
+    )
+
+
 class EntityResponse(BaseModel):
     id: str
     name: str
@@ -277,9 +297,14 @@ async def process_document_background(
     logger.info(f"Background task starting: OCR parsing for case={case_id}, file={filename}")
     digest = digest or hashlib.sha256(file_bytes).hexdigest()
     try:
-        # Step 1: OCR parsing
+        # Step 1: OCR parsing.
+        # SEC-01: parse_document is synchronous, CPU-heavy work (PyMuPDF page parsing,
+        # EasyOCR inference) — calling it directly here would block the single event
+        # loop for the entire OCR duration, stalling every other request (including
+        # /health and every other case's SSE stream) for as long as this document takes
+        # to read. run_in_threadpool runs it on FastAPI's worker thread pool instead.
         processing_status[case_id].append({"status": "ocr_start", "progress": 30, "log": "Running document OCR parser..."})
-        parsed = parse_document(file_bytes=file_bytes, filename=filename)
+        parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
 
         # A parse failure must stop the pipeline. Previously the parser substituted a
         # placeholder sentence, so the stream reported "processed successfully" and the
@@ -298,9 +323,15 @@ async def process_document_background(
         text = parsed.get("full_text_content", "")
         line_items = parsed.get("line_items", [])
 
-        # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic fallback)
+        # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic
+        # fallback). SEC-01: extract_entities_from_text makes a synchronous
+        # urllib.request.urlopen call (kadi/extraction.py) when GROQ_API_KEY is
+        # configured — a blocking network call directly on the event loop, same
+        # starvation risk as the OCR step above.
         processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting clinical & billing entities with Kadi agent..."})
-        extracted = extract_entities_from_text(text, api_key=settings.groq_api_key, model=settings.groq_model)
+        extracted = await run_in_threadpool(
+            extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
+        )
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
@@ -383,12 +414,19 @@ async def process_document_background(
             # pipeline reads this to recover denial codes, insurer reasons and policy
             # clauses, so it cannot be dropped — but it must not retain the patient's
             # name, contact details or government IDs.
+            excerpt_meta: Dict[str, Any] = {"source_file": filename, "redacted": True}
+            # P0-4: an LLM-returned extraction is never trusted merely for being valid
+            # JSON — surface any integrity warnings (possible prompt-injection phrasing,
+            # or an LLM total_amount that could not be reconciled against a deterministic
+            # reading of the same text) on the persisted record rather than dropping them.
+            if extracted.extraction_warnings:
+                excerpt_meta["extraction_warnings"] = extracted.extraction_warnings
             mentions.append(
                 MentionInput(
                     "document_text",
                     "Document Text Excerpt",
                     redact_pii(text)[:1000],
-                    {"source_file": filename, "redacted": True},
+                    excerpt_meta,
                 )
             )
 
@@ -431,6 +469,8 @@ async def process_document_background(
         completion = "Document processed successfully. Entities extracted."
         if insights:
             completion += f" {len(insights)} module check(s) ran automatically."
+        if extracted.extraction_warnings:
+            completion += " Note: this extraction was flagged for review — see case details."
         processing_status[case_id].append({"status": "completed", "progress": 100, "log": completion})
         _record_case_latency(case_id, "completed")
         logger.info(
@@ -455,25 +495,36 @@ async def process_document_background(
 
 # --- Route Implementations ----------------------------------------------------
 
-@router.post("/cases", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
 async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
-    """Creates a new patient case session."""
-    # 16 hex chars (64 bits) rather than 8 (32 bits): with no authentication gating case
-    # access (see app/consent.py and docs/architecture/decisions/ for the accepted-risk
-    # note), the id itself is the only thing standing between a guesser and a patient's
-    # extracted entities. secrets.token_hex is a CSPRNG; uuid4's hex is also CSPRNG-backed
-    # in CPython but token_hex states the security intent explicitly at the call site.
+    """Creates a new patient case session and its one-time access token (ADR-009)."""
+    # 16 hex chars (64 bits) rather than 8 (32 bits): raises the cost of blindly guessing
+    # a case id, but — per ADR-008/ADR-009 — entropy alone is not authorization. The
+    # access_token below is the actual authorization boundary; every subsequent
+    # case-scoped request must present it.
     case_id = f"CASE-{secrets.token_hex(8)}"
+    plaintext_token, token_hash = generate_case_access_token()
     case = KadiCase(
         id=case_id,
         consent_opt_in=case_in.consent_opt_in,
         status="active",
-        total_charged=0.0
+        total_charged=0.0,
+        access_token_hash=token_hash,
+        # SEC-03: server-side retention deadline, independent of the client ever coming
+        # back with its token — see app.case_retention.
+        expires_at=datetime.utcnow() + timedelta(days=settings.case_ttl_days),
     )
     db.add(case)
     await db.commit()
     await db.refresh(case)
-    return case
+    return CaseCreatedResponse(
+        id=case.id,
+        status=case.status,
+        consent_opt_in=case.consent_opt_in,
+        total_charged=case.total_charged,
+        created_at=case.created_at,
+        access_token=plaintext_token,
+    )
 
 
 @router.post("/cases/{case_id}/upload", status_code=status.HTTP_202_ACCEPTED)
@@ -482,15 +533,10 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     response: Response,
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
 ):
     """Uploads a clinical or financial document, scheduling background OCR extraction."""
-    # 1. Verify case exists
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
     # 2. Validate the declared document type before reading anything into memory.
     filename = file.filename or ""
     extension = os.path.splitext(filename)[1].lower()
@@ -563,18 +609,44 @@ async def upload_document(
 
 
 @router.get("/cases/{case_id}/stream")
-async def stream_processing_status(case_id: str):
-    """Event stream route providing real-time document processing updates."""
+async def stream_processing_status(
+    case_id: str,
+    request: Request,
+    case: KadiCase = Depends(require_case_access),
+):
+    """Event stream route providing real-time document processing updates.
+
+    Fixes 3 confirmed issues in the previous implementation:
+    1. No case-existence/ownership check — `require_case_access` now enforces both (a
+       nonexistent or unauthorized case is rejected before the generator ever starts,
+       instead of holding a connection open forever polling an empty list).
+    2. `settings.sse_timeout_seconds` was defined and unit-tested for its VALUE, but never
+       actually read by this generator — the loop was unconditional `while True`. It is
+       now enforced: the stream emits a `timeout` event and closes after that many seconds.
+    3. No disconnect check — a client that closed its connection kept the generator (and
+       its `asyncio.sleep` polling loop) alive server-side indefinitely. `request.is_disconnected()`
+       is now checked every iteration.
+    """
     async def event_generator():
         last_index = 0
+        started_at = time.time()
         while True:
+            if await request.is_disconnected():
+                logger.info("SSE client disconnected for case %s; stopping stream.", case_id)
+                return
+
+            elapsed = time.time() - started_at
+            if elapsed > settings.sse_timeout_seconds:
+                yield f"data: {json.dumps({'status': 'timeout', 'progress': 100, 'log': 'Stream timed out waiting for processing to complete.'})}\n\n"
+                return
+
             status_list = processing_status.get(case_id, [])
             if last_index < len(status_list):
                 for item in status_list[last_index:]:
                     yield f"data: {json.dumps(item)}\n\n"
                 last_index = len(status_list)
                 if status_list and status_list[-1].get("status") in ["completed", "failed"]:
-                    break
+                    return
             await asyncio.sleep(0.3)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -593,21 +665,24 @@ async def latency_metrics_summary():
     return latency_tracker.summary()
 
 
-@router.get("/metrics/latency/recent", response_model=List[LatencySample])
+@router.get("/metrics/latency/recent", response_model=List[PublicLatencySample])
 async def latency_metrics_recent(limit: int = Query(20, ge=1, le=200)):
     """Most recent individual latency samples, newest first — for spotting which
-    specific uploads are driving p95/max rather than only the aggregate."""
+    specific uploads are driving p95/max rather than only the aggregate.
+
+    SEC-06: this route is public and unauthenticated (see latency_metrics_summary's
+    docstring), so samples carry only a one-way fingerprint of each case id, never the
+    real id — a real case id is itself sensitive (ADR-008/ADR-009)."""
     return latency_tracker.recent(limit=limit)
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetailResponse)
-async def get_case(case_id: str, db: AsyncSession = Depends(get_db)):
+async def get_case(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Retrieves case details and all associated extracted entities."""
-    result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
-    case = result.scalar_one_or_none()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
     # Load entities
     entities_result = await db.execute(
         select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id)
@@ -620,6 +695,92 @@ async def get_case(case_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.delete("/cases/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_case(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently deletes this case and everything derived from it (P1-10).
+
+    ADR-003 has always called a case's database records "transient" / linked to a
+    "temporary case UUID", but until this route existed nothing actually made that
+    true — a case, its extracted entities, its redacted document excerpt, and any
+    generated PDFs (the BillNyay appeal, the DaaviSetu pre-auth form) persisted
+    indefinitely with no way for the patient who created it to remove them. This is
+    the actual erasure mechanism that claim implied. SEC-04: BimaNyay dispute/grievance
+    records that were explicitly linked to this case (case_id set — see
+    app.api.v1.endpoints.bimanyay._authorize_optional_case) are now included in this
+    cascade too; a BimaNyay record created without a case_id (its stand-alone mode)
+    has nothing to cascade from and is unaffected, same as before.
+
+    Deletes explicitly in Python rather than relying solely on the database's
+    ON DELETE CASCADE, so behaviour is identical under SQLite (used in tests, where
+    foreign-key enforcement is not enabled by default) and Postgres (production).
+    KadiEntity rows are only deleted once they have no OTHER case association left —
+    the many-to-many schema in principle allows an entity to be shared across cases,
+    so an entity must not be destroyed out from under a different case that still
+    references it.
+    """
+    await purge_case(db, case_id)
+    await db.commit()
+
+    processing_status.pop(case_id, None)
+    logger.info("Case %s and all derived records permanently deleted.", case_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+async def purge_case(db: AsyncSession, case_id: str) -> None:
+    """Deletes a case and everything derived from it. Shared by the DELETE route above
+    (client-initiated) and app.case_retention's periodic sweep (SEC-03,
+    server-initiated on expiry — does NOT depend on the client ever coming back with
+    its token). Does not commit; the caller controls the transaction boundary."""
+    entity_ids_result = await db.execute(
+        select(kadi_case_entities.c.entity_id).where(kadi_case_entities.c.case_id == case_id)
+    )
+    entity_ids = [row[0] for row in entity_ids_result.all()]
+
+    await db.execute(delete(kadi_case_entities).where(kadi_case_entities.c.case_id == case_id))
+
+    if entity_ids:
+        still_linked_result = await db.execute(
+            select(kadi_case_entities.c.entity_id.distinct()).where(
+                kadi_case_entities.c.entity_id.in_(entity_ids)
+            )
+        )
+        still_linked = {row[0] for row in still_linked_result.all()}
+        now_orphaned = [eid for eid in entity_ids if eid not in still_linked]
+        if now_orphaned:
+            await db.execute(delete(KadiEntity).where(KadiEntity.id.in_(now_orphaned)))
+
+    await db.execute(delete(KadiCaseDocument).where(KadiCaseDocument.case_id == case_id))
+    await db.execute(delete(KadiResolutionDecision).where(KadiResolutionDecision.case_id == case_id))
+    await db.execute(delete(KadiModuleInsight).where(KadiModuleInsight.case_id == case_id))
+    await db.execute(delete(SchemeSetuCaseProfile).where(SchemeSetuCaseProfile.case_id == case_id))
+    await db.execute(delete(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
+    await db.execute(delete(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id))
+    await _purge_bimanyay_records_for_case(db, case_id)
+    await db.execute(delete(KadiCase).where(KadiCase.id == case_id))
+
+
+async def _purge_bimanyay_records_for_case(db: AsyncSession, case_id: str) -> None:
+    """SEC-04: deletes every BimaNyay dispute/grievance record explicitly linked to
+    this case (case_id set), plus each grievance's timeline events. Explicit Python
+    deletes rather than relying solely on ON DELETE CASCADE, same rationale as the rest
+    of this route: identical behaviour under SQLite (no FK enforcement by default, used
+    in tests) and Postgres (production)."""
+    grievance_ids_result = await db.execute(
+        select(BimaNyayGrievance.id).where(BimaNyayGrievance.case_id == case_id)
+    )
+    grievance_ids = [row[0] for row in grievance_ids_result.all()]
+    if grievance_ids:
+        await db.execute(
+            delete(BimaNyayTimelineEvent).where(BimaNyayTimelineEvent.grievance_id.in_(grievance_ids))
+        )
+    await db.execute(delete(BimaNyayGrievance).where(BimaNyayGrievance.case_id == case_id))
+    await db.execute(delete(BimaNyayCase).where(BimaNyayCase.case_id == case_id))
+
+
 # --- Entity resolution: review and feedback (#31, #88) ------------------------
 
 @router.get("/cases/{case_id}/resolutions", response_model=List[ResolutionDecisionResponse])
@@ -628,15 +789,15 @@ async def list_resolution_decisions(
     status_filter: Optional[str] = Query(
         None, alias="status", pattern="^(pending|auto_merged|confirmed|rejected|split|superseded)$"
     ),
+    case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Entity-resolution decisions for this case. `status=pending` lists the "are these the
     same?" questions awaiting the user; `auto_merged` lists merges the user can dispute.
 
     Not consent-gated: like GET /cases/{case_id}, it only exposes Kadi's own context for
-    the case, not another module's view of it (see app.consent)."""
-    if await db.get(KadiCase, case_id) is None:
-        raise HTTPException(status_code=404, detail="Case not found")
+    the case, not another module's view of it (see app.consent). Still access-gated
+    (app.case_auth) — every case-scoped route is, regardless of consent."""
     query = select(KadiResolutionDecision).where(KadiResolutionDecision.case_id == case_id)
     if status_filter:
         query = query.where(KadiResolutionDecision.status == status_filter)
@@ -651,6 +812,7 @@ async def submit_resolution_feedback(
     case_id: str,
     decision_id: str,
     body: ResolutionFeedbackRequest,
+    _case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Applies the user's answer and records it as a calibration label.
@@ -659,6 +821,9 @@ async def submit_resolution_feedback(
     - pending + same_entity=false -> both entities are kept
     - auto_merged + false         -> the merge is split back into its own entity
     """
+    # apply_feedback needs entities eagerly loaded, which the plain row from
+    # require_case_access does not have — re-fetched here rather than adding
+    # selectinload to every route's dependency for the one caller that needs it.
     case = await _load_case_with_entities(db, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -759,11 +924,15 @@ async def resolution_calibration(db: AsyncSession = Depends(get_db)):
 # --- Case knowledge graph (#86) -----------------------------------------------
 
 @router.get("/cases/{case_id}/graph", response_model=CaseGraph)
-async def case_graph(case_id: str, db: AsyncSession = Depends(get_db)):
+async def case_graph(
+    case_id: str,
+    _case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Typed node-link graph of this case's entities. Every edge carries its evidence.
 
     Not consent-gated, for the same reason as GET /cases/{case_id}: it is Kadi's own view
-    of the case, not another module's."""
+    of the case, not another module's. Still access-gated (app.case_auth)."""
     case = await _load_case_with_entities(db, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -801,10 +970,14 @@ async def case_graph(case_id: str, db: AsyncSession = Depends(get_db)):
 # --- Auto-triggered module insights (#32) -------------------------------------
 
 @router.get("/cases/{case_id}/insights")
-async def case_insights(case_id: str, db: AsyncSession = Depends(get_db)):
+async def case_insights(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Readiness of every module check for this case, and the latest result of each check
     Kadi ran automatically. Consent-gated: these are other modules' analyses of the case."""
-    case = await require_case_consent(case_id, db)
+    case = require_case_consent(case)
     readiness = await readiness_for_case(db, case)
     rows = (
         await db.execute(select(KadiModuleInsight).where(KadiModuleInsight.case_id == case_id))
@@ -839,7 +1012,12 @@ def _parse_iso_date(value: Optional[str]) -> Optional[datetime]:
 
 
 @router.post("/cases/{case_id}/abdm/import", response_model=AbdmImportResponse)
-async def import_abdm_records(case_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+async def import_abdm_records(
+    case_id: str,
+    request: Request,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Imports a FHIR R4 Bundle of ABHA-linked health records into this case's context.
 
     The bundle is supplied by the client; this service does not pull from the ABDM
@@ -847,7 +1025,7 @@ async def import_abdm_records(case_id: str, request: Request, db: AsyncSession =
     only enters the shared cross-module context of a case whose patient opted in. Imported
     entities go through the same entity resolution as uploads.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
 
     body = bytearray()
     async for chunk in request.stream():

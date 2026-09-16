@@ -12,12 +12,20 @@ Persistent server-side storage of raw medical records introduces extreme privacy
 ## Decision
 We adopted a strict **Bring-Your-Own-Document (BYOD)** architecture:
 1. **Zero Persistent Storage**: Raw uploaded documents (PDFs, images) are held only in temporary in-memory buffers (RAM) during active text extraction and are explicitly deleted from memory once extraction concludes.
-2. **Transient Case Session**: Database records (`kadi_cases`, `kadi_entities`) store clinical
+2. **Case Session**: Database records (`kadi_cases`, `kadi_entities`) store clinical
    and billing metadata (diagnosis, hospital, procedures, medicines, line items) linked to a
-   temporary case UUID. The patient's name is extracted in memory for the duration of the
+   case UUID. The patient's name is extracted in memory for the duration of the
    request but is **never persisted**, and the retained document excerpt is passed through
    `kadi.redaction.redact_pii`, which removes names, phone numbers, email addresses,
    Aadhaar/PAN identifiers and postal addresses.
+
+   **Retention correction (P1-10, 2026-09-16):** this case UUID was previously described
+   here as "temporary"/"ephemeral." That was never true — these records persisted
+   indefinitely with no expiry and, until now, no way to remove them. See **ADR-010**
+   for the actual retention model: `DELETE /api/v1/kadi/cases/{case_id}` (the case's own
+   access-token holder only, per ADR-009) now permanently deletes the case and
+   everything derived from it, including generated PDFs. There is still no automatic
+   time-based expiry — a case persists until its owner explicitly deletes it.
 
    **Scope limit:** this is direct-identifier removal, not formal anonymisation. A diagnosis
    combined with a hospital name may remain re-identifying in a small population. Do not

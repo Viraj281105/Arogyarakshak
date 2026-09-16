@@ -19,8 +19,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-arogyarakshak}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arogyarakshak}
       POSTGRES_DB: ${POSTGRES_DB:-arogyarakshak}
+    # Bound to localhost only (P0-5): the `api` service reaches postgres over the
+    # internal Docker network by service name (see DATABASE_URL below) and does not need
+    # this host port mapping at all. It exists solely for host-side debugging (psql,
+    # pgAdmin, a local client) — "5432:5432" previously bound to 0.0.0.0, exposing
+    # Postgres (with its default arogyarakshak/arogyarakshak credentials) to the whole
+    # network/internet on any host where inbound 5432 is not separately firewalled.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -37,8 +43,14 @@ services:
     restart: unless-stopped
     # Local dev only: hot reload. The image's default CMD runs without --reload.
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # Bound to localhost only (SEC-13, same reasoning as postgres above): `web` reaches
+    # `api` over the internal Docker network by service name, not through this host port
+    # mapping. Exposing 8000 on 0.0.0.0 put the API directly on the network with no
+    # reverse proxy in front of it — meaning TRUSTED_PROXY_COUNT must stay 0 for a
+    # deployment shaped like this (see app/rate_limit.py::resolve_client_ip), and any
+    # X-Forwarded-For a caller sends is attacker-controlled input, never a real hop.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak}
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
@@ -62,6 +74,9 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     restart: unless-stopped
+    # Local dev only: hot reload. The image's default CMD runs a production build
+    # (`next build` + `next start`) — see apps/web/Dockerfile.
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
     ports:
       - "3000:3000"
 

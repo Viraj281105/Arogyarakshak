@@ -12,7 +12,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.api.v1.endpoints.kadi import processing_status
@@ -20,8 +19,11 @@ from app.background import get_background_session
 from app.config import settings
 from app.main import app, redact_database_url
 from app.models import KadiModuleInsight, KadiResolutionDecision, SchemeSetuCaseProfile
+from tests.auth_test_client import AuthAwareTestClient
 
-client = TestClient(app)
+# ADR-009: see tests/auth_test_client.py — carries each case's access token to this
+# client's later requests for that case automatically.
+client = AuthAwareTestClient(app)
 
 FHIR_FIXTURE = (
     Path(__file__).resolve().parents[3]
@@ -208,13 +210,20 @@ def test_disputed_automatic_merge_is_split_back_out():
 
 # --- Feedback calibration (#88) -----------------------------------------------
 
-def _seed_labeled_decisions(case_id, samples):
+def _seed_labeled_decisions(case_ids, samples):
+    """Seeds labeled decisions round-robin across `case_ids` (SEC-10: calibration now
+    requires feedback from several distinct cases, not just several samples — passing a
+    single case id here would make every sample look like one source's feedback and
+    trip the new diversity guard, same as the attack it defends against)."""
+    if isinstance(case_ids, str):
+        case_ids = [case_ids]
+
     async def seed(session):
         for i, (confidence, same) in enumerate(samples):
             session.add(
                 KadiResolutionDecision(
                     id=f"RES-SEED-{i}",
-                    case_id=case_id,
+                    case_id=case_ids[i % len(case_ids)],
                     entity_type="medicine",
                     action="ASK",
                     status="confirmed" if same else "rejected",
@@ -244,9 +253,12 @@ def test_default_thresholds_merge_a_close_spelling_variant():
 
 
 def test_feedback_recalibrates_thresholds_and_later_decisions_use_them():
-    seed_case = _case()
+    # SEC-10: spread across 5 distinct seed cases (round-robin), not one — recalibration
+    # now requires real cross-case diversity, not just sample count, so seeding all 40
+    # labels under a single case id would itself trip the new poisoning guard.
+    seed_cases = [_case() for _ in range(5)]
     _seed_labeled_decisions(
-        seed_case,
+        seed_cases,
         [(0.95, True)] * 15 + [(0.85, True)] * 10 + [(0.75, True)] * 5 + [(0.80, False)] * 5 + [(0.72, False)] * 5,
     )
     assert client.get("/api/v1/kadi/resolution/calibration").json()["active"] == {}

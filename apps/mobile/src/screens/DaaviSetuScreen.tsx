@@ -7,6 +7,7 @@ import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge, ResolutionReviewCard } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
+import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { ENV } from '../config/env';
@@ -69,18 +70,23 @@ export const DaaviSetuScreen: React.FC = () => {
       setResult(claimRes);
     } catch (err) {
       const apiErr = err as ApiError;
+      let queuedId: string | null = null;
       if (activeCaseId) {
-        await enqueueAction('SUBMIT_PREAUTH', {
+        queuedId = await enqueueAction('SUBMIT_PREAUTH', {
           caseId: activeCaseId,
           claimData,
         });
-        setOfflineQueued(true);
+        setOfflineQueued(!!queuedId);
       }
-      setError(
-        !isOnline
-          ? 'Device is offline. Pre-authorization request queued; will sync automatically when reconnected.'
-          : `${apiErr.message || 'Failed to generate pre-auth package.'}${activeCaseId ? ' (Queued for offline retry)' : ''}`
-      );
+      if (activeCaseId && !queuedId) {
+        setError('Could not save this for offline retry — please try again when back online.');
+      } else {
+        setError(
+          !isOnline
+            ? 'Device is offline. Pre-authorization request queued; will sync automatically when reconnected.'
+            : `${apiErr.message || 'Failed to generate pre-auth package.'}${queuedId ? ' (Queued for offline retry)' : ''}`
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -88,7 +94,19 @@ export const DaaviSetuScreen: React.FC = () => {
 
   const handleDownloadPdf = async () => {
     if (!caseId) return;
-    const pdfUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/pdf`;
+    // SEC-08: this opens the PDF in the device's external browser/viewer via
+    // Linking.openURL, which cannot attach a custom X-Case-Access-Token header the way
+    // apiClient normally does — the request was previously unauthenticated and always
+    // failed with 401. The token is passed as a query parameter instead (SEC-07:
+    // query-string tokens are accepted ONLY for safe, read-only GET requests like this
+    // one — never for a state-changing request), matching the same mechanism the SSE
+    // stream already uses for the identical reason.
+    const token = getCaseAccessToken(caseId);
+    if (!token) {
+      setError('Missing this case\'s access token — cannot download the PDF. Re-open the case from a fresh scan.');
+      return;
+    }
+    const pdfUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/pdf?access_token=${encodeURIComponent(token)}`;
     try {
       const supported = await Linking.canOpenURL(pdfUrl);
       if (supported) {

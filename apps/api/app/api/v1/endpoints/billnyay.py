@@ -8,6 +8,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -15,6 +16,7 @@ from sqlalchemy import select
 import os
 import json
 import urllib.request
+from app.case_auth import require_case_access
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
@@ -265,17 +267,25 @@ _FALLBACK_CLINICAL_JSON = json.dumps(
                 "article_title": "Clinical Standard of Care for Inpatient Hospitalisation",
                 "summary_of_finding": (
                     "Established clinical guidelines support inpatient admission where an active "
-                    "line of treatment and continuous monitoring are documented."
+                    "line of treatment and continuous monitoring are documented. General clinical "
+                    "reasoning — not a cited source."
                 ),
-                "pubmed_id": "PMID:38291045",
+                # P1-7: was a hardcoded fake PMID presented as a real citation in every
+                # offline-mode appeal letter. This system has no PubMed/NCBI lookup, so
+                # an invented identifier here is exactly the kind of fabricated,
+                # checkable-looking fact the no-fabrication principle forbids. Null,
+                # always — clinician.py's _strip_unverifiable_citations() also strips
+                # this defensively even if a future edit reintroduces a value here.
+                "pubmed_id": None,
             },
             {
                 "article_title": "Medical Necessity Determination in Acute Care Admissions",
                 "summary_of_finding": (
                     "Treating-physician documentation of an active line of treatment is the accepted "
-                    "determinant of medical necessity for inpatient care."
+                    "determinant of medical necessity for inpatient care. General clinical reasoning "
+                    "— not a cited source."
                 ),
-                "pubmed_id": "PMID:37554120",
+                "pubmed_id": None,
             },
         ]
     }
@@ -416,9 +426,13 @@ class GroqClientFallback:
 # --- Route Implementations ----------------------------------------------------
 
 @router.post("/cases/{case_id}/audit", response_model=AuditResponse)
-async def audit_bill(case_id: str, db: AsyncSession = Depends(get_db)):
+async def audit_bill(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Audits hospital bill items against CGHS rate schedules."""
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     return await build_case_audit(case_id, db)
 
 
@@ -519,6 +533,7 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
 async def draft_appeal(
     case_id: str,
     language: str = Query("en", description="Appeal letter language: en, hi, or mr (#39)."),
+    case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Runs the 5-agent pipeline to generate an IRDAI-compliant appeal letter."""
@@ -527,8 +542,7 @@ async def draft_appeal(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Unsupported language '{language}'. Use en, hi, or mr.",
         )
-    # 1. Fetch case details
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
 
     # 2. Get billing and clinical texts
     entities_result = await db.execute(
@@ -545,7 +559,12 @@ async def draft_appeal(
     else:
         client = GroqClientFallback()
 
-    denial = run_auditor_agent(client=client, denial_text=combined_text)
+    # SEC-01: every agent below calls client.generate(), which is a synchronous
+    # urllib.request.urlopen(...) call to Groq (or, on the offline fallback path, a
+    # synchronous-but-instant canned return) — run off the event loop via
+    # run_in_threadpool so one in-flight appeal draft (up to 5 sequential LLM calls)
+    # cannot stall /health or any other request for the whole pipeline's duration.
+    denial = await run_in_threadpool(run_auditor_agent, client=client, denial_text=combined_text)
     # A canned fallback response always parses into a valid StructuredDenial, so
     # "denial is not None" alone can't distinguish real extraction from a template
     # (e.g. DEN-999 / confidence 0.95) served because no live LLM call happened.
@@ -565,11 +584,13 @@ async def draft_appeal(
         )
 
     # 4. Agent 2 — Clinician: synthesise medical-necessity evidence.
-    clinical_evidence = run_clinician_agent(client=client, denial_details=denial)
+    clinical_evidence = await run_in_threadpool(run_clinician_agent, client=client, denial_details=denial)
 
-    # 5. Agent 3 — Regulatory: retrieve applicable statutory provisions.
-    regulatory_evidence = run_regulatory_agent(
-        denial_data=denial.model_dump(), client=client
+    # 5. Agent 3 — Regulatory: retrieve applicable statutory provisions. (Deterministic,
+    # no network call, but kept on the threadpool for consistency with the rest of the
+    # pipeline and so it never becomes a blocking call unnoticed if that changes later.)
+    regulatory_evidence = await run_in_threadpool(
+        run_regulatory_agent, denial_data=denial.model_dump(), client=client
     )
 
     # 5b. Multi-agent consensus (#65): a transparency/triage vote across the three
@@ -583,8 +604,11 @@ async def draft_appeal(
     consensus: ConsensusResult = compute_weighted_consensus(votes)
 
     # 6-7. Agents 4 & 5 — Barrister drafts, Judge scores, with self-correcting
-    # revision (#68) when the Judge reports needs_revision.
-    drafting_result = draft_with_self_correction(
+    # revision (#68) when the Judge reports needs_revision. Can make several sequential
+    # LLM calls (draft + revisions) — the single most important call to keep off the
+    # event loop in this pipeline.
+    drafting_result = await run_in_threadpool(
+        draft_with_self_correction,
         client,
         denial_details=denial,
         clinical_evidence=clinical_evidence,
@@ -603,7 +627,9 @@ async def draft_appeal(
     # 8. Compile, sign, and persist the PDF (#66) — the exact bytes served by
     # .../appeal/pdf and checked by .../appeal/verify, so a later re-draft cannot
     # silently invalidate what was already downloaded.
-    pdf_bytes = compile_appeal_packet_bytes(appeal_letter, case_meta={"case_id": case_id})
+    pdf_bytes = await run_in_threadpool(
+        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}
+    )
     document_sha256 = compute_sha256(pdf_bytes)
     hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
 
@@ -637,11 +663,15 @@ async def draft_appeal(
 
 
 @router.get("/cases/{case_id}/appeal/pdf")
-async def download_appeal_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
+async def download_appeal_pdf(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Downloads the exact signed PDF generated by the most recent POST .../appeal
     for this case (#66). Renders strictly from the stored bytes — never regenerated
     on the fly — so what is downloaded always matches what was hashed and signed."""
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
 
     result = await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
     appeal_record = result.scalar_one_or_none()
@@ -662,14 +692,18 @@ async def download_appeal_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/cases/{case_id}/appeal/verify")
-async def verify_appeal_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
+async def verify_appeal_pdf(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Verifies the stored appeal PDF's integrity (#66): recomputes its SHA-256 and
     checks the stored HMAC signature. This proves the stored bytes were not altered
     since ArogyaRakshak generated and signed them — it is NOT a licensed digital
     signature certificate (DSC) under the IT Act, 2000; see
     billnyay.tools.pdf_integrity for what this can and cannot vouch for.
     """
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
 
     result = await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
     appeal_record = result.scalar_one_or_none()
@@ -702,11 +736,15 @@ async def verify_appeal_pdf(case_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/cases/{case_id}/icd-audit", response_model=ICDProcedureAuditItem)
-async def audit_icd_procedure(case_id: str, db: AsyncSession = Depends(get_db)):
+async def audit_icd_procedure(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Flags whether the billed procedure(s) look clinically consistent with the
     diagnosis's ICD-10 code (#64), using a curated reference subset — see
     billnyay.agents.icd_audit for its coverage and honesty caveats."""
-    await require_case_consent(case_id, db)
+    require_case_consent(case)
     return await build_case_icd_audit(case_id, db)
 
 
@@ -758,7 +796,11 @@ async def grievance_registration_status(
 
 
 @router.post("/cases/{case_id}/grievance", response_model=GrievanceResponse)
-async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
+async def draft_grievance(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
     """Auto-drafts an IRDAI Bima Bharosa portal complaint package (#51).
 
     Previously this built a fixed generic sentence ("room categories benchmarking
@@ -769,7 +811,7 @@ async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
     the complaint reflects this case's actual denial code/reason/procedure — or
     honestly reports them as not extracted, via `denial_facts_extracted`.
     """
-    case = await require_case_consent(case_id, db)
+    case = require_case_consent(case)
 
     entities_result = await db.execute(
         select(KadiEntity).join(KadiCase.entities)
@@ -784,7 +826,11 @@ async def draft_grievance(case_id: str, db: AsyncSession = Depends(get_db)):
     else:
         client = GroqClientFallback()
 
-    denial = run_auditor_agent(client=client, denial_text=combined_text) if combined_text else None
+    denial = (
+        await run_in_threadpool(run_auditor_agent, client=client, denial_text=combined_text)
+        if combined_text
+        else None
+    )
     denial_facts_extracted = denial is not None and not client.used_fallback
     if denial is None:
         denial = StructuredDenial(

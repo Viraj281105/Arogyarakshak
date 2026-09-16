@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
@@ -62,6 +62,36 @@ export const BillNyayScreen: React.FC = () => {
     navigation.navigate('CameraScan', { documentType: 'bill' });
   };
 
+  // SEC-03: the server also purges a case automatically once its retention deadline
+  // passes (does not depend on the patient coming back), but this lets them ask for
+  // deletion right now — the same real erasure DELETE /cases/{id} already performs
+  // (P1-10), just reachable from the UI instead of only via a direct API call.
+  const handleDeleteCase = () => {
+    if (!caseId) return;
+    Alert.alert(
+      m.deleteCaseConfirmTitle,
+      m.deleteCaseConfirmBody,
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.common.delete,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.kadi.deleteCase(caseId);
+              setCaseId(null);
+              setAuditResult(null);
+              setError(null);
+            } catch (err) {
+              const apiErr = err as ApiError;
+              setError(apiErr.message || 'Failed to delete this case.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.bgBase }]}
@@ -80,9 +110,17 @@ export const BillNyayScreen: React.FC = () => {
 
       {caseId && (
         <View style={[styles.activeCaseNotice, { backgroundColor: 'rgba(6, 182, 212, 0.1)', borderColor: colors.brandCyan }]}>
-          <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.xs, fontWeight: '600' }}>
-            {m.activeCaseReady} (Case: {caseId.slice(0, 8)}...)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.xs, fontWeight: '600' }}>
+              {m.activeCaseReady} (Case: {caseId.slice(0, 8)}...)
+            </Text>
+            <Button
+              title={m.deleteCaseBtn}
+              onPress={handleDeleteCase}
+              variant="outline"
+              size="sm"
+            />
+          </View>
         </View>
       )}
 

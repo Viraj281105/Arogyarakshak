@@ -47,6 +47,30 @@ class Settings(BaseSettings):
     # Per-client-IP fixed-window count, single process — see app/rate_limit.py.
     rate_limit_per_minute: int = 120
 
+    # How many reverse-proxy hops in front of this API are trusted to prepend the real
+    # client IP to X-Forwarded-For (e.g. 1 behind a single nginx/load-balancer). 0
+    # (default) means "not deployed behind a trusted proxy" — the header is NEVER
+    # consulted at that setting, since any client can forge it. Only raise this when you
+    # control every hop between the trusted proxy and this API; see
+    # app/rate_limit.py::resolve_client_ip for exactly how it is used.
+    trusted_proxy_count: int = 0
+
+    # --- Retention (SEC-03) ----------------------------------------------------
+    # How long a case (and everything derived from it — entities, redacted document
+    # excerpt, generated PDFs, and any case-linked BimaNyay record) is kept before the
+    # server purges it automatically, regardless of whether the client ever presents its
+    # access token again. Previously retention was entirely client-initiated (DELETE
+    # /cases/{id}, P1-10) — a client that simply lost its one-time token (closed the tab,
+    # cleared the app's in-memory token store, uninstalled the app) had no way to ever
+    # trigger deletion again, so data was retained forever by default. 90 days is a
+    # reasonable default for a short-lived audit/dispute session; override via
+    # CASE_TTL_DAYS for a stricter deployment policy.
+    case_ttl_days: int = 90
+
+    # How often the background purge sweep runs. Kept well under case_ttl_days so an
+    # expired case is not retained much longer than the stated TTL.
+    case_purge_interval_seconds: int = 6 * 60 * 60  # 6 hours
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

@@ -229,15 +229,20 @@ ArogyaRakshak operates on a strict **Bring-Your-Own-Document (BYOD)** privacy pr
 1. **No Persistent Document Storage**: Uploaded files are parsed in transient memory (RAM) and are never written to server disk. Upload size and type are bounded (10 MB; PDF/image/text).
 2. **Consent Boundary**: Cross-module data sharing through Kadi requires an explicit per-case opt-in (`consent_opt_in`, default `false`). It is enforced server-side from the stored case record: BillNyay and DaaviSetu return `403` without it, and a client cannot grant it by sending a flag on the module request.
 3. **Direct-Identifier Removal**: Persisted records hold clinical and billing metadata
-   (diagnosis, hospital, procedures, medicines, line items) linked to an ephemeral case UUID.
+   (diagnosis, hospital, procedures, medicines, line items) linked to a case UUID.
    The patient's name is extracted in memory but never stored, and the retained document
    excerpt is passed through `kadi.redaction` to strip names, phone numbers, email addresses,
    Aadhaar/PAN identifiers and addresses.
 
    **Scope limit:** this removes *direct* identifiers. It is not formal anonymisation — a
    diagnosis combined with a hospital name may still be re-identifying in a small population.
+4. **Deletion on request**: a case persists until you delete it — there is no automatic
+   expiry. `DELETE /api/v1/kadi/cases/{case_id}` (using the access token returned when the
+   case was created) permanently removes the case, its extracted entities, and any
+   generated documents (the BillNyay appeal PDF, the DaaviSetu pre-authorization form).
+   See [ADR-010](docs/architecture/decisions/ADR-010-case-data-retention-and-erasure.md).
 
-Read our full [Security Policy](SECURITY.md) and [ADR-003](docs/architecture/decisions/ADR-003-bring-your-own-document-privacy.md).
+Read our full [Security Policy](SECURITY.md), [ADR-003](docs/architecture/decisions/ADR-003-bring-your-own-document-privacy.md), and [ADR-010](docs/architecture/decisions/ADR-010-case-data-retention-and-erasure.md).
 
 ---
 

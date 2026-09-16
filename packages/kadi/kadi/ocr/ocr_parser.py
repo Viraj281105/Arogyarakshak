@@ -6,6 +6,7 @@ extracting text, line items, amounts, and raw evidence chunks.
 """
 
 import logging
+import threading
 from typing import Any, Dict, Optional
 
 from kadi.line_items import parse_line_items
@@ -15,6 +16,69 @@ logger.setLevel(logging.INFO)
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 TEXT_EXTENSIONS = (".txt", ".csv", ".json", ".log")
+
+# Decompression-bomb guard (P0-3): a small file can decode to an enormous pixel buffer
+# (e.g. a crafted PNG a few KB on disk that decompresses to gigapixels), independent of
+# the API's 10 MB upload BYTE limit, which only bounds the file on disk/in transit, not
+# the decoded in-memory bitmap cv2.imdecode()/EasyOCR would build from it. These bound
+# the decoded image itself, checked from the file header BEFORE the expensive full
+# decode — a well-formed scanned hospital bill at print resolution is nowhere near these.
+MAX_IMAGE_DIMENSION_PX = 8000
+MAX_IMAGE_PIXELS = 40_000_000  # ~40 megapixels
+
+# EasyOCR's Reader() loads its recognition/detection model weights from disk (or
+# downloads them) on construction — expensive, and NOT something to redo on every
+# request. Lazily built once per process and reused; double-checked locking so
+# concurrent requests racing to build it cannot each construct their own copy
+# simultaneously (each holds real memory for the model weights).
+_easyocr_reader = None
+_easyocr_reader_lock = threading.Lock()
+
+
+def _get_easyocr_reader():
+    global _easyocr_reader
+    if _easyocr_reader is None:
+        with _easyocr_reader_lock:
+            if _easyocr_reader is None:
+                import easyocr
+
+                logger.info("Initializing EasyOCR reader (once per process)...")
+                _easyocr_reader = easyocr.Reader(["en"], gpu=False)
+    return _easyocr_reader
+
+
+def _check_image_dimensions(file_bytes: bytes) -> Optional[str]:
+    """Peeks at the image's declared dimensions from its header, without decoding pixel
+    data, using PIL's lazy Image.open(). Returns an error string if the image should be
+    rejected, or None if it is within bounds.
+
+    This must run BEFORE cv2.imdecode()/EasyOCR, both of which allocate a full decoded
+    bitmap up front — by the time either would reject an oversized image, the memory
+    spike has already happened.
+    """
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+
+        with Image.open(BytesIO(file_bytes)) as img:
+            width, height = img.size
+    except Exception as e:
+        return f"Could not read image dimensions: {e}"
+
+    if width <= 0 or height <= 0:
+        return "Image has invalid (non-positive) dimensions."
+    if width > MAX_IMAGE_DIMENSION_PX or height > MAX_IMAGE_DIMENSION_PX:
+        return (
+            f"Image dimensions {width}x{height} exceed the maximum allowed "
+            f"{MAX_IMAGE_DIMENSION_PX}px per side."
+        )
+    if width * height > MAX_IMAGE_PIXELS:
+        return (
+            f"Image has {width * height:,} pixels, exceeding the {MAX_IMAGE_PIXELS:,} "
+            "pixel limit."
+        )
+    return None
 
 
 def _result(
@@ -59,12 +123,16 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
         return _result(text, filename, True)
 
     if lowered.endswith(IMAGE_EXTENSIONS):
+        dimension_error = _check_image_dimensions(file_bytes)
+        if dimension_error:
+            logger.warning("Rejected image %s before decode: %s", filename, dimension_error)
+            return _result("", filename, False, dimension_error)
+
         try:
             import cv2
-            import easyocr
             import numpy as np
 
-            reader = easyocr.Reader(["en"], gpu=False)
+            reader = _get_easyocr_reader()
             nparr = np.frombuffer(file_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             if img is None:
