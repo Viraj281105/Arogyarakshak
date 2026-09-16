@@ -48,12 +48,16 @@ def test_run_auditor_agent():
 
 
 def test_run_judge_agent():
+    """P1-8: with no denial_details supplied, the Judge has nothing to verify factual
+    accuracy against — it must disclose that as low confidence, not report the same
+    fixed 0.90 it used to return regardless of whether any verification happened."""
     appeal_letter = "Dear Insurer,\n\nWe are writing to appeal the denial of coverage...\n\nSincerely,\nPatient"
     result = run_judge_agent(appeal_letter=appeal_letter)
-    
+
     assert result.status in ["approve", "needs_revision"]
     assert result.overall_score >= 0
-    assert result.confidence_estimate == 0.90
+    assert result.confidence_estimate == 0.35
+    assert any(issue.id == "FACT-0" for issue in result.issues)
 
 
 # ---------------------------------------------------------------------------
