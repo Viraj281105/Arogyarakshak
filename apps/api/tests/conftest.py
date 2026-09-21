@@ -8,8 +8,8 @@ from app.rate_limit import limiter as rate_limiter
 from app.latency_metrics import tracker as latency_tracker
 import app.models  # Ensure models are imported to register with metadata
 
-# Use a file-based SQLite database for reliable test persistence across connection lifetimes
-DATABASE_URL = "sqlite+aiosqlite:///test_temp.db"
+# Use an in-memory SQLite database for tests to avoid file permission issues
+DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -47,30 +47,18 @@ def reset_latency_tracker():
 
 
 @pytest.fixture(autouse=True, scope="function")
-def setup_database():
+async def setup_database():
     """Fixture to create all tables before each test and drop them after."""
-    import asyncio
     import app.models
     from app.database import Base as db_base
-
-    async def create_tables():
-        async with engine.begin() as conn:
-            await conn.run_sync(db_base.metadata.create_all)
-            
-    async def drop_tables():
-        async with engine.begin() as conn:
-            await conn.run_sync(db_base.metadata.drop_all)
-
-    asyncio.run(create_tables())
+    
+    async with engine.begin() as conn:
+        await conn.run_sync(db_base.metadata.create_all)
+    
     yield
-    asyncio.run(drop_tables())
-    asyncio.run(engine.dispose())
-    try:
-        import os
-        if os.path.exists("test_temp.db"):
-            os.remove("test_temp.db")
-    except Exception:
-        pass
+    
+    async with engine.begin() as conn:
+        await conn.run_sync(db_base.metadata.drop_all)
 
 
 async def override_get_db():

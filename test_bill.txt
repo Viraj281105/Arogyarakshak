@@ -1,0 +1,3 @@
+Consultation Fee: 900
+ICU Charges: 18500
+Total Amount: 19400

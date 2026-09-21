@@ -28,6 +28,11 @@ from dawacheck.prescription_translator import (
     translate_prescription_shorthand,
     PrescriptionTranslation,
 )
+from dawacheck.prescription_strip_ocr import (
+    extract_medicines_from_prescription,
+    extract_medicines_from_form,
+    PrescriptionStripAnalysis,
+)
 
 logger = logging.getLogger("arogyarakshak.api.dawacheck")
 router = APIRouter()
@@ -241,3 +246,116 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         case_id,
     )
     return results
+
+
+class PrescriptionMedicineExtraction(BaseModel):
+    """Schema for extracted medicine from prescription/strip photo."""
+    name: str = Field(..., description="Medicine name/brand")
+    dosage_mg: Optional[float] = Field(None, description="Dosage in milligrams (normalized)")
+    quantity: Optional[int] = Field(None, description="Quantity (e.g., 10 for '10 tablets')")
+    unit: Optional[str] = Field(None, description="Unit (tablet, capsule, injection, etc.)")
+    manufacturer: Optional[str] = Field(None)
+    batch_number: Optional[str] = Field(None)
+    expiry_date: Optional[str] = Field(None)
+    mrp: Optional[float] = Field(None, description="Printed MRP if available")
+    confidence: float = Field(1.0, description="Extraction confidence (0.0-1.0)")
+
+
+class PrescriptionOCRRequest(BaseModel):
+    """Request to extract medicines from prescription photo or medicine strip."""
+    ocr_text: str = Field(
+        ...,
+        description="Raw OCR output from Kadi's parse_document, or user-supplied text"
+    )
+    source: str = Field(
+        "kadi_ocr",
+        description="Source of the text (kadi_ocr, user_typed, manual_entry, etc.)"
+    )
+
+
+class PrescriptionOCRResponse(BaseModel):
+    """Result of prescription photo medicine extraction."""
+    medicines: List[PrescriptionMedicineExtraction] = Field(
+        default_factory=list,
+        description="Extracted medicines from the prescription/strip"
+    )
+    raw_text: str = Field(default="", description="Raw OCR text (for audit/debugging)")
+    parsing_notes: List[str] = Field(
+        default_factory=list,
+        description="Warnings or notes about parsing (ambiguities, unrecognized formats, etc.)"
+    )
+    extraction_confidence: float = Field(
+        default=1.0,
+        description="Overall confidence in the extraction (0.0-1.0)"
+    )
+
+
+@router.post(
+    "/ocr/extract-medicines",
+    response_model=PrescriptionOCRResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def extract_medicines_from_ocr(
+    req: PrescriptionOCRRequest,
+):
+    """Extracts medicine information from prescription photo or medicine strip OCR text.
+
+    This is a convenience wrapper around the DawaCheck prescription_strip_ocr module,
+    for when OCR-extracted text (from Kadi) needs to be parsed into structured
+    medicine records before benchmarking against DawaCheck's price reference table.
+
+    Request-body-only: reads no case context, so exempt from consent (like
+    /benchmark and /translate-instructions).
+
+    Typical workflow:
+      1. Patient uploads a prescription photo or medicine strip photo via Kadi.
+      2. Kadi's parse_document performs OCR and returns raw text.
+      3. Call this endpoint with the raw text to extract structured medicines.
+      4. For each medicine, call /benchmark to check pricing.
+
+    Returns structured medicine data with:
+      - name: brand or generic name
+      - dosage_mg: normalized dosage
+      - quantity & unit: e.g., "10 tablets"
+      - manufacturer, batch, expiry: if present on the strip
+      - mrp: printed MRP if visible in the photo
+      - confidence: how confident the extraction is
+    """
+    logger.info(
+        "[DawaCheck] Extracting medicines from OCR text (source: %s, length: %d)",
+        req.source,
+        len(req.ocr_text),
+    )
+
+    analysis = extract_medicines_from_prescription(
+        ocr_text=req.ocr_text,
+        source=req.source,
+    )
+
+    # Convert to response schema
+    medicines_response = [
+        PrescriptionMedicineExtraction(
+            name=med.name,
+            dosage_mg=med.dosage_mg,
+            quantity=med.quantity,
+            unit=med.unit,
+            manufacturer=med.manufacturer,
+            batch_number=med.batch_number,
+            expiry_date=med.expiry_date,
+            mrp=med.mrp,
+            confidence=med.confidence,
+        )
+        for med in analysis.medicines
+    ]
+
+    logger.info(
+        "[DawaCheck] Extracted %d medicines from OCR text",
+        len(medicines_response),
+    )
+
+    return PrescriptionOCRResponse(
+        medicines=medicines_response,
+        raw_text=analysis.raw_text,
+        parsing_notes=analysis.parsing_notes,
+        extraction_confidence=analysis.extraction_confidence,
+    )

@@ -39,6 +39,15 @@ RUN groupadd --system --gid 10001 app \
 # Copy app code
 COPY apps/api/app/ /app/app/
 
+# Copy test configuration
+COPY pytest.ini apps/api/conftest.py /app/
+
+# Copy API tests
+COPY apps/api/tests/ /app/tests/
+
+RUN mkdir -p /app/testdata && \
+    chown -R app:app /app/testdata
+
 USER app
 
 EXPOSE 8000
