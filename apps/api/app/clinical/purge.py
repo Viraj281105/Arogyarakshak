@@ -18,6 +18,7 @@ from app.models import (
     KadiClinicalFactConfirmation,
     KadiClinicalReview,
     KadiClinicalStatement,
+    KadiSafetyScanResult,
     KadiTranscriptionAssignment,
     KadiTranscriptionSubmission,
     KadiTranscriptionTask,
@@ -31,6 +32,7 @@ CASE_SCOPED_CLINICAL_MODELS = (
     KadiClinicalStatement,
     KadiClinicalReview,
     KadiClinicalAuditEvent,
+    KadiSafetyScanResult,
 )
 
 

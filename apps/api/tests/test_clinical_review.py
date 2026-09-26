@@ -283,14 +283,63 @@ def test_audit_trail_records_lifecycle_without_sensitive_text():
 
 # --- Module integration -----------------------------------------------------------
 
-def test_appeal_without_statement_says_so_explicitly():
+def _pdf_text(pdf_bytes: bytes) -> str:
+    import fitz
+
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        return "\n".join(page.get_text() for page in doc)
+
+
+def test_appeal_without_statement_tells_the_patient_not_the_insurer():
     case_id = make_case()
     res = client.post(f"{K.replace('kadi', 'billnyay')}/cases/{case_id}/appeal")
     body = res.json()
     assert res.status_code == 200
     assert body["human_clinical_statement_attached"] is False
     assert body["clinical_statements"] == []
-    assert "No statement from a named clinician" in body["clinical_annex"]
+    assert body["clinical_annex"] == ""
+    assert "No statement from a named clinician" in body["clinical_statement_notice"]
+    pdf = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf").content
+    text = _pdf_text(pdf)
+    assert "named clinician" not in text and "ANNEXURE" not in text, "the insurer-facing PDF must not carry the notice"
+
+
+def test_withdrawn_statement_is_removed_from_the_stored_signed_pdf():
+    case_id = make_case()
+    ids = full_statement(case_id)
+    client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    before = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf").content
+    assert "ATTRIBUTED CLINICAL STATEMENT" in _pdf_text(before)
+
+    client.post(
+        f"{K}/clinical-reviews/{ids['review_id']}/statements/{ids['statement_id']}/withdraw",
+        json={"reason": "New records."},
+        headers=rh(ids["token"]),
+    )
+    after = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf").content
+    assert "ATTRIBUTED CLINICAL STATEMENT" not in _pdf_text(after)
+    verify = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/verify").json()
+    assert verify["signature_valid"] is True and verify["hash_matches_stored_bytes"] is True
+    assert verify["sha256_hash"] != __import__("hashlib").sha256(before).hexdigest(), (
+        "a copy downloaded before the withdrawal must no longer verify"
+    )
+
+
+def test_statement_finalized_after_drafting_is_added_to_the_stored_pdf():
+    case_id = make_case()
+    client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    full_statement(case_id)
+    pdf = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf").content
+    assert "ATTRIBUTED CLINICAL STATEMENT" in _pdf_text(pdf)
+
+
+def test_cancelling_the_review_removes_its_statement_from_the_pdf():
+    case_id = make_case()
+    ids = full_statement(case_id)
+    client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
+    client.post(f"{K}/cases/{case_id}/clinical-reviews/{ids['review_id']}/cancel")
+    pdf = client.get(f"/api/v1/billnyay/cases/{case_id}/appeal/pdf").content
+    assert "ATTRIBUTED CLINICAL STATEMENT" not in _pdf_text(pdf)
 
 
 def test_appeal_includes_finalized_statement_verbatim_with_coi_and_verification():

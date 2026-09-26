@@ -42,6 +42,23 @@ def hash_credential(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def reviewer_available(reviewer: Optional[KadiClinicalReviewer]) -> bool:
+    """Active, and not a demo fixture outside demo mode (demo credentials must stop
+    working the moment CLINICAL_DEMO_MODE is turned off)."""
+    return bool(reviewer and reviewer.is_active and (settings.clinical_demo_mode or not reviewer.is_demo))
+
+
+def listed_in_directory(reviewer: KadiClinicalReviewer) -> bool:
+    """Only independently verified reviewers are listed publicly. Anyone can self-register
+    under any name, so a self-declared "doctor" is never shown to patients as a choice;
+    they are assigned only by the reviewer ID they give the patient themselves."""
+    if not reviewer_available(reviewer):
+        return False
+    if reviewer.verification_status == "EXTERNALLY_VERIFIED":
+        return True
+    return settings.clinical_demo_mode and reviewer.is_demo
+
+
 async def require_reviewer(
     db: AsyncSession = Depends(get_db),
     x_reviewer_token: Optional[str] = Header(None, alias=REVIEWER_TOKEN_HEADER),
@@ -57,8 +74,8 @@ async def require_reviewer(
         )
     )
     reviewer = result.scalar_one_or_none()
-    if reviewer is None or not reviewer.is_active:
-        logger.info("Rejected a reviewer credential that matched no active reviewer.")
+    if not reviewer_available(reviewer):
+        logger.info("Rejected a reviewer credential that matched no available reviewer.")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid reviewer credential.")
     return reviewer
 

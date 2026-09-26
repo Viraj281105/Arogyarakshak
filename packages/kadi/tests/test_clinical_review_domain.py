@@ -319,3 +319,58 @@ def test_unreadable_escalates():
 def test_standard_low_confidence_needs_second_reading():
     assert evaluate_consensus("STANDARD", [_r("A", "450", conf="LOW")]).status == TaskStatus.AWAITING_SECOND_REVIEW
     assert evaluate_consensus("STANDARD", [_r("A", "450")]).status == TaskStatus.RESOLVED
+
+
+# --- Audit fixes (issue 1): no noise tasks, no prescriber data, whole-token linking ---
+
+from kadi.clinical_review.transcription import link_candidate_to_entity, substitute_reading  # noqa: E402
+
+
+def test_realistic_prescription_does_not_flood_or_leak():
+    segs = [
+        OcrSegment("CITY CARE HOSPITAL", 0.3),
+        OcrSegment("Dr. Mehta MBBS", 0.4),
+        OcrSegment("Rx", 0.2),
+        OcrSegment("Tab.", 0.3),
+        OcrSegment("Augmntn", 0.3),
+        OcrSegment("625mg", 0.95),
+        OcrSegment("1-0-1", 0.4),
+        OcrSegment("Date 12/03/2026", 0.3),
+    ]
+    tasks = select_uncertain_segments(segs)
+    candidates = [t["ocr_candidate"] for t in tasks]
+    assert "Rx" not in candidates and "Tab." not in candidates, "prescription markers are noise"
+    assert "Dr. Mehta MBBS" not in candidates, "prescriber identity is never a task"
+    assert "Date 12/03/2026" not in candidates, "non-clinical fields have no consumer"
+    assert "Mehta" not in str(tasks), "prescriber name never reaches a reader, even as context"
+    assert all("CITY CARE" not in t["masked_context"] for t in tasks), "non-medication neighbours are elided"
+    assert "Augmntn" in candidates
+    # A letterhead can survive selection as UNCLASSIFIED, but it links to no medicine,
+    # so the API never turns it into a task (tested end to end in the API suite).
+    meds = [("E1", "Tab Augmntn 625mg")]
+    linked = [t for t in tasks if link_candidate_to_entity(t["ocr_candidate"], meds)]
+    assert [t["ocr_candidate"] for t in linked] == ["Augmntn"]
+
+
+def test_linking_is_whole_token_and_unambiguous():
+    meds = [("E1", "Tab Augmntn 625mg"), ("E2", "Tab Dolo 650mg")]
+    assert link_candidate_to_entity("Augmntn", meds) == "E1"
+    assert link_candidate_to_entity("Tab.", meds) is None
+    assert link_candidate_to_entity("0", meds) is None
+    assert link_candidate_to_entity("Aug", meds) is None, "no substring matches"
+    assert link_candidate_to_entity("Tab", [("E1", "Tab Dolo"), ("E2", "Tab Dolo 500")]) is None
+
+
+def test_substitution_replaces_only_the_uncertain_part():
+    assert substitute_reading("Tab Augmntn 625mg", "Augmntn", "Augmentin") == "Tab Augmentin 625mg"
+    assert substitute_reading("Tab Dolo 650mg", "Tab Dolo 650mg", "Dolo 650") == "Dolo 650", "whole-entry flag"
+    assert substitute_reading("Tab Dolo 650mg", "Xyz", "Abc") is None, "cannot place it: leave entry untouched"
+    assert substitute_reading("Dolo Dolo", "Dolo", "X") is None, "ambiguous position: leave entry untouched"
+
+
+def test_full_text_scan_returns_only_rule_ids_and_terms():
+    from kadi.clinical_review.safety import scan_full_text
+
+    text = "x" * 3000 + " patient had slurred speech. Name: Asha Rao"
+    result = scan_full_text([_rule()], text)
+    assert result == [{"rule_id": "SR-1", "rule_version": 1, "matched_terms": ["slurred speech"]}]

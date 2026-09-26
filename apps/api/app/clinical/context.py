@@ -5,6 +5,7 @@ Machine-derived signals (plausibility, safety escalations) are computed here onc
 module route and the review service can never disagree about them.
 """
 
+import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -14,9 +15,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from billnyay.plausibility import EvidenceRef, PlausibilityAssessment, assess_clinical_plausibility
 from kadi.clinical_review import SAFETY_FLOOR_DISCLAIMER
 from kadi.clinical_review.evidence import EntityRecord
-from kadi.clinical_review.safety import ActiveRule, evaluate_rules
+from kadi.clinical_review.safety import (
+    ActiveRule,
+    escalation_for,
+    evaluate_rules,
+    scan_full_text,
+    sort_escalations,
+)
 
-from app.models import KadiCase, KadiEntity, KadiSafetyRule
+from app.models import KadiCase, KadiEntity, KadiSafetyRule, KadiSafetyScanResult
 
 NO_ACTIVE_RULES_NOTE = (
     "No clinical safety rules are active on this deployment. The absence of an escalation "
@@ -72,20 +79,64 @@ async def load_active_rules(db: AsyncSession) -> List[ActiveRule]:
     return [_active_rule(r) for r in rows.scalars().all()]
 
 
+SCAN_SCOPE_NOTE = (
+    "Each uploaded document was checked in full against the rules active when it was "
+    "uploaded. Rules activated later are checked only against the extracted diagnoses, "
+    "procedures and medicines and the first 1,000 characters of each document (the "
+    "redacted excerpt ArogyaRakshak keeps)."
+)
+
+
+async def scan_document_for_safety(db: AsyncSession, case_id: str, full_text: str) -> int:
+    """Upload-time full-text scan (the document is still in transient memory). Persists
+    only rule id/version and matched terms. Returns the number of rules matched."""
+    rules = await load_active_rules(db)
+    if not rules or not full_text:
+        return 0
+    matches = scan_full_text(rules, full_text, today=date.today())
+    for m in matches:
+        db.add(
+            KadiSafetyScanResult(
+                id=f"SSR-{uuid.uuid4().hex[:12]}",
+                case_id=case_id,
+                rule_id=m["rule_id"],
+                rule_version=m["rule_version"],
+                matched_terms=m["matched_terms"],
+            )
+        )
+    return len(matches)
+
+
 async def evaluate_case_safety(
     db: AsyncSession, case_id: str, entities: Optional[Sequence[EntityRecord]] = None
 ) -> Dict[str, Any]:
     entities = entities if entities is not None else await load_entity_records(db, case_id)
     rules = await load_active_rules(db)
     escalations = evaluate_rules(rules, safety_context(entities), today=date.today())
+
+    # Merge red flags found in the full text at upload time, for rules still ACTIVE.
+    by_rule = {e["rule_id"]: e for e in escalations}
+    active = {r.rule_id: r for r in rules}
+    stored = await db.execute(select(KadiSafetyScanResult).where(KadiSafetyScanResult.case_id == case_id))
+    for scan in stored.scalars().all():
+        rule = active.get(scan.rule_id)
+        if rule is None:
+            continue
+        if scan.rule_id in by_rule:
+            merged = by_rule[scan.rule_id]["matched_terms"] + list(scan.matched_terms or [])
+            by_rule[scan.rule_id]["matched_terms"] = list(dict.fromkeys(merged))
+        else:
+            by_rule[scan.rule_id] = escalation_for(rule, scan.matched_terms or [], date.today())
+
     return {
         "case_id": case_id,
         "active_rule_count": len(rules),
-        "escalations": escalations,
+        "escalations": sort_escalations(list(by_rule.values())),
         "disclaimer": SAFETY_FLOOR_DISCLAIMER,
+        "scope_note": SCAN_SCOPE_NOTE,
         "coverage_note": NO_ACTIVE_RULES_NOTE if not rules else (
             f"{len(rules)} active rule(s) were checked. They cover specific red flags only; "
-            "no escalation does not mean the case is clinically safe."
+            "no escalation does not mean the case is clinically safe. " + SCAN_SCOPE_NOTE
         ),
     }
 

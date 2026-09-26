@@ -144,6 +144,7 @@ export interface SafetyEvaluation {
   escalations: SafetyEscalation[];
   disclaimer: string;
   coverage_note: string;
+  scope_note?: string;
 }
 
 export interface TranscriptionTask {

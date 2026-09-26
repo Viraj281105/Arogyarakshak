@@ -151,6 +151,8 @@ export interface BillNyayAppealResponse {
   human_clinical_statement_attached: boolean;
   clinical_statements: ClinicalStatement[];
   clinical_annex: string;
+  /** Patient-facing only; never part of the insurer-facing PDF. */
+  clinical_statement_notice: string;
 }
 
 // --- DaaviSetu ---
@@ -425,6 +427,9 @@ export interface PlausibilityResponse {
     clinical_review_required: boolean;
     review_reasons: string[];
     guideline_note: string;
+    not_assessed_items: string[];
+    excluded_administrative_items: string[];
+    coverage: 'FULL' | 'PARTIAL' | 'NONE';
   };
   clinical_review: { required: boolean; status: string; human_statement_exists: boolean };
 }
@@ -449,6 +454,7 @@ export interface ReadinessResponse {
   recommended_actions: string[];
   ready_to_submit: boolean;
   disclaimer: string;
+  evidence_scope_note: string;
 }
 
 export interface TranscriptionTask {

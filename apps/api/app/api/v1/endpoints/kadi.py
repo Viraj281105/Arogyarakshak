@@ -28,6 +28,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auto_triggers import readiness_for_case, run_auto_triggers
 from app.background import get_background_session
+from app.clinical.context import scan_document_for_safety
 from app.clinical.purge import purge_clinical_records_for_case
 from app.clinical.transcription_service import create_tasks_from_ocr
 from kadi.clinical_review.transcription import OcrSegment, select_uncertain_segments
@@ -456,6 +457,9 @@ async def process_document_background(
             transcription_tasks = await create_tasks_from_ocr(
                 session, case_id, uncertain, [e for e in case.entities if e.type == "medicine"]
             )
+            # ADR-011: check the WHOLE document against active safety rules while it is
+            # still in memory; only rule ids and matched terms are persisted.
+            await scan_document_for_safety(session, case_id, text)
             if transcription_tasks:
                 processing_status[case_id].append({
                     "status": "transcription_flags",

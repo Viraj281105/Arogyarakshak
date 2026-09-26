@@ -116,3 +116,34 @@ describe('Module integration', () => {
     assert.ok(/<SafetyEscalationBanner/.test(page));
   });
 });
+
+describe('Audit fixes (web)', () => {
+  const assignSrc = read('app', 'components', 'clinical', 'AssignReviewer.tsx');
+  const bannerSrc = read('app', 'components', 'clinical', 'SafetyEscalationBanner.tsx');
+  const readinessSrc = read('app', 'components', 'clinical', 'PreauthReadinessPanel.tsx');
+
+  it('reviewers can be assigned by the ID they share, label shown before assigning (issue 8)', () => {
+    assert.ok(/clinicalPaths\.reviewers\(\)\}\/\$\{encodeURIComponent\(idInput\.trim\(\)\)\}/.test(assignSrc));
+    assert.ok(/looked\.verification_label/.test(assignSrc));
+    assert.ok(/No independently verified reviewers are listed/.test(assignSrc));
+    for (const f of ['ClinicalReviewPanel.tsx', 'TranscriptionPanel.tsx', 'PreauthReadinessPanel.tsx']) {
+      assert.ok(/<AssignReviewer/.test(read('app', 'components', 'clinical', f)), `${f} must use AssignReviewer`);
+    }
+    assert.ok(/Your reviewer ID: <code>\{me\.id\}<\/code>/.test(workspace));
+  });
+
+  it('a failed safety check is shown, never rendered as nothing (issue 7)', () => {
+    assert.ok(/The clinical safety check could not be run/.test(bannerSrc));
+    assert.ok(!/\.catch\(\(\) => !cancelled && setEvaluation\(null\)\)/.test(bannerSrc));
+  });
+
+  it('readiness discloses its text scope and plausibility lists what it did not assess (issues 3, 4)', () => {
+    assert.ok(/report\.evidence_scope_note/.test(readinessSrc));
+    assert.ok(/not_assessed_items/.test(billNyay) && /excluded_administrative_items/.test(billNyay));
+  });
+
+  it('the "no clinician statement" note is patient-facing and the PDF is re-downloaded after changes (issues 2, 6)', () => {
+    assert.ok(/it is not printed in the PDF/.test(billNyay));
+    assert.ok(/always download it again right before sending/.test(billNyay));
+  });
+});

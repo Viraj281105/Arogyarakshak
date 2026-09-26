@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { API_BASE, caseAuthHeaders } from "../../hooks/useApi";
 import { ReviewerProfile, TranscriptionTask, clinicalPaths, clinicalRequest } from "../../lib/clinical";
+import { AssignReviewer } from "./AssignReviewer";
 import { ProvenanceBadge } from "./Attribution";
 
 interface MedicineEntity {
@@ -29,7 +30,6 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
   const [tasks, setTasks] = useState<TranscriptionTask[]>([]);
   const [medicines, setMedicines] = useState<MedicineEntity[]>([]);
   const [readers, setReaders] = useState<ReviewerProfile[]>([]);
-  const [selected, setSelected] = useState<Record<string, string>>({});
   const [shareConsent, setShareConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,12 +86,12 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
       })
     );
 
-  const assign = (taskId: string) =>
+  const assign = (taskId: string, reviewerId: string) =>
     act(() =>
       clinicalRequest(clinicalPaths.assignTranscription(caseId, taskId), {
         method: "POST",
         caseToken,
-        body: { reviewer_id: selected[taskId], share_with_reviewer_consent: shareConsent },
+        body: { reviewer_id: reviewerId, share_with_reviewer_consent: shareConsent },
       })
     );
 
@@ -168,24 +168,12 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
             </ul>
           )}
           {(task.status === "OPEN" || task.status === "AWAITING_SECOND_REVIEW") && (
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-              <select
-                className="select-field"
-                aria-label="Choose a reader"
-                value={selected[task.task_id] ?? ""}
-                onChange={(e) => setSelected((prev) => ({ ...prev, [task.task_id]: e.target.value }))}
-              >
-                <option value="">Choose a reader…</option>
-                {readers.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} — {r.category_label} — {r.verification_label}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="btn btn-secondary" disabled={!selected[task.task_id] || !shareConsent} onClick={() => assign(task.task_id)}>
-                Assign reader
-              </button>
-            </div>
+            <AssignReviewer
+              directory={readers}
+              disabled={!shareConsent}
+              label="Assign reader"
+              onAssign={(reviewerId) => assign(task.task_id, reviewerId)}
+            />
           )}
         </div>
       ))}

@@ -93,3 +93,27 @@ def test_every_conclusion_lists_the_evidence_used():
     a = assess_clinical_plausibility([dx("K35 Acute appendicitis")], [proc("Appendectomy")])
     assert {e.item_id for e in a.evidence_used} == {"E-dx", "E-proc"}
     assert all(e.provenance == "AI_DERIVED" for e in a.evidence_used)
+
+
+# --- Audit fixes (issue 3) ---
+
+def test_administrative_lines_are_not_interventions():
+    a = assess_clinical_plausibility([dx("K35 Acute appendicitis")], [proc("Room Rent"), proc("Nursing Charges")])
+    assert a.status == "INSUFFICIENT_INFORMATION"
+    assert a.excluded_administrative_items == ["Room Rent", "Nursing Charges"]
+    assert "administrative" in a.summary
+
+
+def test_plausible_discloses_unassessed_billed_items():
+    a = assess_clinical_plausibility(
+        [dx("K35 Acute appendicitis")], [proc("Laparoscopic Appendectomy"), proc("MRI Brain", "E-mri")]
+    )
+    assert a.status == "PLAUSIBLE"
+    assert a.coverage == "PARTIAL"
+    assert a.not_assessed_items == ["MRI Brain"]
+    assert "NOT assessed" in a.summary and "MRI Brain" in a.summary
+
+
+def test_full_coverage_when_everything_clinical_was_checked():
+    a = assess_clinical_plausibility([dx("K35 Acute appendicitis")], [proc("Appendectomy"), proc("Room Rent")])
+    assert a.coverage == "FULL" and a.not_assessed_items == []

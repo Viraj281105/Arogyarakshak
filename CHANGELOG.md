@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Human clinical review, safety governance and human OCR resolution layer (ADR-011, `docs/architecture/clinical-review.md`): attributable clinical statements with mandatory conflict-of-interest disclosure and honest verification status; institution-private DaaviSetu preauth readiness playbooks; bounded BillNyay clinical plausibility review; versioned, independently approved clinical safety escalation rules; blind two-reader transcription of uncertain OCR medication text; provenance classes (`AI_DERIVED`, `HUMAN_REVIEWED`, `HUMAN_AUTHORED`, `EXTERNAL_SOURCE`, `PATIENT_PROVIDED`); web reviewer workspace at `/clinical-review`; mobile patient-side cards.
 
+### Fixed (ADR-011 audit)
+- OCR transcription tasks no longer flood on letterheads/"Rx"/"Tab.", never forward prescriber names, link only by whole tokens to one medicine, and apply a reading by replacing only the uncertain token.
+- A withdrawn, superseded or cancelled clinician statement is removed from the stored signed appeal PDF.
+- The insurer-facing appeal PDF no longer carries a "no clinician statement" notice; that notice is patient-facing only.
+- Plausibility no longer treats room/nursing lines as interventions and discloses billed items it did not assess.
+- Safety rules now check each document's full text at upload; readiness discloses its 1,000-character search scope.
+- Only independently verified reviewers are listed publicly; others are assigned by shared ID. Demo reviewers are locked out outside demo mode.
+- Safety-rule approvals are tied to a submission round.
+- Safety-check failures are shown explicitly. Mobile DaaviSetu now receives its scanned case; mobile screens wait for processing before reading it.
+
 ### Changed
 - BillNyay appeals now append finalized clinician statements verbatim (or state that none exists); the Barrister prompt forbids implying a clinician's opinion; the offline appeal template no longer asserts that physician records prove necessity.
 - Kadi OCR now returns EasyOCR per-segment confidence; low-confidence readings become human transcription tasks.

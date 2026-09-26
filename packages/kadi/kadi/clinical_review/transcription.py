@@ -18,14 +18,14 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from kadi.redaction import redact_pii
 
 MASK = "▢▢▢"
 DEFAULT_LOW_CONFIDENCE_THRESHOLD = 0.5
 MAX_VALUE_CHARS = 200
-MAX_TASKS_PER_DOCUMENT = 25
+MAX_TASKS_PER_DOCUMENT = 10
 
 
 class FieldType(str, Enum):
@@ -123,16 +123,61 @@ def mask_token(line: str, token: str) -> str:
     return f"{line} {MASK}".strip() if line else MASK
 
 
+# Tokens that carry no information worth a human reading: prescription markers and
+# dosage-form abbreviations. A low-confidence "Tab." must never become a task.
+_NOISE_TOKENS = frozenset(
+    {"rx", "tab", "tabs", "tablet", "cap", "caps", "capsule", "inj", "injection", "syp",
+     "syrup", "susp", "drop", "drops", "oint", "sig", "dr", "sos", "od", "bd", "tds"}
+)
+# Prescriber / identity lines (doctor's name, degrees, registration numbers). These are
+# personal data about a third party and are never sent to a reader, even as context.
+_IDENTITY_LINE = re.compile(
+    r"(?:^|\s)dr\.?\s|\b(?:mbbs|md|ms|dnb|bams|bhms|mch|frcs|mrcp|reg(?:istration)?\.?\s*no)\b",
+    re.IGNORECASE,
+)
+ELIDED_CONTEXT = "…"
+
+
+def meaningful_tokens(value: str) -> List[str]:
+    """Normalized tokens a human reading can actually settle: at least 3 characters and
+    not a prescription marker."""
+    tokens = normalize_reading(value).split()
+    return [t for t in tokens if len(re.sub(r"\W", "", t)) >= 3 and t not in _NOISE_TOKENS]
+
+
+def looks_like_identity_line(text: str) -> bool:
+    return bool(_IDENTITY_LINE.search(text or ""))
+
+
+def looks_like_medication_line(text: str) -> bool:
+    t = text or ""
+    return bool(
+        _DOSAGE_FORM.search(t) or _STRENGTH.search(t) or _FREQUENCY.search(t)
+        or _DURATION.search(t) or _ROUTE.search(t)
+    )
+
+
+def _context_line(text: str) -> str:
+    """A neighbouring line is shown only if it looks like part of a medication entry;
+    anything else (letterhead, names, addresses) is elided, never forwarded."""
+    if not text or looks_like_identity_line(text) or not looks_like_medication_line(text):
+        return ELIDED_CONTEXT
+    return redact_pii(text)
+
+
 def select_uncertain_segments(
     segments: Sequence[OcrSegment],
     threshold: float = DEFAULT_LOW_CONFIDENCE_THRESHOLD,
     limit: int = MAX_TASKS_PER_DOCUMENT,
 ) -> List[Dict[str, Any]]:
-    """Low-confidence OCR segments turned into task payloads.
+    """Low-confidence OCR segments that are worth a human reading, as task payloads.
 
-    The candidate reading and context are PII-redacted; the context masks the uncertain
-    token so a reviewer is not anchored on the OCR guess. Segments that contained a
-    direct identifier are skipped — there is nothing clinical to resolve in them.
+    Skipped: segments with a direct identifier or a prescriber/identity line, pure
+    prescription markers ("Rx", "Tab."), tokens too short to settle, and non-clinical
+    fields (amounts, dates) that nothing downstream consumes. Context keeps only
+    medication-looking neighbour lines, redacted, with the uncertain token masked.
+    Callers must still link a payload to an extracted entity before creating a task —
+    an unlinked reading has no consumer (see `link_candidate_to_entity`).
     """
     tasks: List[Dict[str, Any]] = []
     for index, seg in enumerate(segments):
@@ -143,12 +188,18 @@ def select_uncertain_segments(
         # A segment that carried a direct identifier is identity data, not a clinical
         # token: never worth resolving, and sending even its label to a reviewer would
         # leak that an identifier sat there.
-        if candidate != text:
+        if candidate != text or looks_like_identity_line(text):
+            continue
+        if not meaningful_tokens(text):
             continue
         prev_line = segments[index - 1].text if index > 0 else ""
         next_line = segments[index + 1].text if index + 1 < len(segments) else ""
         field_type = infer_field_type(text, f"{prev_line} {next_line}")
-        context = redact_pii(" ".join(x for x in (prev_line, mask_token(text, text), next_line) if x))
+        if field_type == FieldType.NON_CLINICAL:
+            continue
+        context = " ".join(
+            x for x in (_context_line(prev_line), mask_token(text, text), _context_line(next_line)) if x
+        )
         bbox = None
         if seg.bbox:
             try:
@@ -179,6 +230,37 @@ def normalize_reading(value: str) -> str:
     v = re.sub(r"(\d)\s+(mg|mcg|g|gm|ml|iu|units?)\b", r"\1\2", v)
     v = re.sub(r"[^\w%/]+", " ", v)
     return " ".join(v.split())
+
+
+def link_candidate_to_entity(candidate: str, entities: Sequence[Tuple[str, str]]) -> Optional[str]:
+    """The id of the single extracted entity whose name contains every meaningful token
+    of the uncertain reading as a whole token. Ambiguous (several matches) or no match
+    returns None: an unlinked reading has no downstream consumer, so no task is made.
+
+    Whole-token matching matters: a substring test linked a stray "Tab." to every
+    medicine and let its "resolution" replace the drug's name.
+    """
+    wanted = set(meaningful_tokens(candidate))
+    if not wanted:
+        return None
+    matches = [eid for eid, name in entities if wanted <= set(normalize_reading(name).split())]
+    return matches[0] if len(matches) == 1 else None
+
+
+def substitute_reading(entity_name: str, candidate: str, reading: str) -> Optional[str]:
+    """Applies a human reading to an entity name by replacing only the uncertain part.
+
+    Returns None when the substitution cannot be done safely, so the caller leaves the
+    entity untouched instead of overwriting a whole medicine name with a fragment.
+    """
+    if not entity_name or not candidate or not reading:
+        return None
+    if normalize_reading(candidate) == normalize_reading(entity_name):
+        return reading
+    pattern = re.compile(rf"(?<!\w){re.escape(candidate.strip())}(?!\w)", re.IGNORECASE)
+    if len(pattern.findall(entity_name)) != 1:
+        return None
+    return pattern.sub(lambda _m: reading, entity_name, count=1)
 
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

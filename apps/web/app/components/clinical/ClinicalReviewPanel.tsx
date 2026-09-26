@@ -8,6 +8,7 @@ import {
   clinicalPaths,
   clinicalRequest,
 } from "../../lib/clinical";
+import { AssignReviewer } from "./AssignReviewer";
 import { ClinicalStatementCard, ProvenanceBadge, ReviewerAttribution } from "./Attribution";
 
 interface ClinicalReviewPanelProps {
@@ -47,7 +48,6 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
   const [directory, setDirectory] = useState<ReviewerProfile[]>([]);
   const [question, setQuestion] = useState<string>(suggestedQuestion ?? "");
   const [shareConsent, setShareConsent] = useState(false);
-  const [selected, setSelected] = useState<Record<string, string>>({});
   const [audit, setAudit] = useState<Record<string, AuditEvent[]>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,12 +111,12 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
       })
     );
 
-  const assignReviewer = (reviewId: string) =>
+  const assignReviewer = (reviewId: string, reviewerId: string) =>
     run(() =>
       clinicalRequest(clinicalPaths.assign(caseId, reviewId), {
         method: "POST",
         caseToken,
-        body: { reviewer_id: selected[reviewId] },
+        body: { reviewer_id: reviewerId },
       })
     );
 
@@ -221,29 +221,12 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
           )}
 
           {(review.status === "REQUESTED" || review.status === "DECLINED" || review.status === "ASSIGNED") && (
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-              <select
-                className="select-field"
-                aria-label="Choose a reviewer"
-                value={selected[review.review_id] ?? ""}
-                onChange={(e) => setSelected((prev) => ({ ...prev, [review.review_id]: e.target.value }))}
-              >
-                <option value="">Choose a doctor…</option>
-                {directory.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} — {d.specialty ?? d.category_label} — {d.verification_label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={busy || !selected[review.review_id]}
-                onClick={() => assignReviewer(review.review_id)}
-              >
-                Assign reviewer
-              </button>
-            </div>
+            <AssignReviewer
+              directory={directory}
+              disabled={busy}
+              label="Assign doctor"
+              onAssign={(reviewerId) => assignReviewer(review.review_id, reviewerId)}
+            />
           )}
 
           {review.draft_in_progress && !review.current_statement && (

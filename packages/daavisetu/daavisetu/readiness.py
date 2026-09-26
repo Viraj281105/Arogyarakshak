@@ -212,7 +212,15 @@ class ReadinessItemResult(BaseModel):
     note: Optional[str] = None
 
 
+EVIDENCE_SCOPE_NOTE = (
+    "Searched: the extracted diagnoses, procedures, hospital and costs, plus the first "
+    "1,000 characters of each uploaded document (the redacted excerpt ArogyaRakshak keeps). "
+    "'Missing' means not found there — a longer document may still contain it."
+)
+
+
 class ReadinessReport(BaseModel):
+    evidence_scope_note: str = EVIDENCE_SCOPE_NOTE
     items: List[ReadinessItemResult]
     present_count: int
     missing_count: int
@@ -311,8 +319,8 @@ def evaluate_readiness(
     actions: List[str] = []
     if missing:
         actions.append(
-            "Request the missing documentation before submission: "
-            + "; ".join(r.label for r in missing) + "."
+            "Request the missing documentation before submission (first check it is not already "
+            "further into a document you uploaded): " + "; ".join(r.label for r in missing) + "."
         )
     if needs:
         actions.append(
@@ -344,6 +352,7 @@ def render_readiness_text(report: ReadinessReport, playbook_label: Optional[str]
         "PRE-AUTHORIZATION READINESS CHECKLIST",
         f"Guidance used: {playbook_label or 'DaaviSetu generic baseline only'}",
         f"Baseline source: {report.baseline_source}",
+        f"Evidence searched: {report.evidence_scope_note}",
         "",
     ]
     for r in report.items:

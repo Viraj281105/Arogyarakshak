@@ -57,6 +57,8 @@ from kadi.clinical_review.lifecycle import (
 )
 
 from app.clinical.audit import record_event
+from app.clinical.auth import reviewer_available
+from app.clinical.events import notify_statements_changed
 from app.clinical.serializers import reviewer_snapshot
 from app.consent import require_case_consent
 from app.models import (
@@ -198,7 +200,7 @@ async def assign_review(
             detail=f"A review in state {review.status} cannot be (re)assigned.",
         )
     reviewer = await db.get(KadiClinicalReviewer, reviewer_id)
-    if reviewer is None or not reviewer.is_active:
+    if not reviewer_available(reviewer):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reviewer not found.")
     if reviewer.category not in CLINICAL_JUDGMENT_CATEGORIES_VALUES:
         raise HTTPException(
@@ -245,6 +247,7 @@ async def cancel_review(db: AsyncSession, case: KadiCase, review: KadiClinicalRe
         review_id=review.id,
         details={"reviewer_access_revoked": True},
     )
+    await notify_statements_changed(db, case.id, review.source_module)
 
 
 async def statements_for_review(db: AsyncSession, review_id: str) -> List[KadiClinicalStatement]:
@@ -585,6 +588,7 @@ async def finalize_statement(
             "coi_category": stmt.coi_category,
         },
     )
+    await notify_statements_changed(db, review.case_id, review.source_module)
     return stmt
 
 
@@ -631,6 +635,7 @@ async def withdraw_statement(db, reviewer, review, statement_id, reason: Optiona
     review.status = ReviewStatus.IN_REVIEW.value
     review.completed_at = None
     _event(db, review, reviewer, AuditEventType.STATEMENT_WITHDRAWN, "STATEMENT", stmt.id, {"statement_version": stmt.statement_version})
+    await notify_statements_changed(db, review.case_id, review.source_module)
     return stmt
 
 

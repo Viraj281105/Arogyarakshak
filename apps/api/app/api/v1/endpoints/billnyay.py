@@ -18,13 +18,14 @@ import json
 import urllib.request
 from app.case_auth import require_case_access
 from app.clinical.context import assess_case_plausibility
+from app.clinical.events import on_statements_changed
 from app.clinical.serializers import annex_dict, statement_view
 from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import BillNyayAppeal, KadiCase, KadiEntity
-from kadi.clinical_review.annex import render_annex
+from kadi.clinical_review.annex import NO_HUMAN_STATEMENT_NOTICE, render_annex
 # Import billnyay modules
 from billnyay.agents.auditor import run_auditor_agent, StructuredDenial
 from billnyay.agents.judge import run_judge_agent, JudgeScorecard
@@ -197,7 +198,11 @@ class AppealResponse(BaseModel):
     # through the LLM). When none exists the annex says so explicitly.
     human_clinical_statement_attached: bool = False
     clinical_statements: List[Dict[str, Any]] = []
+    # Verbatim annex included in the PDF; empty when no statement exists.
     clinical_annex: str = ""
+    # Patient-facing only (never put in the insurer-facing PDF): says plainly that no
+    # clinician's opinion is attached when that is the case.
+    clinical_statement_notice: str = ""
 
 
 class GrievanceResponse(BaseModel):
@@ -635,14 +640,13 @@ async def draft_appeal(
 
     # ADR-011: finalized human statements for this case, rendered verbatim by
     # deterministic code. The LLM-drafted letter above never contains them.
-    statements = await current_statements_for_case(db, case_id, ["billnyay"])
-    clinical_annex = render_annex([annex_dict(s) for s in statements])
+    statements, clinical_annex = await _clinical_annex_for(db, case_id)
 
     # 8. Compile, sign, and persist the PDF (#66) — the exact bytes served by
     # .../appeal/pdf and checked by .../appeal/verify, so a later re-draft cannot
     # silently invalidate what was already downloaded.
     pdf_bytes = await run_in_threadpool(
-        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}, clinical_annex=clinical_annex
+        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}, clinical_annex=clinical_annex or None
     )
     document_sha256 = compute_sha256(pdf_bytes)
     hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
@@ -676,7 +680,40 @@ async def draft_appeal(
         human_clinical_statement_attached=bool(statements),
         clinical_statements=[statement_view(s) for s in statements],
         clinical_annex=clinical_annex,
+        clinical_statement_notice="" if statements else NO_HUMAN_STATEMENT_NOTICE,
     )
+
+
+async def _clinical_annex_for(db: AsyncSession, case_id: str):
+    """(current statements, annex text). The annex is empty when no statement exists:
+    the insurer-facing PDF then simply carries no annex, while the patient is told
+    separately (``clinical_statement_notice``) that no clinician opinion is attached."""
+    statements = await current_statements_for_case(db, case_id, ["billnyay"])
+    annex = render_annex([annex_dict(s) for s in statements]) if statements else ""
+    return statements, annex
+
+
+@on_statements_changed
+async def refresh_appeal_annex(db: AsyncSession, case_id: str, source_module: str) -> None:
+    """ADR-011: when a BillNyay statement is finalized, superseded, withdrawn or its review
+    cancelled, re-render the stored appeal PDF with the current annex and re-sign it.
+    The letter text is unchanged (no LLM call). A copy downloaded earlier will now fail
+    GET .../appeal/verify, which is the intended signal that it is out of date."""
+    if source_module != "billnyay":
+        return
+    record = (
+        await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
+    ).scalar_one_or_none()
+    if record is None:
+        return
+    _, annex = await _clinical_annex_for(db, case_id)
+    pdf_bytes = await run_in_threadpool(
+        compile_appeal_packet_bytes, record.appeal_letter, case_meta={"case_id": case_id}, clinical_annex=annex or None
+    )
+    record.pdf_bytes = pdf_bytes
+    record.sha256_hash = compute_sha256(pdf_bytes)
+    record.hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
+    logger.info("[BillNyay] Re-rendered appeal PDF annex for case %s after a statement change.", case_id)
 
 
 @router.get("/cases/{case_id}/clinical-plausibility")

@@ -9,6 +9,7 @@ import { api, BimaNyayAnalysisResponse, BimaNyayTimelineResponse, ApiError } fro
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useSSEStream } from '../hooks/useSSEStream';
 
 export const BimaNyayScreen: React.FC = () => {
   const route = useRoute<RouteProp<BottomTabParamList, 'BimaNyay'>>();
@@ -19,6 +20,8 @@ export const BimaNyayScreen: React.FC = () => {
   const m = t.modules.bimanyay;
   // ADR-011: a scanned denial letter arrives with its case; analyses are then linked to it.
   const caseId = route.params?.caseId ?? null;
+  const sse = useSSEStream(caseId ?? undefined);
+  const processing = sse.isStreaming && !sse.isCompleted;
 
   // Form state
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -325,6 +328,7 @@ export const BimaNyayScreen: React.FC = () => {
           trigger={result.clinical_review?.requires_clinical_interpretation ? 'DENIAL_CATEGORY' : 'MANUAL'}
           recommendationReason={result.clinical_review?.reasons.join(' ') || null}
           insurerName={insurerName}
+          processing={processing}
         />
       )}
     </ScrollView>

@@ -20,7 +20,7 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
-- **Latest (2026-09-23):** Human clinical review, safety governance and human OCR resolution layer added (ADR-011, `docs/architecture/clinical-review.md`). Test totals after it: **835 backend passed / 6 skipped, 74 web, 87 mobile**, mobile type-check 0 errors, web lint 0, CI guardrails 8/8.
+- **Latest (2026-09-23):** Human clinical review, safety governance and human OCR resolution layer added (ADR-011, `docs/architecture/clinical-review.md`). Audit fixes followed on 2026-09-26. Current totals: **853 backend passed / 6 skipped, 78 web, 92 mobile**, mobile type-check 0 errors, web lint 0, CI guardrails 8/8.
 - **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
 - **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
 - **Active Blockers:** None for currently assigned work.
@@ -371,6 +371,17 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-09-26 — ADR-011 audit fixes (top issues)
+- **OCR tasks**: created only when an uncertain reading links (whole tokens) to exactly one extracted medicine; "Rx"/"Tab."/short tokens, prescriber/identity lines and non-clinical fields are skipped; context keeps only medication-looking neighbour lines; resolutions substitute only the uncertain token; partial-field flags refused; cap 10/document.
+- **Stale signed PDF**: `app/clinical/events.py` listener — finalize/withdraw/supersede/cancel re-renders and re-signs the stored BillNyay appeal PDF annex (older downloads then fail verify).
+- **Insurer-facing notice**: PDF annex only when a statement exists; `clinical_statement_notice` is patient-facing only (BillNyay and BimaNyay).
+- **Plausibility**: administrative bill lines excluded; PLAUSIBLE lists `not_assessed_items` (`coverage: PARTIAL`).
+- **Coverage**: upload-time full-text safety scan (`kadi_safety_scan_results`, rule id/version/terms only, purged with case); readiness discloses `evidence_scope_note`.
+- **Directory**: only EXTERNALLY_VERIFIED (or demo in demo mode) reviewers listed; assign-by-ID in web/mobile; demo reviewers locked out when demo mode is off.
+- **Safety rules**: approvals bound to a submission round; unchanged resubmission after rejection starts fresh.
+- **UI**: explicit safety-check failure state (web/mobile). **Mobile**: DaaviSetu scans return to DaaviSetu (`returnTo`); DaaviSetu/DawaCheck/BimaNyay wait for processing (SSE) before reading the case.
+- Tests after: backend 853 passed / 6 skipped; web 78 (lint 0); mobile 92 (type-check 0). Web changes browser-verified; mobile not run on a device.
 
 ### 2026-09-23 — Human clinical review & safety governance (ADR-011)
 - **Shared layer**: `packages/kadi/kadi/clinical_review/` (types/provenance, statement lifecycle, evidence packets, verification adapter, safety rules, transcription consensus, verbatim annex); `apps/api/app/clinical/` (credentials, sanitized audit, services, purge, demo seed); endpoints `clinical_review.py`, `clinical_safety.py`, `clinical_transcription.py`, `clinical_demo.py` under `/api/v1/kadi`.

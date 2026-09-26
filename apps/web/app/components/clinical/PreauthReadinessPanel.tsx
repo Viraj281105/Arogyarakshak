@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { API_BASE, caseAuthHeaders, normalizeErrorDetail } from "../../hooks/useApi";
 import { ReviewerProfile, CaseClinicalReview, clinicalPaths, clinicalRequest } from "../../lib/clinical";
+import { AssignReviewer } from "./AssignReviewer";
 import { ReviewerAttribution } from "./Attribution";
 
 interface ReadinessItem {
@@ -30,6 +31,7 @@ interface ReadinessResponse {
   recommended_actions: string[];
   ready_to_submit: boolean;
   disclaimer: string;
+  evidence_scope_note: string;
   baseline_source: string;
 }
 
@@ -44,7 +46,7 @@ const MARK: Record<ReadinessItem["status"], string> = {
 
 const STATUS_TEXT: Record<ReadinessItem["status"], string> = {
   PRESENT: "found in your documents",
-  MISSING: "not found in the supplied documents",
+  MISSING: "not found in the text ArogyaRakshak keeps (see below)",
   NEEDS_CLINICAL_CONFIRMATION: "clinical fact — needs a doctor's confirmation",
   CONFIRMED_BY_REVIEWER: "confirmed by a named reviewer",
   REJECTED_BY_REVIEWER: "a reviewer did NOT confirm this",
@@ -62,7 +64,6 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
   const [shareConsent, setShareConsent] = useState(false);
   const [factReview, setFactReview] = useState<CaseClinicalReview | null>(null);
   const [doctors, setDoctors] = useState<ReviewerProfile[]>([]);
-  const [doctorId, setDoctorId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const post = async <T,>(path: string, body: unknown): Promise<T> => {
@@ -106,7 +107,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
     }
   };
 
-  const assignDoctor = async () => {
+  const assignDoctor = async (doctorId: string) => {
     if (!factReview) return;
     setError(null);
     try {
@@ -184,6 +185,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
               <li key={a}>{a}</li>
             ))}
           </ul>
+          <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>{report.evidence_scope_note}</p>
           <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>{report.disclaimer}</p>
 
           {pendingFacts.length > 0 && !factReview && (
@@ -210,19 +212,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
               {factReview.assigned_reviewer ? (
                 <ReviewerAttribution reviewer={factReview.assigned_reviewer} />
               ) : (
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  <select className="select-field" aria-label="Choose a doctor" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-                    <option value="">Choose a doctor…</option>
-                    {doctors.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} — {d.verification_label}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="button" className="btn btn-secondary" disabled={!doctorId} onClick={assignDoctor}>
-                    Assign doctor
-                  </button>
-                </div>
+                <AssignReviewer directory={doctors} label="Assign doctor" onAssign={assignDoctor} />
               )}
               <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>Re-run the readiness check after the doctor decides to see the result.</p>
             </div>

@@ -32,7 +32,7 @@ from kadi.clinical_review.safety import (
 from app.clinical.audit import record_event
 from app.clinical.serializers import reviewer_snapshot
 from app.config import settings
-from app.models import KadiClinicalReviewer, KadiSafetyRule, KadiSafetyRuleApproval
+from app.models import KadiClinicalAuditEvent, KadiClinicalReviewer, KadiSafetyRule, KadiSafetyRuleApproval
 
 _RULE_KEY = re.compile(r"^[a-z0-9][a-z0-9_\-]{2,60}$")
 OPEN_RULE_STATES = (RuleStatus.DRAFT.value, RuleStatus.UNDER_REVIEW.value, RuleStatus.APPROVED.value)
@@ -151,6 +151,24 @@ async def update_rule(db, actor: KadiClinicalReviewer, rule: KadiSafetyRule, dat
     return rule
 
 
+async def _submission_round(db: AsyncSession, rule: KadiSafetyRule) -> int:
+    """How many times this rule has been submitted (from its own audit trail)."""
+    result = await db.execute(
+        select(func.count()).select_from(KadiClinicalAuditEvent).where(
+            KadiClinicalAuditEvent.subject_id == rule.id,
+            KadiClinicalAuditEvent.event_type == AuditEventType.RULE_SUBMITTED.value,
+        )
+    )
+    return int(result.scalar_one())
+
+
+def _submitted_hash(rule: KadiSafetyRule, round_number: int) -> str:
+    # The round is part of the hash so approvals belong to ONE submission: after a
+    # rejection, resubmitting unchanged content yields a new hash, earlier approvals no
+    # longer count, and the reviewer who rejected can decide again.
+    return rule_content_hash({**_content_fields(rule), "submission_round": round_number})
+
+
 async def submit_rule(db, actor: KadiClinicalReviewer, rule: KadiSafetyRule) -> KadiSafetyRule:
     if rule.proposed_by != actor.id:
         raise HTTPException(status_code=403, detail="Only the proposer can submit a draft rule for review.")
@@ -158,9 +176,11 @@ async def submit_rule(db, actor: KadiClinicalReviewer, rule: KadiSafetyRule) -> 
         ensure_rule_transition(rule.status, RuleStatus.UNDER_REVIEW.value)
     except RuleValidationError as e:
         raise _http(e, status.HTTP_409_CONFLICT)
+    round_number = await _submission_round(db, rule) + 1
     rule.status = RuleStatus.UNDER_REVIEW.value
-    rule.submitted_content_sha256 = rule_content_hash(_content_fields(rule))
-    _audit(db, rule, AuditEventType.RULE_SUBMITTED, actor, {"content_sha256": rule.submitted_content_sha256})
+    rule.submitted_content_sha256 = _submitted_hash(rule, round_number)
+    _audit(db, rule, AuditEventType.RULE_SUBMITTED, actor,
+           {"content_sha256": rule.submitted_content_sha256, "submission_round": round_number})
     return rule
 
 
@@ -218,7 +238,8 @@ async def activate_rule(db, actor: KadiClinicalReviewer, rule: KadiSafetyRule) -
         ensure_rule_transition(rule.status, RuleStatus.ACTIVE.value)
     except RuleValidationError as e:
         raise _http(e, status.HTTP_409_CONFLICT)
-    if rule_content_hash(_content_fields(rule)) != rule.submitted_content_sha256:
+    await db.flush()
+    if _submitted_hash(rule, await _submission_round(db, rule)) != rule.submitted_content_sha256:
         raise HTTPException(status_code=409, detail="Rule content changed after approval; it cannot be activated.")
     previous = await db.execute(
         select(KadiSafetyRule).where(

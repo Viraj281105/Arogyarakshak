@@ -20,7 +20,7 @@ from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import BimaNyayCase, BimaNyayGrievance, BimaNyayTimelineEvent, KadiCase
-from kadi.clinical_review.annex import render_annex
+from kadi.clinical_review.annex import NO_HUMAN_STATEMENT_NOTICE, render_annex
 from bimanyay import (
     ClaimDenialInput,
     DisputeAuditResult,
@@ -190,5 +190,8 @@ async def clinical_statements_for_appeal(
         "human_clinical_statement_attached": bool(statements),
         "statements": [statement_view(s) for s in statements],
         "reviews": [{"review_id": r.id, "status": r.status} for r in reviews],
-        "annex_text": render_annex([annex_dict(s) for s in statements]),
+        # Appended to insurer-facing drafts only when a statement exists.
+        "annex_text": render_annex([annex_dict(s) for s in statements]) if statements else "",
+        # Patient-facing only; never paste this into a filing.
+        "clinical_statement_notice": "" if statements else NO_HUMAN_STATEMENT_NOTICE,
     }

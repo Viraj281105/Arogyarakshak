@@ -10,6 +10,7 @@ import { api, DaaviSetuClaimResponse, ApiError } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useSSEStream } from '../hooks/useSSEStream';
 import { ENV } from '../config/env';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -34,6 +35,10 @@ export const DaaviSetuScreen: React.FC = () => {
 
   // Case & Result state
   const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
+  // The scan hands over a case whose OCR/extraction is still running server-side;
+  // case-derived cards wait for it instead of reading a half-built case.
+  const sse = useSSEStream(caseId || undefined);
+  const processing = sse.isStreaming && !sse.isCompleted;
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DaaviSetuClaimResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -230,7 +235,7 @@ export const DaaviSetuScreen: React.FC = () => {
 
           <Button
             title="📷 Scan Admission / Policy Slip"
-            onPress={() => navigation.navigate('CameraScan', { documentType: 'general' })}
+            onPress={() => navigation.navigate('CameraScan', { documentType: 'general', returnTo: 'DaaviSetu' })}
             variant="outline"
           />
         </View>
@@ -305,8 +310,8 @@ export const DaaviSetuScreen: React.FC = () => {
         </View>
       )}
 
-      <ResolutionReviewCard caseId={caseId} />
-      <ReadinessCard caseId={caseId} />
+      <ResolutionReviewCard caseId={caseId} refreshToken={sse.isCompleted} />
+      <ReadinessCard caseId={caseId} processing={processing} />
     </ScrollView>
   );
 };

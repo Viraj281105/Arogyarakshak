@@ -10,16 +10,44 @@ import { SafetyEvaluation, clinicalPaths, clinicalRequest } from "../../lib/clin
  */
 export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: string }> = ({ caseId, caseToken }) => {
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     clinicalRequest<SafetyEvaluation>(clinicalPaths.safety(caseId), { caseToken })
-      .then((data) => !cancelled && setEvaluation(data))
-      .catch(() => !cancelled && setEvaluation(null));
+      .then((data) => {
+        if (cancelled) return;
+        setEvaluation(data);
+        setFailure(null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setEvaluation(null);
+        setFailure(err instanceof Error ? err.message : String(err));
+      });
     return () => {
       cancelled = true;
     };
   }, [caseId, caseToken]);
+
+  // A safety check that failed must never look like one that found nothing.
+  if (failure) {
+    return (
+      <div
+        role="alert"
+        style={{
+          border: "1px solid var(--status-warning)",
+          borderRadius: "var(--radius-md)",
+          padding: "0.75rem 1rem",
+          marginBottom: "1rem",
+          fontSize: "0.85rem",
+        }}
+      >
+        ⚠️ The clinical safety check could not be run ({failure}). No safety assessment has been made for this case.
+        If you have urgent symptoms, seek medical care directly.
+      </div>
+    );
+  }
 
   if (!evaluation) return null;
 
@@ -72,6 +100,7 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
         </div>
       ))}
       <p style={{ fontSize: "0.75rem", marginTop: "0.75rem" }}>{evaluation.disclaimer}</p>
+      {evaluation.scope_note && <p style={{ fontSize: "0.7rem", opacity: 0.8 }}>{evaluation.scope_note}</p>}
     </section>
   );
 };

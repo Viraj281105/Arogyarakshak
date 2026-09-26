@@ -384,6 +384,10 @@ export default function ClinicalReviewWorkspace() {
           <section style={panel}>
             <ReviewerAttribution reviewer={me} />
             {me.is_safety_board_member && <span className="badge badge-info">Clinical safety board member</span>}
+            <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
+              Your reviewer ID: <code>{me.id}</code> — give it to your patient so they can assign you. Only independently
+              verified reviewers appear in the public list.
+            </p>
           </section>
 
           <nav className="module-tabs" role="tablist" aria-label="Workspace sections">

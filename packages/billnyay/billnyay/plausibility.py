@@ -11,6 +11,7 @@ that table cannot decide is reported as INSUFFICIENT_INFORMATION and routed towa
 human reviewer, not guessed.
 """
 
+import re
 from typing import Any, Dict, List, Literal, Optional, Sequence
 
 from pydantic import BaseModel, Field
@@ -80,6 +81,24 @@ class PlausibilityAssessment(BaseModel):
     guideline_note: str = NO_GUIDELINE_NOTE
     provenance: Literal["AI_DERIVED"] = "AI_DERIVED"
     method: str = "Rule-based ICD-10 code to procedure-keyword match (machine-derived, no LLM)"
+    # Bill lines set aside as non-interventions (room, nursing, consultation, ...).
+    excluded_administrative_items: List[str] = Field(default_factory=list)
+    # Billed interventions the curated reference does not cover — NOT assessed.
+    not_assessed_items: List[str] = Field(default_factory=list)
+    # FULL: every clinical item was checked; PARTIAL: some were not; NONE: nothing was.
+    coverage: Literal["FULL", "PARTIAL", "NONE"] = "NONE"
+
+
+_ADMINISTRATIVE_CHARGE = re.compile(
+    r"\b(?:room|bed|ward|nursing|consultation|visit|admission|registration|diet|food|meal|"
+    r"pharmacy|consumables?|attendant|ambulance|misc(?:ellaneous)?|laundry|stay|rent|icu|"
+    r"service\s+charges?|documentation)\b",
+    re.IGNORECASE,
+)
+
+
+def is_administrative_charge(line: str) -> bool:
+    return bool(_ADMINISTRATIVE_CHARGE.search(line or ""))
 
 
 def _registered_citations(
@@ -109,18 +128,23 @@ def assess_clinical_plausibility(
     guideline_registry: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> PlausibilityAssessment:
     evidence = list(diagnoses) + list(procedures)
-    procedure_names = [p.value for p in procedures if p.value]
+    # Bill lines extracted as "procedures" include room, nursing, consultation, etc. Those
+    # are not interventions and must never be read as inconsistent with a diagnosis.
+    administrative = [p.value for p in procedures if p.value and is_administrative_charge(p.value)]
+    procedure_names = [p.value for p in procedures if p.value and not is_administrative_charge(p.value)]
 
-    if not diagnoses and not procedures:
+    if not diagnoses and not procedure_names:
         return PlausibilityAssessment(
             status="INSUFFICIENT_INFORMATION",
             summary=(
-                "Insufficient evidence for assessment: no diagnosis or procedure was found in "
-                "the supplied documents. Upload the discharge summary or clinical notes."
+                "Insufficient evidence for assessment: no diagnosis or clinical procedure was found "
+                "in the supplied documents. Upload the discharge summary or clinical notes."
             ),
             clinical_review_required=False,
             review_reasons=[],
             evidence_used=[],
+            excluded_administrative_items=administrative,
+            coverage="NONE",
         )
 
     results = [audit_icd_procedure_consistency(d.value, procedure_names) for d in diagnoses]
@@ -158,12 +182,20 @@ def assess_clinical_plausibility(
     elif "consistent" in statuses:
         ref = references[0] if references else None
         label = f"{ref.icd10_code} — {ref.diagnosis_label}" if ref else "the documented diagnosis"
+        keywords = [k for r in references for k in r.expected_procedure_keywords]
+        matched = [p for p in procedure_names if any(k in p.lower() for k in keywords)]
+        not_assessed = [p for p in procedure_names if p not in matched]
         status = "PLAUSIBLE"
         summary = (
-            f"Based on the supplied documentation, the documented intervention ({proc_text}) "
+            f"Based on the supplied documentation, the documented intervention ({', '.join(matched)}) "
             f"appears broadly consistent with the documented diagnosis ({label}) according to "
             "the curated reference named below."
         )
+        if not_assessed:
+            summary += (
+                f" Other billed item(s) ({', '.join(not_assessed)}) are outside that reference and "
+                "were NOT assessed — this check does not say they were appropriate."
+            )
     elif "mismatched" in statuses:
         ref = next((x for x in references), None)
         label = f"{ref.icd10_code} ({ref.diagnosis_label})" if ref else "the documented diagnosis"
@@ -180,7 +212,9 @@ def assess_clinical_plausibility(
         if not diagnoses:
             detail = "no diagnosis was found in the supplied documents"
         elif statuses == {"no_procedure_billed"}:
-            detail = "no procedure was found to compare against the diagnosis"
+            detail = "no clinical procedure was found to compare against the diagnosis"
+            if administrative:
+                detail += " (only administrative charges such as room or nursing were billed)"
         elif "code_not_in_reference" in statuses:
             detail = "the diagnosis code is not covered by the curated reference (not evidence of a mismatch)"
         else:
@@ -193,7 +227,16 @@ def assess_clinical_plausibility(
         if status in ("PLAUSIBLE", "INSUFFICIENT_INFORMATION"):
             status = "CLINICAL_REVIEW_RECOMMENDED"
 
+    not_assessed_items: List[str] = []
+    if status == "PLAUSIBLE" or (status == "CLINICAL_REVIEW_RECOMMENDED" and "consistent" in statuses):
+        keywords = [k for r in references for k in r.expected_procedure_keywords]
+        not_assessed_items = [p for p in procedure_names if not any(k in p.lower() for k in keywords)]
+    coverage = "PARTIAL" if not_assessed_items else ("NONE" if status == "INSUFFICIENT_INFORMATION" else "FULL")
+
     return PlausibilityAssessment(
+        excluded_administrative_items=administrative,
+        not_assessed_items=not_assessed_items,
+        coverage=coverage,
         status=status,
         summary=summary,
         clinical_review_required=bool(reasons),

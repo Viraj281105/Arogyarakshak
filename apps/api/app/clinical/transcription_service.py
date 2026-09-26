@@ -27,13 +27,15 @@ from kadi.clinical_review.transcription import (
     TaskStatus,
     clean_reading,
     evaluate_consensus,
-    normalize_reading,
+    link_candidate_to_entity,
     required_reviews_for,
     risk_for_field,
+    substitute_reading,
 )
 from kadi.redaction import redact_pii
 
 from app.clinical.audit import record_event
+from app.clinical.auth import reviewer_available
 from app.clinical.serializers import category_label
 from app.consent import require_case_consent
 from app.models import (
@@ -70,35 +72,30 @@ def _audit(db, task: KadiTranscriptionTask, event: AuditEventType, actor_type: s
     )
 
 
-def _link_entity(candidate: str, medicines: Sequence[KadiEntity]) -> Optional[str]:
-    key = normalize_reading(candidate)
-    if not key:
-        return None
-    for med in medicines:
-        name_key = normalize_reading(med.name or "")
-        if name_key and (key in name_key or name_key in key):
-            return med.id
-    return None
-
-
 async def create_tasks_from_ocr(
     db: AsyncSession,
     case_id: str,
     payloads: Sequence[Dict[str, Any]],
     medicines: Sequence[KadiEntity],
 ) -> List[KadiTranscriptionTask]:
-    """`medicines` is passed in (the case's in-session entities) because newly resolved
+    """Creates a task only for an uncertain reading that links, token for token, to one
+    extracted medicine — the only readings anything downstream (DawaCheck) consumes.
+    Everything else is dropped rather than turned into human work that goes nowhere.
+
+    `medicines` is passed in (the case's in-session entities) because newly resolved
     entities are not flushed yet when this runs inside the upload pipeline."""
     if not payloads:
         return []
+    named = [(m.id, m.name or "") for m in medicines]
     tasks = []
     for p in payloads:
+        entity_id = link_candidate_to_entity(p.get("ocr_candidate") or "", named)
+        if entity_id is None:
+            continue
         task = KadiTranscriptionTask(
             id=_new_id("TR"),
             case_id=case_id,
-            entity_id=_link_entity(p.get("ocr_candidate") or "", medicines)
-            if p["field_type"] in (FieldType.MEDICINE_NAME.value, FieldType.UNCLASSIFIED.value)
-            else None,
+            entity_id=entity_id,
             source="OCR_LOW_CONFIDENCE",
             field_type=p["field_type"],
             risk_level=p["risk_level"],
@@ -117,10 +114,15 @@ async def create_tasks_from_ocr(
 
 
 async def flag_entity(db: AsyncSession, case: KadiCase, entity_id: str, field_type: str) -> KadiTranscriptionTask:
-    try:
-        ftype = FieldType(field_type).value
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"field_type must be one of {[f.value for f in FieldType]}.")
+    """A case holder flags a whole extracted medicine entry as possibly misread; readers
+    transcribe the full entry as written. Partial-field flags are refused: a reading of
+    one field could not be applied to the entry without guessing where it belongs."""
+    if field_type != FieldType.MEDICINE_NAME.value:
+        raise HTTPException(
+            status_code=422,
+            detail="Only a whole medicine entry (field_type MEDICINE_NAME) can be flagged for human reading.",
+        )
+    ftype = field_type
     row = await db.execute(
         select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case.id, KadiEntity.id == entity_id)
     )
@@ -204,7 +206,7 @@ async def assign_task(
     if task.status not in OPEN_TASK_STATES:
         raise HTTPException(status_code=409, detail=f"Task is {task.status}; it can no longer be assigned.")
     reviewer = await db.get(KadiClinicalReviewer, reviewer_id)
-    if reviewer is None or not reviewer.is_active:
+    if not reviewer_available(reviewer):
         raise HTTPException(status_code=404, detail="Reviewer not found.")
     if any(a.reviewer_id == reviewer_id for a in await _assignments(db, task.id)):
         raise HTTPException(status_code=409, detail="This reviewer is already assigned to the task.")
@@ -268,24 +270,29 @@ async def reviewer_task_view(db: AsyncSession, reviewer: KadiClinicalReviewer, t
     }
 
 
-def _entity_meta_update(entity: KadiEntity, task: KadiTranscriptionTask) -> None:
+def _entity_meta_update(entity: KadiEntity, task: KadiTranscriptionTask, reader_roles: List[str]) -> bool:
+    """Records the human reading on the entity by substituting only the uncertain part of
+    its name. Returns False (entity untouched) when that cannot be done safely."""
     meta = dict(entity.meta) if isinstance(entity.meta, dict) else {}
-    record = {
+    base_name = (meta.get("human_transcription") or {}).get("value") or entity.name
+    resolved_name = substitute_reading(base_name or "", task.ocr_candidate or "", task.final_value or "")
+    if resolved_name is None:
+        return False
+    meta["human_transcription"] = {
         "task_id": task.id,
         "field_type": task.field_type,
         "status": "RESOLVED",
-        "value": task.final_value,
+        "value": resolved_name,
+        "replaced_reading": task.ocr_candidate,
+        "human_reading": task.final_value,
         "provenance": ProvenanceClass.HUMAN_REVIEWED.value,
         "independent_readings": task.required_reviews,
+        # Who read it matters: transcription readers are not prescribers.
+        "reader_roles": reader_roles,
         "resolved_at": task.resolved_at.isoformat() if task.resolved_at else None,
     }
-    if task.field_type == FieldType.MEDICINE_NAME.value:
-        meta["human_transcription"] = record
-    else:
-        fields = dict(meta.get("human_transcribed_fields") or {})
-        fields[task.field_type] = record
-        meta["human_transcribed_fields"] = fields
     entity.meta = meta
+    return True
 
 
 async def submit_reading(
@@ -333,12 +340,22 @@ async def submit_reading(
     if result.status == TaskStatus.RESOLVED:
         task.final_value = result.final_value
         task.resolved_at = datetime.utcnow()
+        applied = False
         if task.entity_id:
             entity = await db.get(KadiEntity, task.entity_id)
             if entity is not None:
-                _entity_meta_update(entity, task)
+                roles = []
+                for s in existing + [submission]:
+                    r = await db.get(KadiClinicalReviewer, s.reviewer_id)
+                    roles.append(category_label(r.category) if r else "Reader")
+                applied = _entity_meta_update(entity, task, roles)
+        if task.entity_id and not applied:
+            task.resolution_reason = (
+                f"{result.reason} The reading could not be matched to the extracted entry, so the "
+                "entry was left unchanged — confirm it with the dispensing pharmacist."
+            )
         _audit(db, task, AuditEventType.TRANSCRIPTION_CONFIRMED, ActorType.SYSTEM.value,
-               details={"independent_readings": len({r.reviewer_id for r in readings})})
+               details={"independent_readings": len({r.reviewer_id for r in readings}), "applied_to_entity": applied})
     elif result.status == TaskStatus.HUMAN_ESCALATION_REQUIRED:
         task.resolved_at = datetime.utcnow()
         _audit(db, task, AuditEventType.TRANSCRIPTION_REJECTED, ActorType.SYSTEM.value,

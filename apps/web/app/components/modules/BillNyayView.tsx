@@ -17,6 +17,9 @@ interface PlausibilityResponse {
     clinical_review_required: boolean;
     review_reasons: string[];
     evidence_used: EvidenceItem[];
+    not_assessed_items: string[];
+    excluded_administrative_items: string[];
+    coverage: "FULL" | "PARTIAL" | "NONE";
     references: { name: string; type: string; version: string; icd10_code: string; diagnosis_label: string }[];
     guideline_citations: unknown[];
     guideline_note: string;
@@ -74,6 +77,7 @@ interface AppealResponse {
   human_clinical_statement_attached: boolean;
   clinical_statements: ClinicalStatement[];
   clinical_annex: string;
+  clinical_statement_notice: string;
 }
 
 interface BillNyayViewProps {
@@ -249,6 +253,17 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               Reference: {r.name} ({r.type}, {r.version}) — {r.icd10_code} {r.diagnosis_label}
             </p>
           ))}
+          {plausibilityApi.data.assessment.not_assessed_items.length > 0 && (
+            <p style={{ fontSize: "0.8rem", color: "var(--status-warning)" }}>
+              Not assessed (outside the reference): {plausibilityApi.data.assessment.not_assessed_items.join(", ")}
+            </p>
+          )}
+          {plausibilityApi.data.assessment.excluded_administrative_items.length > 0 && (
+            <p style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+              Set aside as administrative charges, not interventions:{" "}
+              {plausibilityApi.data.assessment.excluded_administrative_items.join(", ")}
+            </p>
+          )}
           <p style={{ fontSize: "0.75rem", opacity: 0.85 }}>{plausibilityApi.data.assessment.guideline_note}</p>
           <p style={{ fontSize: "0.75rem", fontWeight: 600 }}>{plausibilityApi.data.assessment.disclaimer}</p>
         </div>
@@ -387,8 +402,13 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               <p style={{ fontSize: "0.85rem", color: "var(--status-warning)" }}>
                 No statement from a named clinician is attached. Any clinical reasoning in the letter above is general,
                 software-drafted reasoning — not a doctor&apos;s opinion. Use &ldquo;Request Clinical Review&rdquo; to get one.
+                (This note is for you only; it is not printed in the PDF.)
               </p>
             )}
+            <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>
+              The downloadable PDF is re-generated whenever a clinician finalizes, withdraws or you cancel a statement, so
+              always download it again right before sending. An older copy will fail integrity verification.
+            </p>
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>

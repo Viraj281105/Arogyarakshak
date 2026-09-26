@@ -44,7 +44,13 @@ from kadi.clinical_review.verification import (
 from app.case_auth import require_case_access
 from app.clinical import service
 from app.clinical.audit import events_for_review, record_event
-from app.clinical.auth import generate_credential, require_governance_admin, require_reviewer
+from app.clinical.auth import (
+    generate_credential,
+    listed_in_directory,
+    require_governance_admin,
+    require_reviewer,
+    reviewer_available,
+)
 from app.clinical.context import assess_case_plausibility, evaluate_case_safety, load_entity_records
 from app.clinical.serializers import (
     case_holder_review_view,
@@ -192,12 +198,16 @@ async def reviewer_directory(
     specialty: Optional[str] = Query(None, max_length=120),
     db: AsyncSession = Depends(get_db),
 ):
-    """Public directory of active reviewers, so a case holder can choose whom to share with.
-    Every entry carries its honest verification label."""
+    """Public directory of reviewers a patient may pick without knowing them already.
+
+    Only independently verified reviewers are listed (plus demo fixtures in demo mode).
+    Self-registration cannot be verified in this build, so self-declared reviewers are
+    never listed — otherwise anyone could list themselves under a real doctor's name.
+    A patient assigns their own doctor by the reviewer ID that doctor gives them."""
     query = select(KadiClinicalReviewer).where(KadiClinicalReviewer.is_active.is_(True))
     if category:
         query = query.where(KadiClinicalReviewer.category == category.value)
-    rows = (await db.execute(query.order_by(KadiClinicalReviewer.name))).scalars().all()
+    rows = [r for r in (await db.execute(query.order_by(KadiClinicalReviewer.name))).scalars().all() if listed_in_directory(r)]
     if specialty:
         rows = [r for r in rows if r.specialty and specialty.lower() in r.specialty.lower()]
     return [reviewer_public(r) for r in rows[:200]]
@@ -219,8 +229,9 @@ async def deactivate_me(reviewer: KadiClinicalReviewer = Depends(require_reviewe
 
 @router.get("/clinical-reviewers/{reviewer_id}")
 async def reviewer_profile(reviewer_id: str, db: AsyncSession = Depends(get_db)):
+    """Look up a reviewer by the ID they shared, to confirm who it is before assigning."""
     reviewer = await db.get(KadiClinicalReviewer, reviewer_id)
-    if reviewer is None:
+    if not reviewer_available(reviewer):
         raise HTTPException(status_code=404, detail="Reviewer not found.")
     return reviewer_public(reviewer)
 

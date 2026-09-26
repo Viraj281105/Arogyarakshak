@@ -79,6 +79,7 @@ flowchart TD
 | `kadi_clinical_fact_confirmations` | case | Clinical fact + reviewer decision |
 | `kadi_clinical_audit_events` | case / global | Append-only events; ids, statuses and counts only |
 | `kadi_safety_rules`, `kadi_safety_rule_approvals` | global | Versioned rules, attributable approvals bound to a content hash |
+| `kadi_safety_scan_results` | case | Upload-time full-text rule matches: rule id, version, matched terms only |
 | `kadi_transcription_tasks`, `_assignments`, `_submissions` | case | Uncertain readings, assigned readers, one reading per reader |
 | `daavisetu_institutions`, `daavisetu_playbooks` | global (institution-private) | Desk credential; versioned private checklists |
 
@@ -117,9 +118,19 @@ Object-level checks on every request:
 
 `POST /kadi/clinical-reviewers/{id}/verification {"mode": "external"}` calls the shipped
 `UnavailableRegistryAdapter`, which returns `EXTERNAL_VERIFICATION_UNAVAILABLE` and changes
-nothing. Anyone can register claiming to be a doctor; the system does not prevent that, it
-**discloses** it. A finalized statement freezes the reviewer's verification state at
-signing time.
+nothing. Anyone can register claiming to be a doctor, so self-registration is never
+treated as trustworthy by listing:
+
+- `GET /kadi/clinical-reviewers` lists **only** `EXTERNALLY_VERIFIED` reviewers (none exist
+  in this build) — plus demo fixtures while `CLINICAL_DEMO_MODE` is on. A self-declared
+  "Dr. <real name>" therefore never appears to patients as a choice.
+- A patient assigns their own doctor/pharmacist by the **reviewer ID** that person gives
+  them (shown in the reviewer workspace). The looked-up profile, with its honest label, is
+  shown before assigning.
+- Demo reviewers are unusable (not listed, not look-up-able, credential rejected) the
+  moment demo mode is turned off.
+
+A finalized statement freezes the reviewer's verification state at signing time.
 
 ---
 
@@ -167,12 +178,21 @@ plausibility assessment and is not a clinical necessity determination."* Guideli
 citations can only come from a registered guideline record; none is registered, so none
 is cited. An active safety escalation raises the case to review.
 
+Bill lines that are administrative charges (room, bed, nursing, consultation, ICU stay,
+diet, pharmacy, …) are set aside as `excluded_administrative_items`, never treated as
+interventions. A PLAUSIBLE result lists every billed intervention the curated table does
+not cover as `not_assessed_items` (`coverage: PARTIAL`) and says in its summary that they
+were not assessed — so "appendectomy + MRI brain" is not presented as all-clear.
+
 ## 8. Preauth readiness (DaaviSetu)
 
 `POST /api/v1/daavisetu/cases/{id}/readiness` evaluates a generic baseline plus, with the
 institution's credential, one of its ACTIVE, in-date playbooks. Item statuses: `PRESENT`,
 `MISSING`, `NEEDS_CLINICAL_CONFIRMATION`, `CONFIRMED_BY_REVIEWER`, `REJECTED_BY_REVIEWER`,
 `REVIEWER_COULD_NOT_DETERMINE`. Keyword evidence is reported as `KEYWORD_MATCH` (weak).
+Keywords are searched only in the extracted entities and the first 1,000 characters of each
+document (the redacted excerpt that is kept); every report carries `evidence_scope_note`
+saying so, and "missing" means "not found there", not "absent from your documents".
 Clinical facts are routed with
 `POST .../readiness/clinical-confirmations` — the fact wording comes from the server-side
 checklist, never the request. The claim package ZIP now includes `preauth_readiness.txt`
@@ -198,19 +218,41 @@ the floor disclaimer. `GET /kadi/cases/{id}/safety-escalations` is not consent-g
 no active rules it says *"the absence of an escalation is therefore not a safety
 assessment of any kind."*
 
+**Coverage.** Every uploaded document is scanned **in full** against the rules active at
+upload time, while it is still in memory; only the rule id, version and matched terms are
+stored (`kadi_safety_scan_results`, erased with the case). Rules activated later see only
+the extracted entities and the 1,000-character excerpt. Results from rules that were since
+retired or superseded are ignored. The response's `scope_note` states this. If the check
+fails, web and mobile say so explicitly — a failure never renders like "no escalation".
+
+**Approval rounds.** The submitted content hash includes a submission round (counted from
+the rule's own `RULE_SUBMITTED` audit events). After a rejection, resubmitting unchanged
+content starts a fresh round: earlier approvals no longer count and the reviewer who
+rejected can decide again.
+
 ## 10. Human OCR resolution
 
-- Kadi keeps EasyOCR's per-segment confidence (`ocr_segments`). Segments below
-  `OCR_LOW_CONFIDENCE_THRESHOLD` become tasks; segments that contained an identifier are
-  dropped, not sent.
-- A task stores the redacted candidate, a redacted context line with the token masked
-  (`▢▢▢`) and a bounding box — **no image** (ADR-003). Readers read the original the
-  patient holds.
+- Kadi keeps EasyOCR's per-segment confidence (`ocr_segments`). A segment below
+  `OCR_LOW_CONFIDENCE_THRESHOLD` becomes a task **only if** it (a) carries no direct
+  identifier and is not a prescriber/identity line ("Dr.", degrees, registration no.),
+  (b) is not a bare prescription marker ("Rx", "Tab.") or too short to settle, (c) is not a
+  non-clinical field (amount, date), and (d) links — every meaningful token, as a whole
+  token — to exactly **one** extracted medicine. Unlinked readings have no consumer and
+  are dropped instead of becoming work that goes nowhere. At most 10 per document.
+- Context shows only neighbouring lines that look like part of a medication entry
+  (redacted); letterheads, names and addresses are replaced by "…".
+- A task stores the redacted candidate, that masked context (`▢▢▢`) and a bounding box —
+  **no image** (ADR-003). Readers read the original the patient holds, so today this works
+  in person (e.g. at a pharmacy counter), not remotely.
+- A resolved reading replaces **only the uncertain token** inside the medicine's name
+  ("Tab Augmntn 625mg" → "Tab Augmentin 625mg"); if it cannot be placed unambiguously the
+  entry is left unchanged and the task says so. The reader categories are recorded.
 - `MEDICINE_NAME`, `STRENGTH`, `FREQUENCY`, `ROUTE`, `DURATION` and `UNCLASSIFIED` are
   HIGH risk: two independent readings from different readers must agree (normalised for
   case/spacing/units). HIGH-risk readers never see the OCR guess or another reader's
   answer. Disagreement or "unreadable" → `HUMAN_ESCALATION_REQUIRED`.
-- A case holder can also flag an extracted medicine as possibly misread.
+- A case holder can also flag an extracted medicine as possibly misread (whole entry only;
+  partial-field flags are refused because the reading could not be placed safely).
 - DawaCheck does not benchmark a medicine with an open or escalated HIGH-risk task, and
   benchmarks a resolved name with `name_provenance: HUMAN_REVIEWED`.
 
@@ -232,6 +274,9 @@ assessment of any kind."*
 | Malicious transcription | length bound, control-char strip, one reading per reader (DB unique), stored as literal text |
 | Prompt injection via documents/statements | evidence delivered as data with a warning; statements never enter an LLM prompt; Barrister rule forbids implying clinician opinions |
 | Unsafe PDF generation | annex XML-escaped before any markup, same as the letter |
+| Stale opinion in a signed PDF | finalize / withdraw / supersede / cancel re-renders the stored appeal PDF annex and re-signs it (`app.clinical.events` listener); an older download fails `.../appeal/verify` |
+| Insurer-facing self-harm | the "no clinician statement" notice is patient-facing only (`clinical_statement_notice`); the PDF carries an annex only when a statement exists |
+| Impersonation via the directory | only independently verified (or demo, in demo mode) reviewers are listed; others are assigned by the ID they share |
 | Sensitive audit logging | `audit.sanitize_details` keeps only short scalars; tests assert no statement text, evidence value or name appears |
 | Retention | `purge_case` (DELETE and TTL sweep) removes every case-scoped clinical row |
 
@@ -245,8 +290,12 @@ assessment of any kind."*
 - **Safety rules are a floor.** Keyword triggers miss paraphrase and ignore negation;
   there is no claim of comprehensive coverage. Demo rules name their sources by title only
   and must be verified by a real board.
-- **Readiness baseline is generic**, not insurer-specific; keyword presence is weak evidence.
-- **Transcription readers see text, not the image**: the original stays with the patient.
+- **Readiness baseline is generic**, not insurer-specific; keyword presence is weak evidence,
+  and only the 1,000-character excerpt per document is searched.
+- **Transcription readers see text, not the image**: the original stays with the patient,
+  so reading works in person, not remotely. Two agreeing non-prescriber readers is still
+  weaker than confirmation by the dispensing pharmacist.
+- **Plausibility covers 6 ICD-10 codes**; most real cases return INSUFFICIENT_INFORMATION.
 - **English-only clinical UI** pending native-speaker review of Hindi/Marathi wording.
 - **No notifications**: reviewers poll their queue; patients press "Refresh status".
 - **No payments / marketplace**, by design.

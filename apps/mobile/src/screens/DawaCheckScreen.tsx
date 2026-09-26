@@ -9,6 +9,7 @@ import { Card, Button, Badge, TranscriptionCard } from '../components';
 import { api, DawaCheckBenchmarkResponse, PrescriptionTranslationResponse, ApiError } from '../api';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useSSEStream } from '../hooks/useSSEStream';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,14 +37,18 @@ export const DawaCheckScreen: React.FC = () => {
   // ADR-011: a scanned prescription arrives with its case; uncertain readings of its
   // medicines go to human transcription instead of being trusted.
   const caseId = route.params?.caseId ?? null;
+  // Navigation happens right after the upload is accepted, while OCR/extraction still
+  // runs server-side; medicines are (re)loaded once processing has finished.
+  const sse = useSSEStream(caseId ?? undefined);
+  const processing = sse.isStreaming && !sse.isCompleted;
   const [caseMedicines, setCaseMedicines] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
-    if (!caseId) return;
+    if (!caseId || processing) return;
     api.kadi
       .getCase(caseId)
       .then((res) => setCaseMedicines(res.entities.filter((e) => e.type === 'medicine').map((e) => ({ id: e.id, name: e.name }))))
       .catch(() => setCaseMedicines([]));
-  }, [caseId, route.params?.scanCompleted]);
+  }, [caseId, processing, sse.isCompleted]);
 
   // Prescription shorthand translator (#97)
   const [instructionsText, setInstructionsText] = useState('');
@@ -320,7 +325,7 @@ export const DawaCheckScreen: React.FC = () => {
           {m.statutoryNoticeBody}
         </Text>
       </View>
-      <TranscriptionCard caseId={caseId} medicines={caseMedicines} />
+      <TranscriptionCard caseId={caseId} medicines={caseMedicines} processing={processing} refreshToken={sse.isCompleted} />
     </ScrollView>
   );
 };

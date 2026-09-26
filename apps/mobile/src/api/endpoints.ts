@@ -124,7 +124,11 @@ export const api = {
       ),
     cancelReview: (caseId: string, reviewId: string) =>
       apiClient.post<CaseClinicalReview>(`/api/v1/kadi/cases/${enc(caseId)}/clinical-reviews/${enc(reviewId)}/cancel`),
+    // Lists only independently verified reviewers (or demo fixtures in demo mode). A
+    // patient's own doctor is assigned by the reviewer ID they share: reviewerById.
     doctorDirectory: () => apiClient.get<ReviewerProfile[]>('/api/v1/kadi/clinical-reviewers?category=DOCTOR'),
+    reviewerById: (reviewerId: string) =>
+      apiClient.get<ReviewerProfile>(`/api/v1/kadi/clinical-reviewers/${enc(reviewerId)}`),
     readerDirectory: () => apiClient.get<ReviewerProfile[]>('/api/v1/kadi/clinical-reviewers'),
     safety: (caseId: string) => apiClient.get<SafetyEvaluation>(`/api/v1/kadi/cases/${enc(caseId)}/safety-escalations`),
     transcriptions: (caseId: string) =>

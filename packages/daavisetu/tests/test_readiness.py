@@ -111,3 +111,9 @@ def test_playbook_items_are_labelled_by_origin():
     report = evaluate_readiness(_case(), BASELINE_ITEMS, [extra])
     assert _by_id(report)["pb_implant_invoice"].origin == "INSTITUTION_PLAYBOOK"
     assert _by_id(report)["pb_implant_invoice"].status == "MISSING"
+
+
+def test_report_discloses_what_text_was_searched():
+    report = evaluate_readiness(_case(), BASELINE_ITEMS)
+    assert "1,000 characters" in report.evidence_scope_note
+    assert "1,000 characters" in render_readiness_text(report)

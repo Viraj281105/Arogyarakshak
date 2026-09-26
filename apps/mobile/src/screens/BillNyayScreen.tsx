@@ -373,9 +373,12 @@ export const BillNyayScreen: React.FC = () => {
           ) : (
             <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
               No statement from a named clinician is attached. Clinical reasoning in this letter is general,
-              software-drafted reasoning — not a doctor&apos;s opinion.
+              software-drafted reasoning — not a doctor&apos;s opinion. (This note is for you; it is not in the PDF.)
             </Text>
           )}
+          <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+            The PDF is re-generated whenever a clinician&apos;s statement changes — download it again right before sending.
+          </Text>
 
           <View style={{ gap: spacing.xs }}>
             <Button title={m.downloadAppealPdf} onPress={handleDownloadAppealPdf} variant="outline" />
@@ -397,6 +400,11 @@ export const BillNyayScreen: React.FC = () => {
                 />
               </View>
               <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.sm }}>{plausibility.assessment.summary}</Text>
+              {plausibility.assessment.not_assessed_items.length > 0 && (
+                <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>
+                  Not assessed (outside the reference): {plausibility.assessment.not_assessed_items.join(', ')}
+                </Text>
+              )}
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{plausibility.assessment.guideline_note}</Text>
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
                 {plausibility.assessment.disclaimer}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
+import { View, Text, Switch, StyleSheet, TextInput } from 'react-native';
 import { useTheme } from '../theme';
 import { Card } from './Card';
 import { Button } from './Button';
@@ -63,12 +63,90 @@ export const StatementView: React.FC<{ statement: ClinicalStatement }> = ({ stat
   );
 };
 
+/**
+ * Pick a reviewer from the (verified-only) directory, or by the reviewer ID the patient's
+ * own doctor/pharmacist gave them. A looked-up profile is shown with its honest
+ * verification label before it can be assigned.
+ */
+export const AssignReviewer: React.FC<{
+  directory: ReviewerProfile[];
+  disabled?: boolean;
+  actionLabel?: string;
+  onAssign: (reviewerId: string) => void;
+}> = ({ directory, disabled, actionLabel = 'Assign', onAssign }) => {
+  const { colors, spacing, typography } = useTheme();
+  const [idInput, setIdInput] = useState('');
+  const [looked, setLooked] = useState<ReviewerProfile | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const lookup = async () => {
+    setLookupError(null);
+    setLooked(null);
+    try {
+      setLooked(await api.clinical.reviewerById(idInput.trim()));
+    } catch {
+      setLookupError('No reviewer with that ID. Check the ID you were given.');
+    }
+  };
+
+  return (
+    <View style={{ gap: spacing.xs, marginTop: spacing.xs }}>
+      {directory.length === 0 ? (
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+          No independently verified reviewers are listed. Ask your own doctor or pharmacist for their reviewer ID.
+        </Text>
+      ) : (
+        directory.map((d) => (
+          <View key={d.id}>
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+              {d.name} · {d.category_label} · {d.verification_label}
+            </Text>
+            <Button
+              title={`${actionLabel} ${d.name}`}
+              onPress={() => onAssign(d.id)}
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              accessibilityHint={d.verification_label}
+            />
+          </View>
+        ))
+      )}
+      <TextInput
+        value={idInput}
+        onChangeText={(v) => {
+          setIdInput(v);
+          setLooked(null);
+        }}
+        placeholder="Reviewer ID (REV-…)"
+        placeholderTextColor={colors.textMuted}
+        autoCapitalize="characters"
+        accessibilityLabel="Reviewer ID"
+        style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderMedium }]}
+      />
+      <Button title="Look up ID" onPress={lookup} variant="ghost" size="sm" disabled={!idInput.trim()} />
+      {lookupError && <Text style={{ color: '#ef4444', fontSize: 12 }}>{lookupError}</Text>}
+      {looked && (
+        <View>
+          <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.sm }}>
+            {looked.name} · {looked.category_label}
+          </Text>
+          <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>{looked.verification_label}</Text>
+          <Button title={`${actionLabel} ${looked.name}`} onPress={() => onAssign(looked.id)} size="sm" disabled={disabled} />
+        </View>
+      )}
+    </View>
+  );
+};
+
 export interface ClinicalReviewCardProps {
   caseId: string | null;
   sourceModule: 'billnyay' | 'bimanyay';
   recommendationReason?: string | null;
   trigger?: 'MANUAL' | 'PLAUSIBILITY_FLAG' | 'DENIAL_CATEGORY';
   insurerName?: string;
+  /** True while the scanned document is still being processed server-side. */
+  processing?: boolean;
 }
 
 export const ClinicalReviewCard: React.FC<ClinicalReviewCardProps> = ({
@@ -77,6 +155,7 @@ export const ClinicalReviewCard: React.FC<ClinicalReviewCardProps> = ({
   recommendationReason,
   trigger = 'MANUAL',
   insurerName,
+  processing = false,
 }) => {
   const { colors, spacing, typography } = useTheme();
   const [reviews, setReviews] = useState<CaseClinicalReview[]>([]);
@@ -102,7 +181,7 @@ export const ClinicalReviewCard: React.FC<ClinicalReviewCardProps> = ({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, processing]);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -157,9 +236,14 @@ export const ClinicalReviewCard: React.FC<ClinicalReviewCardProps> = ({
             })
           )
         }
-        disabled={busy || !shareConsent}
+        disabled={busy || !shareConsent || processing}
         size="sm"
       />
+      {processing && (
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+          Your document is still being processed — you can request a review once it finishes.
+        </Text>
+      )}
       {reviews.length > 0 && (
         <Button title="↻ Refresh status" onPress={() => act(async () => undefined)} variant="ghost" size="sm" />
       )}
@@ -173,17 +257,14 @@ export const ClinicalReviewCard: React.FC<ClinicalReviewCardProps> = ({
               {review.coi_label ? ` · COI: ${review.coi_label}` : ''}
             </Text>
           ) : null}
-          {['REQUESTED', 'DECLINED', 'ASSIGNED'].includes(review.status) &&
-            doctors.map((d) => (
-              <Button
-                key={d.id}
-                title={`Assign ${d.name} (${d.verification_label})`}
-                onPress={() => act(() => api.clinical.assignReviewer(caseId, review.review_id, d.id))}
-                variant="outline"
-                size="sm"
-                disabled={busy}
-              />
-            ))}
+          {['REQUESTED', 'DECLINED', 'ASSIGNED'].includes(review.status) && (
+            <AssignReviewer
+              directory={doctors}
+              disabled={busy}
+              actionLabel="Assign"
+              onAssign={(reviewerId) => act(() => api.clinical.assignReviewer(caseId, review.review_id, reviewerId))}
+            />
+          )}
           {review.current_statement ? (
             <StatementView statement={review.current_statement} />
           ) : review.status !== 'CANCELLED' ? (
@@ -212,4 +293,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   item: { borderTopWidth: StyleSheet.hairlineWidth, gap: 6 },
   statement: { borderWidth: 1, borderRadius: 10 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, minHeight: 44 },
 });

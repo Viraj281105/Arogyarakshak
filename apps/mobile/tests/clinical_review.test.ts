@@ -35,7 +35,7 @@ describe('ADR-011 mobile clinical review — honesty contracts', () => {
     assert.ok(/share_with_reviewer_consent: boolean;/.test(types));
     assert.ok(/useState\(false\)/.test(reviewCard));
     assert.ok(/share_with_reviewer_consent: shareConsent/.test(reviewCard));
-    assert.ok(/disabled=\{busy \|\| !shareConsent\}/.test(reviewCard));
+    assert.ok(/disabled=\{busy \|\| !shareConsent \|\| processing\}/.test(reviewCard));
     assert.ok(!/share_with_reviewer_consent: true/.test(code(endpoints + reviewCard + workflowCards)));
   });
 
@@ -73,11 +73,49 @@ describe('ADR-011 mobile module integration', () => {
     assert.ok(/<TranscriptionCard caseId=\{caseId\}/.test(dawaCheck));
     const transcription = workflowCards.slice(workflowCards.indexOf('export const TranscriptionCard'));
     assert.ok(!/doctor/i.test(transcription));
-    assert.ok(/assignTranscription\(caseId, task\.task_id, r\.id, shareConsent\)/.test(transcription));
+    assert.ok(/assignTranscription\(caseId, task\.task_id, reviewerId, shareConsent\)/.test(transcription));
   });
 
   it('the safety notice carries the floor disclaimer', () => {
     assert.ok(/evaluation\.disclaimer/.test(workflowCards));
     assert.ok(/<SafetyNotice/.test(billNyay));
+  });
+});
+
+// --- Audit fixes: routing, processing race, directory, safety failure ---
+const cameraScan = read('src', 'screens', 'CameraScanScreen.tsx');
+const navTypes = read('src', 'navigation', 'types.ts');
+
+describe('Audit fixes (mobile)', () => {
+  it('DaaviSetu scans return to DaaviSetu, so its readiness card can receive a case (issue 5)', () => {
+    assert.ok(/returnTo\?: 'BillNyay' \| 'DaaviSetu' \| 'BimaNyay' \| 'DawaCheck'/.test(navTypes));
+    assert.ok(/if \(route\.params\?\.returnTo\)[\s\S]{0,300}screen: route\.params\.returnTo/.test(cameraScan));
+    assert.ok(/navigate\('CameraScan', \{ documentType: 'general', returnTo: 'DaaviSetu' \}\)/.test(daaviSetu));
+  });
+
+  it('screens wait for server-side processing before reading the scanned case (issue 5)', () => {
+    for (const screen of [daaviSetu, dawaCheck, bimaNyay]) {
+      assert.ok(/useSSEStream\(caseId/.test(screen), 'must follow the processing stream');
+      assert.ok(/const processing = sse\.isStreaming && !sse\.isCompleted/.test(screen));
+    }
+    assert.ok(/if \(!caseId \|\| processing\) return;/.test(dawaCheck), 'medicines load only after processing');
+    assert.ok(/<ReadinessCard caseId=\{caseId\} processing=\{processing\}/.test(daaviSetu));
+  });
+
+  it('a reviewer can be assigned by the ID they share, with their label shown first (issue 8)', () => {
+    assert.ok(/reviewerById: \(reviewerId: string\)/.test(endpoints));
+    assert.ok(/export const AssignReviewer/.test(reviewCard));
+    assert.ok(/looked\.verification_label/.test(reviewCard));
+    assert.ok(/No independently verified reviewers are listed/.test(reviewCard));
+    assert.ok((workflowCards.match(/<AssignReviewer/g) || []).length >= 2, 'readiness + transcription use it');
+  });
+
+  it('a failed safety check is shown, never silently hidden (issue 7)', () => {
+    assert.ok(/The clinical safety check could not be run/.test(workflowCards));
+    assert.ok(!/\.catch\(\(\) => setEvaluation\(null\)\)/.test(workflowCards));
+  });
+
+  it('readiness discloses what text was searched (issue 4)', () => {
+    assert.ok(/report\.evidence_scope_note/.test(workflowCards));
   });
 });

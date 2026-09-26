@@ -178,28 +178,45 @@ def evaluate_rules(
                 matched.append(term)
         if not matched:
             continue
-        review_overdue = bool(rule.review_due_date and rule.review_due_date < today)
-        escalations.append(
-            {
-                "rule_id": rule.rule_id,
-                "rule_key": rule.rule_key,
-                "rule_version": rule.version,
-                "title": rule.title,
-                "action_type": rule.action["type"],
-                "severity": rule.action["severity"],
-                "message": rule.action["message"],
-                "matched_terms": matched,
-                "source": {
-                    "name": rule.source_name,
-                    "version": rule.source_version,
-                    "section": rule.source_section,
-                },
-                "limitations": [rule.limitations, NEGATION_LIMITATION],
-                "rule_review_overdue": review_overdue,
-                "human_review_recommended": True,
-                "disclaimer": SAFETY_FLOOR_DISCLAIMER,
-                "provenance": "AI_DERIVED",
-            }
-        )
-    escalations.sort(key=lambda e: (0 if e["severity"] == RuleSeverity.URGENT.value else 1, e["title"]))
-    return escalations
+        escalations.append(escalation_for(rule, matched, today))
+    return sort_escalations(escalations)
+
+
+def sort_escalations(escalations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return sorted(escalations, key=lambda e: (0 if e["severity"] == RuleSeverity.URGENT.value else 1, e["title"]))
+
+
+def escalation_for(rule: ActiveRule, matched_terms: Sequence[str], today: Optional[date] = None) -> Dict[str, Any]:
+    today = today or date.today()
+    return {
+        "rule_id": rule.rule_id,
+        "rule_key": rule.rule_key,
+        "rule_version": rule.version,
+        "title": rule.title,
+        "action_type": rule.action["type"],
+        "severity": rule.action["severity"],
+        "message": rule.action["message"],
+        "matched_terms": list(dict.fromkeys(matched_terms)),
+        "source": {
+            "name": rule.source_name,
+            "version": rule.source_version,
+            "section": rule.source_section,
+        },
+        "limitations": [rule.limitations, NEGATION_LIMITATION],
+        "rule_review_overdue": bool(rule.review_due_date and rule.review_due_date < today),
+        "human_review_recommended": True,
+        "disclaimer": SAFETY_FLOOR_DISCLAIMER,
+        "provenance": "AI_DERIVED",
+    }
+
+
+def scan_full_text(rules: Sequence[ActiveRule], full_text: str, today: Optional[date] = None) -> List[Dict[str, Any]]:
+    """Runs ACTIVE rules over a whole document while it is still in transient memory.
+
+    Returns only (rule id, version, matched terms) — never any document text — so the
+    result can be persisted without retaining the document (ADR-003)."""
+    matches = evaluate_rules(rules, [("document_text", full_text)], today=today)
+    return [
+        {"rule_id": m["rule_id"], "rule_version": m["rule_version"], "matched_terms": m["matched_terms"]}
+        for m in matches
+    ]

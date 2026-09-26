@@ -519,6 +519,22 @@ class KadiSafetyRuleApproval(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class KadiSafetyScanResult(Base):
+    """A safety rule that matched an uploaded document's FULL text at upload time.
+
+    Only the rule id/version and the matched rule terms are stored — never any document
+    text — so red flags beyond the 1,000-character excerpt are not lost (ADR-003/011)."""
+
+    __tablename__ = "kadi_safety_scan_results"
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    rule_id = Column(String, nullable=False, index=True)
+    rule_version = Column(Integer, nullable=False)
+    matched_terms = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class KadiTranscriptionTask(Base):
     """An uncertain OCR reading awaiting human transcription. Stores no image (ADR-003):
     only a redacted candidate, a redacted masked context line and a location hint."""

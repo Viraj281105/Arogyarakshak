@@ -185,8 +185,8 @@ header-only and shown once at registration.
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | `POST` | `/clinical-reviewers` | none | Self-register; returns the credential once. Status is at most `SELF_DECLARED` |
-| `GET` | `/clinical-reviewers?category=&specialty=` | none | Public directory with honest `verification_label` |
-| `GET` | `/clinical-reviewers/{id}` · `/clinical-reviewers/me` | none · reviewer | Profile |
+| `GET` | `/clinical-reviewers?category=&specialty=` | none | Directory of **independently verified** reviewers only (plus demo fixtures in demo mode). Self-declared reviewers are never listed |
+| `GET` | `/clinical-reviewers/{id}` · `/clinical-reviewers/me` | none · reviewer | Profile by the ID a reviewer shares with their patient; `404` for inactive, or for demo reviewers outside demo mode |
 | `POST` | `/clinical-reviewers/me/deactivate` | reviewer | Deactivate own credential |
 | `POST` | `/clinical-reviewers/{id}/safety-board` | governance | Seat/unseat a doctor on the safety board |
 | `POST` | `/clinical-reviewers/{id}/verification` | governance | `external` → `EXTERNAL_VERIFICATION_UNAVAILABLE` (no registry integration); `demo` only in demo mode |
@@ -201,8 +201,8 @@ header-only and shown once at registration.
 | `POST` | `/clinical-reviews/{review_id}/cancel` | Revoke sharing; reviewer access ends immediately |
 | `GET` | `/clinical-reviews/{review_id}/audit` | Audit trail (no clinical text) |
 | `GET` | `/clinical-context` | All human-review outputs + safety signals, each with provenance |
-| `GET` | `/safety-escalations` | Escalations from ACTIVE rules (not consent-gated) |
-| `GET`/`POST` | `/transcriptions` | List tasks / flag an extracted entity as possibly misread |
+| `GET` | `/safety-escalations` | Escalations from ACTIVE rules (not consent-gated), including upload-time full-text matches; `scope_note` states what text was checked |
+| `GET`/`POST` | `/transcriptions` | List tasks / flag a whole extracted medicine entry as possibly misread (`field_type` must be `MEDICINE_NAME`) |
 | `POST` | `/transcriptions/{task_id}/assign` · `/cancel` | Assign a reader (`share_with_reviewer_consent` required) / cancel |
 
 **Reviewer** (`/api/v1/kadi`, reviewer credential; only assigned work is visible, otherwise `404`)
@@ -235,7 +235,7 @@ header-only and shown once at registration.
 | Method | Route | Description |
 |---|---|---|
 | `GET` | `/api/v1/billnyay/cases/{case_id}/clinical-plausibility` | Bounded plausibility check; `CLINICAL_REVIEW_REQUIRED` when indicated. Never a necessity determination |
-| `POST` | `/api/v1/billnyay/cases/{case_id}/appeal` | Now also returns `human_clinical_statement_attached`, `clinical_statements`, `clinical_annex`; the PDF includes the verbatim annex |
+| `POST` | `/api/v1/billnyay/cases/{case_id}/appeal` | Now also returns `human_clinical_statement_attached`, `clinical_statements`, `clinical_annex` (verbatim, empty when none) and `clinical_statement_notice` (patient-facing only). The PDF carries the annex only when a statement exists, and is re-rendered and re-signed whenever a BillNyay statement is finalized, withdrawn or its review cancelled |
 | `POST` | `/api/v1/bimanyay/analyze` | Result now includes `clinical_review` (does the denial turn on clinical judgment?) |
 | `GET` | `/api/v1/bimanyay/cases/{case_id}/clinical-statements` | Finalized statements + verbatim `annex_text` for the appeal tiers |
 | `POST` | `/api/v1/daavisetu/institutions` | Register a hospital desk; credential shown once |

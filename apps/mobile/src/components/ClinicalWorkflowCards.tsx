@@ -4,6 +4,7 @@ import { useTheme } from '../theme';
 import { Card } from './Card';
 import { Button } from './Button';
 import { Badge } from './Badge';
+import { AssignReviewer } from './ClinicalReviewCard';
 import { api } from '../api/endpoints';
 import { ApiError, ReadinessResponse, ReviewerProfile, SafetyEvaluation, TranscriptionTask } from '../api/types';
 
@@ -15,13 +16,35 @@ import { ApiError, ReadinessResponse, ReviewerProfile, SafetyEvaluation, Transcr
 export const SafetyNotice: React.FC<{ caseId: string | null; refreshToken?: unknown }> = ({ caseId, refreshToken }) => {
   const { colors, spacing, typography } = useTheme();
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
     if (!caseId) return;
-    api.clinical.safety(caseId).then(setEvaluation).catch(() => setEvaluation(null));
+    api.clinical
+      .safety(caseId)
+      .then((data) => {
+        setEvaluation(data);
+        setFailure(null);
+      })
+      .catch((err: ApiError) => {
+        setEvaluation(null);
+        setFailure(err.detail || err.message || 'unknown error');
+      });
   }, [caseId, refreshToken]);
 
-  if (!caseId || !evaluation) return null;
+  if (!caseId) return null;
+  // A safety check that failed must never look like one that found nothing.
+  if (failure) {
+    return (
+      <Card style={{ marginVertical: spacing.sm, borderColor: colors.statusWarning, borderWidth: 1 }}>
+        <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.sm }}>
+          ⚠️ The clinical safety check could not be run ({failure}). No safety assessment has been made. If you have
+          urgent symptoms, seek medical care directly.
+        </Text>
+      </Card>
+    );
+  }
+  if (!evaluation) return null;
   if (evaluation.escalations.length === 0) {
     return (
       <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginVertical: spacing.xs }}>
@@ -58,11 +81,12 @@ const READINESS_MARK: Record<string, string> = {
   REVIEWER_COULD_NOT_DETERMINE: '?',
 };
 
-export const ReadinessCard: React.FC<{ caseId: string | null }> = ({ caseId }) => {
+export const ReadinessCard: React.FC<{ caseId: string | null; processing?: boolean }> = ({ caseId, processing = false }) => {
   const { colors, spacing, typography } = useTheme();
   const [report, setReport] = useState<ReadinessResponse | null>(null);
   const [shareConsent, setShareConsent] = useState(false);
   const [requested, setRequested] = useState<string | null>(null);
+  const [assigned, setAssigned] = useState<string | null>(null);
   const [doctors, setDoctors] = useState<ReviewerProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +120,12 @@ export const ReadinessCard: React.FC<{ caseId: string | null }> = ({ caseId }) =
       <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginVertical: spacing.xs }}>
         Checks which commonly requested documents are in your case. It does not predict approval.
       </Text>
-      <Button title="Check documentation readiness" onPress={check} size="sm" />
+      <Button title="Check documentation readiness" onPress={check} size="sm" disabled={processing} />
+      {processing && (
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+          Your document is still being processed — check readiness once it finishes.
+        </Text>
+      )}
       {error && <Text style={{ color: '#ef4444', fontSize: 13 }}>⚠️ {error}</Text>}
       {report && (
         <View style={{ marginTop: spacing.sm }}>
@@ -112,6 +141,9 @@ export const ReadinessCard: React.FC<{ caseId: string | null }> = ({ caseId }) =
               {a}
             </Text>
           ))}
+          <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
+            {report.evidence_scope_note}
+          </Text>
           <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>{report.disclaimer}</Text>
           {pendingFacts.length > 0 && !requested && (
             <>
@@ -124,21 +156,23 @@ export const ReadinessCard: React.FC<{ caseId: string | null }> = ({ caseId }) =
               <Button title={`Ask a doctor to confirm ${pendingFacts.length} fact(s)`} onPress={requestConfirmation} disabled={!shareConsent} size="sm" variant="secondary" />
             </>
           )}
-          {requested &&
-            doctors.map((d) => (
-              <Button
-                key={d.id}
-                title={`Assign ${d.name} (${d.verification_label})`}
-                onPress={() =>
-                  api.clinical
-                    .assignReviewer(caseId, requested, d.id)
-                    .then(() => setDoctors([]))
-                    .catch((err: ApiError) => setError(err.detail || err.message))
-                }
-                variant="outline"
-                size="sm"
-              />
-            ))}
+          {requested && !assigned && (
+            <AssignReviewer
+              directory={doctors}
+              actionLabel="Assign"
+              onAssign={(reviewerId) =>
+                api.clinical
+                  .assignReviewer(caseId, requested, reviewerId)
+                  .then((review) => setAssigned(review.assigned_reviewer?.name ?? reviewerId))
+                  .catch((err: ApiError) => setError(err.detail || err.message))
+              }
+            />
+          )}
+          {assigned && (
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
+              Sent to {assigned}. Check readiness again after they decide.
+            </Text>
+          )}
         </View>
       )}
     </Card>
@@ -153,7 +187,12 @@ const TASK_STATUS: Record<TranscriptionTask['status'], string> = {
   CANCELLED: 'Cancelled',
 };
 
-export const TranscriptionCard: React.FC<{ caseId: string | null; medicines: { id: string; name: string }[] }> = ({ caseId, medicines }) => {
+export const TranscriptionCard: React.FC<{
+  caseId: string | null;
+  medicines: { id: string; name: string }[];
+  processing?: boolean;
+  refreshToken?: unknown;
+}> = ({ caseId, medicines, processing = false, refreshToken }) => {
   const { colors, spacing, typography } = useTheme();
   const [tasks, setTasks] = useState<TranscriptionTask[]>([]);
   const [readers, setReaders] = useState<ReviewerProfile[]>([]);
@@ -173,9 +212,18 @@ export const TranscriptionCard: React.FC<{ caseId: string | null; medicines: { i
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshToken]);
 
   if (!caseId) return null;
+  if (processing) {
+    return (
+      <Card style={{ marginVertical: spacing.sm }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+          ✍️ Reading your prescription… unclear text will appear here once processing finishes.
+        </Text>
+      </Card>
+    );
+  }
 
   const act = (fn: () => Promise<unknown>) =>
     fn()
@@ -222,17 +270,14 @@ export const TranscriptionCard: React.FC<{ caseId: string | null; medicines: { i
               Human-confirmed reading: {task.final_value} ({task.final_value_provenance})
             </Text>
           ) : null}
-          {(task.status === 'OPEN' || task.status === 'AWAITING_SECOND_REVIEW') &&
-            readers.map((r) => (
-              <Button
-                key={r.id}
-                title={`Assign ${r.name} — ${r.category_label} (${r.verification_label})`}
-                onPress={() => act(() => api.clinical.assignTranscription(caseId, task.task_id, r.id, shareConsent))}
-                disabled={!shareConsent}
-                variant="ghost"
-                size="sm"
-              />
-            ))}
+          {(task.status === 'OPEN' || task.status === 'AWAITING_SECOND_REVIEW') && (
+            <AssignReviewer
+              directory={readers}
+              disabled={!shareConsent}
+              actionLabel="Assign reader"
+              onAssign={(reviewerId) => act(() => api.clinical.assignTranscription(caseId, task.task_id, reviewerId, shareConsent))}
+            />
+          )}
         </View>
       ))}
     </Card>
