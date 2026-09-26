@@ -65,6 +65,17 @@ async def lifespan(app: FastAPI):
             "anyone can forge a valid-looking signature for a tampered appeal PDF."
         )
 
+    if settings.clinical_demo_mode:
+        logger.warning(
+            "CLINICAL_DEMO_MODE is ON: demo reviewers can be seeded with DEMO_VERIFIED status "
+            "and demo safety rules. Never enable this in a real deployment."
+        )
+    if not settings.clinical_governance_admin_key:
+        logger.info(
+            "CLINICAL_GOVERNANCE_ADMIN_KEY is not set: safety-board seating, verification "
+            "attempts and demo seeding are disabled."
+        )
+
     if uses_default_database_credentials(settings.database_url):
         logger.warning(
             "DATABASE_URL uses the default development credentials "
@@ -143,7 +154,18 @@ app.add_middleware(
     # when the preflight response's Access-Control-Allow-Methods doesn't list the method
     # actually being used, independent of anything the route itself does.
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Accept", "Authorization", "X-Case-Access-Token"],
+    allow_headers=[
+        "Content-Type",
+        "Accept",
+        "Authorization",
+        "X-Case-Access-Token",
+        # ADR-011 bearer credentials (reviewer, institution) and the operator-only
+        # governance key. Without these the browser's preflight would block the
+        # reviewer workspace and playbook screens entirely.
+        "X-Reviewer-Token",
+        "X-Institution-Token",
+        "X-Governance-Admin-Key",
+    ],
 )
 
 

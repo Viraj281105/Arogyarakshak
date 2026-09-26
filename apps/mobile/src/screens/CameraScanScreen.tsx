@@ -69,7 +69,14 @@ export const CameraScanScreen: React.FC = () => {
         });
       }
 
-      if (documentType === 'bill' || documentType === 'general') {
+      if (route.params?.returnTo) {
+        // The screen that opened the scanner gets the case back (e.g. DaaviSetu, which
+        // used to be sent to BillNyay and so never received a case at all).
+        (navigation as any).navigate('MainTabs', {
+          screen: route.params.returnTo,
+          params: { caseId: result.caseId, scanCompleted: true },
+        });
+      } else if (documentType === 'bill' || documentType === 'general') {
         (navigation as any).navigate('MainTabs', {
           screen: 'BillNyay',
           params: { caseId: result.caseId, scanCompleted: true },

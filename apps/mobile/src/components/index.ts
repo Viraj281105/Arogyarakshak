@@ -5,3 +5,5 @@ export * from './Header';
 export * from './OfflineBanner';
 export * from './AgentStreamVisualizer';
 export * from './ResolutionReviewCard';
+export * from './ClinicalReviewCard';
+export * from './ClinicalWorkflowCards';

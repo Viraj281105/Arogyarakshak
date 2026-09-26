@@ -15,5 +15,7 @@ export type RootStackParamList = {
   CameraScan: {
     documentType?: DocumentScanType;
     onScanComplete?: (doc: any) => void;
+    /** Tab to return to after upload; overrides the documentType default. */
+    returnTo?: 'BillNyay' | 'DaaviSetu' | 'BimaNyay' | 'DawaCheck';
   };
 };

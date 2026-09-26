@@ -65,6 +65,16 @@ export interface MobileTranslations {
       deleteCaseBtn: string;
       deleteCaseConfirmTitle: string;
       deleteCaseConfirmBody: string;
+      draftAppealBtn: string;
+      drafting: string;
+      appealTitle: string;
+      appealApprove: string;
+      appealNeedsRevision: string;
+      appealLlmBacked: string;
+      appealTemplateNotice: string;
+      appealFactsNotExtracted: string;
+      downloadAppealPdf: string;
+      shareAppealBtn: string;
     };
     daavisetu: {
       title: string;
@@ -89,6 +99,7 @@ export interface MobileTranslations {
       status: string;
       readyForReview: string;
       downloadPdf: string;
+      downloadPackage: string;
     };
     bimanyay: {
       title: string;
@@ -179,6 +190,9 @@ export interface MobileTranslations {
     close: string;
     loading: string;
     delete: string;
+    deleteCaseBtn: string;
+    deleteCaseConfirmTitle: string;
+    deleteCaseConfirmBody: string;
   };
 }
 
@@ -248,6 +262,16 @@ export const translations: Record<Language, MobileTranslations> = {
         deleteCaseBtn: 'Delete case',
         deleteCaseConfirmTitle: 'Delete this case?',
         deleteCaseConfirmBody: 'This permanently deletes this case and everything derived from it — extracted entities, audits, and any generated documents. This cannot be undone.',
+        draftAppealBtn: '⚖️ Draft IRDAI Appeal Letter',
+        drafting: 'Running 5-Agent Appeal Pipeline...',
+        appealTitle: 'Appeal Letter Drafted',
+        appealApprove: '✓ Judge-Approved Draft',
+        appealNeedsRevision: 'ⓘ Flagged for Revision',
+        appealLlmBacked: 'Grounded by a live LLM analysis of this case\'s documents.',
+        appealTemplateNotice: 'ⓘ Offline template: no AI backend configured, so this is a static statutory draft, not a case-specific analysis. Review carefully before sending.',
+        appealFactsNotExtracted: 'ⓘ Denial details could not be extracted from your document. Fill in the denial code, insurer reason, and policy clause yourself before sending.',
+        downloadAppealPdf: '📥 Download Signed Appeal PDF',
+        shareAppealBtn: '📤 Share Appeal Letter',
       },
       daavisetu: {
         title: 'DaaviSetu',
@@ -272,6 +296,7 @@ export const translations: Record<Language, MobileTranslations> = {
         status: 'Status:',
         readyForReview: 'Ready for Review',
         downloadPdf: '📥 Download IRDAI Standard Form PDF',
+        downloadPackage: '🗂️ Download Full Claim Package (ZIP)',
       },
       bimanyay: {
         title: 'BimaNyay',
@@ -362,6 +387,9 @@ export const translations: Record<Language, MobileTranslations> = {
       close: 'Close',
       loading: 'Loading...',
       delete: 'Delete',
+      deleteCaseBtn: 'Delete case',
+      deleteCaseConfirmTitle: 'Delete this case?',
+      deleteCaseConfirmBody: 'This permanently deletes this case and everything derived from it — extracted entities, audits, and any generated documents. This cannot be undone.',
     },
   },
   hi: {
@@ -429,6 +457,16 @@ export const translations: Record<Language, MobileTranslations> = {
         deleteCaseBtn: 'केस हटाएं',
         deleteCaseConfirmTitle: 'क्या यह केस हटाना है?',
         deleteCaseConfirmBody: 'यह इस केस और इससे प्राप्त सभी डेटा — निकाली गई जानकारी, ऑडिट, और जनरेट किए गए दस्तावेज़ — को स्थायी रूप से हटा देगा। इसे पूर्ववत नहीं किया जा सकता।',
+        draftAppealBtn: '⚖️ इरडा अपील पत्र तैयार करें',
+        drafting: '5-एजेंट अपील पाइपलाइन चल रही है...',
+        appealTitle: 'अपील पत्र तैयार हुआ',
+        appealApprove: '✓ न्यायाधीश-अनुमोदित मसौदा',
+        appealNeedsRevision: 'ⓘ संशोधन हेतु चिह्नित',
+        appealLlmBacked: 'इस केस के दस्तावेज़ों के लाइव एआई विश्लेषण पर आधारित।',
+        appealTemplateNotice: 'ⓘ ऑफ़लाइन टेम्पलेट: कोई एआई बैकएंड कॉन्फ़िगर नहीं है, इसलिए यह एक स्थिर सांविधिक मसौदा है, केस-विशिष्ट विश्लेषण नहीं। भेजने से पहले ध्यान से समीक्षा करें।',
+        appealFactsNotExtracted: 'ⓘ आपके दस्तावेज़ से अस्वीकृति विवरण नहीं निकाला जा सका। भेजने से पहले अस्वीकृति कोड, बीमाकर्ता का कारण और पॉलिसी खंड स्वयं भरें।',
+        downloadAppealPdf: '📥 हस्ताक्षरित अपील पीडीएफ डाउनलोड करें',
+        shareAppealBtn: '📤 अपील पत्र साझा करें',
       },
       daavisetu: {
         title: 'दावेसेतू',
@@ -453,6 +491,7 @@ export const translations: Record<Language, MobileTranslations> = {
         status: 'स्थिति:',
         readyForReview: 'समीक्षा हेतु तैयार',
         downloadPdf: '📥 मानक दावा प्रपत्र पीडीएफ डाउनलोड करें',
+        downloadPackage: '🗂️ पूर्ण दावा पैकेज डाउनलोड करें (ZIP)',
       },
       bimanyay: {
         title: 'बीमान्याय',
@@ -543,6 +582,9 @@ export const translations: Record<Language, MobileTranslations> = {
       close: 'बंद करें',
       loading: 'लोड हो रहा है...',
       delete: 'हटाएं',
+      deleteCaseBtn: 'केस हटाएं',
+      deleteCaseConfirmTitle: 'क्या यह केस हटाना है?',
+      deleteCaseConfirmBody: 'यह इस केस और इससे प्राप्त सभी डेटा — निकाली गई जानकारी, ऑडिट, और जनरेट किए गए दस्तावेज़ — को स्थायी रूप से हटा देगा। इसे पूर्ववत नहीं किया जा सकता।',
     },
   },
   mr: {
@@ -610,6 +652,16 @@ export const translations: Record<Language, MobileTranslations> = {
         deleteCaseBtn: 'केस हटवा',
         deleteCaseConfirmTitle: 'ही केस हटवायची आहे का?',
         deleteCaseConfirmBody: 'यामुळे ही केस आणि त्यातून मिळालेला सर्व डेटा — काढलेल्या नोंदी, ऑडिट्स, आणि तयार केलेली कागदपत्रे — कायमची हटवली जातील. ही क्रिया पूर्ववत करता येणार नाही.',
+        draftAppealBtn: '⚖️ आयआरडीएआय अपील पत्र तयार करा',
+        drafting: '5-एजंट अपील पाइपलाइन सुरू आहे...',
+        appealTitle: 'अपील पत्र तयार झाले',
+        appealApprove: '✓ न्यायाधीश-मंजूर मसुदा',
+        appealNeedsRevision: 'ⓘ सुधारणेसाठी चिन्हांकित',
+        appealLlmBacked: 'या केसच्या कागदपत्रांच्या थेट एआय विश्लेषणावर आधारित.',
+        appealTemplateNotice: 'ⓘ ऑफलाइन टेम्पलेट: कोणतेही एआय बॅकएंड कॉन्फिगर केलेले नाही, त्यामुळे हा एक स्थिर वैधानिक मसुदा आहे, केस-विशिष्ट विश्लेषण नाही. पाठवण्यापूर्वी काळजीपूर्वक पुनरावलोकन करा.',
+        appealFactsNotExtracted: 'ⓘ तुमच्या कागदपत्रातून नकाराचा तपशील काढता आला नाही. पाठवण्यापूर्वी नकार कोड, विमा कंपनीचे कारण आणि पॉलिसी कलम स्वतः भरा.',
+        downloadAppealPdf: '📥 स्वाक्षरीकृत अपील पीडीएफ डाउनलोड करा',
+        shareAppealBtn: '📤 अपील पत्र सामायिक करा',
       },
       daavisetu: {
         title: 'दावेसेतू',
@@ -634,6 +686,7 @@ export const translations: Record<Language, MobileTranslations> = {
         status: 'स्थिती:',
         readyForReview: 'तपासणीसाठी सज्ज',
         downloadPdf: '📥 प्रमाण दावा अर्ज पीडीएफ डाउनलोड करा',
+        downloadPackage: '🗂️ संपूर्ण दावा पॅकेज डाउनलोड करा (ZIP)',
       },
       bimanyay: {
         title: 'बीमान्याय',
@@ -724,6 +777,9 @@ export const translations: Record<Language, MobileTranslations> = {
       close: 'बंद करा',
       loading: 'लोड होत आहे...',
       delete: 'हटवा',
+      deleteCaseBtn: 'केस हटवा',
+      deleteCaseConfirmTitle: 'ही केस हटवायची आहे का?',
+      deleteCaseConfirmBody: 'यामुळे ही केस आणि त्यातून मिळालेला सर्व डेटा — काढलेल्या नोंदी, ऑडिट्स, आणि तयार केलेली कागदपत्रे — कायमची हटवली जातील. ही क्रिया पूर्ववत करता येणार नाही.',
     },
   },
 };

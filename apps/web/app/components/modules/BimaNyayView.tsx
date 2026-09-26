@@ -2,7 +2,24 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi } from "../../hooks/useApi";
+import { useApi, caseAuthHeaders } from "../../hooks/useApi";
+import { ClinicalStatement } from "../../lib/clinical";
+import { ClinicalStatementCard, ProvenanceBadge } from "../clinical/Attribution";
+import { ClinicalReviewPanel } from "../clinical/ClinicalReviewPanel";
+
+// ADR-011: whether the denial turns on clinical judgment. Never an outcome prediction.
+interface ClinicalReviewTrigger {
+  requires_clinical_interpretation: boolean;
+  reasons: string[];
+  suggested_clinical_question: string | null;
+  note: string;
+}
+
+interface ClinicalStatementsResponse {
+  human_clinical_statement_attached: boolean;
+  statements: ClinicalStatement[];
+  annex_text: string;
+}
 
 // --- API Response Types (matching backend Pydantic schemas) ---
 interface RegulatoryViolation {
@@ -22,6 +39,7 @@ interface DisputeAuditResult {
   level_1_gro_appeal: string;
   level_2_bimabharosa_text: string;
   level_3_ombudsman_grounds: string;
+  clinical_review?: ClinicalReviewTrigger | null;
 }
 
 interface GrievanceTimelineEvent {
@@ -42,12 +60,27 @@ interface GrievanceTrackerResponse {
 
 interface BimaNyayViewProps {
   currentLang: Language;
+  caseId?: string;
+  caseToken?: string;
 }
 
-export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
+export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.bimanyay;
   const analyzeApi = useApi<DisputeAuditResult>();
   const timelineApi = useApi<GrievanceTrackerResponse>();
+  const statementsApi = useApi<ClinicalStatementsResponse>();
+
+  // SEC-04: when a case is active, the dispute record is linked to it (and becomes
+  // evidence a clinical reviewer can see, labelled PATIENT_PROVIDED).
+  const caseQuery = caseId ? `&case_id=${encodeURIComponent(caseId)}` : "";
+
+  const loadClinicalStatements = async () => {
+    if (!caseId) return;
+    await statementsApi.execute(`/api/v1/bimanyay/cases/${encodeURIComponent(caseId)}/clinical-statements`, {
+      method: "GET",
+      headers: caseAuthHeaders(caseToken),
+    });
+  };
 
   // Form State
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -77,7 +110,8 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
 
   const handleAnalyze = async () => {
     if (!bimaNyayFormComplete) return;
-    await analyzeApi.execute(`/api/v1/bimanyay/analyze?language=${currentLang}`, {
+    await analyzeApi.execute(`/api/v1/bimanyay/analyze?language=${currentLang}${caseQuery}`, {
+      headers: caseAuthHeaders(caseToken),
       body: {
         policy_number: policyNumber,
         insurer_name: insurerName,
@@ -223,6 +257,72 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang }) => {
       {/* Real Audit Results */}
       {result && (
         <div>
+          {/* ADR-011: clinical-interpretation trigger (machine-derived) */}
+          {result.clinical_review?.requires_clinical_interpretation && (
+            <div
+              style={{
+                padding: "1rem 1.25rem",
+                marginBottom: "1.25rem",
+                border: "1px solid var(--status-warning)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                <strong>🩺 Clinical review required</strong>
+                <ProvenanceBadge provenance="AI_DERIVED" />
+              </div>
+              <ul style={{ fontSize: "0.85rem", paddingLeft: "1.1rem", margin: "0.5rem 0" }}>
+                {result.clinical_review.reasons.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+              <p style={{ fontSize: "0.8rem" }}>{result.clinical_review.note}</p>
+              {!caseId && (
+                <p style={{ fontSize: "0.8rem" }}>
+                  Upload your records above to create a case, then request a statement from a named doctor here.
+                </p>
+              )}
+            </div>
+          )}
+          {caseId && (
+            <ClinicalReviewPanel
+              caseId={caseId}
+              caseToken={caseToken}
+              sourceModule="bimanyay"
+              trigger={result.clinical_review?.requires_clinical_interpretation ? "DENIAL_CATEGORY" : "MANUAL"}
+              recommendationReason={result.clinical_review?.reasons.join(" ") || null}
+              suggestedQuestion={result.clinical_review?.suggested_clinical_question}
+              insurerName={insurerName}
+            />
+          )}
+          {caseId && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <button type="button" className="btn btn-secondary" onClick={loadClinicalStatements}>
+                Attach finalized clinician statements to these appeals
+              </button>
+              {statementsApi.data &&
+                (statementsApi.data.human_clinical_statement_attached ? (
+                  <div style={{ marginTop: "0.75rem" }}>
+                    {statementsApi.data.statements.map((s) => (
+                      <ClinicalStatementCard key={s.statement_id} statement={s} />
+                    ))}
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ border: "1px solid var(--border-subtle)" }}
+                      onClick={() => navigator.clipboard.writeText(statementsApi.data!.annex_text)}
+                    >
+                      📋 Copy attributed annex (verbatim)
+                    </button>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: "0.85rem", marginTop: "0.5rem", color: "var(--status-warning)" }}>
+                    No finalized statement from a named clinician exists for this case. Do not describe any appeal
+                    reasoning as a doctor&apos;s opinion.
+                  </p>
+                ))}
+            </div>
+          )}
           {/* Summary Stats */}
           <div className="grid-2" style={{ marginBottom: "1.5rem" }}>
             <div className="stat-box" style={{ borderLeft: `4px solid ${result.is_wrongful_denial ? "var(--status-success)" : "var(--status-danger)"}` }}>

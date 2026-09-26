@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.case_auth import require_case_access
+from app.clinical.transcription_service import open_tasks_by_entity
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DawaCheckGenericMapping, KadiCase, KadiEntity
@@ -57,6 +58,11 @@ class CaseMedicineBenchmark(BaseModel):
     note: Optional[str] = Field(
         None, description="Set when this medicine could not be benchmarked, and why."
     )
+    # ADR-011: where the medicine name used came from. HUMAN_REVIEWED when independent
+    # human transcription resolved an uncertain OCR reading; AI_DERIVED otherwise.
+    name_provenance: str = "AI_DERIVED"
+    transcription_task_id: Optional[str] = None
+    transcription_status: Optional[str] = None
 
 
 # --- Route Implementations ----------------------------------------------------
@@ -176,11 +182,40 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         .where(KadiCase.id == case_id, KadiEntity.type == "medicine")
     )
     medicine_entities = entities_result.scalars().all()
+    unresolved = await open_tasks_by_entity(db, case_id)
 
     results: List[CaseMedicineBenchmark] = []
     for entity in medicine_entities:
         meta = entity.meta if isinstance(entity.meta, dict) else {}
         dosage_hint = meta.get("dosage")
+
+        # ADR-011: an OCR reading a human has not yet settled is not a medication fact.
+        pending = unresolved.get(entity.id)
+        if pending is not None:
+            results.append(
+                CaseMedicineBenchmark(
+                    entity_id=entity.id,
+                    brand_name=entity.name,
+                    note=(
+                        "This medicine's name or strength was read with low confidence and is "
+                        "awaiting independent human transcription, so it has not been benchmarked. "
+                        "An uncertain reading is never treated as a medication fact."
+                        if pending.status != "HUMAN_ESCALATION_REQUIRED"
+                        else "Human readers could not agree on this medicine's text. Confirm it with "
+                        "the prescriber or dispensing pharmacist; it has not been benchmarked."
+                    ),
+                    transcription_task_id=pending.id,
+                    transcription_status=pending.status,
+                )
+            )
+            continue
+
+        name_provenance = "AI_DERIVED"
+        brand_name = entity.name
+        transcription = meta.get("human_transcription")
+        if isinstance(transcription, dict) and transcription.get("status") == "RESOLVED" and transcription.get("value"):
+            brand_name = str(transcription["value"])
+            name_provenance = "HUMAN_REVIEWED"
 
         cost = meta.get("cost")
         if cost is None and entity.value:
@@ -193,14 +228,15 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
             results.append(
                 CaseMedicineBenchmark(
                     entity_id=entity.id,
-                    brand_name=entity.name,
+                    brand_name=brand_name,
                     note="No cost was recorded for this medicine entity; cannot benchmark.",
+                    name_provenance=name_provenance,
                 )
             )
             continue
 
-        norm_brand = entity.name.strip().lower()
-        benchmark = benchmark_medicine(brand_name=entity.name, mrp=cost, dosage_hint=dosage_hint)
+        norm_brand = brand_name.strip().lower()
+        benchmark = benchmark_medicine(brand_name=brand_name, mrp=cost, dosage_hint=dosage_hint)
 
         if benchmark is None:
             # Fall back to a mapping this endpoint learned on an earlier case, before
@@ -209,7 +245,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
             learned = await _lookup_generic_mapping(db, norm_brand)
             if learned and learned.ceiling_price:
                 benchmark = benchmark_from_known_generic(
-                    brand_name=entity.name,
+                    brand_name=brand_name,
                     mrp=cost,
                     active_ingredient=learned.generic_name,
                     ceiling_price=learned.ceiling_price,
@@ -220,18 +256,21 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
             results.append(
                 CaseMedicineBenchmark(
                     entity_id=entity.id,
-                    brand_name=entity.name,
+                    brand_name=brand_name,
                     note=(
-                        f"'{entity.name}' is not in ArogyaRakshak's reference price list. "
+                        f"'{brand_name}' is not in ArogyaRakshak's reference price list. "
                         "This does NOT mean the medicine is exempt from price control."
                     ),
+                    name_provenance=name_provenance,
                 )
             )
             continue
 
         await _persist_generic_mapping(db, norm_brand, benchmark)
         results.append(
-            CaseMedicineBenchmark(entity_id=entity.id, brand_name=entity.name, benchmark=benchmark)
+            CaseMedicineBenchmark(
+                entity_id=entity.id, brand_name=brand_name, benchmark=benchmark, name_provenance=name_provenance
+            )
         )
 
     logger.info(

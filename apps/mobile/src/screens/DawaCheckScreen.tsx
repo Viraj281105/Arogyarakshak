@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { BottomTabParamList, RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge } from '../components';
+import { Card, Button, Badge, TranscriptionCard } from '../components';
 import { api, DawaCheckBenchmarkResponse, PrescriptionTranslationResponse, ApiError } from '../api';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useSSEStream } from '../hooks/useSSEStream';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,11 +27,28 @@ const QUICK_SAMPLES: QuickSample[] = [
 
 export const DawaCheckScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProp<BottomTabParamList, 'DawaCheck'>>();
   const { colors, spacing, typography } = useTheme();
   const { t, language } = useLanguage();
   const { enqueueAction } = useOfflineQueue();
   const { isOnline } = useNetworkStatus();
   const m = t.modules.dawacheck;
+
+  // ADR-011: a scanned prescription arrives with its case; uncertain readings of its
+  // medicines go to human transcription instead of being trusted.
+  const caseId = route.params?.caseId ?? null;
+  // Navigation happens right after the upload is accepted, while OCR/extraction still
+  // runs server-side; medicines are (re)loaded once processing has finished.
+  const sse = useSSEStream(caseId ?? undefined);
+  const processing = sse.isStreaming && !sse.isCompleted;
+  const [caseMedicines, setCaseMedicines] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!caseId || processing) return;
+    api.kadi
+      .getCase(caseId)
+      .then((res) => setCaseMedicines(res.entities.filter((e) => e.type === 'medicine').map((e) => ({ id: e.id, name: e.name }))))
+      .catch(() => setCaseMedicines([]));
+  }, [caseId, processing, sse.isCompleted]);
 
   // Prescription shorthand translator (#97)
   const [instructionsText, setInstructionsText] = useState('');
@@ -307,6 +325,7 @@ export const DawaCheckScreen: React.FC = () => {
           {m.statutoryNoticeBody}
         </Text>
       </View>
+      <TranscriptionCard caseId={caseId} medicines={caseMedicines} processing={processing} refreshToken={sse.isCompleted} />
     </ScrollView>
   );
 };

@@ -71,6 +71,21 @@ class Settings(BaseSettings):
     # expired case is not retained much longer than the stated TTL.
     case_purge_interval_seconds: int = 6 * 60 * 60  # 6 hours
 
+    # --- Clinical review & safety governance (ADR-011) --------------------------
+    # Operator secret for governance actions only: seating safety-board members,
+    # recording a verification attempt, and seeding demo fixtures. Empty (default) means
+    # those actions are disabled outright — never "open to anyone".
+    clinical_governance_admin_key: str = ""
+    # Enables POST /kadi/clinical-demo/seed and the DEMO_VERIFIED status. Off by default;
+    # a production deployment must never turn this on.
+    clinical_demo_mode: bool = False
+    # EasyOCR segments below this confidence become human transcription tasks instead
+    # of being trusted.
+    ocr_low_confidence_threshold: float = 0.5
+    # Independent board approvals (the proposer's own never counts) before a safety rule
+    # can be activated.
+    safety_rule_required_approvals: int = 1
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

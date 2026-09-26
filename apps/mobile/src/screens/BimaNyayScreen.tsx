@@ -1,18 +1,27 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Share } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import { BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge } from '../components';
+import { Card, Button, Badge, ClinicalReviewCard } from '../components';
 import { api, BimaNyayAnalysisResponse, BimaNyayTimelineResponse, ApiError } from '../api';
+import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useSSEStream } from '../hooks/useSSEStream';
 
 export const BimaNyayScreen: React.FC = () => {
+  const route = useRoute<RouteProp<BottomTabParamList, 'BimaNyay'>>();
   const { colors, spacing, typography } = useTheme();
   const { t, language } = useLanguage();
   const { enqueueAction } = useOfflineQueue();
   const { isOnline } = useNetworkStatus();
   const m = t.modules.bimanyay;
+  // ADR-011: a scanned denial letter arrives with its case; analyses are then linked to it.
+  const caseId = route.params?.caseId ?? null;
+  const sse = useSSEStream(caseId ?? undefined);
+  const processing = sse.isStreaming && !sse.isCompleted;
 
   // Form state
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -51,7 +60,12 @@ export const BimaNyayScreen: React.FC = () => {
     };
 
     try {
-      const analysisResult = await api.bimanyay.analyze(analysisPayload, language);
+      const analysisResult = await api.bimanyay.analyze(
+        analysisPayload,
+        language,
+        caseId ?? undefined,
+        caseId ? getCaseAccessToken(caseId) : undefined
+      );
       setResult(analysisResult);
 
       // Also fetch statutory timeline
@@ -283,6 +297,39 @@ export const BimaNyayScreen: React.FC = () => {
             </View>
           ))}
         </Card>
+      )}
+
+      {/* ADR-011: the denial turns on clinical judgment (machine-derived signal only). */}
+      {result?.clinical_review?.requires_clinical_interpretation && (
+        <Card style={{ marginVertical: spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
+            <Badge label="Clinical review required" variant="warning" />
+            <Badge label="Machine-derived" variant="info" />
+          </View>
+          {result.clinical_review.reasons.map((reason) => (
+            <Text key={reason} style={{ color: colors.textPrimary, fontSize: typography.sizes.sm, marginTop: spacing.xs }}>
+              • {reason}
+            </Text>
+          ))}
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
+            {result.clinical_review.note}
+          </Text>
+          {!caseId && (
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
+              Scan your denial letter to create a case, then request a statement from a named doctor here.
+            </Text>
+          )}
+        </Card>
+      )}
+      {result && (
+        <ClinicalReviewCard
+          caseId={caseId}
+          sourceModule="bimanyay"
+          trigger={result.clinical_review?.requires_clinical_interpretation ? 'DENIAL_CATEGORY' : 'MANUAL'}
+          recommendationReason={result.clinical_review?.reasons.join(' ') || null}
+          insurerName={insurerName}
+          processing={processing}
+        />
       )}
     </ScrollView>
   );

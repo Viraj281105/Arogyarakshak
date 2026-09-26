@@ -28,6 +28,10 @@ from sqlalchemy.orm import selectinload
 
 from app.auto_triggers import readiness_for_case, run_auto_triggers
 from app.background import get_background_session
+from app.clinical.context import scan_document_for_safety
+from app.clinical.purge import purge_clinical_records_for_case
+from app.clinical.transcription_service import create_tasks_from_ocr
+from kadi.clinical_review.transcription import OcrSegment, select_uncertain_segments
 from app.config import settings
 from app.case_auth import generate_case_access_token, require_case_access
 from app.consent import require_case_consent
@@ -440,6 +444,32 @@ async def process_document_background(
                 ),
             })
 
+            # ADR-011: OCR readings the engine itself was unsure of become human
+            # transcription tasks rather than silently trusted facts. Only redacted text
+            # and a location hint are kept — never the image.
+            uncertain = select_uncertain_segments(
+                [
+                    OcrSegment(s.get("text", ""), float(s.get("confidence", 1.0)), s.get("bbox"))
+                    for s in parsed.get("ocr_segments", [])
+                ],
+                threshold=settings.ocr_low_confidence_threshold,
+            )
+            transcription_tasks = await create_tasks_from_ocr(
+                session, case_id, uncertain, [e for e in case.entities if e.type == "medicine"]
+            )
+            # ADR-011: check the WHOLE document against active safety rules while it is
+            # still in memory; only rule ids and matched terms are persisted.
+            await scan_document_for_safety(session, case_id, text)
+            if transcription_tasks:
+                processing_status[case_id].append({
+                    "status": "transcription_flags",
+                    "progress": 87,
+                    "log": (
+                        f"{len(transcription_tasks)} unclear handwriting/print reading(s) need a human "
+                        "reader before they are trusted."
+                    ),
+                })
+
             if total_cost > 0:
                 case.total_charged += total_cost
             elif extracted.total_amount and extracted.total_amount > 0:
@@ -760,6 +790,9 @@ async def purge_case(db: AsyncSession, case_id: str) -> None:
     await db.execute(delete(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
     await db.execute(delete(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id))
     await _purge_bimanyay_records_for_case(db, case_id)
+    # ADR-011: reviews, statements, fact decisions, transcription tasks/readings and
+    # their audit trail. Global reviewer/rule/playbook records are kept.
+    await purge_clinical_records_for_case(db, case_id)
     await db.execute(delete(KadiCase).where(KadiCase.id == case_id))
 
 

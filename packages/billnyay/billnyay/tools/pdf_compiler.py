@@ -39,7 +39,24 @@ def _styles():
     return base
 
 
-def _build_story(appeal_letter: str, styles) -> list:
+def _append_annex(story: list, clinical_annex: str, styles) -> None:
+    """ADR-011: the clinical-statement annex (or the notice that none exists), rendered
+    verbatim. Reviewer-typed text is untrusted markup to ReportLab exactly like the
+    LLM-drafted letter, so every line is XML-escaped before any tag is added."""
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="100%", thickness=1, color=BORDER))
+    story.append(Spacer(1, 8))
+    for block in clinical_annex.split("\n\n"):
+        raw = block.strip()
+        if not raw:
+            continue
+        text = _xml_escape(raw).replace("\n", "<br/>")
+        style = styles["SectionHead"] if raw.startswith("ANNEXURE") and "\n" not in raw else styles["LetterBody"]
+        story.append(Paragraph(text, style))
+        story.append(Spacer(1, 6))
+
+
+def _build_story(appeal_letter: str, styles, clinical_annex: Optional[str] = None) -> list:
     """Shared story-building logic for both the file-path and in-memory compilers,
     so the two can never silently render different documents."""
     story = []
@@ -73,6 +90,9 @@ def _build_story(appeal_letter: str, styles) -> list:
             story.append(Paragraph(text, styles["LetterBody"]))
             story.append(Spacer(1, 8))
 
+    if clinical_annex:
+        _append_annex(story, clinical_annex, styles)
+
     return story
 
 
@@ -99,6 +119,7 @@ def compile_appeal_packet(
 def compile_appeal_packet_bytes(
     appeal_letter: str,
     case_meta: Optional[Dict[str, Any]] = None,
+    clinical_annex: Optional[str] = None,
 ) -> bytes:
     """Compiles appeal letter text into a formal PDF and returns its bytes directly,
     with no file written to disk — used by the appeal PDF-download/signing endpoint
@@ -112,5 +133,5 @@ def compile_appeal_packet_bytes(
         topMargin=40,
         bottomMargin=40,
     )
-    doc.build(_build_story(appeal_letter, _styles()))
+    doc.build(_build_story(appeal_letter, _styles(), clinical_annex))
     return buffer.getvalue()
