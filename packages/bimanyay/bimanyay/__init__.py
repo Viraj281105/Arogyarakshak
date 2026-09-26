@@ -12,6 +12,7 @@ from bimanyay.models import (
     GrievanceTrackerResponse,
 )
 from bimanyay.clause_auditor import audit_claim_denial
+from bimanyay.clinical_triggers import ClinicalReviewTrigger, assess_clinical_review_need
 from bimanyay.drafter import (
     draft_gro_appeal_letter,
     draft_bimabharosa_summary,
@@ -38,6 +39,9 @@ def analyze_insurance_denial(input_data: ClaimDenialInput, language: str = "en")
         level_1_gro_appeal=gro_letter,
         level_2_bimabharosa_text=bimabharosa_text,
         level_3_ombudsman_grounds=ombudsman_statement,
+        clinical_review=assess_clinical_review_need(
+            input_data.denial_category, input_data.denial_reason_raw, input_data.diagnosis
+        ),
     )
 
 
@@ -53,4 +57,6 @@ __all__ = [
     "draft_ombudsman_statement",
     "calculate_grievance_timeline",
     "analyze_insurance_denial",
+    "ClinicalReviewTrigger",
+    "assess_clinical_review_need",
 ]

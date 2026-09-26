@@ -31,6 +31,7 @@ CONTENTS OF THIS PACKAGE
    The filled IRDAI Standard Cashless Pre-Authorization Request Form (Annexure-B),
    generated from the claim details you submitted.
 {case_summary_line}
+{readiness_line}
 
 WHAT IS NOT INCLUDED, AND WHY
 -------------------------------
@@ -48,12 +49,16 @@ def build_claim_package_zip(
     case_id: str,
     preauth_pdf_bytes: bytes,
     case_summary_text: Optional[str] = None,
+    readiness_text: Optional[str] = None,
 ) -> bytes:
     """Assembles the claim package ZIP and returns its bytes.
 
     `case_summary_text` is the case's redacted document-text excerpt, if Kadi
     extracted one (KadiEntity type="document_text"). It is never invented when
     absent — the manifest states plainly that no summary is included.
+
+    `readiness_text` (ADR-011) is the documentation checklist, including any clinical
+    facts a named reviewer actually confirmed or rejected. Absent means none was built.
     """
     generated_at = datetime.now().strftime("%d-%b-%Y %H:%M")
     case_summary_line = (
@@ -62,12 +67,20 @@ def build_claim_package_zip(
         if case_summary_text
         else "(No case document summary is included: none was extracted for this case.)"
     )
+    readiness_line = (
+        "3. preauth_readiness.txt\n"
+        "   Documentation checklist for this case. Clinical facts are marked confirmed only\n"
+        "   where a named reviewer confirmed them; it does not predict approval."
+        if readiness_text
+        else "(No readiness checklist is included.)"
+    )
 
     manifest = MANIFEST_TEMPLATE.format(
         claim_id=claim_id,
         case_id=case_id,
         generated_at=generated_at,
         case_summary_line=case_summary_line,
+        readiness_line=readiness_line,
     )
 
     buffer = io.BytesIO()
@@ -76,5 +89,7 @@ def build_claim_package_zip(
         zf.writestr("preauth_form.pdf", preauth_pdf_bytes)
         if case_summary_text:
             zf.writestr("case_summary.txt", case_summary_text)
+        if readiness_text:
+            zf.writestr("preauth_readiness.txt", readiness_text)
 
     return buffer.getvalue()

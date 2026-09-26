@@ -73,6 +73,22 @@ This document catalogs known failure modes, error messages, and verified solutio
 
 ---
 
+### `import file mismatch` / "imported module ... is not the same as the test file we want to collect"
+- **Cause**: `pytest.ini` collects `packages/*/tests` and `apps/api/tests` together, and those
+  directories have no `__init__.py`, so two test files with the same basename collide
+  (e.g. a Kadi `test_clinical_review.py` and the API's `test_clinical_review.py`).
+- **Remedy**: give every test module a unique basename (the Kadi one is
+  `test_clinical_review_domain.py`), then clear stale bytecode:
+  `find . -name __pycache__ -path "*tests*" -prune -exec rm -rf {} +`.
+
+### Clinical governance routes return `503`
+- **Cause**: `CLINICAL_GOVERNANCE_ADMIN_KEY` is unset, which disables board seating,
+  verification attempts and demo seeding by design (ADR-011).
+- **Remedy**: set it to a long random value (and `CLINICAL_DEMO_MODE=true` only for local
+  demos), restart the API, and send it as `X-Governance-Admin-Key`.
+
+---
+
 ## 5. Frontend & Next.js Issues
 
 ### `npm run lint` fails on React 19 / Next.js dependencies

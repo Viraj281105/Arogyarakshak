@@ -13,6 +13,8 @@
 - **Shared OCR Engine (`kadi/ocr/ocr_parser.py`)**:
   - Handles multi-format document parsing (bills, prescriptions, insurance schedules).
   - Devanagari and Latin script text extraction.
+  - Returns `ocr_segments` with EasyOCR's per-segment confidence (images only) so uncertain readings can go to human transcription (ADR-011).
+- **Clinical review layer (`kadi/clinical_review/`, ADR-011)**: DB-agnostic rules for human clinical review — provenance classes, reviewer verification labels (never "verified" without a real registry check), statement lifecycle and confirmation, frozen evidence packets, safety-rule validation and evaluation, blind two-reader OCR transcription consensus, and the verbatim appeal annex. Persistence lives in `apps/api/app/clinical/`. See `docs/architecture/clinical-review.md`.
 - **Vector Store & Indexing (`kadi/vector_store.py`)**:
   - In-memory FAISS similarity indexes for sub-second entity matching and fast blocking. *(planned — not implemented)*
 - **Entity Resolution (`kadi/resolution/`, ADR-006)**:

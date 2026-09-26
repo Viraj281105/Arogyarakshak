@@ -17,10 +17,14 @@ import os
 import json
 import urllib.request
 from app.case_auth import require_case_access
+from app.clinical.context import assess_case_plausibility
+from app.clinical.serializers import annex_dict, statement_view
+from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import BillNyayAppeal, KadiCase, KadiEntity
+from kadi.clinical_review.annex import render_annex
 # Import billnyay modules
 from billnyay.agents.auditor import run_auditor_agent, StructuredDenial
 from billnyay.agents.judge import run_judge_agent, JudgeScorecard
@@ -189,6 +193,11 @@ class AppealResponse(BaseModel):
     # #39 — the language the letter was actually drafted in (en/hi/mr), confirming the
     # request's ?language= was honoured rather than silently ignored.
     language: str = "en"
+    # ADR-011 — attributed human clinical statements appended verbatim (never passed
+    # through the LLM). When none exists the annex says so explicitly.
+    human_clinical_statement_attached: bool = False
+    clinical_statements: List[Dict[str, Any]] = []
+    clinical_annex: str = ""
 
 
 class GrievanceResponse(BaseModel):
@@ -302,8 +311,8 @@ the rejection and seeks reversal within the statutory turnaround time.
 
 SECTION I - CLINICAL JUSTIFICATION AND MEDICAL NECESSITY
 The hospitalisation involved an active line of treatment with continuous clinical monitoring. Established
-standards of care recognise such admission as medically necessary. The treating physician's records
-evidence the necessity of the procedures and consumables billed.
+standards of care recognise such admission as medically necessary. The treating physician's records, where
+available, should be attached to evidence the necessity of the procedures and consumables billed.
 
 SECTION II - STATUTORY AND IRDAI REGULATORY PROVISIONS
 Rejection premised on vague or non-specific exclusion clauses is impermissible under the IRDAI circular on
@@ -336,8 +345,8 @@ _FALLBACK_APPEAL_LETTER_HI = """विषय: दावा अस्वीकृ
 
 खंड I - चिकित्सीय औचित्य एवं चिकित्सा आवश्यकता
 अस्पताल में भर्ती होने के दौरान निरंतर चिकित्सीय निगरानी के साथ एक सक्रिय उपचार प्रक्रिया अपनाई गई।
-स्थापित देखभाल मानक ऐसे भर्ती को चिकित्सकीय रूप से आवश्यक मानते हैं। उपचार करने वाले चिकित्सक के
-अभिलेख बिल की गई प्रक्रियाओं एवं उपभोग्य सामग्रियों की आवश्यकता की पुष्टि करते हैं।
+स्थापित देखभाल मानक ऐसे भर्ती को चिकित्सकीय रूप से आवश्यक मानते हैं। बिल की गई प्रक्रियाओं एवं
+उपभोग्य सामग्रियों की आवश्यकता दर्शाने हेतु, उपलब्ध होने पर, उपचार करने वाले चिकित्सक के अभिलेख संलग्न किए जाने चाहिए।
 
 खंड II - सांविधिक एवं IRDAI विनियामक प्रावधान
 अस्पष्ट या गैर-विशिष्ट अपवर्जन खंडों के आधार पर अस्वीकृति, अपवर्जन खंडों के मानकीकरण संबंधी IRDAI
@@ -365,8 +374,8 @@ _FALLBACK_APPEAL_LETTER_MR = """विषय: दावा नकार / बि
 
 विभाग I - वैद्यकीय औचित्य आणि वैद्यकीय गरज
 रुग्णालयात दाखल असताना सातत्यपूर्ण वैद्यकीय देखरेखीसह सक्रिय उपचार प्रक्रिया राबवण्यात आली. प्रस्थापित
-काळजी मानके अशा दाखलतेला वैद्यकीयदृष्ट्या आवश्यक मानतात. उपचार करणाऱ्या डॉक्टरांच्या नोंदी बिल
-केलेल्या प्रक्रिया व उपभोग्य वस्तूंच्या गरजेस पुष्टी देतात.
+काळजी मानके अशा दाखलतेला वैद्यकीयदृष्ट्या आवश्यक मानतात. बिल केलेल्या प्रक्रिया व उपभोग्य
+वस्तूंची गरज दर्शवण्यासाठी, उपलब्ध असल्यास, उपचार करणाऱ्या डॉक्टरांच्या नोंदी जोडाव्यात.
 
 विभाग II - वैधानिक आणि IRDAI नियामक तरतुदी
 अस्पष्ट किंवा विशिष्ट नसलेल्या वगळणी कलमांच्या आधारे नकार देणे, वगळणी कलमांच्या प्रमाणीकरणाबाबतच्या
@@ -624,11 +633,16 @@ async def draft_appeal(
     appeal_letter = drafting_result.appeal_letter
     scorecard = drafting_result.scorecard
 
+    # ADR-011: finalized human statements for this case, rendered verbatim by
+    # deterministic code. The LLM-drafted letter above never contains them.
+    statements = await current_statements_for_case(db, case_id, ["billnyay"])
+    clinical_annex = render_annex([annex_dict(s) for s in statements])
+
     # 8. Compile, sign, and persist the PDF (#66) — the exact bytes served by
     # .../appeal/pdf and checked by .../appeal/verify, so a later re-draft cannot
     # silently invalidate what was already downloaded.
     pdf_bytes = await run_in_threadpool(
-        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}
+        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}, clinical_annex=clinical_annex
     )
     document_sha256 = compute_sha256(pdf_bytes)
     hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
@@ -659,7 +673,38 @@ async def draft_appeal(
         document_sha256=document_sha256,
         pdf_download_url=f"/api/v1/billnyay/cases/{case_id}/appeal/pdf",
         language=language,
+        human_clinical_statement_attached=bool(statements),
+        clinical_statements=[statement_view(s) for s in statements],
+        clinical_annex=clinical_annex,
     )
+
+
+@router.get("/cases/{case_id}/clinical-plausibility")
+async def clinical_plausibility(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bounded plausibility check between the documented diagnosis and intervention
+    (ADR-011). Not a medical-necessity determination and not an outcome prediction; when
+    it cannot decide, it says so and recommends a named human reviewer."""
+    require_case_consent(case)
+    assessment, safety = await assess_case_plausibility(db, case_id)
+    reviews = [r for r in await list_case_reviews(db, case_id) if r.source_module == "billnyay"]
+    statements = await current_statements_for_case(db, case_id, ["billnyay"])
+    return {
+        "case_id": case_id,
+        "assessment": assessment.model_dump(),
+        "safety_escalations": safety["escalations"],
+        "clinical_review": {
+            "required": assessment.clinical_review_required,
+            "status": "CLINICAL_REVIEW_REQUIRED" if assessment.clinical_review_required else "NOT_REQUIRED",
+            "open_or_completed_reviews": [
+                {"review_id": r.id, "status": r.status} for r in reviews if r.status != "CANCELLED"
+            ],
+            "human_statement_exists": bool(statements),
+        },
+    }
 
 
 @router.get("/cases/{case_id}/appeal/pdf")

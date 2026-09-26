@@ -14,10 +14,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.case_auth import CASE_ACCESS_TOKEN_HEADER, hash_case_access_token
+from app.case_auth import CASE_ACCESS_TOKEN_HEADER, hash_case_access_token, require_case_access
+from app.clinical.serializers import annex_dict, statement_view
+from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import BimaNyayCase, BimaNyayGrievance, BimaNyayTimelineEvent, KadiCase
+from kadi.clinical_review.annex import render_annex
 from bimanyay import (
     ClaimDenialInput,
     DisputeAuditResult,
@@ -168,3 +171,24 @@ async def track_timeline(
     except Exception:
         logger.exception("Error tracking grievance timeline for insurer %s", req.insurer_name)
         raise
+
+
+@router.get("/cases/{case_id}/clinical-statements")
+async def clinical_statements_for_appeal(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Finalized, attributed clinician statements for this case's BimaNyay appeal (ADR-011),
+    plus the verbatim annex to append to the GRO / Bima Bharosa / Ombudsman drafts. When
+    none exists the annex says so — the drafts must never imply a clinician's opinion."""
+    require_case_consent(case)
+    statements = await current_statements_for_case(db, case_id, ["bimanyay"])
+    reviews = [r for r in await list_case_reviews(db, case_id) if r.source_module == "bimanyay"]
+    return {
+        "case_id": case_id,
+        "human_clinical_statement_attached": bool(statements),
+        "statements": [statement_view(s) for s in statements],
+        "reviews": [{"review_id": r.id, "status": r.status} for r in reviews],
+        "annex_text": render_annex([annex_dict(s) for s in statements]),
+    }

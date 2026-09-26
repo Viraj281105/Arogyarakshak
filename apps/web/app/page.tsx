@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { DocumentUploader } from "./components/DocumentUploader";
 import { AgentStreamVisualizer, PipelineStep } from "./components/AgentStreamVisualizer";
 import { EntityResolutionReview } from "./components/EntityResolutionReview";
+import { SafetyEscalationBanner } from "./components/clinical/SafetyEscalationBanner";
 import { BillNyayView } from "./components/modules/BillNyayView";
 import { BimaNyayView } from "./components/modules/BimaNyayView";
 import { DaaviSetuView } from "./components/modules/DaaviSetuView";
@@ -230,6 +232,9 @@ export default function Home() {
           <p style={{ marginTop: "0.5rem", maxWidth: "680px", marginLeft: "auto", marginRight: "auto" }}>
             {t.tagline}
           </p>
+          <p style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+            Clinician, pharmacist or transcription reviewer? <Link href="/clinical-review">Open the reviewer workspace →</Link>
+          </p>
         </section>
 
         {/* BYOD Document Intake Dropzone */}
@@ -265,6 +270,11 @@ export default function Home() {
             caseId={caseId}
             liveLog={liveLog}
           />
+        )}
+
+        {/* ADR-011: red-flag escalations from active, board-approved safety rules */}
+        {pipelineStep === 4 && !isProcessing && caseId && (
+          <SafetyEscalationBanner key={`safety-${caseId}`} caseId={caseId} caseToken={caseToken} />
         )}
 
         {/* Entity-resolution questions Kadi could not decide on its own (#31) */}
@@ -348,10 +358,10 @@ export default function Home() {
         {/* Active Module Panel */}
         <div role="tabpanel" id={`panel-${activeTab}`}>
           {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
-          {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} />}
+          {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
           {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
           {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
-          {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} />}
+          {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
         </div>
       </main>
 

@@ -172,6 +172,80 @@ brands return `404`.
 
 ---
 
+### Clinical Review, Safety Governance & Human OCR Resolution (ADR-011)
+
+Design, credential model and threat model: [`docs/architecture/clinical-review.md`](../architecture/clinical-review.md).
+Headers: case holder `X-Case-Access-Token`; reviewer `X-Reviewer-Token`; hospital desk
+`X-Institution-Token`; operator `X-Governance-Admin-Key` (routes return `503` when
+`CLINICAL_GOVERNANCE_ADMIN_KEY` is unset). Reviewer and institution credentials are
+header-only and shown once at registration.
+
+**Reviewers** (`/api/v1/kadi`)
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| `POST` | `/clinical-reviewers` | none | Self-register; returns the credential once. Status is at most `SELF_DECLARED` |
+| `GET` | `/clinical-reviewers?category=&specialty=` | none | Public directory with honest `verification_label` |
+| `GET` | `/clinical-reviewers/{id}` · `/clinical-reviewers/me` | none · reviewer | Profile |
+| `POST` | `/clinical-reviewers/me/deactivate` | reviewer | Deactivate own credential |
+| `POST` | `/clinical-reviewers/{id}/safety-board` | governance | Seat/unseat a doctor on the safety board |
+| `POST` | `/clinical-reviewers/{id}/verification` | governance | `external` → `EXTERNAL_VERIFICATION_UNAVAILABLE` (no registry integration); `demo` only in demo mode |
+
+**Case holder** (`/api/v1/kadi/cases/{case_id}/...`, case token)
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/clinical-reviews` | Request a statement. Needs case consent **and** `share_with_reviewer_consent: true`; freezes the evidence packet |
+| `GET` | `/clinical-reviews[?source_module=]` · `/clinical-reviews/{review_id}` | Status, evidence shared, published statements only |
+| `POST` | `/clinical-reviews/{review_id}/assign` | Assign a doctor (`reviewer_id`) |
+| `POST` | `/clinical-reviews/{review_id}/cancel` | Revoke sharing; reviewer access ends immediately |
+| `GET` | `/clinical-reviews/{review_id}/audit` | Audit trail (no clinical text) |
+| `GET` | `/clinical-context` | All human-review outputs + safety signals, each with provenance |
+| `GET` | `/safety-escalations` | Escalations from ACTIVE rules (not consent-gated) |
+| `GET`/`POST` | `/transcriptions` | List tasks / flag an extracted entity as possibly misread |
+| `POST` | `/transcriptions/{task_id}/assign` · `/cancel` | Assign a reader (`share_with_reviewer_consent` required) / cancel |
+
+**Reviewer** (`/api/v1/kadi`, reviewer credential; only assigned work is visible, otherwise `404`)
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/clinical-reviews/assigned` · `/clinical-reviews/{review_id}` | Queue; detail with COI context, own statements, confirmation sentences |
+| `POST` | `/clinical-reviews/{review_id}/accept` · `/decline` | Accept with mandatory `coi_category` (+ `coi_disclosure`) / decline |
+| `GET` | `/clinical-reviews/{review_id}/evidence` | Frozen evidence packet (`409` until COI declared) |
+| `POST`/`PUT` | `/clinical-reviews/{review_id}/statements[/{statement_id}]` | Create / edit own DRAFT |
+| `POST` | `.../statements/{statement_id}/submit` · `/return-to-draft` | Lock / unlock |
+| `POST` | `.../statements/{statement_id}/finalize` | `{"confirmation": true, "confirmation_text": "<exact sentence>"}` — `422` otherwise |
+| `POST` | `.../statements/{statement_id}/revise` · `/withdraw` | New version / retract (`reason`) |
+| `POST` | `/clinical-reviews/{review_id}/facts/{fact_id}/decision` | `CONFIRMED` / `REJECTED` / `CANNOT_DETERMINE` + confirmation; immutable |
+| `GET` | `/transcriptions/assigned` · `/transcriptions/{task_id}` | Blind task view (HIGH-risk hides the OCR guess) |
+| `POST` | `/transcriptions/{task_id}/readings` | One independent reading per reader |
+
+**Safety governance** (`/api/v1/kadi`)
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| `GET` | `/safety-rules[?status=ACTIVE\|SUPERSEDED\|RETIRED\|ALL_PUBLIC]` · `/{rule_id}` · `/{rule_id}/versions` · `/{rule_id}/audit` | none | Published rules, history, audit |
+| `GET` | `/safety-rules/workspace` | board | All rules incl. drafts |
+| `POST`/`PUT` | `/safety-rules` · `/{rule_id}` | board | Propose / edit own DRAFT (source, version, section, limitations, review date required) |
+| `POST` | `/{rule_id}/submit` · `/decisions` · `/activate` · `/retire` · `/new-version` | board | Lifecycle; proposer cannot approve own rule; approvals bound to content hash |
+| `POST` | `/clinical-demo/seed` | governance + demo mode | Demo reviewers, institution, playbook, rules |
+
+**Module additions**
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/v1/billnyay/cases/{case_id}/clinical-plausibility` | Bounded plausibility check; `CLINICAL_REVIEW_REQUIRED` when indicated. Never a necessity determination |
+| `POST` | `/api/v1/billnyay/cases/{case_id}/appeal` | Now also returns `human_clinical_statement_attached`, `clinical_statements`, `clinical_annex`; the PDF includes the verbatim annex |
+| `POST` | `/api/v1/bimanyay/analyze` | Result now includes `clinical_review` (does the denial turn on clinical judgment?) |
+| `GET` | `/api/v1/bimanyay/cases/{case_id}/clinical-statements` | Finalized statements + verbatim `annex_text` for the appeal tiers |
+| `POST` | `/api/v1/daavisetu/institutions` | Register a hospital desk; credential shown once |
+| `GET`/`POST`/`PUT` | `/api/v1/daavisetu/playbooks[/{id}]` | Institution-private playbooks |
+| `POST` | `/api/v1/daavisetu/playbooks/{id}/activate` · `/new-version` · `/retire` | Playbook lifecycle (immutable once ACTIVE) |
+| `POST` | `/api/v1/daavisetu/cases/{case_id}/readiness` | Documentation checklist; optional `playbook_id` + institution credential |
+| `POST` | `/api/v1/daavisetu/cases/{case_id}/readiness/clinical-confirmations` | Route clinical-fact items to a doctor |
+| `GET` | `/api/v1/daavisetu/cases/{case_id}/claim/package` | ZIP now includes `preauth_readiness.txt` |
+| `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Skips unresolved uncertain readings; adds `name_provenance`, `transcription_status` |
+
 ## 3. Server-Sent Events (SSE) Streaming
 
 Clients listen to `GET /api/v1/kadi/cases/{case_id}/stream` during document processing.
@@ -228,6 +302,11 @@ Modules that read Kadi case context require the case to have been created with
 - `POST /api/v1/billnyay/cases/{case_id}/grievance`
 - `POST /api/v1/daavisetu/cases/{case_id}/claim`
 - `GET /api/v1/daavisetu/cases/{case_id}/claim/pdf`
+- ADR-011: `POST /api/v1/kadi/cases/{case_id}/clinical-reviews` (plus `share_with_reviewer_consent: true`),
+  `POST .../transcriptions/{task_id}/assign` (same flag), `GET /api/v1/billnyay/cases/{case_id}/clinical-plausibility`,
+  `GET /api/v1/bimanyay/cases/{case_id}/clinical-statements`, `POST /api/v1/daavisetu/cases/{case_id}/readiness`
+  and `.../readiness/clinical-confirmations`. Reviewer access to evidence is re-checked against the stored consent
+  on every request. `GET /api/v1/kadi/cases/{case_id}/safety-escalations` is deliberately **not** consent-gated.
 
 Without it these return **`403 Forbidden`**. Enforcement reads the persisted case row, so a
 client cannot grant itself access by sending `consent_opt_in` in the module request body. An

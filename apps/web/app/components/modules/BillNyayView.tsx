@@ -2,7 +2,29 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi, caseAuthHeaders } from "../../hooks/useApi";
+import { useApi, caseAuthHeaders, API_BASE } from "../../hooks/useApi";
+import { ClinicalStatement, EvidenceItem, SafetyEscalation, clinicalPaths } from "../../lib/clinical";
+import { ClinicalStatementCard, ProvenanceBadge } from "../clinical/Attribution";
+import { ClinicalReviewPanel } from "../clinical/ClinicalReviewPanel";
+
+// --- Clinical plausibility (ADR-011): bounded, never a necessity determination ---
+interface PlausibilityResponse {
+  case_id: string;
+  assessment: {
+    status: "PLAUSIBLE" | "INSUFFICIENT_INFORMATION" | "POTENTIAL_INCONSISTENCY" | "CLINICAL_REVIEW_RECOMMENDED";
+    summary: string;
+    disclaimer: string;
+    clinical_review_required: boolean;
+    review_reasons: string[];
+    evidence_used: EvidenceItem[];
+    references: { name: string; type: string; version: string; icd10_code: string; diagnosis_label: string }[];
+    guideline_citations: unknown[];
+    guideline_note: string;
+    method: string;
+  };
+  safety_escalations: SafetyEscalation[];
+  clinical_review: { required: boolean; status: string; human_statement_exists: boolean };
+}
 
 // --- API Response Types (matching backend AuditResponse schema) ---
 type AuditItemStatus =
@@ -35,6 +57,25 @@ interface AuditResponse {
   audit_items: AuditResultItem[];
 }
 
+// --- Appeal Response Types (matching backend AppealResponse schema, #18/#66) ---
+interface AppealResponse {
+  case_id: string;
+  appeal_letter: string;
+  scorecard: { overall_score: number; status: string; confidence_estimate: number };
+  status: string;
+  denial_facts_extracted: boolean;
+  llm_backed: boolean;
+  consensus: { final_verdict: string; weighted_score: number; is_unanimous: boolean };
+  revision_count: number;
+  document_sha256: string;
+  pdf_download_url: string;
+  language: string;
+  // ADR-011: attributed human statements, appended verbatim — never LLM-written.
+  human_clinical_statement_attached: boolean;
+  clinical_statements: ClinicalStatement[];
+  clinical_annex: string;
+}
+
 interface BillNyayViewProps {
   currentLang: Language;
   caseId?: string;
@@ -44,7 +85,18 @@ interface BillNyayViewProps {
 export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.billnyay;
   const api = useApi<AuditResponse>();
+  const appealApi = useApi<AppealResponse>();
+  const plausibilityApi = useApi<PlausibilityResponse>();
   const [hasRun, setHasRun] = useState(false);
+
+  const handleCheckPlausibility = async () => {
+    if (!caseId) return;
+    await plausibilityApi.execute(clinicalPaths.plausibility(caseId), {
+      method: "GET",
+      headers: caseAuthHeaders(caseToken),
+    });
+  };
+  const [appealDownloadError, setAppealDownloadError] = useState<string | null>(null);
 
   const handleRunAudit = async () => {
     if (!caseId) return;
@@ -54,7 +106,44 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
     });
   };
 
+  // Runs the 5-agent appeal pipeline (#18) — does not require a prior audit call,
+  // since it reads the case's document text directly.
+  const handleDraftAppeal = async () => {
+    if (!caseId) return;
+    await appealApi.execute(`/api/v1/billnyay/cases/${caseId}/appeal?language=${currentLang}`, {
+      headers: caseAuthHeaders(caseToken),
+    });
+  };
+
+  // Downloads the exact signed PDF the appeal drafted (#66) — served from stored
+  // bytes, never regenerated, so it always matches what was hashed and signed.
+  const handleDownloadAppealPdf = async () => {
+    if (!caseId) return;
+    setAppealDownloadError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/billnyay/cases/${caseId}/appeal/pdf`, {
+        headers: caseAuthHeaders(caseToken),
+      });
+      if (!res.ok) {
+        setAppealDownloadError(`Could not download the appeal PDF (HTTP ${res.status}).`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `appeal_${caseId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      setAppealDownloadError("Could not download the appeal PDF. Is the backend reachable?");
+    }
+  };
+
   const auditData = api.data;
+  const appealData = appealApi.data;
   const showExample = !hasRun && !caseId;
 
   // Example data shown only when no case is active, clearly labeled
@@ -72,13 +161,13 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
         <p>{t.desc}</p>
       </div>
 
-      {/* Action Button */}
+      {/* Action Buttons */}
       {caseId && (
-        <div style={{ marginBottom: "1.5rem" }}>
+        <div style={{ marginBottom: "1.5rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <button
             type="button"
             className="btn btn-primary"
-            style={{ width: "100%" }}
+            style={{ flex: 1, minWidth: "220px" }}
             onClick={handleRunAudit}
             disabled={api.loading}
           >
@@ -91,7 +180,87 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               <>⚖️ Run CGHS Benchmark Audit</>
             )}
           </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ flex: 1, minWidth: "220px" }}
+            onClick={handleDraftAppeal}
+            disabled={appealApi.loading}
+          >
+            {appealApi.loading ? (
+              <>
+                <span className="step-indicator active" style={{ display: "inline-block", marginRight: "0.25rem" }} />
+                Running 5-agent appeal pipeline...
+              </>
+            ) : (
+              <>📝 Draft IRDAI Appeal Letter</>
+            )}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            style={{ flex: 1, minWidth: "220px", border: "1px solid var(--border-medium)" }}
+            onClick={handleCheckPlausibility}
+            disabled={plausibilityApi.loading}
+          >
+            🩺 Check clinical plausibility
+          </button>
         </div>
+      )}
+
+      {/* Clinical plausibility (ADR-011) — machine-derived, bounded, not a necessity verdict */}
+      {plausibilityApi.error && (
+        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          ⚠️ {plausibilityApi.error}
+        </div>
+      )}
+      {plausibilityApi.data && (
+        <div
+          style={{
+            padding: "1rem 1.25rem",
+            marginBottom: "1.5rem",
+            border: "1px solid var(--border-medium)",
+            borderRadius: "var(--radius-md)",
+          }}
+        >
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+            <h3 style={{ margin: 0 }}>Clinical plausibility check</h3>
+            <ProvenanceBadge provenance="AI_DERIVED" />
+            <span
+              className={`badge ${
+                plausibilityApi.data.assessment.status === "PLAUSIBLE"
+                  ? "badge-success"
+                  : plausibilityApi.data.assessment.status === "POTENTIAL_INCONSISTENCY"
+                  ? "badge-danger"
+                  : "badge-warning"
+              }`}
+            >
+              {plausibilityApi.data.assessment.status.replaceAll("_", " ")}
+            </span>
+            {plausibilityApi.data.clinical_review.required && <span className="badge badge-warning">CLINICAL REVIEW REQUIRED</span>}
+          </div>
+          <p style={{ fontSize: "0.9rem" }}>{plausibilityApi.data.assessment.summary}</p>
+          <p style={{ fontSize: "0.8rem" }}>
+            Evidence used:{" "}
+            {plausibilityApi.data.assessment.evidence_used.map((e) => `${e.kind}: ${e.value}`).join("; ") || "none"}
+          </p>
+          {plausibilityApi.data.assessment.references.map((r) => (
+            <p key={r.icd10_code} style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+              Reference: {r.name} ({r.type}, {r.version}) — {r.icd10_code} {r.diagnosis_label}
+            </p>
+          ))}
+          <p style={{ fontSize: "0.75rem", opacity: 0.85 }}>{plausibilityApi.data.assessment.guideline_note}</p>
+          <p style={{ fontSize: "0.75rem", fontWeight: 600 }}>{plausibilityApi.data.assessment.disclaimer}</p>
+        </div>
+      )}
+      {caseId && (
+        <ClinicalReviewPanel
+          caseId={caseId}
+          caseToken={caseToken}
+          sourceModule="billnyay"
+          trigger={plausibilityApi.data?.clinical_review.required ? "PLAUSIBILITY_FLAG" : "MANUAL"}
+          recommendationReason={plausibilityApi.data?.assessment.review_reasons.join(" ") || null}
+        />
       )}
 
       {/* No Case Active Prompt */}
@@ -126,6 +295,117 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
           }}
         >
           ⚠️ {api.error}
+        </div>
+      )}
+
+      {appealApi.error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            background: "rgba(239, 68, 68, 0.15)",
+            border: "1px solid var(--status-danger)",
+            borderRadius: "var(--radius-md)",
+            color: "#fca5a5",
+            fontSize: "0.9rem",
+          }}
+        >
+          ⚠️ {appealApi.error}
+        </div>
+      )}
+
+      {/* Appeal Letter (5-agent pipeline, #18/#66) */}
+      {appealData && (
+        <div
+          style={{
+            background: "var(--bg-base)",
+            padding: "1.25rem",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border-subtle)",
+            marginBottom: "1.5rem",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+            <h3>📝 Appeal Letter Drafted</h3>
+            <span className={`badge ${appealData.status === "approve" ? "badge-success" : "badge-warning"}`}>
+              {appealData.status === "approve" ? "✓ Judge-Approved Draft" : "ⓘ Flagged for Revision"}
+            </span>
+          </div>
+
+          {!appealData.llm_backed && (
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                marginBottom: "1rem",
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                borderRadius: "var(--radius-md)",
+                fontSize: "0.85rem",
+                color: "var(--status-warning)",
+              }}
+            >
+              ⓘ Offline template: no AI backend is configured, so this is a static statutory draft, not a
+              case-specific analysis. Review carefully before sending.
+            </div>
+          )}
+          {!appealData.denial_facts_extracted && (
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                marginBottom: "1rem",
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                borderRadius: "var(--radius-md)",
+                fontSize: "0.85rem",
+                color: "var(--status-warning)",
+              }}
+            >
+              ⓘ Denial details could not be extracted from your document. Fill in the denial code, insurer
+              reason, and policy clause yourself before sending.
+            </div>
+          )}
+
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              fontFamily: "inherit",
+              fontSize: "0.875rem",
+              lineHeight: 1.6,
+              color: "var(--text-primary)",
+              marginBottom: "1.25rem",
+            }}
+          >
+            {appealData.appeal_letter}
+          </pre>
+
+          {/* ADR-011: the human clinical annex is appended verbatim; when absent, say so. */}
+          <div style={{ marginBottom: "1.25rem" }}>
+            <h4 style={{ marginBottom: "0.5rem" }}>Attributed clinical statement</h4>
+            {appealData.human_clinical_statement_attached ? (
+              appealData.clinical_statements.map((s) => <ClinicalStatementCard key={s.statement_id} statement={s} />)
+            ) : (
+              <p style={{ fontSize: "0.85rem", color: "var(--status-warning)" }}>
+                No statement from a named clinician is attached. Any clinical reasoning in the letter above is general,
+                software-drafted reasoning — not a doctor&apos;s opinion. Use &ldquo;Request Clinical Review&rdquo; to get one.
+              </p>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => navigator.clipboard.writeText(`${appealData.appeal_letter}\n\n${appealData.clinical_annex}`)}
+            >
+              📋 Copy Appeal Letter
+            </button>
+            <button type="button" className="btn btn-primary" onClick={handleDownloadAppealPdf}>
+              📥 Download Signed Appeal PDF
+            </button>
+          </div>
+          {appealDownloadError && (
+            <p style={{ color: "#ef4444", fontSize: "0.85rem", marginTop: "0.5rem" }}>⚠️ {appealDownloadError}</p>
+          )}
         </div>
       )}
 

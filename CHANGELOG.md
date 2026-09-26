@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Human clinical review, safety governance and human OCR resolution layer (ADR-011, `docs/architecture/clinical-review.md`): attributable clinical statements with mandatory conflict-of-interest disclosure and honest verification status; institution-private DaaviSetu preauth readiness playbooks; bounded BillNyay clinical plausibility review; versioned, independently approved clinical safety escalation rules; blind two-reader transcription of uncertain OCR medication text; provenance classes (`AI_DERIVED`, `HUMAN_REVIEWED`, `HUMAN_AUTHORED`, `EXTERNAL_SOURCE`, `PATIENT_PROVIDED`); web reviewer workspace at `/clinical-review`; mobile patient-side cards.
+
+### Changed
+- BillNyay appeals now append finalized clinician statements verbatim (or state that none exists); the Barrister prompt forbids implying a clinician's opinion; the offline appeal template no longer asserts that physician records prove necessity.
+- Kadi OCR now returns EasyOCR per-segment confidence; low-confidence readings become human transcription tasks.
+- DawaCheck no longer benchmarks a medicine whose uncertain reading is unresolved.
+
+### Added (earlier)
 - Comprehensive repository-wide documentation overhaul, including structured `/docs` architecture, ADRs, and contributor manuals.
 - Scoped AI coding agent manuals (`AGENTS.md`, `apps/api/AGENTS.md`, `apps/web/AGENTS.md`, `packages/kadi/AGENTS.md`, `.github/AGENTS.md`).
 - Architectural specification for `BimaNyay` (insurance claim denial dispute analysis & IRDAI 3-tier grievance escalation engine).

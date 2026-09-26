@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column,
     String,
+    Date,
     DateTime,
     Float,
     Boolean,
@@ -313,5 +314,306 @@ class DaaviSetuClaim(Base):
     sum_insured = Column(Float, nullable=True)
 
     status = Column(String, default="ready_for_review")  # ready_for_review, completed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# =====================================================================================
+# Clinical review, safety governance and human OCR resolution (ADR-011).
+#
+# Global records (reviewers, safety rules, institutions, playbooks) outlive any one case.
+# Every case-scoped record carries case_id and is removed by app.clinical.purge when the
+# case is deleted or expires. Rules live in packages/kadi/kadi/clinical_review.
+# =====================================================================================
+
+
+class KadiClinicalReviewer(Base):
+    """A named human reviewer. No login system exists (ADR-008/009): the reviewer holds a
+    bearer credential shown once at registration; only its SHA-256 hash is stored."""
+
+    __tablename__ = "kadi_clinical_reviewers"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    designation = Column(String, nullable=True)
+    category = Column(String, nullable=False)  # ReviewerCategory
+    specialty = Column(String, nullable=True)
+    registration_number = Column(String, nullable=True)
+    registration_authority = Column(String, nullable=True)
+    # UNVERIFIED | SELF_DECLARED | DEMO_VERIFIED | EXTERNALLY_VERIFIED. Self-registration
+    # can never set more than SELF_DECLARED.
+    verification_status = Column(String, nullable=False)
+    verification_source = Column(String, nullable=True)
+    verification_timestamp = Column(DateTime, nullable=True)
+    affiliation = Column(String, nullable=True)
+    # Standing, case-independent disclosures (e.g. "empanelled with insurer X"). The
+    # case-specific conflict of interest is declared per review.
+    standing_disclosures = Column(String, nullable=True)
+    reviewer_notes = Column(String, nullable=True)
+    credential_hash = Column(String, nullable=False, unique=True, index=True)
+    is_safety_board_member = Column(Boolean, nullable=False, default=False)
+    is_demo = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KadiClinicalReview(Base):
+    """A consented request for human review of one case. The evidence packet is frozen at
+    request time and is the only case data the assigned reviewer can ever see."""
+
+    __tablename__ = "kadi_clinical_reviews"
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_module = Column(String, nullable=False)
+    review_type = Column(String, nullable=False)  # CLINICAL_STATEMENT | FACT_CONFIRMATION
+    status = Column(String, nullable=False)
+    clinical_question = Column(String, nullable=False)
+    trigger = Column(String, nullable=False, default="MANUAL")
+    trigger_ref = Column(String, nullable=True)
+    evidence_scope = Column(JSON, nullable=False)
+    evidence_packet = Column(JSON, nullable=False)
+    coi_context = Column(JSON, nullable=False)
+    insurer_name = Column(String, nullable=True)
+    consent_confirmed_at = Column(DateTime, nullable=False)
+    assigned_reviewer_id = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=True, index=True)
+    assigned_at = Column(DateTime, nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    coi_category = Column(String, nullable=True)
+    coi_disclosure = Column(String, nullable=True)
+    coi_declared_at = Column(DateTime, nullable=True)
+    decline_reason = Column(String, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KadiClinicalStatement(Base):
+    """A reviewer's own professional statement. Immutable once FINALIZED: changes create a
+    new version and the old one becomes SUPERSEDED. Stored provenance: HUMAN_AUTHORED."""
+
+    __tablename__ = "kadi_clinical_statements"
+
+    id = Column(String, primary_key=True, index=True)
+    review_id = Column(String, ForeignKey("kadi_clinical_reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_id = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=False, index=True)
+    statement_version = Column(Integer, nullable=False, default=1)
+    supersedes_statement_id = Column(String, nullable=True)
+    clinical_question = Column(String, nullable=False)
+    evidence_reviewed = Column(JSON, nullable=False)
+    reviewer_statement = Column(String, nullable=False)
+    limitations = Column(String, nullable=False)
+    coi_category = Column(String, nullable=False)
+    coi_disclosure = Column(String, nullable=True)
+    reviewer_snapshot = Column(JSON, nullable=True)  # frozen at finalization
+    status = Column(String, nullable=False)
+    confirmation_text = Column(String, nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
+    content_sha256 = Column(String, nullable=True)
+    withdrawn_reason = Column(String, nullable=True)
+    withdrawn_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    finalized_at = Column(DateTime, nullable=True)
+
+
+class KadiClinicalFactConfirmation(Base):
+    """One clinical fact a workflow depends on (e.g. a DaaviSetu readiness item), for a
+    reviewer to confirm, reject or mark as not determinable. Provenance: HUMAN_REVIEWED."""
+
+    __tablename__ = "kadi_clinical_fact_confirmations"
+
+    id = Column(String, primary_key=True, index=True)
+    review_id = Column(String, ForeignKey("kadi_clinical_reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    fact_key = Column(String, nullable=False)
+    fact_question = Column(String, nullable=False)
+    source = Column(String, nullable=False)  # daavisetu_readiness
+    playbook_ref = Column(String, nullable=True)
+    decision = Column(String, nullable=False, default="PENDING")
+    reviewer_id = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=True)
+    reviewer_note = Column(String, nullable=True)
+    reviewer_snapshot = Column(JSON, nullable=True)
+    coi_category = Column(String, nullable=True)
+    coi_disclosure = Column(String, nullable=True)
+    confirmation_text = Column(String, nullable=True)
+    decided_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KadiClinicalAuditEvent(Base):
+    """Append-only audit trail. `details` carries ids, statuses and counts only — never
+    statement text, evidence values or document content (app.clinical.audit enforces it).
+    case_id is null for global events (safety rules, reviewer registry)."""
+
+    __tablename__ = "kadi_clinical_audit_events"
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=True, index=True)
+    review_id = Column(String, nullable=True, index=True)
+    subject_type = Column(String, nullable=False)
+    subject_id = Column(String, nullable=False, index=True)
+    event_type = Column(String, nullable=False)
+    actor_type = Column(String, nullable=False)
+    actor_id = Column(String, nullable=True)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class KadiSafetyRule(Base):
+    """A versioned red-flag escalation rule adapted from a published protocol. Immutable
+    once APPROVED; ACTIVE only after independent approval by named board members."""
+
+    __tablename__ = "kadi_safety_rules"
+    __table_args__ = (UniqueConstraint("rule_key", "version", name="uq_kadi_safety_rule_version"),)
+
+    id = Column(String, primary_key=True, index=True)
+    rule_key = Column(String, nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    trigger = Column(JSON, nullable=False)
+    action = Column(JSON, nullable=False)
+    source_name = Column(String, nullable=False)
+    source_reference = Column(String, nullable=True)
+    source_version = Column(String, nullable=True)
+    source_section = Column(String, nullable=True)
+    limitations = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    proposed_by = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=False)
+    required_approvals = Column(Integer, nullable=False, default=1)
+    effective_date = Column(Date, nullable=True)
+    review_due_date = Column(Date, nullable=False)
+    changelog = Column(String, nullable=True)
+    supersedes_rule_id = Column(String, nullable=True)
+    submitted_content_sha256 = Column(String, nullable=True)
+    is_demo = Column(Boolean, nullable=False, default=False)
+    activated_at = Column(DateTime, nullable=True)
+    activated_by = Column(String, nullable=True)
+    retired_at = Column(DateTime, nullable=True)
+    retired_by = Column(String, nullable=True)
+    retired_reason = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KadiSafetyRuleApproval(Base):
+    """An attributable approve/reject decision on one exact submitted content hash —
+    editing a rule after approval invalidates earlier approvals."""
+
+    __tablename__ = "kadi_safety_rule_approvals"
+    __table_args__ = (
+        UniqueConstraint("rule_id", "reviewer_id", "content_sha256", name="uq_kadi_safety_rule_approval"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    rule_id = Column(String, ForeignKey("kadi_safety_rules.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_id = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=False)
+    decision = Column(String, nullable=False)  # APPROVE | REJECT
+    comment = Column(String, nullable=True)
+    content_sha256 = Column(String, nullable=False)
+    reviewer_snapshot = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KadiTranscriptionTask(Base):
+    """An uncertain OCR reading awaiting human transcription. Stores no image (ADR-003):
+    only a redacted candidate, a redacted masked context line and a location hint."""
+
+    __tablename__ = "kadi_transcription_tasks"
+
+    id = Column(String, primary_key=True, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_id = Column(String, nullable=True, index=True)
+    source = Column(String, nullable=False)  # OCR_LOW_CONFIDENCE | CASE_HOLDER_FLAGGED
+    field_type = Column(String, nullable=False)
+    risk_level = Column(String, nullable=False)
+    required_reviews = Column(Integer, nullable=False)
+    ocr_candidate = Column(String, nullable=True)
+    ocr_confidence = Column(Float, nullable=True)
+    masked_context = Column(String, nullable=False)
+    location_hint = Column(JSON, nullable=True)
+    status = Column(String, nullable=False)
+    final_value = Column(String, nullable=True)
+    resolution_reason = Column(String, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    consent_confirmed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KadiTranscriptionAssignment(Base):
+    __tablename__ = "kadi_transcription_assignments"
+    __table_args__ = (UniqueConstraint("task_id", "reviewer_id", name="uq_kadi_transcription_assignment"),)
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(String, ForeignKey("kadi_transcription_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_id = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=False, index=True)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KadiTranscriptionSubmission(Base):
+    """One independent human reading. One per reviewer per task, enforced by the DB."""
+
+    __tablename__ = "kadi_transcription_submissions"
+    __table_args__ = (UniqueConstraint("task_id", "reviewer_id", name="uq_kadi_transcription_submission"),)
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(String, ForeignKey("kadi_transcription_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_id = Column(String, ForeignKey("kadi_clinical_reviewers.id"), nullable=False)
+    value = Column(String, nullable=True)
+    unreadable = Column(Boolean, nullable=False, default=False)
+    reviewer_confidence = Column(String, nullable=False)
+    notes = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DaaviSetuInstitution(Base):
+    """A hospital insurance desk that keeps private, internal preauth guidance. Holds a
+    bearer credential (hash only); its playbooks are invisible to every other institution."""
+
+    __tablename__ = "daavisetu_institutions"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    credential_hash = Column(String, nullable=False, unique=True, index=True)
+    is_demo = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DaaviSetuPlaybook(Base):
+    """Institution-internal documentation guidance for one insurer + procedure category.
+    Lists documentation commonly requested; never asserts case facts or approval effects.
+    Immutable once ACTIVE: changes create a new version."""
+
+    __tablename__ = "daavisetu_playbooks"
+    __table_args__ = (
+        UniqueConstraint("institution_id", "playbook_key", "version", name="uq_daavisetu_playbook_version"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    institution_id = Column(String, ForeignKey("daavisetu_institutions.id"), nullable=False, index=True)
+    playbook_key = Column(String, nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    title = Column(String, nullable=False)
+    insurer = Column(String, nullable=False)
+    policy_product = Column(String, nullable=True)
+    procedure_category = Column(String, nullable=False)
+    items = Column(JSON, nullable=False)
+    commonly_requested_evidence = Column(JSON, nullable=False)
+    internal_notes = Column(String, nullable=True)
+    source_provenance = Column(String, nullable=False)
+    owner = Column(String, nullable=False)
+    effective_date = Column(Date, nullable=False)
+    review_due_date = Column(Date, nullable=False)
+    status = Column(String, nullable=False)  # DRAFT | ACTIVE | SUPERSEDED | RETIRED
+    supersedes_playbook_id = Column(String, nullable=True)
+    activated_at = Column(DateTime, nullable=True)
+    retired_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

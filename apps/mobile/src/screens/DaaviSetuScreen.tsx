@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Linking, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, ResolutionReviewCard } from '../components';
+import { Card, Button, Badge, ResolutionReviewCard, ReadinessCard } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
@@ -115,6 +115,56 @@ export const DaaviSetuScreen: React.FC = () => {
     } catch (e) {
       console.warn('Cannot open PDF URL:', e);
     }
+  };
+
+  // Downloads the full claim package ZIP (#81): pre-auth PDF + redacted case-summary
+  // excerpt + a manifest disclosing what is and is not included. Same query-token
+  // pattern as the PDF download above — Linking.openURL cannot attach a custom header.
+  const handleDownloadPackage = async () => {
+    if (!caseId) return;
+    const token = getCaseAccessToken(caseId);
+    if (!token) {
+      setError('Missing this case\'s access token — cannot download the package. Re-open the case from a fresh scan.');
+      return;
+    }
+    const zipUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/package?access_token=${encodeURIComponent(token)}`;
+    try {
+      const supported = await Linking.canOpenURL(zipUrl);
+      if (supported) {
+        await Linking.openURL(zipUrl);
+      }
+    } catch (e) {
+      console.warn('Cannot open claim package URL:', e);
+    }
+  };
+
+  // SEC-03: same pattern as BillNyayScreen's handleDeleteCase — the server also
+  // purges a case automatically once its retention deadline passes, but this lets
+  // the patient ask for real erasure (DELETE /cases/{id}, P1-10) right now.
+  const handleDeleteCase = () => {
+    if (!caseId) return;
+    Alert.alert(
+      t.common.deleteCaseConfirmTitle,
+      t.common.deleteCaseConfirmBody,
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.common.delete,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.kadi.deleteCase(caseId);
+              setCaseId(null);
+              setResult(null);
+              setError(null);
+            } catch (err) {
+              const apiErr = err as ApiError;
+              setError(apiErr.message || 'Failed to delete this case.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -228,10 +278,15 @@ export const DaaviSetuScreen: React.FC = () => {
           </View>
 
           {caseId && (
-            <View style={{ marginTop: spacing.sm }}>
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               <Button
                 title={m.downloadPdf}
                 onPress={handleDownloadPdf}
+                variant="outline"
+              />
+              <Button
+                title={m.downloadPackage}
+                onPress={handleDownloadPackage}
                 variant="outline"
               />
             </View>
@@ -239,7 +294,19 @@ export const DaaviSetuScreen: React.FC = () => {
         </Card>
       )}
 
+      {caseId && (
+        <View style={{ alignItems: 'flex-end', marginBottom: spacing.md }}>
+          <Button
+            title={t.common.deleteCaseBtn}
+            onPress={handleDeleteCase}
+            variant="outline"
+            size="sm"
+          />
+        </View>
+      )}
+
       <ResolutionReviewCard caseId={caseId} />
+      <ReadinessCard caseId={caseId} />
     </ScrollView>
   );
 };

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi } from "../../hooks/useApi";
+import { TranscriptionPanel } from "../clinical/TranscriptionPanel";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
 interface MedicineBenchmarkResponse {
@@ -35,9 +36,11 @@ interface PrescriptionTranslationResponse {
 
 interface DawaCheckViewProps {
   currentLang: Language;
+  caseId?: string;
+  caseToken?: string;
 }
 
-export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => {
+export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.dawacheck;
   const api = useApi<MedicineBenchmarkResponse>();
   // The MRP drives an "overcharged" verdict, so it must be the price the user actually
@@ -89,6 +92,9 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang }) => 
         <h2>{t.title}</h2>
         <p>{t.desc}</p>
       </div>
+
+      {/* ADR-011: uncertain prescription readings go to human readers, never silently into a medication fact */}
+      {caseId && <TranscriptionPanel caseId={caseId} caseToken={caseToken} />}
 
       {/* Search Form */}
       <div

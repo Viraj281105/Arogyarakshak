@@ -7,7 +7,7 @@ extracting text, line items, amounts, and raw evidence chunks.
 
 import logging
 import threading
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from kadi.line_items import parse_line_items
 
@@ -86,10 +86,15 @@ def _result(
     filename: str,
     extraction_ok: bool,
     extraction_error: Optional[str] = None,
+    ocr_segments: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Builds the parser result, deriving line items only from real extracted text."""
     cleaned = (text or "").strip()
     return {
+        # Per-segment OCR readings with the engine's own confidence (images only; text
+        # and PDF text layers have no recognition uncertainty). Used to route
+        # low-confidence readings to human transcription instead of trusting them.
+        "ocr_segments": ocr_segments or [],
         "full_text_content": cleaned,
         # Line-item parsing lives in kadi.line_items so this parser and the heuristic
         # extraction fallback cannot produce conflicting rows for the same source line.
@@ -139,6 +144,15 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
                 return _result("", filename, False, "The image could not be decoded.")
             results = reader.readtext(img)
             text = "\n".join([res[1] for res in results])
+            segments = [
+                {
+                    "text": res[1],
+                    "confidence": float(res[2]),
+                    "bbox": [[float(x), float(y)] for x, y in res[0]],
+                }
+                for res in results
+                if len(res) >= 3
+            ]
         except Exception as e:
             logger.warning("EasyOCR image parsing failed for %s: %s", filename, e)
             return _result("", filename, False, "Optical character recognition failed.")
@@ -146,7 +160,7 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
             return _result(
                 "", filename, False, "No text could be recognised in the image."
             )
-        return _result(text, filename, True)
+        return _result(text, filename, True, ocr_segments=segments)
 
     try:
         import fitz  # PyMuPDF

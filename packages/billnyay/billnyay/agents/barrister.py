@@ -96,7 +96,14 @@ def run_barrister_agent(
         "You are the Barrister Agent in BillNyay — a legal counsel specializing in Indian health insurance appeals and bill audit disputes.\n"
         "Your task is to produce a formal, legally structured, IRDAI-compliant insurance appeal letter.\n"
         "Write in formal legal prose. No placeholders. No bracketed instructions.\n"
-        "Do not add introductory or concluding conversational chat text. Output ONLY the letter text.\n\n"
+        "Do not add introductory or concluding conversational chat text. Output ONLY the letter text.\n"
+        # ADR-011: a named clinician's statement is attached separately and verbatim by
+        # deterministic code, never by this agent.
+        "CLINICAL AUTHORITY RULE: never state or imply that a named doctor, the treating "
+        "physician, or any clinician has reviewed this case, issued an opinion, or certified "
+        "medical necessity. Present clinical reasoning only as general reasoning. If a human "
+        "clinical statement exists, the system attaches it separately as a verbatim annexure — "
+        "do not write, summarise or paraphrase one.\n\n"
         # SEC-05: the claim/clinical fields below were extracted (by an earlier agent)
         # from an OCR'd document the patient uploaded — untrusted, patient-controlled
         # text, never a source of instructions for THIS agent either. Each such field is
