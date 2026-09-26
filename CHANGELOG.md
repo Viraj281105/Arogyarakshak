@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Safety-rule approvals are tied to a submission round.
 - Safety-check failures are shown explicitly. Mobile DaaviSetu now receives its scanned case; mobile screens wait for processing before reading it.
 
+### Fixed (second ADR-011 audit)
+- The per-document OCR task cap now counts linked tasks only; letterhead noise at the top of a page could previously use it up so the medicine lines were never flagged.
+- A whole uncertain OCR line naming a medicine (e.g. "Tab Augmntn 625mg 1-0-1") now links to that medicine; a leading "Tab."/"Cap." no longer prevents a human reading from being applied.
+- A human reading that cannot be placed into the extracted entry is recorded as `NOT_APPLIED`; DawaCheck no longer falls back to benchmarking the uncertain OCR text, and a later partial reading cannot clear that state (a whole-entry flag can).
+- A red flag found in a document's full text is no longer lost when the safety rule is re-versioned; it carries forward to the active version while that version still lists the term.
+- Plausibility coverage is PARTIAL (not FULL) when a diagnosis could not be assessed.
+- Reviewer-facing review responses no longer include the patient's case id.
+
 ### Changed
 - BillNyay appeals now append finalized clinician statements verbatim (or state that none exists); the Barrister prompt forbids implying a clinician's opinion; the offline appeal template no longer asserts that physician records prove necessity.
 - Kadi OCR now returns EasyOCR per-segment confidence; low-confidence readings become human transcription tasks.

@@ -87,6 +87,21 @@ This document catalogs known failure modes, error messages, and verified solutio
 - **Remedy**: set it to a long random value (and `CLINICAL_DEMO_MODE=true` only for local
   demos), restart the API, and send it as `X-Governance-Admin-Key`.
 
+### DawaCheck shows a medicine as "not benchmarked" after transcription resolved
+- **Cause**: two readers agreed, but their reading could not be placed into the extracted
+  entry (typically the task was a whole uncertain line). The entity records
+  `human_transcription.status = "NOT_APPLIED"` and is deliberately kept unsettled (ADR-011).
+- **Remedy**: confirm the medicine with the dispensing pharmacist, then have the case holder
+  flag the whole entry (`POST .../transcriptions`, `field_type: MEDICINE_NAME`) so two readers
+  read it in full; a later partial reading will not clear the state. Do not "fix" this by
+  falling back to the OCR name; that is the defect this state prevents.
+
+### A safety escalation disappears after a rule is re-versioned
+- **Cause**: full-text scan results carry forward to the new ACTIVE version only for terms
+  it still lists. If the board removed the term, the escalation is correctly dropped.
+- **Remedy**: check the new version's `trigger.match_any`; terms added later are checked
+  only against entities and the 1,000-character excerpt of earlier uploads.
+
 ---
 
 ## 5. Frontend & Next.js Issues

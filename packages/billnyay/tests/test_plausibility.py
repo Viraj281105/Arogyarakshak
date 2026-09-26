@@ -117,3 +117,13 @@ def test_plausible_discloses_unassessed_billed_items():
 def test_full_coverage_when_everything_clinical_was_checked():
     a = assess_clinical_plausibility([dx("K35 Acute appendicitis")], [proc("Appendectomy"), proc("Room Rent")])
     assert a.coverage == "FULL" and a.not_assessed_items == []
+
+
+def test_unassessable_diagnosis_makes_coverage_partial():
+    result = assess_clinical_plausibility(
+        [dx("K35.8 Acute appendicitis", "E1"), dx("Z99.9 Unlisted condition", "E2")],
+        [proc("Laparoscopic Appendectomy")],
+    )
+    assert result.status == "PLAUSIBLE"
+    assert result.coverage == "PARTIAL", "a diagnosis the reference cannot assess must not be hidden behind FULL"
+    assert any("Z99.9" in item for item in result.not_assessed_items)

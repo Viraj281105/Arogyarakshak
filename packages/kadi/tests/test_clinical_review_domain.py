@@ -374,3 +374,36 @@ def test_full_text_scan_returns_only_rule_ids_and_terms():
     text = "x" * 3000 + " patient had slurred speech. Name: Asha Rao"
     result = scan_full_text([_rule()], text)
     assert result == [{"rule_id": "SR-1", "rule_version": 1, "matched_terms": ["slurred speech"]}]
+
+
+# --- Second audit: linking/substitution false negatives, re-versioned rules ---------
+
+def test_cap_is_not_applied_during_selection():
+    segs = [OcrSegment(f"Wellness Clinic Branch {i}", 0.3) for i in range(15)] + [OcrSegment("Augmntn", 0.3)]
+    assert "Augmntn" in [t["ocr_candidate"] for t in select_uncertain_segments(segs)]
+
+
+def test_whole_uncertain_line_links_to_the_medicine_it_names():
+    assert link_candidate_to_entity("Tab Augmntn 625mg 1-0-1", [("E1", "Augmntn")]) == "E1"
+    assert link_candidate_to_entity("Pan 40 mg OD", [("E1", "Pan 40"), ("E2", "Pan-D")]) is None, "ambiguous"
+    assert link_candidate_to_entity("City Care Clinic", [("E1", "Augmntn")]) is None
+
+
+def test_leading_dosage_form_marker_does_not_block_substitution():
+    assert substitute_reading("Pantop 40", "Tab. Pantop", "Tab. Pantoprazole") == "Pantoprazole 40"
+    assert substitute_reading("Augmntn", "Tab Augmntn 625mg 1-0-1", "Augmentin") is None, "cannot place a whole line"
+
+
+def test_superseded_rule_terms_carry_forward_only_when_still_listed():
+    from kadi.clinical_review.safety import carried_forward_terms
+
+    v2 = _rule(trigger={"match_any": ["Slurred  Speech", "facial droop"], "context_types": ["document_text"]})
+    assert carried_forward_terms(v2, ["slurred speech"]) == ["slurred speech"]
+    assert carried_forward_terms(_rule(trigger={"match_any": ["facial droop"], "context_types": ["document_text"]}),
+                                 ["slurred speech"]) == []
+    assert carried_forward_terms(_rule(trigger={"match_any": ["slurred speech"], "context_types": ["diagnosis"]}),
+                                 ["slurred speech"]) == [], "a successor that no longer scans document text"
+
+
+def test_a_marker_only_reading_never_replaces_the_drug_name():
+    assert substitute_reading("Pantop 40", "Tab. Pantop", "Tab.") is None

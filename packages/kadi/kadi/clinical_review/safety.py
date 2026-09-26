@@ -210,6 +210,22 @@ def escalation_for(rule: ActiveRule, matched_terms: Sequence[str], today: Option
     }
 
 
+def carried_forward_terms(successor: ActiveRule, stored_terms: Sequence[str]) -> List[str]:
+    """Terms an earlier version of a rule matched in a document's full text that the
+    ACTIVE successor version still triggers on (over document text).
+
+    A new version gets a new rule id; without this, a red flag found beyond the stored
+    excerpt would silently disappear the moment the rule was re-versioned. Only terms
+    the successor still lists carry forward — a term the board removed does not."""
+    if "document_text" not in (successor.trigger.get("context_types") or []):
+        return []
+    def key(term: str) -> str:
+        return " ".join((term or "").split()).casefold()
+
+    current = {key(t) for t in successor.trigger.get("match_any", [])}
+    return [t for t in stored_terms if key(t) in current]
+
+
 def scan_full_text(rules: Sequence[ActiveRule], full_text: str, today: Optional[date] = None) -> List[Dict[str, Any]]:
     """Runs ACTIVE rules over a whole document while it is still in transient memory.
 

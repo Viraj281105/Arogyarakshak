@@ -20,6 +20,7 @@ from kadi.clinical_review import ActorType, AuditEventType, ProvenanceClass
 from kadi.clinical_review.transcription import (
     MASK,
     OPEN_TASK_STATES,
+    MAX_TASKS_PER_DOCUMENT,
     FieldType,
     ReaderConfidence,
     Reading,
@@ -28,6 +29,7 @@ from kadi.clinical_review.transcription import (
     clean_reading,
     evaluate_consensus,
     link_candidate_to_entity,
+    normalize_reading,
     required_reviews_for,
     risk_for_field,
     substitute_reading,
@@ -92,6 +94,9 @@ async def create_tasks_from_ocr(
         entity_id = link_candidate_to_entity(p.get("ocr_candidate") or "", named)
         if entity_id is None:
             continue
+        # The cap counts linked tasks only, so unlinkable noise cannot starve a medicine.
+        if len(tasks) >= MAX_TASKS_PER_DOCUMENT:
+            break
         task = KadiTranscriptionTask(
             id=_new_id("TR"),
             case_id=case_id,
@@ -272,11 +277,32 @@ async def reviewer_task_view(db: AsyncSession, reviewer: KadiClinicalReviewer, t
 
 def _entity_meta_update(entity: KadiEntity, task: KadiTranscriptionTask, reader_roles: List[str]) -> bool:
     """Records the human reading on the entity by substituting only the uncertain part of
-    its name. Returns False (entity untouched) when that cannot be done safely."""
+    its name. Returns False when that cannot be done safely: the entity name is left as
+    extracted, but the agreed reading is recorded as NOT_APPLIED so consumers keep
+    treating the entry as unsettled rather than falling back to the uncertain OCR text."""
     meta = dict(entity.meta) if isinstance(entity.meta, dict) else {}
-    base_name = (meta.get("human_transcription") or {}).get("value") or entity.name
+    previous = meta.get("human_transcription") or {}
+    # An unplaced agreed reading stays on record until a reading of the WHOLE entry (a
+    # case-holder flag) settles it; a later partial reading must not erase it and mark
+    # the entry settled while that reading may still contradict it.
+    whole_entry = normalize_reading(task.ocr_candidate or "") == normalize_reading(entity.name or "")
+    if previous.get("status") == "NOT_APPLIED" and not whole_entry:
+        return False
+    base_name = (previous.get("value") if previous.get("status") == "RESOLVED" else None) or entity.name
     resolved_name = substitute_reading(base_name or "", task.ocr_candidate or "", task.final_value or "")
     if resolved_name is None:
+        meta["human_transcription"] = {
+            "task_id": task.id,
+            "field_type": task.field_type,
+            "status": "NOT_APPLIED",
+            "replaced_reading": task.ocr_candidate,
+            "human_reading": task.final_value,
+            "provenance": ProvenanceClass.HUMAN_REVIEWED.value,
+            "independent_readings": task.required_reviews,
+            "reader_roles": reader_roles,
+            "resolved_at": task.resolved_at.isoformat() if task.resolved_at else None,
+        }
+        entity.meta = meta
         return False
     meta["human_transcription"] = {
         "task_id": task.id,
@@ -351,8 +377,9 @@ async def submit_reading(
                 applied = _entity_meta_update(entity, task, roles)
         if task.entity_id and not applied:
             task.resolution_reason = (
-                f"{result.reason} The reading could not be matched to the extracted entry, so the "
-                "entry was left unchanged — confirm it with the dispensing pharmacist."
+                f"{result.reason} The reading was not applied: it could not be matched to the extracted "
+                "entry, or another agreed reading of this entry is still unplaced. The entry is NOT treated "
+                "as settled (it will not be price-benchmarked) — confirm it with the dispensing pharmacist."
             )
         _audit(db, task, AuditEventType.TRANSCRIPTION_CONFIRMED, ActorType.SYSTEM.value,
                details={"independent_readings": len({r.reviewer_id for r in readings}), "applied_to_entity": applied})

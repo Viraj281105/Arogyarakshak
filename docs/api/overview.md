@@ -244,7 +244,7 @@ header-only and shown once at registration.
 | `POST` | `/api/v1/daavisetu/cases/{case_id}/readiness` | Documentation checklist; optional `playbook_id` + institution credential |
 | `POST` | `/api/v1/daavisetu/cases/{case_id}/readiness/clinical-confirmations` | Route clinical-fact items to a doctor |
 | `GET` | `/api/v1/daavisetu/cases/{case_id}/claim/package` | ZIP now includes `preauth_readiness.txt` |
-| `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Skips unresolved uncertain readings; adds `name_provenance`, `transcription_status` |
+| `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Skips unresolved uncertain readings, and readings human readers agreed on that could not be matched into the entry (`transcription_status: NOT_APPLIED`); adds `name_provenance`, `transcription_status` |
 
 ## 3. Server-Sent Events (SSE) Streaming
 

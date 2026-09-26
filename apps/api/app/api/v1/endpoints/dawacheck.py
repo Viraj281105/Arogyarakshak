@@ -213,6 +213,23 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         name_provenance = "AI_DERIVED"
         brand_name = entity.name
         transcription = meta.get("human_transcription")
+        # Readers agreed on a reading that could not be matched into the extracted entry:
+        # neither the OCR text nor the reading is a settled medication fact.
+        if isinstance(transcription, dict) and transcription.get("status") == "NOT_APPLIED":
+            results.append(
+                CaseMedicineBenchmark(
+                    entity_id=entity.id,
+                    brand_name=entity.name,
+                    note=(
+                        f"Independent human readers read this entry as '{transcription.get('human_reading')}', "
+                        "which could not be matched to the extracted text. It has not been benchmarked — "
+                        "confirm the medicine with the prescriber or dispensing pharmacist."
+                    ),
+                    transcription_task_id=transcription.get("task_id"),
+                    transcription_status="NOT_APPLIED",
+                )
+            )
+            continue
         if isinstance(transcription, dict) and transcription.get("status") == "RESOLVED" and transcription.get("value"):
             brand_name = str(transcription["value"])
             name_provenance = "HUMAN_REVIEWED"

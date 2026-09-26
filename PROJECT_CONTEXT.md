@@ -20,7 +20,7 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
-- **Latest (2026-09-23):** Human clinical review, safety governance and human OCR resolution layer added (ADR-011, `docs/architecture/clinical-review.md`). Audit fixes followed on 2026-09-26. Current totals: **853 backend passed / 6 skipped, 78 web, 92 mobile**, mobile type-check 0 errors, web lint 0, CI guardrails 8/8.
+- **Latest (2026-09-23):** Human clinical review, safety governance and human OCR resolution layer added (ADR-011, `docs/architecture/clinical-review.md`). Audit fixes followed on 2026-09-26; second-audit fixes on 2026-09-27 (uncommitted). Current totals: **866 backend passed / 6 skipped, 78 web, 92 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI guardrails 8/8. Mobile never run on a device/emulator.
 - **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
 - **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
 - **Active Blockers:** None for currently assigned work.
@@ -156,7 +156,7 @@ arogyarakshak/
 ## 8. Current Work
 
 ### Active Task (2026-09-23)
-Human clinical review + safety governance layer (ADR-011) — implemented, tested, browser-verified on web. Not committed.
+Human clinical review + safety governance layer (ADR-011) — implemented, tested, browser-verified on web. Committed in `3aae7af`, first audit fixes in `f99945e`; second forensic audit fixes (2026-09-27) are in the working tree, uncommitted.
 
 ### Objective
 Implement five hostile-review-redesigned doctor-integration concepts as one shared, Kadi-owned layer: attributable clinical statements (with COI, verification honesty, immutability), institution-private preauth readiness playbooks, bounded clinical plausibility review, versioned board-approved safety escalation rules, and blind human OCR transcription (not a doctor feature).
@@ -372,6 +372,15 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
+### 2026-09-27 — Second forensic audit of `f99945e` (fixes uncommitted)
+- **OCR cap starvation (P1)**: the 10-task cap was applied before linking, so >10 uncertain letterhead segments hid every medicine line; now `select_uncertain_segments` is uncapped and `create_tasks_from_ocr` caps linked tasks.
+- **Unapplied human reading (P1)**: a resolved reading that could not be placed left the entity untouched and the task RESOLVED, so DawaCheck benchmarked the uncertain OCR name as `AI_DERIVED`. Now recorded as `human_transcription.status = NOT_APPLIED`; DawaCheck does not benchmark it; evidence packets mark it unsettled; a later partial reading cannot clear it (only a whole-entry flag can). A leading "Tab."/"Cap." no longer blocks placement.
+- **Whole-line readings (P1)**: an uncertain line such as "Tab Augmntn 625mg 1-0-1" did not link to entity "Augmntn" (strength stored separately) and was dropped; linking is now whole-token in both directions, still exactly-one.
+- **Safety re-versioning (P1)**: full-text scan results are keyed by rule id; a new version (new id) silently dropped red flags found beyond the excerpt. They now carry forward to the ACTIVE version of the same `rule_key` for terms it still lists (`kadi.clinical_review.safety.carried_forward_terms`).
+- **Plausibility coverage (P2)**: `FULL` was reported while a diagnosis was outside the reference; such diagnoses are now `not_assessed_items` (PARTIAL).
+- **Reviewer case id (P2)**: reviewer-facing review responses no longer include `case_id` (`serializers.reviewer_review_summary`).
+- Verified correct as claimed: PDF re-render/re-sign on finalize/withdraw/supersede/cancel (atomic with the status change; a failed render rolls back), patient-only notice, admin-line exclusion, directory/demo lockout, approval rounds, web failure banner.
+
 ### 2026-09-26 — ADR-011 audit fixes (top issues)
 - **OCR tasks**: created only when an uncertain reading links (whole tokens) to exactly one extracted medicine; "Rx"/"Tab."/short tokens, prescriber/identity lines and non-clinical fields are skipped; context keeps only medication-looking neighbour lines; resolutions substitute only the uncertain token; partial-field flags refused; cap 10/document.
 - **Stale signed PDF**: `app/clinical/events.py` listener — finalize/withdraw/supersede/cancel re-renders and re-signs the stored BillNyay appeal PDF annex (older downloads then fail verify).
@@ -532,8 +541,13 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
-### Latest handoff (2026-09-23, ADR-011)
-- Everything is in the working tree, **uncommitted**, on top of pre-existing uncommitted #20 client wiring.
+### Latest handoff (2026-09-27, second ADR-011 audit)
+- ADR-011 is committed (`3aae7af`, `f99945e`). The second-audit fixes (see §17, 2026-09-27) are uncommitted in the working tree.
+- Invariant now enforced by tests, for uncertain readings that LINK to exactly one medicine (and are within the 10-task cap): the entry is not benchmarked until readers agree, and an agreed reading that cannot be placed stays `NOT_APPLIED` (not benchmarked) until a whole-entry flag settles it — a later partial reading cannot clear it. Readings that link to no medicine, to 2+ medicines, or beyond the cap are NOT covered (see residual gaps).
+- Known residual gaps (documented in `clinical-review.md` §10/§12, not fixed): readings that link to no medicine or to 2+ medicines, or linked readings beyond the 10-task cap, are dropped and the medicine is benchmarked as `AI_DERIVED` (e.g. LLM-rewritten names); task cards show a resolved `NOT_APPLIED` task as a green "Human-confirmed reading" without `resolution_reason` (the DawaCheck note explains it); one board member can retire an active safety rule alone; mobile screens can fetch once before the SSE stream starts and have no stream timeout.
+- Mobile has still never been run on a device or emulator (no Android SDK on the dev machine used for the audit).
+
+### Earlier handoff (2026-09-23, ADR-011)
 - Read `docs/architecture/clinical-review.md` §1 (who does what), §3 (credentials), §12 (limitations) before touching this layer.
 - Invariants tests enforce: no "Verified Doctor" wording; finalize needs the exact confirmation sentence; drafts never visible to case holders; audit details free of clinical text; case deletion leaves no case-scoped clinical rows; playbooks never cross institutions.
 - Gotcha: pytest collects `packages/*/tests` and `apps/api/tests` without `__init__.py`, so test module basenames must be unique (hence `test_clinical_review_domain.py` in Kadi).

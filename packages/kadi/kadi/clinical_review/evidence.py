@@ -91,6 +91,11 @@ def _display_value(entity: EntityRecord) -> str:
     transcription = meta.get("human_transcription") if isinstance(meta, dict) else None
     if isinstance(transcription, dict) and transcription.get("status") == "RESOLVED":
         return str(transcription.get("value") or entity.name)
+    if isinstance(transcription, dict) and transcription.get("status") == "NOT_APPLIED":
+        return (
+            f"{entity.name} (unsettled: human readers read '{transcription.get('human_reading')}', "
+            "which could not be matched to this extracted entry)"
+        )
     if entity.type in ("billing_item",):
         return f"{entity.name} — charged {entity.value}" if entity.value else entity.name
     if entity.type == "document_text":

@@ -17,6 +17,7 @@ from kadi.clinical_review import SAFETY_FLOOR_DISCLAIMER
 from kadi.clinical_review.evidence import EntityRecord
 from kadi.clinical_review.safety import (
     ActiveRule,
+    carried_forward_terms,
     escalation_for,
     evaluate_rules,
     scan_full_text,
@@ -81,9 +82,10 @@ async def load_active_rules(db: AsyncSession) -> List[ActiveRule]:
 
 SCAN_SCOPE_NOTE = (
     "Each uploaded document was checked in full against the rules active when it was "
-    "uploaded. Rules activated later are checked only against the extracted diagnoses, "
-    "procedures and medicines and the first 1,000 characters of each document (the "
-    "redacted excerpt ArogyaRakshak keeps)."
+    "uploaded (a term found then still counts under a newer version of the same rule that "
+    "still lists it). Rules or terms activated later are checked only against the extracted "
+    "diagnoses, procedures and medicines and the first 1,000 characters of each document "
+    "(the redacted excerpt ArogyaRakshak keeps)."
 )
 
 
@@ -114,19 +116,30 @@ async def evaluate_case_safety(
     rules = await load_active_rules(db)
     escalations = evaluate_rules(rules, safety_context(entities), today=date.today())
 
-    # Merge red flags found in the full text at upload time, for rules still ACTIVE.
+    # Merge red flags found in the full text at upload time, for rules still ACTIVE — or
+    # for the ACTIVE successor of a superseded version, when it still lists the term.
     by_rule = {e["rule_id"]: e for e in escalations}
     active = {r.rule_id: r for r in rules}
-    stored = await db.execute(select(KadiSafetyScanResult).where(KadiSafetyScanResult.case_id == case_id))
-    for scan in stored.scalars().all():
+    active_by_key = {r.rule_key: r for r in rules}
+    scans = (await db.execute(select(KadiSafetyScanResult).where(KadiSafetyScanResult.case_id == case_id))).scalars().all()
+    stale_ids = {s.rule_id for s in scans if s.rule_id not in active}
+    stale_keys: Dict[str, str] = {}
+    if stale_ids:
+        rows = await db.execute(select(KadiSafetyRule.id, KadiSafetyRule.rule_key).where(KadiSafetyRule.id.in_(stale_ids)))
+        stale_keys = {rid: key for rid, key in rows.all()}
+    for scan in scans:
         rule = active.get(scan.rule_id)
+        terms = list(scan.matched_terms or [])
         if rule is None:
-            continue
-        if scan.rule_id in by_rule:
-            merged = by_rule[scan.rule_id]["matched_terms"] + list(scan.matched_terms or [])
-            by_rule[scan.rule_id]["matched_terms"] = list(dict.fromkeys(merged))
+            rule = active_by_key.get(stale_keys.get(scan.rule_id, ""))
+            terms = carried_forward_terms(rule, terms) if rule is not None else []
+            if not terms:
+                continue
+        if rule.rule_id in by_rule:
+            merged = by_rule[rule.rule_id]["matched_terms"] + terms
+            by_rule[rule.rule_id]["matched_terms"] = list(dict.fromkeys(merged))
         else:
-            by_rule[scan.rule_id] = escalation_for(rule, scan.matched_terms or [], date.today())
+            by_rule[rule.rule_id] = escalation_for(rule, terms, date.today())
 
     return {
         "case_id": case_id,

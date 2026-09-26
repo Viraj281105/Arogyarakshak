@@ -231,6 +231,14 @@ def assess_clinical_plausibility(
     if status == "PLAUSIBLE" or (status == "CLINICAL_REVIEW_RECOMMENDED" and "consistent" in statuses):
         keywords = [k for r in references for k in r.expected_procedure_keywords]
         not_assessed_items = [p for p in procedure_names if not any(k in p.lower() for k in keywords)]
+    if statuses & {"consistent", "mismatched"}:
+        # A diagnosis the reference could not read or does not cover was not assessed
+        # either; "FULL" coverage must never hide it behind another diagnosis's result.
+        not_assessed_items += [
+            f"{d.value} (diagnosis not covered by the reference)"
+            for d, r in zip(diagnoses, results)
+            if r.status in ("code_not_found", "code_not_in_reference")
+        ]
     coverage = "PARTIAL" if not_assessed_items else ("NONE" if status == "INSUFFICIENT_INFORMATION" else "FULL")
 
     return PlausibilityAssessment(

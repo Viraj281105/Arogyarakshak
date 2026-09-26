@@ -101,6 +101,8 @@ Object-level checks on every request:
 - case-holder routes load reviews by `(case_id, review_id)` — an id from another case is 404;
 - reviewer routes require `assigned_reviewer_id == reviewer`, an accessible state, and the
   case still existing with consent — otherwise 404 (ids cannot be probed);
+- reviewer-facing review responses (queue, detail, accept) omit the `case_id`: a reviewer
+  reaches case data only through the review, never by the patient's case identifier;
 - statement routes additionally require `statement.reviewer_id == reviewer` — a reviewer
   cannot edit or finalize another reviewer's draft (403);
 - playbook routes filter by the caller's institution — another hospital's playbook is 404.
@@ -182,7 +184,10 @@ Bill lines that are administrative charges (room, bed, nursing, consultation, IC
 diet, pharmacy, …) are set aside as `excluded_administrative_items`, never treated as
 interventions. A PLAUSIBLE result lists every billed intervention the curated table does
 not cover as `not_assessed_items` (`coverage: PARTIAL`) and says in its summary that they
-were not assessed — so "appendectomy + MRI brain" is not presented as all-clear.
+were not assessed — so "appendectomy + MRI brain" is not presented as all-clear. A
+diagnosis whose code cannot be read or is outside the table is also listed there (and
+makes coverage PARTIAL) whenever another diagnosis was assessed, so one covered diagnosis
+never hides an unassessed one behind `FULL`.
 
 ## 8. Preauth readiness (DaaviSetu)
 
@@ -221,8 +226,12 @@ assessment of any kind."*
 **Coverage.** Every uploaded document is scanned **in full** against the rules active at
 upload time, while it is still in memory; only the rule id, version and matched terms are
 stored (`kadi_safety_scan_results`, erased with the case). Rules activated later see only
-the extracted entities and the 1,000-character excerpt. Results from rules that were since
-retired or superseded are ignored. The response's `scope_note` states this. If the check
+the extracted entities and the 1,000-character excerpt. A result recorded under a version
+that was since superseded carries forward to the ACTIVE version of the same `rule_key` for
+every stored term that version still lists (a new version has a new rule id; without this a
+red flag beyond the excerpt vanished on re-versioning). Terms the new version adds are not
+checked against the full text of earlier uploads. Results of retired rules, and terms the
+new version dropped, are ignored. The response's `scope_note` states this. If the check
 fails, web and mobile say so explicitly — a failure never renders like "no escalation".
 
 **Approval rounds.** The submitted content hash includes a submission round (counted from
@@ -236,17 +245,33 @@ rejected can decide again.
   `OCR_LOW_CONFIDENCE_THRESHOLD` becomes a task **only if** it (a) carries no direct
   identifier and is not a prescriber/identity line ("Dr.", degrees, registration no.),
   (b) is not a bare prescription marker ("Rx", "Tab.") or too short to settle, (c) is not a
-  non-clinical field (amount, date), and (d) links — every meaningful token, as a whole
-  token — to exactly **one** extracted medicine. Unlinked readings have no consumer and
-  are dropped instead of becoming work that goes nowhere. At most 10 per document.
+  non-clinical field (amount, date), and (d) links to exactly **one** extracted medicine by
+  whole tokens in either direction: every meaningful token of the reading is in the
+  medicine's name, or every meaningful token of the name is in the reading (a whole
+  uncertain line such as "Tab Augmntn 625mg 1-0-1"). At most 10 tasks per document,
+  counted **after** linking so letterhead noise cannot use up the cap; linked readings
+  beyond the 10th are dropped like unlinked ones.
+- Readings that link to no medicine, or to more than one, are dropped. Residual risk: such
+  a medicine is then benchmarked as an ordinary `AI_DERIVED` extraction — e.g. when the LLM
+  extraction rewrote the misread name ("Amoxycilin" → "Amoxicillin"), or an uncertain token
+  appears in two medicine names. The OCR uncertainty is not carried in those cases.
 - Context shows only neighbouring lines that look like part of a medication entry
   (redacted); letterheads, names and addresses are replaced by "…".
 - A task stores the redacted candidate, that masked context (`▢▢▢`) and a bounding box —
   **no image** (ADR-003). Readers read the original the patient holds, so today this works
   in person (e.g. at a pharmacy counter), not remotely.
 - A resolved reading replaces **only the uncertain token** inside the medicine's name
-  ("Tab Augmntn 625mg" → "Tab Augmentin 625mg"); if it cannot be placed unambiguously the
-  entry is left unchanged and the task says so. The reader categories are recorded.
+  ("Tab Augmntn 625mg" → "Tab Augmentin 625mg"; a leading "Tab."/"Cap." the extraction
+  dropped is ignored when placing it). If it cannot be placed unambiguously the name is left
+  as extracted but the agreed reading is recorded as `NOT_APPLIED`: DawaCheck does not
+  benchmark the entry (`transcription_status: NOT_APPLIED`, note shows the human reading)
+  and reviewer evidence marks it unsettled — the uncertain OCR text never becomes a fact by
+  default. A later reading of part of the same entry does not clear `NOT_APPLIED`; only a
+  case-holder flag of the whole entry, read by two readers, settles it. Web/mobile task
+  cards still show such a task as a resolved "Human-confirmed reading" (they do not render
+  `resolution_reason`); the DawaCheck result is where the unsettled state is explained.
+  A reading that is only a marker ("Tab.") is never substituted for a drug name. The
+  reader categories are recorded.
 - `MEDICINE_NAME`, `STRENGTH`, `FREQUENCY`, `ROUTE`, `DURATION` and `UNCLASSIFIED` are
   HIGH risk: two independent readings from different readers must agree (normalised for
   case/spacing/units). HIGH-risk readers never see the OCR guess or another reader's

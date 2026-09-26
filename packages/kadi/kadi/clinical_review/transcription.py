@@ -168,7 +168,7 @@ def _context_line(text: str) -> str:
 def select_uncertain_segments(
     segments: Sequence[OcrSegment],
     threshold: float = DEFAULT_LOW_CONFIDENCE_THRESHOLD,
-    limit: int = MAX_TASKS_PER_DOCUMENT,
+    limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """Low-confidence OCR segments that are worth a human reading, as task payloads.
 
@@ -177,7 +177,9 @@ def select_uncertain_segments(
     fields (amounts, dates) that nothing downstream consumes. Context keeps only
     medication-looking neighbour lines, redacted, with the uncertain token masked.
     Callers must still link a payload to an extracted entity before creating a task —
-    an unlinked reading has no consumer (see `link_candidate_to_entity`).
+    an unlinked reading has no consumer (see `link_candidate_to_entity`). No cap by
+    default: the per-document task cap belongs AFTER linking, otherwise unlinkable
+    letterhead noise at the top of a page would use it up before the medicine lines.
     """
     tasks: List[Dict[str, Any]] = []
     for index, seg in enumerate(segments):
@@ -218,7 +220,7 @@ def select_uncertain_segments(
                 "required_reviews": required_reviews_for(risk.value),
             }
         )
-        if len(tasks) >= limit:
+        if limit is not None and len(tasks) >= limit:
             break
     return tasks
 
@@ -233,9 +235,12 @@ def normalize_reading(value: str) -> str:
 
 
 def link_candidate_to_entity(candidate: str, entities: Sequence[Tuple[str, str]]) -> Optional[str]:
-    """The id of the single extracted entity whose name contains every meaningful token
-    of the uncertain reading as a whole token. Ambiguous (several matches) or no match
-    returns None: an unlinked reading has no downstream consumer, so no task is made.
+    """The id of the single extracted entity the uncertain reading is about, by whole
+    tokens in either direction: every meaningful token of the reading is in the entity
+    name ("Augmntn" -> "Tab Augmntn 625mg"), or every meaningful token of the entity name
+    is in the reading (a whole uncertain line "Tab Augmntn 625mg 1-0-1" -> entity
+    "Augmntn", whose strength extraction stored separately). Ambiguous (several
+    matches) or no match returns None: an unlinked reading has no downstream consumer.
 
     Whole-token matching matters: a substring test linked a stray "Tab." to every
     medicine and let its "resolution" replace the drug's name.
@@ -243,8 +248,18 @@ def link_candidate_to_entity(candidate: str, entities: Sequence[Tuple[str, str]]
     wanted = set(meaningful_tokens(candidate))
     if not wanted:
         return None
-    matches = [eid for eid, name in entities if wanted <= set(normalize_reading(name).split())]
+    reading_tokens = set(normalize_reading(candidate).split())
+    matches = []
+    for eid, name in entities:
+        name_tokens = set(meaningful_tokens(name))
+        if wanted <= set(normalize_reading(name).split()) or (name_tokens and name_tokens <= reading_tokens):
+            matches.append(eid)
     return matches[0] if len(matches) == 1 else None
+
+
+_LEADING_FORM_MARKERS = re.compile(
+    r"^(?:(?:rx|tab|tabs|tablet|cap|caps|capsule|inj|syp|syrup)\b\.?\s*)+", re.IGNORECASE
+)
 
 
 def substitute_reading(entity_name: str, candidate: str, reading: str) -> Optional[str]:
@@ -252,15 +267,24 @@ def substitute_reading(entity_name: str, candidate: str, reading: str) -> Option
 
     Returns None when the substitution cannot be done safely, so the caller leaves the
     entity untouched instead of overwriting a whole medicine name with a fragment.
+    A leading dosage-form marker the extraction dropped ("Tab. Pantop" read, entity
+    "Pantop 40") is stripped from both the reading and the human value before matching.
     """
     if not entity_name or not candidate or not reading:
         return None
     if normalize_reading(candidate) == normalize_reading(entity_name):
         return reading
-    pattern = re.compile(rf"(?<!\w){re.escape(candidate.strip())}(?!\w)", re.IGNORECASE)
-    if len(pattern.findall(entity_name)) != 1:
-        return None
-    return pattern.sub(lambda _m: reading, entity_name, count=1)
+    attempts = [(candidate.strip(), reading)]
+    bare_candidate = _LEADING_FORM_MARKERS.sub("", candidate.strip())
+    bare_reading = _LEADING_FORM_MARKERS.sub("", reading.strip())
+    # A reading that is only a marker ("Tab.") must never stand in for the drug name.
+    if bare_candidate and bare_candidate != candidate.strip() and bare_reading:
+        attempts.append((bare_candidate, bare_reading))
+    for cand, value in attempts:
+        pattern = re.compile(rf"(?<!\w){re.escape(cand)}(?!\w)", re.IGNORECASE)
+        if len(pattern.findall(entity_name)) == 1:
+            return pattern.sub(lambda _m, v=value: v, entity_name, count=1)
+    return None
 
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
