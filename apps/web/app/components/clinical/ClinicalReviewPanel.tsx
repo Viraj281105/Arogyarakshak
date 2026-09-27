@@ -4,12 +4,15 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   AuditEvent,
   CaseClinicalReview,
+  PROVENANCE_LABELS,
   ReviewerProfile,
   clinicalPaths,
   clinicalRequest,
 } from "../../lib/clinical";
 import { AssignReviewer } from "./AssignReviewer";
 import { ClinicalStatementCard, ProvenanceBadge, ReviewerAttribution } from "./Attribution";
+import { StatePanel } from "./StatePanel";
+import { TONE_CLASS, formatTimestamp, humanizeEnum } from "../../lib/labels";
 
 interface ClinicalReviewPanelProps {
   caseId: string;
@@ -23,13 +26,35 @@ interface ClinicalReviewPanelProps {
 }
 
 const STATUS_TEXT: Record<CaseClinicalReview["status"], string> = {
-  REQUESTED: "Requested — choose a reviewer",
-  ASSIGNED: "Waiting for the reviewer to accept",
-  IN_REVIEW: "Reviewer is working on it",
-  COMPLETED: "Completed",
+  REQUESTED: "Review requested — choose a reviewer",
+  ASSIGNED: "Reviewer assigned — waiting for them to accept",
+  IN_REVIEW: "Under clinical review",
+  COMPLETED: "Statement finalized",
   DECLINED: "Reviewer declined — choose another",
   CANCELLED: "Cancelled — reviewer access revoked",
 };
+
+/** "9 billing items (machine-derived), 1 diagnosis (machine-derived), …" instead of a long list. */
+function summarizeEvidence(items: CaseClinicalReview["evidence_shared"]): string {
+  const counts = new Map<string, number>();
+  for (const e of items) {
+    const prov = (PROVENANCE_LABELS[e.provenance] ?? humanizeEnum(e.provenance)).toLowerCase();
+    const key = e.label.toLowerCase().includes(prov) ? e.label : `${e.label} (${prov})`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([k, n]) => (n > 1 ? `${n} × ${k}` : k)).join(", ");
+}
+
+/** Where a review is, as four patient-readable steps. */
+function reviewSteps(review: CaseClinicalReview): { label: string; done: boolean }[] {
+  const accepted = review.status === "IN_REVIEW" || review.status === "COMPLETED";
+  return [
+    { label: "Review requested (you consented to share)", done: true },
+    { label: "Reviewer assigned", done: !!review.assigned_reviewer && review.status !== "REQUESTED" && review.status !== "DECLINED" },
+    { label: "Reviewer accepted and declared any conflict of interest", done: accepted },
+    { label: "Doctor-authored statement finalized", done: !!review.current_statement },
+  ];
+}
 
 /**
  * Patient-side "Request Clinical Review". The patient decides what is shared and with whom;
@@ -51,6 +76,7 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
   const [audit, setAudit] = useState<Record<string, AuditEvent[]>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const fetchAll = useCallback(
     () =>
@@ -71,6 +97,9 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setInitialLoad(false);
       });
     return () => {
       cancelled = true;
@@ -165,10 +194,11 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
         </div>
       )}
 
+      {initialLoad && <StatePanel kind="loading">Loading clinical reviews for this case…</StatePanel>}
       {error && (
-        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-          ⚠️ {error}
-        </div>
+        <StatePanel kind="error" onRetry={() => run(async () => undefined)}>
+          {error}
+        </StatePanel>
       )}
 
       <label className="input-label" htmlFor={`cq-${sourceModule}`}>
@@ -206,14 +236,25 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
           style={{ borderTop: "1px solid var(--border-subtle)", marginTop: "1.25rem", paddingTop: "1rem" }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
-            <strong>Review {review.review_id}</strong>
-            <span className={`badge ${review.status === "COMPLETED" ? "badge-success" : "badge-info"}`}>
+            <strong>Clinical review requested {formatTimestamp(review.created_at)}</strong>
+            <span className={review.status === "COMPLETED" ? TONE_CLASS.success : review.status === "CANCELLED" ? TONE_CLASS.warning : TONE_CLASS.neutral}>
               {STATUS_TEXT[review.status]}
             </span>
           </div>
+          {review.status !== "CANCELLED" && (
+            <ol aria-label="Review progress" style={{ listStyle: "none", paddingLeft: 0, margin: "0.5rem 0", fontSize: "0.82rem" }}>
+              {reviewSteps(review).map((step) => (
+                <li key={step.label} style={{ opacity: step.done ? 1 : 0.6 }}>
+                  {step.done ? "✓" : "○"} {step.label}
+                </li>
+              ))}
+            </ol>
+          )}
           <p style={{ fontSize: "0.8rem", margin: "0.35rem 0" }}>
             Shared with the reviewer:{" "}
-            {review.evidence_shared.map((e) => `${e.label} (${e.provenance})`).join(", ")}
+            {review.evidence_shared.length === 0
+              ? "nothing yet"
+              : summarizeEvidence(review.evidence_shared)}
           </p>
 
           {review.assigned_reviewer && (
@@ -236,12 +277,20 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
           )}
           {review.current_statement ? (
             <div style={{ marginTop: "0.75rem" }}>
+              <StatePanel kind="success">
+                A named doctor finalized their own statement. It is shown verbatim below and attached to your appeal
+                documents with their conflict-of-interest declaration.
+              </StatePanel>
               <ClinicalStatementCard statement={review.current_statement} />
             </div>
+          ) : review.statement_history.some((s) => s.status === "WITHDRAWN") ? (
+            <StatePanel kind="warning">
+              The reviewer withdrew their statement. It is no longer attached to your documents — download the appeal PDF again.
+            </StatePanel>
           ) : (
             review.status !== "CANCELLED" && (
               <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                No human clinical statement exists for this review yet.
+                No doctor-authored statement exists for this review yet. ArogyaRakshak does not write one for them.
               </p>
             )
           )}
@@ -274,8 +323,7 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
             <ol className="timeline-list" style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
               {audit[review.review_id].map((e) => (
                 <li key={e.id} className="timeline-item">
-                  {e.created_at} — {e.event_type} ({e.actor_type}
-                  {e.actor_id ? ` ${e.actor_id}` : ""})
+                  {formatTimestamp(e.created_at)} — {humanizeEnum(e.event_type)} ({humanizeEnum(e.actor_type)})
                 </li>
               ))}
             </ol>

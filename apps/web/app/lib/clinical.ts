@@ -140,7 +140,9 @@ export interface SafetyEscalation {
 
 export interface SafetyEvaluation {
   case_id: string;
-  active_rule_count: number;
+  /** UNAVAILABLE: the rules could not be evaluated — never render as "no escalation". */
+  status?: "EVALUATED" | "UNAVAILABLE";
+  active_rule_count: number | null;
   escalations: SafetyEscalation[];
   disclaimer: string;
   coverage_note: string;
@@ -158,6 +160,8 @@ export interface TranscriptionTask {
   masked_context: string;
   status: "OPEN" | "AWAITING_SECOND_REVIEW" | "RESOLVED" | "HUMAN_ESCALATION_REQUIRED" | "CANCELLED";
   resolution_reason: string | null;
+  /** RESOLVED only means readers agreed; NOT_APPLIED means the agreed reading could not be placed. */
+  outcome?: "APPLIED" | "NOT_APPLIED" | null;
   final_value: string | null;
   final_value_provenance: Provenance | null;
   readings_received: number;

@@ -6,6 +6,8 @@ import { useApi, caseAuthHeaders, API_BASE } from "../../hooks/useApi";
 import { ClinicalStatement, EvidenceItem, SafetyEscalation, clinicalPaths } from "../../lib/clinical";
 import { ClinicalStatementCard, ProvenanceBadge } from "../clinical/Attribution";
 import { ClinicalReviewPanel } from "../clinical/ClinicalReviewPanel";
+import { StatePanel } from "../clinical/StatePanel";
+import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
 
 // --- Clinical plausibility (ADR-011): bounded, never a necessity determination ---
 interface PlausibilityResponse {
@@ -18,14 +20,17 @@ interface PlausibilityResponse {
     review_reasons: string[];
     evidence_used: EvidenceItem[];
     not_assessed_items: string[];
+    conflicting_items?: string[];
     excluded_administrative_items: string[];
     coverage: "FULL" | "PARTIAL" | "NONE";
     references: { name: string; type: string; version: string; icd10_code: string; diagnosis_label: string }[];
     guideline_citations: unknown[];
     guideline_note: string;
     method: string;
+    safety_check_status?: "EVALUATED" | "UNAVAILABLE";
   };
   safety_escalations: SafetyEscalation[];
+  safety_check?: { status: "EVALUATED" | "UNAVAILABLE"; note: string | null };
   clinical_review: { required: boolean; status: string; human_statement_exists: boolean };
 }
 
@@ -207,16 +212,17 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
             onClick={handleCheckPlausibility}
             disabled={plausibilityApi.loading}
           >
-            🩺 Check clinical plausibility
+            {plausibilityApi.loading ? "Checking plausibility…" : "🩺 Check clinical plausibility"}
           </button>
         </div>
       )}
 
       {/* Clinical plausibility (ADR-011) — machine-derived, bounded, not a necessity verdict */}
+      {plausibilityApi.loading && <StatePanel kind="loading">Comparing the documented diagnosis and interventions…</StatePanel>}
       {plausibilityApi.error && (
-        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "1rem" }}>
-          ⚠️ {plausibilityApi.error}
-        </div>
+        <StatePanel kind="error" onRetry={handleCheckPlausibility}>
+          Could not run the plausibility check: {plausibilityApi.error}
+        </StatePanel>
       )}
       {plausibilityApi.data && (
         <div
@@ -231,28 +237,45 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
             <h3 style={{ margin: 0 }}>Clinical plausibility check</h3>
             <ProvenanceBadge provenance="AI_DERIVED" />
             <span
-              className={`badge ${
+              className={
                 plausibilityApi.data.assessment.status === "PLAUSIBLE"
-                  ? "badge-success"
+                  ? TONE_CLASS.success
                   : plausibilityApi.data.assessment.status === "POTENTIAL_INCONSISTENCY"
-                  ? "badge-danger"
-                  : "badge-warning"
-              }`}
+                  ? TONE_CLASS.danger
+                  : TONE_CLASS.warning
+              }
             >
-              {plausibilityApi.data.assessment.status.replaceAll("_", " ")}
+              {humanizeEnum(plausibilityApi.data.assessment.status)}
             </span>
-            {plausibilityApi.data.clinical_review.required && <span className="badge badge-warning">CLINICAL REVIEW REQUIRED</span>}
+            {plausibilityApi.data.clinical_review.required && plausibilityApi.data.assessment.status !== "CLINICAL_REVIEW_RECOMMENDED" && (
+              <span className={TONE_CLASS.warning}>Clinical review recommended</span>
+            )}
+            <span className={TONE_CLASS.neutral} title="How much of the bill the curated reference could assess">
+              {humanizeEnum(plausibilityApi.data.assessment.coverage)}
+            </span>
           </div>
+          {plausibilityApi.data.safety_check?.status === "UNAVAILABLE" && (
+            <StatePanel kind="warning">
+              <strong>Safety check unavailable.</strong> The clinical safety rules could not be evaluated for this case, so no
+              safety assessment was made — this is not the same as &quot;no escalation&quot;.
+            </StatePanel>
+          )}
           <p style={{ fontSize: "0.9rem" }}>{plausibilityApi.data.assessment.summary}</p>
           <p style={{ fontSize: "0.8rem" }}>
             Evidence used:{" "}
-            {plausibilityApi.data.assessment.evidence_used.map((e) => `${e.kind}: ${e.value}`).join("; ") || "none"}
+            {plausibilityApi.data.assessment.evidence_used.map((e) => `${humanizeEnum(e.kind)}: ${e.value}`).join("; ") || "none"}
           </p>
           {plausibilityApi.data.assessment.references.map((r) => (
             <p key={r.icd10_code} style={{ fontSize: "0.75rem", opacity: 0.85 }}>
-              Reference: {r.name} ({r.type}, {r.version}) — {r.icd10_code} {r.diagnosis_label}
+              Reference: {r.name} (project-curated table, {r.version} — not a published clinical guideline) — {r.icd10_code}{" "}
+              {r.diagnosis_label}
             </p>
           ))}
+          {(plausibilityApi.data.assessment.conflicting_items ?? []).length > 0 && (
+            <p style={{ fontSize: "0.8rem", color: "var(--status-danger)" }}>
+              Expected for a diagnosis that is not documented: {(plausibilityApi.data.assessment.conflicting_items ?? []).join(", ")}
+            </p>
+          )}
           {plausibilityApi.data.assessment.not_assessed_items.length > 0 && (
             <p style={{ fontSize: "0.8rem", color: "var(--status-warning)" }}>
               Not assessed (outside the reference): {plausibilityApi.data.assessment.not_assessed_items.join(", ")}
@@ -313,20 +336,11 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
         </div>
       )}
 
+      {appealApi.loading && <StatePanel kind="loading">Drafting the appeal letter and signing the PDF…</StatePanel>}
       {appealApi.error && (
-        <div
-          style={{
-            padding: "1rem",
-            marginBottom: "1.5rem",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid var(--status-danger)",
-            borderRadius: "var(--radius-md)",
-            color: "#fca5a5",
-            fontSize: "0.9rem",
-          }}
-        >
-          ⚠️ {appealApi.error}
-        </div>
+        <StatePanel kind="error" onRetry={handleDraftAppeal}>
+          Could not draft the appeal: {appealApi.error}
+        </StatePanel>
       )}
 
       {/* Appeal Letter (5-agent pipeline, #18/#66) */}
@@ -342,10 +356,17 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
             <h3>📝 Appeal Letter Drafted</h3>
-            <span className={`badge ${appealData.status === "approve" ? "badge-success" : "badge-warning"}`}>
-              {appealData.status === "approve" ? "✓ Judge-Approved Draft" : "ⓘ Flagged for Revision"}
+            <span style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+              <ProvenanceBadge provenance="AI_DERIVED" />
+              {/* "Judge" is an automated scoring agent — never shown as a human or legal approval. */}
+              <span className={appealData.status === "approve" ? TONE_CLASS.neutral : TONE_CLASS.warning}>
+                {appealData.status === "approve" ? "Passed automated quality check" : "Automated check suggests revision"}
+              </span>
             </span>
           </div>
+          <p style={{ fontSize: "0.8rem", opacity: 0.85, marginTop: "-0.5rem" }}>
+            This letter is drafted by software. It is not legal advice and not a clinician&apos;s opinion; review it before sending.
+          </p>
 
           {!appealData.llm_backed && (
             <div

@@ -30,8 +30,10 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
     };
   }, [caseId, caseToken]);
 
-  // A safety check that failed must never look like one that found nothing.
-  if (failure) {
+  // A safety check that failed must never look like one that found nothing — whether the
+  // request failed or the server reports the rules could not be evaluated.
+  const unavailable = failure !== null || evaluation?.status === "UNAVAILABLE";
+  if (unavailable) {
     return (
       <div
         role="alert"
@@ -43,8 +45,9 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
           fontSize: "0.85rem",
         }}
       >
-        ⚠️ The clinical safety check could not be run ({failure}). No safety assessment has been made for this case.
-        If you have urgent symptoms, seek medical care directly.
+        <strong>⚠️ Safety check unavailable.</strong> The clinical safety check could not be run
+        {failure ? ` (${failure})` : ""}. No safety assessment has been made for this case — this is not the same as
+        &quot;nothing found&quot;. If you have urgent symptoms, seek medical care directly.
       </div>
     );
   }

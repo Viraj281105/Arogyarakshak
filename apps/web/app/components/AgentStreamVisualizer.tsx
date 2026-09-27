@@ -49,7 +49,7 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
           )}
         </div>
         <span style={{ fontSize: "0.8rem", color: "var(--brand-emerald)" }}>
-          {currentStep >= 4 ? "✓ Audit Completed" : `Pipeline Stage ${currentStep} of 4`}
+          {currentStep >= 4 ? "✓ Extraction complete" : `Pipeline Stage ${currentStep} of 4`}
         </span>
       </div>
 

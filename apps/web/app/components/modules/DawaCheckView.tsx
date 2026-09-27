@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi } from "../../hooks/useApi";
 import { TranscriptionPanel } from "../clinical/TranscriptionPanel";
+import { CaseMedicineTrustPanel } from "../clinical/CaseMedicineTrustPanel";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
 interface MedicineBenchmarkResponse {
@@ -50,6 +51,9 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
   const [hasSearched, setHasSearched] = useState(false);
 
   const translateApi = useApi<PrescriptionTranslationResponse>();
+  // Bumped when either case panel changes transcription state, so the other re-reads it.
+  const [caseRefresh, setCaseRefresh] = useState(0);
+  const bumpCase = () => setCaseRefresh((n) => n + 1);
   const [instructionsText, setInstructionsText] = useState("");
 
   const handleTranslate = async () => {
@@ -94,7 +98,13 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
       </div>
 
       {/* ADR-011: uncertain prescription readings go to human readers, never silently into a medication fact */}
-      {caseId && <TranscriptionPanel caseId={caseId} caseToken={caseToken} />}
+      {caseId && (
+        <>
+          <CaseMedicineTrustPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} />
+          <TranscriptionPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} />
+          <h3 style={{ marginBottom: "0.75rem" }}>Check any medicine by name</h3>
+        </>
+      )}
 
       {/* Search Form */}
       <div
