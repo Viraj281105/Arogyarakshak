@@ -6,7 +6,7 @@ Handles medicine price benchmarking against NPPA ceiling rates.
 
 import logging
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -18,6 +18,7 @@ from app.clinical.transcription_service import open_tasks_by_entity
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DawaCheckGenericMapping, KadiCase, KadiEntity
+from kadi.clinical_review.medicine_trust import PendingTask, decide_medicine_trust, trust_summary
 # Import dawacheck packages
 from dawacheck.checker import (
     REFERENCE_SOURCE,
@@ -63,6 +64,9 @@ class CaseMedicineBenchmark(BaseModel):
     name_provenance: str = "AI_DERIVED"
     transcription_task_id: Optional[str] = None
     transcription_status: Optional[str] = None
+    # The trust decision behind this row: state, patient-readable label, whether it was
+    # benchmarkable, and (for OCR uncertainty) the reasons it was held back.
+    trust: Dict[str, Any] = Field(default_factory=dict)
 
 
 # --- Route Implementations ----------------------------------------------------
@@ -189,50 +193,37 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         meta = entity.meta if isinstance(entity.meta, dict) else {}
         dosage_hint = meta.get("dosage")
 
-        # ADR-011: an OCR reading a human has not yet settled is not a medication fact.
+        # ADR-011: one trust decision (kadi.clinical_review.medicine_trust) — an OCR
+        # reading a human has not settled is never a medication fact, whatever the reason
+        # (open or escalated task, unplaced reading, ambiguous/over-cap/ungrounded OCR).
         pending = unresolved.get(entity.id)
-        if pending is not None:
+        decision = decide_medicine_trust(
+            entity.name or "",
+            meta,
+            PendingTask(
+                task_id=pending.id,
+                status=pending.status,
+                resolved_at=pending.resolved_at.isoformat() if pending.resolved_at else None,
+            )
+            if pending is not None
+            else None,
+        )
+        trust = trust_summary(decision)
+        if not decision.benchmarkable:
             results.append(
                 CaseMedicineBenchmark(
                     entity_id=entity.id,
                     brand_name=entity.name,
-                    note=(
-                        "This medicine's name or strength was read with low confidence and is "
-                        "awaiting independent human transcription, so it has not been benchmarked. "
-                        "An uncertain reading is never treated as a medication fact."
-                        if pending.status != "HUMAN_ESCALATION_REQUIRED"
-                        else "Human readers could not agree on this medicine's text. Confirm it with "
-                        "the prescriber or dispensing pharmacist; it has not been benchmarked."
-                    ),
-                    transcription_task_id=pending.id,
-                    transcription_status=pending.status,
+                    note=decision.note,
+                    transcription_task_id=decision.task_id,
+                    transcription_status=decision.transcription_status,
+                    trust=trust,
                 )
             )
             continue
 
-        name_provenance = "AI_DERIVED"
-        brand_name = entity.name
-        transcription = meta.get("human_transcription")
-        # Readers agreed on a reading that could not be matched into the extracted entry:
-        # neither the OCR text nor the reading is a settled medication fact.
-        if isinstance(transcription, dict) and transcription.get("status") == "NOT_APPLIED":
-            results.append(
-                CaseMedicineBenchmark(
-                    entity_id=entity.id,
-                    brand_name=entity.name,
-                    note=(
-                        f"Independent human readers read this entry as '{transcription.get('human_reading')}', "
-                        "which could not be matched to the extracted text. It has not been benchmarked — "
-                        "confirm the medicine with the prescriber or dispensing pharmacist."
-                    ),
-                    transcription_task_id=transcription.get("task_id"),
-                    transcription_status="NOT_APPLIED",
-                )
-            )
-            continue
-        if isinstance(transcription, dict) and transcription.get("status") == "RESOLVED" and transcription.get("value"):
-            brand_name = str(transcription["value"])
-            name_provenance = "HUMAN_REVIEWED"
+        name_provenance = decision.name_provenance
+        brand_name = decision.name
 
         cost = meta.get("cost")
         if cost is None and entity.value:
@@ -248,6 +239,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
                     brand_name=brand_name,
                     note="No cost was recorded for this medicine entity; cannot benchmark.",
                     name_provenance=name_provenance,
+                    trust=trust,
                 )
             )
             continue
@@ -279,6 +271,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
                         "This does NOT mean the medicine is exempt from price control."
                     ),
                     name_provenance=name_provenance,
+                    trust=trust,
                 )
             )
             continue
@@ -286,7 +279,8 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         await _persist_generic_mapping(db, norm_brand, benchmark)
         results.append(
             CaseMedicineBenchmark(
-                entity_id=entity.id, brand_name=brand_name, benchmark=benchmark, name_provenance=name_provenance
+                entity_id=entity.id, brand_name=brand_name, benchmark=benchmark, name_provenance=name_provenance,
+                trust=trust,
             )
         )
 

@@ -75,6 +75,17 @@ class ResolutionSummary:
     merged: int = 0
     pending_review: int = 0
     new_entities: List[KadiEntity] = field(default_factory=list)
+    # Existing entities a mention of this batch was merged into.
+    merged_into: List[KadiEntity] = field(default_factory=list)
+
+    def touched(self) -> List[KadiEntity]:
+        """Every entity this batch created or added a mention to."""
+        seen, out = set(), []
+        for e in [*self.new_entities, *self.merged_into]:
+            if e.id not in seen:
+                seen.add(e.id)
+                out.append(e)
+        return out
 
 
 def new_entity_id(entity_type: str) -> str:
@@ -193,6 +204,7 @@ async def resolve_and_attach(
         if decision.action == "MERGE" and target is not None:
             _append_mention(target, mention.name, mention.value, mention.meta)
             summary.merged += 1
+            summary.merged_into.append(target)
             if normalize_surface(mention.name) != normalize_surface(target.name):
                 session.add(_decision_row(case.id, mention, decision, target, status="auto_merged", source=source))
             continue

@@ -119,9 +119,11 @@ def test_retired_rule_scan_results_no_longer_escalate(governance):
     case_id = make_case(b"City Care Hospital\nPatient developed slurred speech.\n")
     a = client.get(f"{K}/safety-rules/{rule_id}").json()["proposed_by"]
     assert a is not None
-    board = register(name="Dr. Retirer")
-    client.post(f"{K}/clinical-reviewers/{board[0]}/safety-board", json={"seated": True}, headers=admin())
-    client.post(f"{K}/safety-rules/{rule_id}/retire", json={"reason": "replaced"}, headers=rh(board[1]))
+    # Retirement is four-eyes: a request by one board member, confirmation by another.
+    for name in ("Dr. Retirer", "Dr. Confirmer"):
+        board = register(name=name)
+        client.post(f"{K}/clinical-reviewers/{board[0]}/safety-board", json={"seated": True}, headers=admin())
+        client.post(f"{K}/safety-rules/{rule_id}/retire", json={"reason": "replaced"}, headers=rh(board[1]))
     assert client.get(f"{K}/cases/{case_id}/safety-escalations").json()["escalations"] == []
 
 
@@ -214,13 +216,24 @@ def test_whole_uncertain_line_is_linked_and_an_unmatchable_reading_keeps_the_ent
     tasks = _tasks_for(case_id, [("Tab Augmntn 625mg 1-0-1 x 5 days", 0.3)])
     assert len(tasks) == 1 and tasks[0][2] is not None, "a whole uncertain line naming the medicine must be linked"
     task_id, _, entity_id = tasks[0]
-    _resolve(case_id, task_id, "Tab Augmentin 625mg 1-0-1 x 5 days")
+    # A reading that names no drug cannot be placed: the entry stays unsettled.
+    _resolve(case_id, task_id, "Tab. 1-0-1 x 5 days")
 
     med = next(r for r in client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark").json() if r["entity_id"] == entity_id)
     assert med["benchmark"] is None, "neither the OCR text nor an unapplied reading may be benchmarked"
     assert med["transcription_status"] == "NOT_APPLIED"
-    assert "Augmentin" in med["note"]
     assert med["brand_name"] == "Tab Augmntn 625mg"
+
+
+def test_agreed_whole_line_reading_of_exactly_the_entry_is_applied():
+    """Demo-hardening pass: the line's name-bearing tokens are exactly the entry
+    ("Tab Augmntn 625mg" + dose pattern + duration), so the readers' line minus those
+    fragments is the entry. Previously this always ended NOT_APPLIED."""
+    case_id = make_case(PRESCRIPTION)
+    task_id, _, entity_id = _tasks_for(case_id, [("Tab Augmntn 625mg 1-0-1 x 5 days", 0.3)])[0]
+    _resolve(case_id, task_id, "Tab Augmentin 625mg 1-0-1 x 5 days")
+    med = next(r for r in client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark").json() if r["entity_id"] == entity_id)
+    assert med["brand_name"] == "Augmentin 625mg" and med["name_provenance"] == "HUMAN_REVIEWED"
 
 
 def test_reading_that_starts_with_a_dosage_form_marker_is_still_applied():

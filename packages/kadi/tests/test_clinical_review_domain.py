@@ -385,7 +385,10 @@ def test_cap_is_not_applied_during_selection():
 
 def test_whole_uncertain_line_links_to_the_medicine_it_names():
     assert link_candidate_to_entity("Tab Augmntn 625mg 1-0-1", [("E1", "Augmntn")]) == "E1"
-    assert link_candidate_to_entity("Pan 40 mg OD", [("E1", "Pan 40"), ("E2", "Pan-D")]) is None, "ambiguous"
+    # Every token counts: "Pan 40 mg OD" names "Pan 40" ("40" == "40mg") but not "Pan-D"
+    # (its "D" is absent). The bare "Pan" names both and stays ambiguous.
+    assert link_candidate_to_entity("Pan 40 mg OD", [("E1", "Pan 40"), ("E2", "Pan-D")]) == "E1"
+    assert link_candidate_to_entity("Pan", [("E1", "Pan 40"), ("E2", "Pan-D")]) is None, "ambiguous"
     assert link_candidate_to_entity("City Care Clinic", [("E1", "Augmntn")]) is None
 
 

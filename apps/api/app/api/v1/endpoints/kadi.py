@@ -29,6 +29,7 @@ from sqlalchemy.orm import selectinload
 from app.auto_triggers import readiness_for_case, run_auto_triggers
 from app.background import get_background_session
 from app.clinical.context import scan_document_for_safety
+from app.clinical.demo_ocr import REPLAY_LOG as DEMO_REPLAY_LOG, demo_ocr_replay
 from app.clinical.purge import purge_clinical_records_for_case
 from app.clinical.transcription_service import create_tasks_from_ocr
 from kadi.clinical_review.transcription import OcrSegment, select_uncertain_segments
@@ -308,7 +309,15 @@ async def process_document_background(
         # /health and every other case's SSE stream) for as long as this document takes
         # to read. run_in_threadpool runs it on FastAPI's worker thread pool instead.
         processing_status[case_id].append({"status": "ocr_start", "progress": 30, "log": "Running document OCR parser..."})
-        parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
+        # Demo mode only: the committed synthetic Scenario C document replays a recorded
+        # OCR + extraction result (app.clinical.demo_ocr) so the demo is reproducible.
+        replay = demo_ocr_replay(digest, settings.clinical_demo_mode)
+        if replay is not None:
+            parsed, replayed_extraction = replay
+            processing_status[case_id].append({"status": "demo_fixture", "progress": 35, "log": DEMO_REPLAY_LOG})
+        else:
+            replayed_extraction = None
+            parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
 
         # A parse failure must stop the pipeline. Previously the parser substituted a
         # placeholder sentence, so the stream reported "processed successfully" and the
@@ -333,9 +342,12 @@ async def process_document_background(
         # configured — a blocking network call directly on the event loop, same
         # starvation risk as the OCR step above.
         processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting clinical & billing entities with Kadi agent..."})
-        extracted = await run_in_threadpool(
-            extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
-        )
+        if replayed_extraction is not None:
+            extracted = replayed_extraction
+        else:
+            extracted = await run_in_threadpool(
+                extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
+            )
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
@@ -447,27 +459,45 @@ async def process_document_background(
             # ADR-011: OCR readings the engine itself was unsure of become human
             # transcription tasks rather than silently trusted facts. Only redacted text
             # and a location hint are kept — never the image.
-            uncertain = select_uncertain_segments(
-                [
-                    OcrSegment(s.get("text", ""), float(s.get("confidence", 1.0)), s.get("bbox"))
-                    for s in parsed.get("ocr_segments", [])
-                ],
-                threshold=settings.ocr_low_confidence_threshold,
-            )
+            segments = [
+                OcrSegment(s.get("text", ""), float(s.get("confidence", 1.0)), s.get("bbox"))
+                for s in parsed.get("ocr_segments", [])
+            ]
+            uncertain = select_uncertain_segments(segments, threshold=settings.ocr_low_confidence_threshold)
+            # Readings that cannot be linked to exactly one medicine are not dropped: the
+            # medicines they may concern are held back from benchmarking (ocr_uncertainty).
             transcription_tasks = await create_tasks_from_ocr(
-                session, case_id, uncertain, [e for e in case.entities if e.type == "medicine"]
+                session,
+                case_id,
+                uncertain,
+                [e for e in case.entities if e.type == "medicine"],
+                document_medicine_ids=[e.id for e in summary.touched() if e.type == "medicine"],
+                confident_texts=[s.text for s in segments if s.confidence >= settings.ocr_low_confidence_threshold],
             )
             # ADR-011: check the WHOLE document against active safety rules while it is
             # still in memory; only rule ids and matched terms are persisted.
             await scan_document_for_safety(session, case_id, text)
-            if transcription_tasks:
+            held_back = sum(
+                1 for e in case.entities
+                if e.type == "medicine" and isinstance(e.meta, dict)
+                and (e.meta.get("ocr_uncertainty") or {}).get("status") == "UNRESOLVED"
+            )
+            if transcription_tasks or held_back:
+                parts = []
+                if transcription_tasks:
+                    parts.append(
+                        f"{len(transcription_tasks)} unclear handwriting/print reading(s) need a human reader "
+                        "before they are trusted."
+                    )
+                if held_back:
+                    parts.append(
+                        f"{held_back} medicine(s) could not be matched to an unclear reading with certainty "
+                        "and will not be price-checked until a human reads the entry."
+                    )
                 processing_status[case_id].append({
                     "status": "transcription_flags",
                     "progress": 87,
-                    "log": (
-                        f"{len(transcription_tasks)} unclear handwriting/print reading(s) need a human "
-                        "reader before they are trusted."
-                    ),
+                    "log": " ".join(parts),
                 })
 
             if total_cost > 0:
@@ -660,6 +690,14 @@ async def stream_processing_status(
     async def event_generator():
         last_index = 0
         started_at = time.time()
+        # Nothing has been queued for this case in this process (the upload route records
+        # `upload_received` BEFORE it returns 202, so a client that connects after an
+        # upload always finds it). Say so at once instead of holding the connection open
+        # until the timeout: a screen opened on an already-processed case is not
+        # "processing". Single-process in-memory status — see docs (known limitation).
+        if case_id not in processing_status:
+            yield f"data: {json.dumps({'status': 'idle', 'progress': 100, 'log': 'No document is being processed for this case.'})}\n\n"
+            return
         while True:
             if await request.is_disconnected():
                 logger.info("SSE client disconnected for case %s; stopping stream.", case_id)
