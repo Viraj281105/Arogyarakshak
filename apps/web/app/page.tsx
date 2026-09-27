@@ -4,7 +4,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
-import { DocumentUploader } from "./components/DocumentUploader";
+import { DOCUMENT_ACCEPT, DocumentUploader } from "./components/DocumentUploader";
+import { DemoBanner, useDemoStatus } from "./components/demo/DemoBanner";
+import { DemoControls } from "./components/demo/DemoControls";
+import { CaseTimeline } from "./components/CaseTimeline";
+import type { DemoScenario, DemoScenarioResult } from "./lib/demo";
 import { AgentStreamVisualizer, PipelineStep } from "./components/AgentStreamVisualizer";
 import { EntityResolutionReview } from "./components/EntityResolutionReview";
 import { SafetyEscalationBanner } from "./components/clinical/SafetyEscalationBanner";
@@ -17,6 +21,9 @@ import { DawaCheckView } from "./components/modules/DawaCheckView";
 import { Language, translations } from "./translations";
 
 type ModuleTab = "billnyay" | "bimanyay" | "daavisetu" | "schemesetu" | "dawacheck";
+
+// The module each demo scenario starts in.
+const SCENARIO_TAB: Record<DemoScenario["id"], ModuleTab> = { A: "billnyay", B: "daavisetu", C: "dawacheck", D: "bimanyay" };
 
 // A processing stream silent for this long is reported as "taking longer than expected".
 const PROCESSING_SILENCE_MS = 90_000;
@@ -54,6 +61,11 @@ export default function Home() {
   const [streamIssue, setStreamIssue] = useState<"lost" | "timeout" | null>(null);
   const streamRef = useRef<EventSource | null>(null);
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const demoStatus = useDemoStatus();
+  // Bumped whenever the case changes server-side (a document added, a scenario loaded), so
+  // the timeline re-reads it.
+  const [caseVersion, setCaseVersion] = useState(0);
+  const addDocInput = useRef<HTMLInputElement | null>(null);
 
   const clearSilenceTimer = () => {
     if (silenceTimer.current) clearTimeout(silenceTimer.current);
@@ -96,6 +108,7 @@ export default function Home() {
           clearSilenceTimer();
           setPipelineStep(4);
           setIsProcessing(false);
+          setCaseVersion((v) => v + 1);
           // The backend log says when a document was a duplicate or which module checks ran.
           setLiveLog(payload.log || "Document processed successfully. Entities extracted.");
           es.close();
@@ -231,7 +244,7 @@ export default function Home() {
       const newCaseToken: string = caseData.access_token;
       setCaseId(newCaseId);
       setCaseToken(newCaseToken);
-      setLiveLog(`Case ${newCaseId} created. Uploading document for transient OCR...`);
+      setLiveLog("Case created. Uploading document for transient OCR...");
 
       // 2. Upload document to /kadi/cases/{case_id}/upload
       const formData = new FormData();
@@ -269,6 +282,63 @@ export default function Home() {
     }
   };
 
+  const resetCaseView = () => {
+    streamRef.current?.close();
+    clearSilenceTimer();
+    setStreamIssue(null);
+    setIsProcessing(false);
+    setCaseId("");
+    setCaseToken("");
+    setPipelineStep(0);
+    setActiveFileName("");
+    setLiveLog("");
+  };
+
+  // Demo kit: a scenario arrives as an already-processed case; its processing log is
+  // replayed from the server's status stream, and the scenario's module opens.
+  const handleScenarioLoaded = (result: DemoScenarioResult, scenario: DemoScenario) => {
+    resetCaseView();
+    setErrorMessage(null);
+    setCaseId(result.case_id);
+    setCaseToken(result.access_token);
+    setActiveFileName(result.documents.join(" + "));
+    setIsProcessing(true);
+    setPipelineStep(1);
+    setLiveLog(`Demo Scenario ${scenario.id} loaded — reading its processing log…`);
+    setActiveTab(SCENARIO_TAB[scenario.id]);
+    setCaseVersion((v) => v + 1);
+    connectStream(result.case_id, result.access_token);
+  };
+
+  // A case can hold several documents (e.g. a bill and its discharge summary); both feed
+  // the same entities, plausibility check and evidence packet.
+  const handleAddDocument = async (file: File | undefined) => {
+    if (!file || !caseId || !caseToken || isProcessing) return;
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    setErrorMessage(null);
+    setActiveFileName(file.name);
+    setIsProcessing(true);
+    setPipelineStep(1);
+    setLiveLog("Adding a document to this case...");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_BASE}/api/v1/kadi/cases/${caseId}/upload`, {
+        method: "POST",
+        headers: { "X-Case-Access-Token": caseToken },
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`API /upload returned HTTP ${res.status}`);
+      connectStream(caseId, caseToken);
+    } catch (err) {
+      setIsProcessing(false);
+      setPipelineStep(4);
+      setErrorMessage(err instanceof Error ? `Could not add the document: ${err.message}` : "Could not add the document.");
+    } finally {
+      if (addDocInput.current) addDocInput.current.value = "";
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header
@@ -279,6 +349,7 @@ export default function Home() {
       />
 
       <main className="container" style={{ flex: 1 }}>
+        <DemoBanner status={demoStatus} />
         {/* Hero Section */}
         <section className="hero-section">
           <h1>
@@ -291,6 +362,8 @@ export default function Home() {
             Clinician, pharmacist or transcription reviewer? <Link href="/clinical-review">Open the reviewer workspace →</Link>
           </p>
         </section>
+
+        <DemoControls status={demoStatus} onScenarioLoaded={handleScenarioLoaded} onReset={resetCaseView} />
 
         {/* BYOD Document Intake Dropzone */}
         <DocumentUploader
@@ -339,6 +412,11 @@ export default function Home() {
           />
         )}
 
+        {/* What has actually happened to this case, from persisted records only */}
+        {caseId && (
+          <CaseTimeline caseId={caseId} caseToken={caseToken} refreshKey={caseVersion} processing={isProcessing} failure={errorMessage} />
+        )}
+
         {/* ADR-011: red-flag escalations from active, board-approved safety rules */}
         {pipelineStep === 4 && !isProcessing && caseId && (
           <SafetyEscalationBanner key={`safety-${caseId}`} caseId={caseId} caseToken={caseToken} />
@@ -351,7 +429,24 @@ export default function Home() {
 
         {/* SEC-03: explicit patient-initiated case deletion */}
         {caseId && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
+            <input
+              ref={addDocInput}
+              type="file"
+              accept={DOCUMENT_ACCEPT}
+              style={{ display: "none" }}
+              aria-label="Add another document to this case"
+              onChange={(e) => handleAddDocument(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary btn-compact"
+              disabled={!caseReady}
+              title={caseReady ? undefined : "Available once the current document has finished processing"}
+              onClick={() => addDocInput.current?.click()}
+            >
+              ➕ Add another document to this case
+            </button>
             <button
               type="button"
               onClick={handleDeleteCase}

@@ -8,6 +8,7 @@ GROQ_MODEL defaults to "openai/gpt-oss-120b".  Never use deprecated model
 names (llama3-70b, llama-3.3-70b-versatile) — see AGENTS.md.
 """
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -86,7 +87,32 @@ class Settings(BaseSettings):
     # can be activated.
     safety_rule_required_approvals: int = 1
 
+    # --- Deployment profile & demo kit -------------------------------------------
+    # "production" marks a real deployment. Demo mode is refused outright under it (the
+    # process will not start), so demo reset/seed/scenario routes and DEMO_VERIFIED can
+    # never be reachable against production configuration.
+    app_env: str = "development"
+    # Where the synthetic demo documents (demo/documents) live, for the demo scenario
+    # loaders. Empty = the repository's demo/documents (local runs) or /app/demo/documents
+    # (the API image copies them there; they are inert unless demo mode is on).
+    demo_documents_dir: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def _demo_mode_never_in_production(self) -> "Settings":
+        if self.clinical_demo_mode and self.app_env.strip().lower() == "production":
+            raise ValueError(
+                "CLINICAL_DEMO_MODE=true is not allowed with APP_ENV=production: demo reviewers, "
+                "demo verification labels and the demo reset would be reachable on a real deployment."
+            )
+        return self
+
+    @property
+    def demo_operations_allowed(self) -> bool:
+        """Demo seed/reset/scenario routes: demo mode on and not a production profile.
+        (Checked at call time too, because tests toggle settings after start-up.)"""
+        return bool(self.clinical_demo_mode) and self.app_env.strip().lower() != "production"
 
 
 settings = Settings()

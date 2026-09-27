@@ -63,6 +63,8 @@ services:
       # ADR-011 clinical review. Empty governance key = governance actions disabled.
       CLINICAL_GOVERNANCE_ADMIN_KEY: ${CLINICAL_GOVERNANCE_ADMIN_KEY:-}
       CLINICAL_DEMO_MODE: ${CLINICAL_DEMO_MODE:-false}
+      # production refuses to start together with demo mode (app.config).
+      APP_ENV: ${APP_ENV:-development}
       OCR_LOW_CONFIDENCE_THRESHOLD: ${OCR_LOW_CONFIDENCE_THRESHOLD:-0.5}
       SAFETY_RULE_REQUIRED_APPROVALS: ${SAFETY_RULE_REQUIRED_APPROVALS:-1}
     volumes:

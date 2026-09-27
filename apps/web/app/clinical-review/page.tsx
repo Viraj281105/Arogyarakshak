@@ -15,6 +15,7 @@ import {
 } from "../lib/clinical";
 import { ClinicalStatementCard, ProvenanceBadge, ReviewerAttribution } from "../components/clinical/Attribution";
 import { StatePanel } from "../components/clinical/StatePanel";
+import { DemoBanner, useDemoStatus } from "../components/demo/DemoBanner";
 import { TONE_CLASS, formatTimestamp, humanizeEnum } from "../lib/labels";
 
 // The reviewer never holds the patient's case id (the server omits it).
@@ -104,6 +105,7 @@ const panel: React.CSSProperties = {
 export default function ClinicalReviewWorkspace() {
   // Held in memory only: the credential is a bearer secret and is never written to
   // localStorage. Reloading the page means pasting it again.
+  const demoStatus = useDemoStatus();
   const [token, setToken] = useState("");
   const [tokenInput, setTokenInput] = useState("");
   const [me, setMe] = useState<ReviewerProfile | null>(null);
@@ -329,6 +331,7 @@ export default function ClinicalReviewWorkspace() {
 
   return (
     <main className="container" style={{ paddingTop: "1.5rem", paddingBottom: "3rem" }}>
+      <DemoBanner status={demoStatus} />
       <p>
         <Link href="/">← Back to ArogyaRakshak</Link>
       </p>

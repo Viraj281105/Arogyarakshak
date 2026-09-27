@@ -563,9 +563,9 @@ async def process_document_background(
 
 # --- Route Implementations ----------------------------------------------------
 
-@router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
-async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
-    """Creates a new patient case session and its one-time access token (ADR-009)."""
+async def create_case_record(db: AsyncSession, consent_opt_in: bool) -> "tuple[KadiCase, str]":
+    """Creates a case and its one-time access token (ADR-009); commits. Shared by the
+    route below and the demo scenario loader (app.clinical.demo_control)."""
     # 16 hex chars (64 bits) rather than 8 (32 bits): raises the cost of blindly guessing
     # a case id, but — per ADR-008/ADR-009 — entropy alone is not authorization. The
     # access_token below is the actual authorization boundary; every subsequent
@@ -574,7 +574,7 @@ async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
     plaintext_token, token_hash = generate_case_access_token()
     case = KadiCase(
         id=case_id,
-        consent_opt_in=case_in.consent_opt_in,
+        consent_opt_in=consent_opt_in,
         status="active",
         total_charged=0.0,
         access_token_hash=token_hash,
@@ -585,6 +585,38 @@ async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
     db.add(case)
     await db.commit()
     await db.refresh(case)
+    return case, plaintext_token
+
+
+async def ingest_document_now(db: AsyncSession, case_id: str, file_bytes: bytes, filename: str) -> Dict[str, Any]:
+    """Runs one document through the same pipeline an upload queues, but awaits it, and
+    returns the final processing event. Used by the demo scenario loader, which must hand
+    the judge a case that has finished processing."""
+    digest = hashlib.sha256(file_bytes).hexdigest()
+    received = {
+        "status": "upload_received",
+        "progress": 10,
+        "log": "Upload received. Queueing document extraction task...",
+        "timestamp": time.time(),
+    }
+    if await _document_already_ingested(db, case_id, digest):
+        processing_status[case_id] = [received, _duplicate_event()]
+    else:
+        processing_status[case_id] = [received]
+        await process_document_background(case_id=case_id, file_bytes=file_bytes, filename=filename, db=db, digest=digest)
+    final = dict(processing_status.get(case_id, [{}])[-1])
+    return {
+        "filename": filename,
+        "status": final.get("status"),
+        "duplicate": bool(final.get("duplicate_document")),
+        "log": final.get("log"),
+    }
+
+
+@router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
+async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
+    """Creates a new patient case session and its one-time access token (ADR-009)."""
+    case, plaintext_token = await create_case_record(db, case_in.consent_opt_in)
     return CaseCreatedResponse(
         id=case.id,
         status=case.status,
@@ -750,6 +782,22 @@ async def latency_metrics_recent(limit: int = Query(20, ge=1, le=200)):
     docstring), so samples carry only a one-way fingerprint of each case id, never the
     real id — a real case id is itself sensitive (ADR-008/ADR-009)."""
     return latency_tracker.recent(limit=limit)
+
+
+@router.get("/cases/{case_id}/timeline")
+async def get_case_timeline(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """What has happened to this case, in plain language, from persisted records only
+    (kadi.timeline): each step carries the timestamp of the record that proves it, so a
+    step is never shown before it happened. `in_progress` / `failure` come from the live
+    processing status; `now` is the current medicine trust state."""
+    from app.case_timeline import case_timeline
+
+    events = processing_status.get(case_id) or []
+    return await case_timeline(db, case_id, events[-1] if events else None)
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetailResponse)

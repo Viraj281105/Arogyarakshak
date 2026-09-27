@@ -3,6 +3,11 @@
 import React, { useRef, useState } from "react";
 import { Language, translations } from "../translations";
 
+// Everything the API accepts (ALLOWED_UPLOAD_EXTENSIONS in apps/api/.../kadi.py): scans and
+// photos, PDFs, and plain-text/CSV exports. Text files were previously filtered out of the
+// picker although the server accepts them, so the synthetic demo documents could not be chosen.
+export const DOCUMENT_ACCEPT = "image/*,application/pdf,.pdf,.txt,text/plain,.csv,text/csv";
+
 interface DocumentUploaderProps {
   currentLang: Language;
   onStartAudit: (file: File | null, fileName: string, consentGiven: boolean) => void;
@@ -61,7 +66,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept="image/*,application/pdf"
+          accept={DOCUMENT_ACCEPT}
           style={{ display: "none" }}
           id="file-upload-input"
           aria-label="Upload document file"
