@@ -733,6 +733,8 @@ async def clinical_plausibility(
         "case_id": case_id,
         "assessment": assessment.model_dump(),
         "safety_escalations": safety["escalations"],
+        # EVALUATED or UNAVAILABLE — an unavailable check is never "no escalation".
+        "safety_check": {"status": safety.get("status", "EVALUATED"), "note": safety.get("coverage_note")},
         "clinical_review": {
             "required": assessment.clinical_review_required,
             "status": "CLINICAL_REVIEW_REQUIRED" if assessment.clinical_review_required else "NOT_REQUIRED",

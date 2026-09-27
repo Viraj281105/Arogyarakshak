@@ -5,6 +5,7 @@ Machine-derived signals (plausibility, safety escalations) are computed here onc
 module route and the review service can never disagree about them.
 """
 
+import logging
 import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -25,6 +26,8 @@ from kadi.clinical_review.safety import (
 )
 
 from app.models import KadiCase, KadiEntity, KadiSafetyRule, KadiSafetyScanResult
+
+logger = logging.getLogger("arogyarakshak.clinical.context")
 
 NO_ACTIVE_RULES_NOTE = (
     "No clinical safety rules are active on this deployment. The absence of an escalation "
@@ -143,6 +146,7 @@ async def evaluate_case_safety(
 
     return {
         "case_id": case_id,
+        "status": "EVALUATED",
         "active_rule_count": len(rules),
         "escalations": sort_escalations(list(by_rule.values())),
         "disclaimer": SAFETY_FLOOR_DISCLAIMER,
@@ -162,14 +166,48 @@ def _refs(entities: Sequence[EntityRecord], entity_type: str) -> List[EvidenceRe
     ]
 
 
+SAFETY_UNAVAILABLE_NOTE = (
+    "Safety check unavailable: the clinical safety rules could not be evaluated for this case. "
+    "No safety assessment has been made — this is not the same as \"no escalation\"."
+)
+
+
+def safety_unavailable(case_id: str) -> Dict[str, Any]:
+    """What a caller gets when the safety evaluation itself failed. It must never look
+    like an evaluation that found nothing (or like "no rules are active")."""
+    return {
+        "case_id": case_id,
+        "status": "UNAVAILABLE",
+        "active_rule_count": None,
+        "escalations": [],
+        "disclaimer": SAFETY_FLOOR_DISCLAIMER,
+        "scope_note": None,
+        "coverage_note": SAFETY_UNAVAILABLE_NOTE,
+    }
+
+
+async def evaluate_case_safety_or_unavailable(
+    db: AsyncSession, case_id: str, entities: Optional[Sequence[EntityRecord]] = None
+) -> Dict[str, Any]:
+    """`evaluate_case_safety`, isolated in a SAVEPOINT so a failure is reported as
+    UNAVAILABLE without poisoning the caller's transaction."""
+    try:
+        async with db.begin_nested():
+            return await evaluate_case_safety(db, case_id, entities)
+    except Exception:  # noqa: BLE001 — any failure must surface as UNAVAILABLE, never as "safe"
+        logger.exception("Clinical safety evaluation failed for case %s", case_id)
+        return safety_unavailable(case_id)
+
+
 async def assess_case_plausibility(
     db: AsyncSession, case_id: str, entities: Optional[Sequence[EntityRecord]] = None
 ) -> Tuple[PlausibilityAssessment, Dict[str, Any]]:
     entities = entities if entities is not None else await load_entity_records(db, case_id)
-    safety = await evaluate_case_safety(db, case_id, entities)
+    safety = await evaluate_case_safety_or_unavailable(db, case_id, entities)
     assessment = assess_clinical_plausibility(
         _refs(entities, "diagnosis"),
         _refs(entities, "procedure"),
         safety_escalations=len(safety["escalations"]),
+        safety_check_available=safety.get("status") != "UNAVAILABLE",
     )
     return assessment, safety

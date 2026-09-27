@@ -51,7 +51,12 @@ from app.clinical.auth import (
     require_reviewer,
     reviewer_available,
 )
-from app.clinical.context import assess_case_plausibility, evaluate_case_safety, load_entity_records
+from app.clinical.context import (
+    assess_case_plausibility,
+    evaluate_case_safety,
+    evaluate_case_safety_or_unavailable,
+    load_entity_records,
+)
 from app.clinical.serializers import (
     case_holder_review_view,
     fact_view,
@@ -442,7 +447,7 @@ async def clinical_context(case_id: str, case: KadiCase = Depends(require_case_a
         ],
         "fact_decisions": [f for r in reviews if r["status"] != "CANCELLED" for f in r["facts"] if f["decision"] != "PENDING"],
         "transcriptions": tasks,
-        "safety": await evaluate_case_safety(db, case_id),
+        "safety": await evaluate_case_safety_or_unavailable(db, case_id),
         "provenance_legend": {p.value: PROVENANCE_DESCRIPTIONS[p] for p in ProvenanceClass},
     }
 

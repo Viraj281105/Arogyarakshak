@@ -23,7 +23,7 @@ from app.case_auth import require_case_access
 from app.clinical import safety_service
 from app.clinical.audit import events_for_subject
 from app.clinical.auth import require_board_member
-from app.clinical.context import evaluate_case_safety
+from app.clinical.context import evaluate_case_safety_or_unavailable
 from app.database import get_db
 from app.models import KadiCase, KadiClinicalReviewer, KadiSafetyRule
 
@@ -162,4 +162,7 @@ async def new_rule_version(rule_id: str, board: KadiClinicalReviewer = Depends(r
 
 @router.get("/cases/{case_id}/safety-escalations")
 async def case_safety_escalations(case_id: str, case: KadiCase = Depends(require_case_access), db: AsyncSession = Depends(get_db)):
-    return await evaluate_case_safety(db, case_id)
+    """Escalations from ACTIVE rules. `status` is EVALUATED, or UNAVAILABLE when the rules
+    could not be evaluated — clients must render that as "Safety check unavailable", never
+    as "no escalation" or "no rules active"."""
+    return await evaluate_case_safety_or_unavailable(db, case_id)
