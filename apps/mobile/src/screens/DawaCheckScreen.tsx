@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabParamList, RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, TranscriptionCard } from '../components';
+import { Card, Button, Badge, TranscriptionCard, ProcessingStatusCard, CaseMedicinesCard } from '../components';
 import { api, DawaCheckBenchmarkResponse, PrescriptionTranslationResponse, ApiError } from '../api';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { useSSEStream } from '../hooks/useSSEStream';
+import { useCaseProcessing } from '../hooks/useCaseProcessing';
+import { useActiveCaseId } from '../hooks/useActiveCase';
+import { resolveCaseId } from '../services/activeCase';
+import { createRequestGuard } from '../services/caseProcessing';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,19 +39,33 @@ export const DawaCheckScreen: React.FC = () => {
 
   // ADR-011: a scanned prescription arrives with its case; uncertain readings of its
   // medicines go to human transcription instead of being trusted.
-  const caseId = route.params?.caseId ?? null;
+  const activeCaseId = useActiveCaseId();
+  const caseId = resolveCaseId(route.params?.caseId, activeCaseId);
   // Navigation happens right after the upload is accepted, while OCR/extraction still
-  // runs server-side; medicines are (re)loaded once processing has finished.
-  const sse = useSSEStream(caseId ?? undefined);
-  const processing = sse.isStreaming && !sse.isCompleted;
+  // runs server-side; medicines are loaded only once the server reports it finished.
+  const proc = useCaseProcessing(caseId);
+  const processing = !proc.ready;
   const [caseMedicines, setCaseMedicines] = useState<{ id: string; name: string }[]>([]);
+  const [caseRefresh, setCaseRefresh] = useState(0);
+  const medicinesGuard = useRef(createRequestGuard()).current;
   useEffect(() => {
-    if (!caseId || processing) return;
+    if (!caseId || !proc.ready) {
+      medicinesGuard.reset();
+      setCaseMedicines([]);
+      return;
+    }
+    const token = medicinesGuard.begin();
     api.kadi
       .getCase(caseId)
-      .then((res) => setCaseMedicines(res.entities.filter((e) => e.type === 'medicine').map((e) => ({ id: e.id, name: e.name }))))
-      .catch(() => setCaseMedicines([]));
-  }, [caseId, processing, sse.isCompleted]);
+      .then((res) => {
+        if (medicinesGuard.isCurrent(token)) {
+          setCaseMedicines(res.entities.filter((e) => e.type === 'medicine').map((e) => ({ id: e.id, name: e.name })));
+        }
+      })
+      .catch(() => {
+        if (medicinesGuard.isCurrent(token)) setCaseMedicines([]);
+      });
+  }, [caseId, proc.ready, caseRefresh, medicinesGuard]);
 
   // Prescription shorthand translator (#97)
   const [instructionsText, setInstructionsText] = useState('');
@@ -149,6 +166,9 @@ export const DawaCheckScreen: React.FC = () => {
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
         {m.desc}
       </Text>
+
+      <ProcessingStatusCard proc={proc} />
+      <CaseMedicinesCard caseId={caseId} ready={proc.ready} refreshToken={caseRefresh} onChanged={() => setCaseRefresh((n) => n + 1)} />
 
       {/* Pricing Audit Form */}
       <Card style={{ marginBottom: spacing.md }}>
@@ -325,7 +345,7 @@ export const DawaCheckScreen: React.FC = () => {
           {m.statutoryNoticeBody}
         </Text>
       </View>
-      <TranscriptionCard caseId={caseId} medicines={caseMedicines} processing={processing} refreshToken={sse.isCompleted} />
+      <TranscriptionCard caseId={caseId} medicines={caseMedicines} processing={processing} refreshToken={`${proc.ready}-${caseRefresh}`} />
     </ScrollView>
   );
 };

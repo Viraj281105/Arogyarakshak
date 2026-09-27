@@ -265,7 +265,7 @@ export const translations: Record<Language, MobileTranslations> = {
         draftAppealBtn: '⚖️ Draft IRDAI Appeal Letter',
         drafting: 'Running 5-Agent Appeal Pipeline...',
         appealTitle: 'Appeal Letter Drafted',
-        appealApprove: '✓ Judge-Approved Draft',
+        appealApprove: '✓ Passed automated quality check',
         appealNeedsRevision: 'ⓘ Flagged for Revision',
         appealLlmBacked: 'Grounded by a live LLM analysis of this case\'s documents.',
         appealTemplateNotice: 'ⓘ Offline template: no AI backend configured, so this is a static statutory draft, not a case-specific analysis. Review carefully before sending.',
@@ -460,7 +460,7 @@ export const translations: Record<Language, MobileTranslations> = {
         draftAppealBtn: '⚖️ इरडा अपील पत्र तैयार करें',
         drafting: '5-एजेंट अपील पाइपलाइन चल रही है...',
         appealTitle: 'अपील पत्र तैयार हुआ',
-        appealApprove: '✓ न्यायाधीश-अनुमोदित मसौदा',
+        appealApprove: '✓ स्वचालित गुणवत्ता जाँच में उत्तीर्ण', // needs native-speaker QA
         appealNeedsRevision: 'ⓘ संशोधन हेतु चिह्नित',
         appealLlmBacked: 'इस केस के दस्तावेज़ों के लाइव एआई विश्लेषण पर आधारित।',
         appealTemplateNotice: 'ⓘ ऑफ़लाइन टेम्पलेट: कोई एआई बैकएंड कॉन्फ़िगर नहीं है, इसलिए यह एक स्थिर सांविधिक मसौदा है, केस-विशिष्ट विश्लेषण नहीं। भेजने से पहले ध्यान से समीक्षा करें।',
@@ -655,7 +655,7 @@ export const translations: Record<Language, MobileTranslations> = {
         draftAppealBtn: '⚖️ आयआरडीएआय अपील पत्र तयार करा',
         drafting: '5-एजंट अपील पाइपलाइन सुरू आहे...',
         appealTitle: 'अपील पत्र तयार झाले',
-        appealApprove: '✓ न्यायाधीश-मंजूर मसुदा',
+        appealApprove: '✓ स्वयंचलित गुणवत्ता तपासणी उत्तीर्ण', // needs native-speaker QA
         appealNeedsRevision: 'ⓘ सुधारणेसाठी चिन्हांकित',
         appealLlmBacked: 'या केसच्या कागदपत्रांच्या थेट एआय विश्लेषणावर आधारित.',
         appealTemplateNotice: 'ⓘ ऑफलाइन टेम्पलेट: कोणतेही एआय बॅकएंड कॉन्फिगर केलेले नाही, त्यामुळे हा एक स्थिर वैधानिक मसुदा आहे, केस-विशिष्ट विश्लेषण नाही. पाठवण्यापूर्वी काळजीपूर्वक पुनरावलोकन करा.',

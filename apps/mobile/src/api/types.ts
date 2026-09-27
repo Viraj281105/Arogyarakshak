@@ -295,6 +295,18 @@ export interface DawaCheckBenchmarkResponse {
   reference_entry_count: number;
 }
 
+/** One row of GET /dawacheck/cases/{id}/benchmark — the server's trust decision per medicine. */
+export interface CaseMedicineBenchmark {
+  entity_id: string;
+  brand_name: string;
+  benchmark: DawaCheckBenchmarkResponse | null;
+  note: string | null;
+  name_provenance: Provenance;
+  transcription_task_id: string | null;
+  transcription_status: string | null;
+  trust: { state?: string; label?: string; benchmarkable?: boolean; reasons?: string[] };
+}
+
 export interface TranslateInstructionsRequest {
   instructions: string;
   language: 'en' | 'hi' | 'mr';
@@ -414,6 +426,9 @@ export interface SafetyEscalation {
 }
 
 export interface SafetyEvaluation {
+  /** UNAVAILABLE: the rules could not be evaluated — never render as "no escalation". */
+  status?: 'EVALUATED' | 'UNAVAILABLE';
+  active_rule_count?: number | null;
   escalations: SafetyEscalation[];
   disclaimer: string;
   coverage_note: string;
@@ -465,6 +480,9 @@ export interface TranscriptionTask {
   required_reviews: number;
   masked_context: string;
   status: 'OPEN' | 'AWAITING_SECOND_REVIEW' | 'RESOLVED' | 'HUMAN_ESCALATION_REQUIRED' | 'CANCELLED';
+  /** RESOLVED only means readers agreed; NOT_APPLIED = the agreed reading could not be placed. */
+  outcome?: 'APPLIED' | 'NOT_APPLIED' | null;
+  resolution_reason?: string | null;
   final_value: string | null;
   final_value_provenance: Provenance | null;
   readings_received: number;

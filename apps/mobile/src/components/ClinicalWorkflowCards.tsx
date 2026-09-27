@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Switch, StyleSheet } from 'react-native';
 import { useTheme } from '../theme';
+import { createRequestGuard } from '../services/caseProcessing';
+import { humanizeEnum } from '../services/labels';
 import { Card } from './Card';
 import { Button } from './Button';
 import { Badge } from './Badge';
@@ -33,13 +35,17 @@ export const SafetyNotice: React.FC<{ caseId: string | null; refreshToken?: unkn
   }, [caseId, refreshToken]);
 
   if (!caseId) return null;
-  // A safety check that failed must never look like one that found nothing.
-  if (failure) {
+  // A safety check that failed must never look like one that found nothing — whether the
+  // request failed or the server reports the rules could not be evaluated.
+  if (failure !== null || evaluation?.status === 'UNAVAILABLE') {
     return (
       <Card style={{ marginVertical: spacing.sm, borderColor: colors.statusWarning, borderWidth: 1 }}>
+        <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.sm, fontWeight: '700' }}>
+          ⚠️ Safety check unavailable
+        </Text>
         <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.sm }}>
-          ⚠️ The clinical safety check could not be run ({failure}). No safety assessment has been made. If you have
-          urgent symptoms, seek medical care directly.
+          The clinical safety check could not be run{failure ? ` (${failure})` : ''}. No safety assessment has been made — this
+          is not the same as "nothing found". If you have urgent symptoms, seek medical care directly.
         </Text>
       </Card>
     );
@@ -199,20 +205,29 @@ export const TranscriptionCard: React.FC<{
   const [shareConsent, setShareConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const guard = useRef(createRequestGuard()).current;
   const load = useCallback(async () => {
     if (!caseId) return;
+    const token = guard.begin();
     try {
       const [list, directory] = await Promise.all([api.clinical.transcriptions(caseId), api.clinical.readerDirectory()]);
+      if (!guard.isCurrent(token)) return; // a newer load superseded this one
       setTasks(list);
       setReaders(directory);
     } catch (err) {
-      setError((err as ApiError).detail || (err as ApiError).message);
+      if (guard.isCurrent(token)) setError((err as ApiError).detail || (err as ApiError).message);
     }
-  }, [caseId]);
+  }, [caseId, guard]);
 
   useEffect(() => {
+    // Never read the case while it is still being processed (an early empty answer
+    // could otherwise land after — and overwrite — the real one).
+    if (processing) {
+      guard.reset();
+      return;
+    }
     load();
-  }, [load, refreshToken]);
+  }, [load, refreshToken, processing, guard]);
 
   if (!caseId) return null;
   if (processing) {
@@ -260,14 +275,24 @@ export const TranscriptionCard: React.FC<{
       )}
       {tasks.map((task) => (
         <View key={task.task_id} style={[styles.item, { borderColor: colors.borderSubtle, paddingTop: spacing.sm, marginTop: spacing.sm }]}>
-          <Badge label={`${task.field_type.replace('_', ' ')} · ${task.risk_level} risk`} variant={task.risk_level === 'HIGH' ? 'danger' : 'info'} />
+          <Badge
+            label={`${humanizeEnum(task.field_type)} · ${task.risk_level === 'HIGH' ? 'two readers required' : 'one reader required'}`}
+            variant={task.risk_level === 'HIGH' ? 'danger' : 'info'}
+          />
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-            {TASK_STATUS[task.status]} · readings {task.readings_received}/{task.required_reviews}
+            {task.status === 'RESOLVED' && task.outcome === 'NOT_APPLIED'
+              ? 'Readers agreed, but the reading could not be applied — the entry stays unsettled'
+              : TASK_STATUS[task.status]}{' '}
+            · readings {task.readings_received}/{task.required_reviews}
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Context: {task.masked_context}</Text>
-          {task.final_value ? (
-            <Text style={{ color: colors.textPrimary }}>
-              Human-confirmed reading: {task.final_value} ({task.final_value_provenance})
+          {task.final_value && task.outcome !== 'NOT_APPLIED' ? (
+            <Text style={{ color: colors.textPrimary }}>Human-reviewed reading: {task.final_value}</Text>
+          ) : null}
+          {task.final_value && task.outcome === 'NOT_APPLIED' ? (
+            <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>
+              Readers agreed on “{task.final_value}”, but it could not be placed into the extracted entry, so the medicine is not
+              treated as settled or price-checked.
             </Text>
           ) : null}
           {(task.status === 'OPEN' || task.status === 'AWAITING_SECOND_REVIEW') && (

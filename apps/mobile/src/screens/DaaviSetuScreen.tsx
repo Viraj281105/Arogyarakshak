@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Linking, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, ResolutionReviewCard, ReadinessCard } from '../components';
+import { Card, Button, Badge, ResolutionReviewCard, ReadinessCard, ProcessingStatusCard } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { useSSEStream } from '../hooks/useSSEStream';
+import { useCaseProcessing } from '../hooks/useCaseProcessing';
+import { useActiveCaseId } from '../hooks/useActiveCase';
+import { clearActiveCase, resolveCaseId } from '../services/activeCase';
 import { ENV } from '../config/env';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -34,21 +36,21 @@ export const DaaviSetuScreen: React.FC = () => {
   const [treatmentPlan, setTreatmentPlan] = useState('');
 
   // Case & Result state
-  const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
+  // The scan that brought the patient here, else the case scanned in another tab (a
+  // bill scanned in BillNyay reaches pre-auth readiness without a second scan).
+  const activeCaseId = useActiveCaseId();
+  const [deletedCaseId, setDeletedCaseId] = useState<string | null>(null);
+  const resolvedCaseId = resolveCaseId(route.params?.caseId, activeCaseId);
+  const caseId = resolvedCaseId && resolvedCaseId !== deletedCaseId ? resolvedCaseId : null;
   // The scan hands over a case whose OCR/extraction is still running server-side;
   // case-derived cards wait for it instead of reading a half-built case.
-  const sse = useSSEStream(caseId || undefined);
-  const processing = sse.isStreaming && !sse.isCompleted;
+  const proc = useCaseProcessing(caseId);
+  const processing = !proc.ready;
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DaaviSetuClaimResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offlineQueued, setOfflineQueued] = useState(false);
 
-  useEffect(() => {
-    if (route.params?.caseId) {
-      setCaseId(route.params.caseId || null);
-    }
-  }, [route.params?.caseId]);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -159,7 +161,8 @@ export const DaaviSetuScreen: React.FC = () => {
           onPress: async () => {
             try {
               await api.kadi.deleteCase(caseId);
-              setCaseId(null);
+              setDeletedCaseId(caseId);
+              clearActiveCase(caseId);
               setResult(null);
               setError(null);
             } catch (err) {
@@ -187,6 +190,8 @@ export const DaaviSetuScreen: React.FC = () => {
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
         {m.desc}
       </Text>
+
+      <ProcessingStatusCard proc={proc} />
 
       {/* Input Form */}
       <Card style={{ marginBottom: spacing.md }}>
@@ -310,7 +315,7 @@ export const DaaviSetuScreen: React.FC = () => {
         </View>
       )}
 
-      <ResolutionReviewCard caseId={caseId} refreshToken={sse.isCompleted} />
+      <ResolutionReviewCard caseId={proc.ready ? caseId : null} refreshToken={proc.ready} />
       <ReadinessCard caseId={caseId} processing={processing} />
     </ScrollView>
   );

@@ -125,3 +125,19 @@ npm run web
 1. **Zero Retention (BYOD)**: Raw document photos (hospital bills, prescriptions, denial letters) are stored strictly in transient memory. They are expunged immediately after Kadi OCR extraction. Storing patient files permanently on device storage is blocked by design.
 2. **Accessible Touch Targets**: All interactive elements (buttons, segmented tabs, icons) adhere to WCAG 2.1 SC 2.5.5 and WCAG 2.2 SC 2.5.8 with a minimum `44px x 44px` touch target.
 3. **Module Boundaries**: The mobile client consumes the FastAPI gateway (`/api/v1/`) without embedding business rules locally.
+4. **Patient-facing only**: reviewer, transcription-reader and safety-board work is web-only (`/clinical-review`).
+
+---
+
+## 5. Case Processing Lifecycle
+
+`scan → upload 202 → processing → SSE → extraction complete → case ready`
+
+- `src/services/caseProcessing.ts` is a pure state machine (`idle | processing | ready | failed | timeout`), unit-tested in `tests/case_processing.test.ts`; `src/hooks/useCaseProcessing.ts` binds it to the SSE stream.
+- A screen given a case is `processing` from its **first render**; case data (audit, medicines, readiness, safety) is loaded only when the server reports `completed` or `idle`. A stream that closes without a terminal event is never treated as completion.
+- 90 s without any event → "Processing is taking longer than expected." with **Refresh status** (reopens the stream; the server replays the status or reports `idle`).
+- Async loads are sequence-guarded (`createRequestGuard`), so an early or stale response cannot overwrite newer state.
+- The scan records the **active case** (`src/services/activeCase.ts`); BillNyay, DaaviSetu, BimaNyay and DawaCheck use the route `caseId` or fall back to it, so a bill scanned in BillNyay reaches DaaviSetu readiness and DawaCheck without a second scan.
+- BillNyay's post-scan audit runs only once extraction is ready.
+
+**Runtime status:** type-checked and unit-tested only. The app has **not** been run on a device or emulator (no emulator image/AVD is installed on the development machine).

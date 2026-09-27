@@ -4,12 +4,14 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import { BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, ClinicalReviewCard } from '../components';
+import { Card, Button, Badge, ClinicalReviewCard, ProcessingStatusCard } from '../components';
 import { api, BimaNyayAnalysisResponse, BimaNyayTimelineResponse, ApiError } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { useSSEStream } from '../hooks/useSSEStream';
+import { useCaseProcessing } from '../hooks/useCaseProcessing';
+import { useActiveCaseId } from '../hooks/useActiveCase';
+import { resolveCaseId } from '../services/activeCase';
 
 export const BimaNyayScreen: React.FC = () => {
   const route = useRoute<RouteProp<BottomTabParamList, 'BimaNyay'>>();
@@ -19,9 +21,10 @@ export const BimaNyayScreen: React.FC = () => {
   const { isOnline } = useNetworkStatus();
   const m = t.modules.bimanyay;
   // ADR-011: a scanned denial letter arrives with its case; analyses are then linked to it.
-  const caseId = route.params?.caseId ?? null;
-  const sse = useSSEStream(caseId ?? undefined);
-  const processing = sse.isStreaming && !sse.isCompleted;
+  const activeCaseId = useActiveCaseId();
+  const caseId = resolveCaseId(route.params?.caseId, activeCaseId);
+  const proc = useCaseProcessing(caseId);
+  const processing = !proc.ready;
 
   // Form state
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -126,6 +129,8 @@ export const BimaNyayScreen: React.FC = () => {
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
         {m.desc}
       </Text>
+
+      <ProcessingStatusCard proc={proc} />
 
       {/* Input Form */}
       <Card style={{ marginBottom: spacing.md }}>
