@@ -127,3 +127,72 @@ def test_unassessable_diagnosis_makes_coverage_partial():
     assert result.status == "PLAUSIBLE"
     assert result.coverage == "PARTIAL", "a diagnosis the reference cannot assess must not be hidden behind FULL"
     assert any("Z99.9" in item for item in result.not_assessed_items)
+
+
+# --- Demo-hardening pass: adversarial cases ------------------------------------------
+
+def test_one_matching_procedure_does_not_hide_a_conflicting_one():
+    """Appendectomy fits appendicitis, but cholecystectomy is what the reference expects
+    for gallstones, which is not documented. Previously: PLAUSIBLE."""
+    a = assess_clinical_plausibility(
+        [dx("K35.8 Acute appendicitis")],
+        [proc("Laparoscopic Appendectomy", "P1"), proc("Laparoscopic Cholecystectomy", "P2")],
+    )
+    assert a.status == "CLINICAL_REVIEW_RECOMMENDED"
+    assert a.status != "PLAUSIBLE"
+    assert a.clinical_review_required is True
+    assert "Cholecystectomy" in a.summary and "not reported as plausible" in a.summary
+    assert a.conflicting_items == ["Laparoscopic Cholecystectomy"]
+    assert "Laparoscopic Cholecystectomy" not in a.not_assessed_items, "it was assessed — as a conflict"
+
+
+def test_conflict_is_not_raised_when_its_diagnosis_is_documented():
+    a = assess_clinical_plausibility(
+        [dx("K35.8 Acute appendicitis", "D1"), dx("K80.2 Gallstones", "D2")],
+        [proc("Appendectomy", "P1"), proc("Cholecystectomy", "P2")],
+    )
+    assert a.status == "PLAUSIBLE" and a.coverage == "FULL"
+
+
+def test_more_administrative_lines_are_excluded():
+    lines = ["Registration Charges", "Administrative Charges", "Medical Records Fee", "GST @ 18%",
+             "Linen and Laundry", "OT Charges", "Operation Theatre Charges", "Deposit Adjusted"]
+    a = assess_clinical_plausibility([dx("K35.8 Acute appendicitis")], [proc(x, f"P{i}") for i, x in enumerate(lines)])
+    assert sorted(a.excluded_administrative_items) == sorted(lines)
+    assert a.status == "INSUFFICIENT_INFORMATION", "admin lines are never read as an inconsistency"
+    assert a.not_assessed_items == []
+
+
+def test_admin_exclusion_keeps_clinical_words():
+    a = assess_clinical_plausibility([dx("K35.8 Acute appendicitis")], [proc("Laparoscopic Appendectomy")])
+    assert a.excluded_administrative_items == [] and a.status == "PLAUSIBLE"
+
+
+def test_partial_coverage_when_one_of_three_diagnoses_is_assessable():
+    a = assess_clinical_plausibility(
+        [dx("K35.8 Acute appendicitis", "D1"), dx("Z99.9 Dependence on device", "D2"), dx("Fever", "D3")],
+        [proc("Appendectomy")],
+    )
+    assert a.status == "PLAUSIBLE"
+    assert a.coverage == "PARTIAL"
+    assert len([i for i in a.not_assessed_items if "diagnosis not covered" in i]) == 2
+    assert "NOT treated as compatible" in a.summary
+
+
+def test_unsupported_diagnosis_alone_is_never_compatible():
+    a = assess_clinical_plausibility([dx("J18.9 Pneumonia")], [proc("Appendectomy")])
+    assert a.status == "INSUFFICIENT_INFORMATION"
+    assert a.coverage == "NONE"
+    assert a.is_necessity_determination is False
+
+
+def test_no_output_claims_necessity_or_approval():
+    for dxs, procs in [
+        ([dx("K35.8 Acute appendicitis")], [proc("Appendectomy")]),
+        ([dx("K35.8 Acute appendicitis")], [proc("MRI Brain")]),
+        ([dx("K35.8 Acute appendicitis")], [proc("Appendectomy", "P1"), proc("Cholecystectomy", "P2")]),
+    ]:
+        a = assess_clinical_plausibility(dxs, procs)
+        text = a.summary.lower()
+        assert "medically necessary" not in text and "will be approved" not in text
+        assert a.disclaimer == PLAUSIBILITY_DISCLAIMER
