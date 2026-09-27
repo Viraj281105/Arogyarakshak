@@ -89,12 +89,50 @@ This document catalogs known failure modes, error messages, and verified solutio
 
 ### DawaCheck shows a medicine as "not benchmarked" after transcription resolved
 - **Cause**: two readers agreed, but their reading could not be placed into the extracted
-  entry (typically the task was a whole uncertain line). The entity records
+  entry (e.g. the uncertain line carried more than the entry, or the reading named no drug). The entity records
   `human_transcription.status = "NOT_APPLIED"` and is deliberately kept unsettled (ADR-011).
 - **Remedy**: confirm the medicine with the dispensing pharmacist, then have the case holder
   flag the whole entry (`POST .../transcriptions`, `field_type: MEDICINE_NAME`) so two readers
   read it in full; a later partial reading will not clear the state. Do not "fix" this by
   falling back to the OCR name; that is the defect this state prevents.
+
+### DawaCheck says "Unclear on the document — not yet read by a human" but no task exists
+- **Cause**: an uncertain OCR reading could not be linked to exactly one medicine — it named
+  several (`AMBIGUOUS`), only resembled the extracted name (`POSSIBLE_MATCH`, typical after an
+  LLM spelling correction), was beyond the 10-task cap (`OVER_CAP`), or matched nothing while
+  this medicine's name is absent from the clearly read text (`UNGROUNDED`). The medicine is
+  held back in `meta.ocr_uncertainty` by design (`clinical-review.md` §10).
+- **Remedy**: press "Ask for a human reading of this entry" (whole-entry flag) and have two
+  readers read it; only a whole-entry reading clears the state.
+
+### Two different medicines ("Pan 40", "Pan-D") appear as one entity
+- **Cause** (fixed 2026-09-27): entity resolution treated a variant letter on one side as a
+  missing qualifier and merged them. Medicines now conflict on a one-sided variant letter.
+- **Remedy**: cases created before the fix keep the merged entity; delete and re-upload.
+
+### DawaCheck flags a large overcharge on a correctly read medicine
+- **Cause**: DawaCheck compares the price as a per-unit price against per-unit NPPA
+  ceilings. A bill line that is a strip/pack total is not converted to a unit price.
+- **Remedy**: known limitation — check the unit price manually; the demo documents use
+  per-unit rates for this reason.
+
+### Mobile screen says "Processing is taking longer than expected."
+- **Cause**: no processing event arrived for 90 s (hung or dropped stream), or the server
+  sent `timeout`. The app never assumes completion.
+- **Remedy**: press "Refresh status": the stream is reopened; the server replays the
+  status or reports `idle` if nothing is being processed (e.g. after an API restart —
+  processing status is held in memory by one process).
+
+### Safety banner says "Safety check unavailable"
+- **Cause**: the safety rules could not be evaluated (`status: UNAVAILABLE`) or the request
+  failed. This is deliberately different from "no escalation".
+- **Remedy**: check the API log for "Clinical safety evaluation failed" and the database.
+
+### Scenario C demo upload runs real OCR instead of the fixture
+- **Cause**: `CLINICAL_DEMO_MODE` is off, or the uploaded file is not byte-identical to
+  `demo/documents/C_prescription_uncertain.png` (the replay matches its SHA-256).
+- **Remedy**: enable demo mode and upload the committed file unmodified; if the image was
+  regenerated, update `DEMO_PRESCRIPTION_SHA256` in `app/clinical/demo_ocr.py`.
 
 ### A safety escalation disappears after a rule is re-versioned
 - **Cause**: full-text scan results carry forward to the new ACTIVE version only for terms

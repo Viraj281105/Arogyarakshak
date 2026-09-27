@@ -117,3 +117,25 @@ Constraints that shaped the design:
   medico-legal wording.
 - No migrations tool exists; the new tables are created by `create_all`. No existing table
   was altered.
+
+## Amendment (2026-09-27, demo-hardening pass)
+
+Decisions added without changing the architecture (no new tables, no new columns, no new
+states in the transcription task model):
+
+1. **One medicine trust gate.** `kadi.clinical_review.medicine_trust.decide_medicine_trust`
+   is the single decision every consumer of a medicine entity uses (DawaCheck, evidence
+   packets). Blocking states always beat settled ones; `NOT_APPLIED` and the new
+   `ocr_uncertainty` record are cleared only by a whole-entry human reading.
+2. **No uncertain reading is dropped.** Readings that cannot be linked to exactly one
+   medicine hold the medicine(s) they may concern back as entity metadata
+   (`ocr_uncertainty` with reasons `AMBIGUOUS`, `POSSIBLE_MATCH`, `OVER_CAP`, `UNGROUNDED`)
+   instead of becoming tasks — the task cap still bounds reader workload, while the
+   uncertainty stays visible and blocking.
+3. **Retirement of a safety rule is four-eyes**, recorded through the rule's own audit
+   trail (`RULE_RETIREMENT_REQUESTED`) rather than a new column or state.
+4. **A failed safety evaluation is a distinct outcome** (`status: UNAVAILABLE`), evaluated
+   in a SAVEPOINT; it is never rendered as "no escalation".
+5. **Deterministic demo OCR replay** lives in the existing demo-mode mechanism
+   (`CLINICAL_DEMO_MODE`), matches one committed synthetic document by SHA-256, and is
+   disclosed in the processing log. It does not exist outside demo mode.

@@ -201,8 +201,8 @@ header-only and shown once at registration.
 | `POST` | `/clinical-reviews/{review_id}/cancel` | Revoke sharing; reviewer access ends immediately |
 | `GET` | `/clinical-reviews/{review_id}/audit` | Audit trail (no clinical text) |
 | `GET` | `/clinical-context` | All human-review outputs + safety signals, each with provenance |
-| `GET` | `/safety-escalations` | Escalations from ACTIVE rules (not consent-gated), including upload-time full-text matches; `scope_note` states what text was checked |
-| `GET`/`POST` | `/transcriptions` | List tasks / flag a whole extracted medicine entry as possibly misread (`field_type` must be `MEDICINE_NAME`) |
+| `GET` | `/safety-escalations` | Escalations from ACTIVE rules (not consent-gated), including upload-time full-text matches; `scope_note` states what text was checked. `status` is `EVALUATED`, or `UNAVAILABLE` (`active_rule_count: null`) when the rules could not be evaluated — render as "Safety check unavailable", never as "no escalation" |
+| `GET`/`POST` | `/transcriptions` | List tasks / flag a whole extracted medicine entry as possibly misread (`field_type` must be `MEDICINE_NAME`). A RESOLVED task has `outcome`: `APPLIED`, or `NOT_APPLIED` when the agreed reading could not be placed (the entry stays unsettled) |
 | `POST` | `/transcriptions/{task_id}/assign` · `/cancel` | Assign a reader (`share_with_reviewer_consent` required) / cancel |
 
 **Reviewer** (`/api/v1/kadi`, reviewer credential; only assigned work is visible, otherwise `404`)
@@ -227,14 +227,14 @@ header-only and shown once at registration.
 | `GET` | `/safety-rules[?status=ACTIVE\|SUPERSEDED\|RETIRED\|ALL_PUBLIC]` · `/{rule_id}` · `/{rule_id}/versions` · `/{rule_id}/audit` | none | Published rules, history, audit |
 | `GET` | `/safety-rules/workspace` | board | All rules incl. drafts |
 | `POST`/`PUT` | `/safety-rules` · `/{rule_id}` | board | Propose / edit own DRAFT (source, version, section, limitations, review date required) |
-| `POST` | `/{rule_id}/submit` · `/decisions` · `/activate` · `/retire` · `/new-version` | board | Lifecycle; proposer cannot approve own rule; approvals bound to content hash |
+| `POST` | `/{rule_id}/submit` · `/decisions` · `/activate` · `/retire` · `/new-version` | board | Lifecycle; proposer cannot approve own rule; approvals bound to content hash. `/retire` is four-eyes: the first call records a request (rule stays ACTIVE, `retirement_requested_by` set), a different board member's call retires it |
 | `POST` | `/clinical-demo/seed` | governance + demo mode | Demo reviewers, institution, playbook, rules |
 
 **Module additions**
 
 | Method | Route | Description |
 |---|---|---|
-| `GET` | `/api/v1/billnyay/cases/{case_id}/clinical-plausibility` | Bounded plausibility check; `CLINICAL_REVIEW_REQUIRED` when indicated. Never a necessity determination |
+| `GET` | `/api/v1/billnyay/cases/{case_id}/clinical-plausibility` | Bounded plausibility check; `CLINICAL_REVIEW_REQUIRED` when indicated. Never a necessity determination. `assessment.conflicting_items` lists interventions the reference expects for an undocumented diagnosis; `safety_check.status` / `assessment.safety_check_status` report `UNAVAILABLE` when the safety evaluation failed |
 | `POST` | `/api/v1/billnyay/cases/{case_id}/appeal` | Now also returns `human_clinical_statement_attached`, `clinical_statements`, `clinical_annex` (verbatim, empty when none) and `clinical_statement_notice` (patient-facing only). The PDF carries the annex only when a statement exists, and is re-rendered and re-signed whenever a BillNyay statement is finalized, withdrawn or its review cancelled |
 | `POST` | `/api/v1/bimanyay/analyze` | Result now includes `clinical_review` (does the denial turn on clinical judgment?) |
 | `GET` | `/api/v1/bimanyay/cases/{case_id}/clinical-statements` | Finalized statements + verbatim `annex_text` for the appeal tiers |
@@ -244,7 +244,7 @@ header-only and shown once at registration.
 | `POST` | `/api/v1/daavisetu/cases/{case_id}/readiness` | Documentation checklist; optional `playbook_id` + institution credential |
 | `POST` | `/api/v1/daavisetu/cases/{case_id}/readiness/clinical-confirmations` | Route clinical-fact items to a doctor |
 | `GET` | `/api/v1/daavisetu/cases/{case_id}/claim/package` | ZIP now includes `preauth_readiness.txt` |
-| `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Skips unresolved uncertain readings, and readings human readers agreed on that could not be matched into the entry (`transcription_status: NOT_APPLIED`); adds `name_provenance`, `transcription_status` |
+| `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Benchmarks only medicines the trust gate allows (`clinical-review.md` §10.4). Each row carries `trust = {state, label, benchmarkable, reasons}`: `MACHINE_EXTRACTED` / `HUMAN_RESOLVED` are benchmarked; `AWAITING_HUMAN_READING`, `READERS_DISAGREED`, `READING_NOT_APPLIED` and `OCR_UNCERTAIN` (reasons `AMBIGUOUS`, `POSSIBLE_MATCH`, `OVER_CAP`, `UNGROUNDED`) are not, and `note` says why. Also `name_provenance`, `transcription_status` (`OPEN`, …, `NOT_APPLIED`, `OCR_UNCERTAIN`). Prices are compared per unit |
 
 ## 3. Server-Sent Events (SSE) Streaming
 
@@ -260,15 +260,20 @@ Clients listen to `GET /api/v1/kadi/cases/{case_id}/stream` during document proc
 
 | `status` | `progress` | Meaning |
 |---|---|---|
+| `idle` | 100 | Sent at once when nothing has been queued for this case in this API process (e.g. a module screen opened later). Not a claim that anything was processed |
 | `upload_received` | 10 | Multipart body accepted and queued |
 | `ocr_start` | 30 | OCR / text extraction running |
+| `demo_fixture` | 35 | `CLINICAL_DEMO_MODE` only: the committed Scenario C document's OCR/extraction was replayed from a fixture |
 | `extraction_start` | 60 | Kadi entity extraction running |
 | `database_write` | 80 | Persisting extracted entities |
+| `entity_resolution` · `transcription_flags` · `module_checks` | 85–90 | Resolution summary; unclear readings sent to human readers / medicines held back; auto-triggered module checks |
 | `completed` | 100 | Processing finished |
 | `failed` | 100 | Processing failed; `log` carries the reason |
 | `timeout` | 100 | Stream exceeded `SSE_TIMEOUT_SECONDS` and was closed |
 
-The stream terminates on `completed`, `failed` or `timeout`. No domain-module analysis runs
+The stream terminates on `idle`, `completed`, `failed` or `timeout`. Processing status is held
+in memory by one API process: with several workers or after a restart a client can receive
+`idle` for a document that was processed elsewhere — clients then read the case normally. No domain-module analysis runs
 during this stream — audit, appeal and claim generation are separate client-initiated calls.
 
 ---

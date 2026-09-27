@@ -20,7 +20,7 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
-- **Latest (2026-09-23):** Human clinical review, safety governance and human OCR resolution layer added (ADR-011, `docs/architecture/clinical-review.md`). Audit fixes followed on 2026-09-26; second-audit fixes on 2026-09-27 (uncommitted). Current totals: **866 backend passed / 6 skipped, 78 web, 92 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI guardrails 8/8. Mobile never run on a device/emulator.
+- **Latest (2026-09-27, demo-hardening pass — committed on `viraj-dev` (2eabd17..docs commit), PR to `main`):** OCR trust pipeline hardened (single medicine trust gate; no uncertain reading dropped), plausibility honesty, four-eyes safety-rule retirement, explicit "Safety check unavailable", mobile processing lifecycle, deterministic demo kit (`demo/`). Current totals: **922 passed, 6 skipped backend, 88 web, 109 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI Ruff gate OK, CI guardrails 8/8. **Not validated:** mobile on a device/emulator (none available), Postgres (Docker engine did not start), real Groq path (no key configured).
 - **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
 - **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
 - **Active Blockers:** None for currently assigned work.
@@ -155,19 +155,20 @@ arogyarakshak/
 
 ## 8. Current Work
 
-### Active Task (2026-09-23)
-Human clinical review + safety governance layer (ADR-011) — implemented, tested, browser-verified on web. Committed in `3aae7af`, first audit fixes in `f99945e`; second forensic audit fixes (2026-09-27) are in the working tree, uncommitted.
-
-### Objective
-Implement five hostile-review-redesigned doctor-integration concepts as one shared, Kadi-owned layer: attributable clinical statements (with COI, verification honesty, immutability), institution-private preauth readiness playbooks, bounded clinical plausibility review, versioned board-approved safety escalation rules, and blind human OCR transcription (not a doctor feature).
+### Active Task (2026-09-27) — demo-hardening implementation pass
+Make the OCR → human resolution → DawaCheck trust pipeline, the BillNyay clinical-review golden
+path, appeal/PDF lifecycle, plausibility, safety governance and mobile processing reliable enough
+for a judge demo, with a deterministic demo kit. Committed on `viraj-dev` in seven commits (plausibility, safety, OCR trust, web, mobile, demo kit, docs) and opened as a PR to `main`.
 
 ### Status
-- [x] Kadi domain rules (`packages/kadi/kadi/clinical_review/`), module logic (BillNyay plausibility, BimaNyay trigger, DaaviSetu readiness), 12 new tables, services, 54 routes.
-- [x] BillNyay appeal + PDF carry the verbatim attributed annex or an explicit "no clinician statement" notice; Barrister prompt forbids implying a clinician's opinion; offline template (en/hi/mr) no longer asserts physician records.
-- [x] Kadi OCR keeps EasyOCR per-segment confidence; low-confidence segments become transcription tasks; DawaCheck skips unresolved readings.
-- [x] Case purge/TTL sweep erase all case-scoped clinical rows.
-- [x] Web: clinical components in BillNyay/BimaNyay/DaaviSetu/DawaCheck views, safety banner, `/clinical-review` reviewer workspace. Verified in browser (Scenario A end to end, DawaCheck, DaaviSetu, governance tab).
-- [x] Mobile: patient-side review/statement/readiness/transcription/safety cards. Type-checked and contract-tested; **not run on a device/simulator**.
+- [x] OCR trust: `plan_ocr_uncertainty` + `medicine_trust.decide_medicine_trust` (zero-match, ambiguous, over-cap, LLM-normalised, marker-only, whole-line, NOT_APPLIED precedence). `clinical-review.md` §10.
+- [x] Entity resolution no longer merges "Pan-D" into "Pan 40" (medicine one-sided variant = conflict; evaluation unchanged).
+- [x] Plausibility: conflicting interventions → CLINICAL_REVIEW_RECOMMENDED (`conflicting_items`), more admin exclusions, safety-unavailable handling.
+- [x] Safety: four-eyes retirement; `status: UNAVAILABLE` on evaluation failure (web + mobile "Safety check unavailable").
+- [x] Appeal/PDF lifecycle covered (supersede, withdraw, cancel, failed re-render rollback, wrong token) — the code was already correct; tests added.
+- [x] Web: DawaCheck case-medicine trust panel, honest NOT_APPLIED task state, readable labels/timestamps, distinct provenance/verification badges, reviewer workspace context/COI/finalization checklist, module views gated on processing completion, stream "Refresh status". Browser-verified (Scenario A end to end; Scenario C trust panel and blind reader view); no console errors.
+- [x] Mobile: processing state machine + 90 s timeout + Refresh status, shared active case (DaaviSetu/DawaCheck reachable after one scan), stale-response guards, case-medicine card. Unit-tested and type-checked; **not run on a device**.
+- [x] Demo kit `demo/` (Scenarios A–D, synthetic documents, demo-mode OCR replay for Scenario C), each scenario an automated test.
 
 ### Earlier task (historical)
 Product Phase 1 Final Audit Fixes — resolved adversarial audit findings across Kadi background session DB persistence, CameraScan navigation, web file uploader validation, CGHS rates JSON path resolution, mobile offline action queueing, and EasyOCR runtime compatibility.
@@ -207,7 +208,9 @@ None. Ready for Product Phase 2 when directed by user.
 - [x] **Scaffold Mobile App (`apps/mobile`)**: Expo React Native TypeScript project with in-app camera document capture (issue #134, closed).
 
 ### P1 — High (Core Integration)
-- [ ] **Clinical review follow-ups (ADR-011)**: native-speaker Hindi/Marathi copy for clinical UI; run mobile clinical flows on a device; a real `RegistryVerificationAdapter` only if an authorised registry API becomes available; reviewer notifications.
+- [ ] **Clinical review follow-ups (ADR-011)**: native-speaker Hindi/Marathi copy for clinical UI (and the new hi/mr "passed automated quality check" strings in `apps/mobile/src/translations/strings.ts`); run mobile clinical flows on a device; a real `RegistryVerificationAdapter` only if an authorised registry API becomes available; reviewer notifications.
+- [ ] **Validation debt (2026-09-27)**: Postgres smoke test of the ADR-011 tables and SAVEPOINT safety path (`docker compose up postgres api`); Android emulator/device run of the scan → processing → modules flow; one real-Groq run of Scenario A (extraction + appeal letter).
+- [ ] **DawaCheck unit basis**: convert strip/pack totals to unit prices (or refuse to compare) before comparing with per-unit NPPA ceilings.
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
 - [x] **Kadi Entity Resolution (Phase 3)**: string similarity + rule-based cross-script phonetics + optional IndicSBERT, merge/ask/new branching and feedback-calibrated thresholds (ADR-006). IndicXlit remains blocked on fairseq / Python 3.11 (#29).
 - [ ] **Mobile Push SLA Alerts**: Local notifications for 15-day GRO and Bima Bharosa statutory deadlines.
@@ -312,7 +315,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **Current totals (2026-09-23, after ADR-011):** backend `pytest` **835 passed, 6 skipped** (was 686); web `npm test` **74** (was 58), `npm run lint` 0 errors, `npm run build` OK; mobile `npm test` **87** (was 77), `npm run type-check` 0 errors; `scripts/ci_guardrails.py` 8/8.
+- **Current totals (2026-09-27, demo-hardening pass):** backend `pytest` **922 passed, 6 skipped**; web `npm test` **88**, lint 0, build OK; mobile `npm test` **109**, type-check 0; CI Ruff gate OK; `scripts/ci_guardrails.py` 8/8. New suites: `packages/kadi/tests/test_ocr_trust_gate.py`, `apps/api/tests/test_ocr_trust_pipeline.py`, `test_appeal_pdf_lifecycle.py`, `test_safety_unavailable.py`, `test_demo_documents.py`, `test_demo_scenario_c.py`, `apps/web/tests/demo_hardening.test.ts`, `apps/mobile/tests/case_processing.test.ts`. Not run: Postgres, device/emulator, real Groq.
+- **Earlier totals (2026-09-23, after ADR-011):** backend `pytest` **835 passed, 6 skipped** (was 686); web `npm test` **74** (was 58), `npm run lint` 0 errors, `npm run build` OK; mobile `npm test` **87** (was 77), `npm run type-check` 0 errors; `scripts/ci_guardrails.py` 8/8.
   - New backend suites: `packages/kadi/tests/test_clinical_review_domain.py`, `test_clinical_annex.py`; `packages/billnyay/tests/test_plausibility.py`; `packages/bimanyay/tests/test_clinical_triggers.py`; `packages/daavisetu/tests/test_readiness.py`; `apps/api/tests/test_clinical_review.py`, `test_clinical_security.py` (adversarial), `test_clinical_safety.py`, `test_clinical_transcription.py`, `test_daavisetu_readiness.py`, `test_clinical_demo_scenarios.py`.
   - New client suites: `apps/web/tests/clinical_review.test.ts`, `apps/mobile/tests/clinical_review.test.ts`.
 - *Historical section below (Phase 1).*
@@ -372,7 +376,17 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
-### 2026-09-27 — Second forensic audit of `f99945e` (fixes uncommitted)
+### 2026-09-27 — Demo-hardening implementation pass (committed on `viraj-dev`)
+- **OCR trust (P0)**: readings linking to no medicine, to 2+ medicines, or beyond the cap were dropped and the medicine benchmarked as `AI_DERIVED`; LLM-normalised names lost the uncertainty. Now `plan_ocr_uncertainty` holds such medicines back (`meta.ocr_uncertainty`: `AMBIGUOUS`/`POSSIBLE_MATCH`/`OVER_CAP`/`UNGROUNDED`) and one gate (`kadi/clinical_review/medicine_trust.py`) decides benchmarkability for DawaCheck and evidence packets. Marker-only / no-drug readings refused ("Tab. 40"). Whole-line agreed readings that are exactly the entry are now placed. Escalations are overridden only by a later whole-entry reading.
+- **Entity resolution (P1, found while testing)**: "Pan-D" auto-merged into "Pan 40"; medicines now conflict on a one-sided variant letter (evaluation: 0 false merges, identical recall).
+- **Plausibility (P1)**: one matching + one conflicting intervention returned PLAUSIBLE → now CLINICAL_REVIEW_RECOMMENDED with `conflicting_items`; more admin lines excluded; unassessed diagnoses stated as not compatible.
+- **Safety (P1)**: single-member retirement → four-eyes (request + independent confirm, via audit trail); evaluation failure → `status: UNAVAILABLE` (SAVEPOINT) and "Safety check unavailable" on web/mobile.
+- **Mobile (P1)**: first-render race, post-202 audit, stale overwrites, no timeout, DaaviSetu unreachable for a scanned bill — fixed via `services/caseProcessing.ts`, `hooks/useCaseProcessing.ts`, `services/activeCase.ts`. Backend SSE sends `idle` when nothing is in flight.
+- **Web (P2)**: module views gated on processing completion; stalled stream → Refresh status; DawaCheck case-medicine trust panel; NOT_APPLIED shown honestly; readable labels; distinct provenance/verification badges; reviewer workspace context + finalization checklist; "Judge-Approved" → "Passed automated quality check"; "Audit Completed" → "Extraction complete".
+- **Demo kit**: `demo/` (README, Scenarios A–D, synthetic documents, fixtures list); Scenario C uses a demo-mode-only OCR replay (`app/clinical/demo_ocr.py`) keyed by the committed PNG's SHA-256. Demo prices are per unit (a pack price produced a false "+1356%" in browser verification).
+- Docs: `clinical-review.md` §7/§9/§10/§12/§13, ADR-011 amendment, `docs/api/overview.md`, `docs/development/troubleshooting.md`, `apps/mobile/README.md`, CHANGELOG.
+
+### 2026-09-27 — Second forensic audit of `f99945e` (committed in `f793b6a`)
 - **OCR cap starvation (P1)**: the 10-task cap was applied before linking, so >10 uncertain letterhead segments hid every medicine line; now `select_uncertain_segments` is uncapped and `create_tasks_from_ocr` caps linked tasks.
 - **Unapplied human reading (P1)**: a resolved reading that could not be placed left the entity untouched and the task RESOLVED, so DawaCheck benchmarked the uncertain OCR name as `AI_DERIVED`. Now recorded as `human_transcription.status = NOT_APPLIED`; DawaCheck does not benchmark it; evidence packets mark it unsettled; a later partial reading cannot clear it (only a whole-entry flag can). A leading "Tab."/"Cap." no longer blocks placement.
 - **Whole-line readings (P1)**: an uncertain line such as "Tab Augmntn 625mg 1-0-1" did not link to entity "Augmntn" (strength stored separately) and was dropped; linking is now whole-token in both directions, still exactly-one.
@@ -541,8 +555,15 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
+### Latest handoff (2026-09-27, demo-hardening pass)
+- Committed on `viraj-dev` on top of `f793b6a` (2eabd17 plausibility, 9921bb7 safety, a808537 OCR trust, 67eca60 web, 732ecc0 mobile, ed50f5d demo kit, then docs) and opened as a PR to `main`. Backend 922 passed, 6 skipped; web 88 / lint 0 / build OK; mobile 109 / type-check 0; guardrails 8/8.
+- Read `docs/architecture/clinical-review.md` §10 before touching OCR/transcription/DawaCheck: the trust invariant is enforced by `test_ocr_trust_gate.py`, `test_ocr_trust_pipeline.py`, `test_demo_scenario_c.py`. Do not add a benchmarking fallback to OCR/AI names for held-back entries.
+- Demo: `demo/README.md`. Scenario C's replay only works with the committed PNG, byte-identical, in demo mode.
+- Not validated in this pass: Postgres (Docker Desktop was launched but its engine never came up; the local PostgreSQL 18 service is stopped and needs elevation), Android device/emulator (SDK has adb only — no emulator package, system image or AVD), real Groq.
+- Residual risks: DawaCheck per-unit vs pack prices; EasyOCR confidently misread words are not flagged; `UNGROUNDED` is token-based and conservative; processing status is in-memory single-process (`idle` after restart); hi/mr copy needs QA; web uploader creates one case per upload (Scenario A's discharge summary is test-only).
+
 ### Latest handoff (2026-09-27, second ADR-011 audit)
-- ADR-011 is committed (`3aae7af`, `f99945e`). The second-audit fixes (see §17, 2026-09-27) are uncommitted in the working tree.
+- ADR-011 is committed (`3aae7af`, `f99945e`). The second-audit fixes are committed in `f793b6a`.
 - Invariant now enforced by tests, for uncertain readings that LINK to exactly one medicine (and are within the 10-task cap): the entry is not benchmarked until readers agree, and an agreed reading that cannot be placed stays `NOT_APPLIED` (not benchmarked) until a whole-entry flag settles it — a later partial reading cannot clear it. Readings that link to no medicine, to 2+ medicines, or beyond the cap are NOT covered (see residual gaps).
 - Known residual gaps (documented in `clinical-review.md` §10/§12, not fixed): readings that link to no medicine or to 2+ medicines, or linked readings beyond the 10-task cap, are dropped and the medicine is benchmarked as `AI_DERIVED` (e.g. LLM-rewritten names); task cards show a resolved `NOT_APPLIED` task as a green "Human-confirmed reading" without `resolution_reason` (the DawaCheck note explains it); one board member can retire an active safety rule alone; mobile screens can fetch once before the SSE stream starts and have no stream timeout.
 - Mobile has still never been run on a device or emulator (no Android SDK on the dev machine used for the audit).

@@ -30,6 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plausibility coverage is PARTIAL (not FULL) when a diagnosis could not be assessed.
 - Reviewer-facing review responses no longer include the patient's case id.
 
+### Added (demo-hardening pass, 2026-09-27)
+- One medicine trust gate (`kadi.clinical_review.medicine_trust`) used by DawaCheck and reviewer evidence; DawaCheck rows carry `trust` (state, label, reasons).
+- Uncertain OCR readings that cannot be linked to exactly one medicine are no longer dropped: the medicine(s) they may concern are held back as `ocr_uncertainty` (`AMBIGUOUS`, `POSSIBLE_MATCH`, `OVER_CAP`, `UNGROUNDED`) and are not benchmarked until a whole-entry human reading settles them.
+- Deterministic demo kit (`demo/`): synthetic documents, Scenarios A–D with expected output, and a demo-mode-only OCR replay for the Scenario C prescription image (`app/clinical/demo_ocr.py`). Each scenario is an automated test.
+- Web DawaCheck shows the case's own medicines with their trust decision and an "Ask for a human reading" action.
+- Mobile: processing lifecycle state machine (`services/caseProcessing.ts`) with a 90 s inactivity timeout ("Processing is taking longer than expected." + "Refresh status"), shared active case across tabs, case-medicines card.
+- SSE stream emits `idle` at once when nothing is being processed for the case.
+
+### Fixed (demo-hardening pass, 2026-09-27)
+- Readings linking to no medicine, to several medicines, or beyond the task cap let the medicine be benchmarked as `AI_DERIVED`; LLM-normalised names ("Amoxycilin" → "Amoxicillin") lost the OCR uncertainty.
+- A human reading of only a marker could produce names like "Tab. 40"; results that name no drug are now refused.
+- An agreed transcription of a whole uncertain line that is exactly the entry ("Tab Augmntn 625mg 1-0-1 x 5 days") was always `NOT_APPLIED`; it is now placed. A later whole-entry reading overrides an earlier escalation only if it is later; partial readings never clear held-back states.
+- Entity resolution auto-merged combination products into their base drug ("Pan-D" into "Pan 40"); a one-sided variant letter is now a conflict for medicines (evaluation unchanged: 0 false merges).
+- Plausibility returned PLAUSIBLE when one intervention matched and another is expected for an undocumented diagnosis; now CLINICAL_REVIEW_RECOMMENDED with `conflicting_items`. More administrative lines are excluded; the summary says unassessed diagnoses are not treated as compatible.
+- A failing safety evaluation surfaces as `status: UNAVAILABLE` ("Safety check unavailable"), never as "no rules active"; plausibility survives it and recommends review.
+- One board member could retire a safety rule alone; retirement is now request + independent confirmation.
+- Mobile screens read the case before processing was established (first-render race), BillNyay audited straight after the upload 202, a stale response could overwrite newer state, and tabs did not share the scanned case (DaaviSetu was unreachable for a scanned bill).
+- Web module views computed on a half-built case during processing; a dropped/silent stream showed nothing.
+- "Judge-Approved Draft" (an automated scorer) relabelled "Passed automated quality check" (web + mobile; Hindi/Marathi rewording needs native-speaker QA). "Audit Completed" after extraction relabelled "Extraction complete".
+
 ### Changed
 - BillNyay appeals now append finalized clinician statements verbatim (or state that none exists); the Barrister prompt forbids implying a clinician's opinion; the offline appeal template no longer asserts that physician records prove necessity.
 - Kadi OCR now returns EasyOCR per-segment confidence; low-confidence readings become human transcription tasks.

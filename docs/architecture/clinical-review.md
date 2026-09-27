@@ -187,7 +187,16 @@ not cover as `not_assessed_items` (`coverage: PARTIAL`) and says in its summary 
 were not assessed — so "appendectomy + MRI brain" is not presented as all-clear. A
 diagnosis whose code cannot be read or is outside the table is also listed there (and
 makes coverage PARTIAL) whenever another diagnosis was assessed, so one covered diagnosis
-never hides an unassessed one behind `FULL`.
+never hides an unassessed one behind `FULL`; the summary says such diagnoses are not
+treated as compatible.
+
+A billed intervention that the table lists for a *different* diagnosis which is not
+documented (e.g. cholecystectomy billed with only appendicitis documented) is a conflict:
+it is returned in `conflicting_items` (never as "not assessed"), and a result where one
+intervention matches while another conflicts is `CLINICAL_REVIEW_RECOMMENDED`, never
+`PLAUSIBLE`. If the safety evaluation fails, the result carries
+`safety_check_status: UNAVAILABLE` and a review reason; the response's `safety_check`
+says so.
 
 ## 8. Preauth readiness (DaaviSetu)
 
@@ -234,52 +243,95 @@ checked against the full text of earlier uploads. Results of retired rules, and 
 new version dropped, are ignored. The response's `scope_note` states this. If the check
 fails, web and mobile say so explicitly — a failure never renders like "no escalation".
 
+**Retirement is four-eyes.** Retiring removes an escalation from every case, so the
+first board member's `POST .../retire` only records a retirement request (audit event
+`RULE_RETIREMENT_REQUESTED`; the rule stays ACTIVE and keeps escalating;
+`retirement_requested_by` shows it); a different board member's call confirms it. The
+requester cannot confirm their own request (409); each call needs a reason.
+
+**Failure is explicit.** `GET .../safety-escalations` returns `status: EVALUATED`, or
+`status: UNAVAILABLE` (with `active_rule_count: null`) when the rules could not be
+evaluated — the evaluation runs in a SAVEPOINT so a failure does not poison the request.
+Web and mobile render UNAVAILABLE (or a failed request) as "Safety check unavailable".
+
 **Approval rounds.** The submitted content hash includes a submission round (counted from
 the rule's own `RULE_SUBMITTED` audit events). After a rejection, resubmitting unchanged
 content starts a fresh round: earlier approvals no longer count and the reviewer who
 rejected can decide again.
 
-## 10. Human OCR resolution
+## 10. Human OCR resolution and the medicine trust gate
 
+**Invariant:** an uncertain OCR reading of a medicine never lets that medicine become a
+trusted, benchmarkable fact until humans have settled it.
+
+### 10.1 From uncertain segment to task or held-back entry
 - Kadi keeps EasyOCR's per-segment confidence (`ocr_segments`). A segment below
-  `OCR_LOW_CONFIDENCE_THRESHOLD` becomes a task **only if** it (a) carries no direct
-  identifier and is not a prescriber/identity line ("Dr.", degrees, registration no.),
-  (b) is not a bare prescription marker ("Rx", "Tab.") or too short to settle, (c) is not a
-  non-clinical field (amount, date), and (d) links to exactly **one** extracted medicine by
-  whole tokens in either direction: every meaningful token of the reading is in the
-  medicine's name, or every meaningful token of the name is in the reading (a whole
-  uncertain line such as "Tab Augmntn 625mg 1-0-1"). At most 10 tasks per document,
-  counted **after** linking so letterhead noise cannot use up the cap; linked readings
-  beyond the 10th are dropped like unlinked ones.
-- Readings that link to no medicine, or to more than one, are dropped. Residual risk: such
-  a medicine is then benchmarked as an ordinary `AI_DERIVED` extraction — e.g. when the LLM
-  extraction rewrote the misread name ("Amoxycilin" → "Amoxicillin"), or an uncertain token
-  appears in two medicine names. The OCR uncertainty is not carried in those cases.
-- Context shows only neighbouring lines that look like part of a medication entry
-  (redacted); letterheads, names and addresses are replaced by "…".
-- A task stores the redacted candidate, that masked context (`▢▢▢`) and a bounding box —
-  **no image** (ADR-003). Readers read the original the patient holds, so today this works
-  in person (e.g. at a pharmacy counter), not remotely.
-- A resolved reading replaces **only the uncertain token** inside the medicine's name
-  ("Tab Augmntn 625mg" → "Tab Augmentin 625mg"; a leading "Tab."/"Cap." the extraction
-  dropped is ignored when placing it). If it cannot be placed unambiguously the name is left
-  as extracted but the agreed reading is recorded as `NOT_APPLIED`: DawaCheck does not
-  benchmark the entry (`transcription_status: NOT_APPLIED`, note shows the human reading)
-  and reviewer evidence marks it unsettled — the uncertain OCR text never becomes a fact by
-  default. A later reading of part of the same entry does not clear `NOT_APPLIED`; only a
-  case-holder flag of the whole entry, read by two readers, settles it. Web/mobile task
-  cards still show such a task as a resolved "Human-confirmed reading" (they do not render
-  `resolution_reason`); the DawaCheck result is where the unsettled state is explained.
-  A reading that is only a marker ("Tab.") is never substituted for a drug name. The
-  reader categories are recorded.
-- `MEDICINE_NAME`, `STRENGTH`, `FREQUENCY`, `ROUTE`, `DURATION` and `UNCLASSIFIED` are
-  HIGH risk: two independent readings from different readers must agree (normalised for
-  case/spacing/units). HIGH-risk readers never see the OCR guess or another reader's
-  answer. Disagreement or "unreadable" → `HUMAN_ESCALATION_REQUIRED`.
-- A case holder can also flag an extracted medicine as possibly misread (whole entry only;
-  partial-field flags are refused because the reading could not be placed safely).
-- DawaCheck does not benchmark a medicine with an open or escalated HIGH-risk task, and
-  benchmarks a resolved name with `name_provenance: HUMAN_REVIEWED`.
+  `OCR_LOW_CONFIDENCE_THRESHOLD` is a candidate **only if** it carries no direct
+  identifier and is not a prescriber/identity line ("Dr.", degrees, registration no.), is
+  not a bare marker ("Rx", "Tab.") or too short to settle, and is not a non-clinical field
+  (amount, date). Context shows only neighbouring medication-looking lines (redacted),
+  and the reader view shows the line position on the original.
+- `kadi.clinical_review.transcription.plan_ocr_uncertainty` then decides for **every**
+  medication-risk candidate (nothing is dropped):
+
+| Reading … | Outcome |
+|---|---|
+| names exactly **one** medicine by whole tokens (either direction; markers, dose pattern "1-0-1" and duration ignored; "40" = "40mg" but "40mcg" ≠ "40mg"), within the cap | a two-reader **task** linked to it |
+| the same, beyond `MAX_TASKS_PER_DOCUMENT` (10, counted after linking) | medicine held back: `OVER_CAP` |
+| names **two or more** medicines ("Pan" with "Pan 40" and "Pan-D") | all of them held back: `AMBIGUOUS` — software never picks one |
+| names none but **resembles** one or more (edit similarity / shared prefix, or the strength stored separately) — typically an extractor normalisation "Amoxycilin" → "Amoxicillin" | held back: `POSSIBLE_MATCH` — a normalisation is not a confirmation |
+| names and resembles nothing | `unplaced`; every medicine **from this document** whose name is not in the clearly read OCR text is held back: `UNGROUNDED` |
+| is not medication-related (non-clinical fields) | ignored (counted) |
+
+A held-back medicine carries `meta.ocr_uncertainty = {status: "UNRESOLVED", reasons,
+readings, explanation, next_step}`; later uploads can add reasons, never clear them.
+
+### 10.2 Readers and consensus
+- `MEDICINE_NAME`, `STRENGTH`, `FREQUENCY`, `ROUTE`, `DURATION` and `UNCLASSIFIED` are HIGH
+  risk: two independent readings from different readers must agree (normalised for
+  case/spacing/units). HIGH-risk readers never see the OCR guess or another reader's answer.
+  Disagreement or "unreadable" → `HUMAN_ESCALATION_REQUIRED`.
+- A task stores the redacted candidate, the masked context and a location hint — **no
+  image** (ADR-003). Readers read the original the patient holds, so today this works in
+  person, not remotely.
+- A case holder can flag a whole extracted medicine entry (partial-field flags are refused).
+
+### 10.3 Applying an agreed reading (`substitute_reading`)
+- Replaces only the uncertain part of the name; a leading "Tab."/"Cap." is ignored.
+- If the uncertain reading was the entry's whole line — its name-bearing tokens are exactly
+  the entry's name, the rest markers/dose pattern/duration — the readers' line minus those
+  fragments becomes the name ("Tab Augmentin 625mg 1-0-1 x 5 days" → "Augmentin 625mg").
+  If the line carries more than the entry (e.g. a strength stored separately), it is not
+  placed.
+- A reading that is only a marker, or any result that no longer names a drug ("Tab. 40"),
+  is refused.
+- Not placeable → `human_transcription.status = NOT_APPLIED`; the task shows
+  `outcome: NOT_APPLIED` ("Readers agreed, but the reading could not be applied") — never a
+  green "confirmed".
+
+### 10.4 The trust gate (`kadi.clinical_review.medicine_trust.decide_medicine_trust`)
+Used by DawaCheck and by reviewer evidence packets. First match wins; blocking states beat
+settled ones:
+
+1. open task (`OPEN`, `AWAITING_SECOND_REVIEW`) → `AWAITING_HUMAN_READING` — blocked
+2. escalated task → `READERS_DISAGREED` — blocked, unless a whole-entry reading resolved
+   **after** the most recent escalation
+3. `NOT_APPLIED` → `READING_NOT_APPLIED` — blocked
+4. `ocr_uncertainty` UNRESOLVED → `OCR_UNCERTAIN` — blocked (reasons listed)
+5. placed human reading → `HUMAN_RESOLVED`, benchmarked with `name_provenance: HUMAN_REVIEWED`
+6. otherwise → `MACHINE_EXTRACTED`, benchmarked as `AI_DERIVED`
+
+States 3 and 4 are settled **only** by a whole-entry reading (a case-holder flag, or an OCR
+reading that was the entire entry) placed by two readers; a partial reading never clears
+them. When several tasks exist for one entry, an OPEN one is reported first, otherwise the
+most recently escalated one. DawaCheck rows carry `trust = {state, label, benchmarkable,
+reasons}`; evidence packets show held-back medicines as "unsettled" with `AI_DERIVED`
+provenance.
+
+### 10.5 Entity resolution guard
+For medicines, a variant letter on only one side is a conflict ("Pan-D" is not "Pan 40");
+without this, resolution auto-merged the two and one medicine silently disappeared from the
+case. The entity-resolution evaluation is unchanged (0 false merges, identical recall).
 
 ---
 
@@ -321,6 +373,11 @@ rejected can decide again.
   so reading works in person, not remotely. Two agreeing non-prescriber readers is still
   weaker than confirmation by the dispensing pharmacist.
 - **Plausibility covers 6 ICD-10 codes**; most real cases return INSUFFICIENT_INFORMATION.
+- **DawaCheck compares a per-unit price** with per-unit NPPA ceilings; it does not convert a
+  strip/pack total on a bill into a unit price, so pack totals look overcharged.
+- **OCR uncertainty is only as good as EasyOCR's confidence**: a confidently misread word is
+  not flagged. `UNGROUNDED` compares tokens, so a legitimately abbreviated extraction can be
+  held back (conservative).
 - **English-only clinical UI** pending native-speaker review of Hindi/Marathi wording.
 - **No notifications**: reviewers poll their queue; patients press "Refresh status".
 - **No payments / marketplace**, by design.
@@ -328,33 +385,13 @@ rejected can decide again.
 
 ## 13. Demo walkthrough (Scenarios A–D)
 
-Executable version: `apps/api/tests/test_clinical_demo_scenarios.py`.
-
-```bash
-# API with demo fixtures enabled (never in a real deployment)
-CLINICAL_DEMO_MODE=true CLINICAL_GOVERNANCE_ADMIN_KEY=choose-a-long-random-key \
-  uvicorn app.main:app --port 8000
-curl -X POST localhost:8000/api/v1/kadi/clinical-demo/seed -H "X-Governance-Admin-Key: choose-a-long-random-key"
-```
-
-The seed returns demo reviewer credentials (Dr. Demo Clinician A/B — board members,
-DEMO_VERIFIED; Demo Pharmacist — SELF_DECLARED; Demo Medical Transcriptionist —
-UNVERIFIED), a demo institution credential and playbook, and two ACTIVE demo safety rules
-(FAST stroke signs; WHO ETAT emergency signs). Re-running rotates the credentials.
-
-- **A — BillNyay:** upload a bill whose procedure does not fit the diagnosis → BillNyay →
-  *Check clinical plausibility* (POTENTIAL_INCONSISTENCY) → *Request Clinical Review* (tick
-  consent) → assign Dr. Demo Clinician A → in `/clinical-review`, paste A's credential,
-  declare `HOSPITAL_AFFILIATED`, open evidence, write and finalize → back in BillNyay,
-  *Draft IRDAI Appeal Letter* shows the attributed annex; the PDF contains it.
-- **B — DaaviSetu:** *Check documentation readiness* (optionally with the demo playbook id
-  and institution credential) → *Ask a doctor to confirm* → assign Dr. B → B confirms or
-  rejects in the workspace → re-check readiness; the claim package ZIP reflects it.
-- **C — DawaCheck:** open DawaCheck for a scanned case → flag a medicine → assign Demo
-  Pharmacist and Demo Transcriptionist → each submits a reading in the workspace
-  *Transcriptions* tab → agreement resolves it (`HUMAN_REVIEWED`), disagreement escalates.
-- **D — Safety:** upload a document mentioning "slurred speech" → the red banner shows the
-  FAST rule, its version, source and the floor disclaimer.
+The deterministic demo kit lives in [`demo/`](../../demo/README.md): synthetic documents,
+one script per scenario (starting state, steps, expected output, real vs demo-only,
+limitations) and the fixtures list. Scenarios are pinned by
+`apps/api/tests/test_demo_documents.py` (A, B, D — real upload pipeline with rule-based
+extraction) and `apps/api/tests/test_demo_scenario_c.py` (C — demo-mode OCR replay of the
+committed synthetic prescription image). The older API-only walkthrough remains in
+`apps/api/tests/test_clinical_demo_scenarios.py`.
 
 ## 14. Future work
 
