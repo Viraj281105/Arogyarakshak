@@ -1,0 +1,10 @@
+SUNRISE MULTISPECIALITY HOSPITAL (SYNTHETIC DEMO)
+Discharge Summary
+Patient Name: Demo Patient A
+Diagnosis: K35.8 Acute appendicitis
+Chief complaint: pain in right lower abdomen for 2 days, fever.
+Investigations: USG abdomen shows an inflamed, non-compressible appendix. CBC shows raised counts.
+Procedure: Laparoscopic appendectomy performed on 04/09/2026 under general anaesthesia.
+Course: uneventful. Discharged in stable condition on 06/09/2026.
+Note: an MRI brain was billed; the indication is not recorded in this summary.
+SYNTHETIC DOCUMENT FOR DEMONSTRATION ONLY - NOT A REAL MEDICAL RECORD

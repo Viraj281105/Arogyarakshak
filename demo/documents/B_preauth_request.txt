@@ -1,0 +1,11 @@
+SUNRISE MULTISPECIALITY HOSPITAL (SYNTHETIC DEMO)
+Cashless Pre-Authorisation Request - Supporting Note
+Patient Name: Demo Patient B
+Insurer: Demo Health Insurer (fictional)
+Diagnosis: K80.2 Cholelithiasis (gallstones)
+Proposed procedure: Laparoscopic Cholecystectomy 85000
+Clinical history: recurrent right upper abdominal pain after fatty meals for 4 months.
+Previous episodes were treated with an analgesic and an antispasmodic (as reported by the patient).
+Investigations: USG abdomen shows multiple gallstones with a thickened gallbladder wall.
+Estimated stay: 2 days.
+SYNTHETIC DOCUMENT FOR DEMONSTRATION ONLY - NOT A REAL MEDICAL RECORD

@@ -1,0 +1,11 @@
+DEMO HEALTH INSURER (FICTIONAL) - CLAIMS DEPARTMENT
+Claim Repudiation Letter
+Claim No: DEMO-D-7788     Policy No: DEMO-POL-0042
+Patient Name: Demo Patient D
+Hospital: Sunrise Multispeciality Hospital (synthetic)
+Diagnosis: I63.9 Cerebral infarction
+Admission note summary: patient brought to emergency with slurred speech and arm weakness.
+Decision: The claim is repudiated under the pre-existing disease exclusion clause, on the ground
+that hypertension was not disclosed at proposal.
+You may represent to the Grievance Redressal Officer within 15 days.
+SYNTHETIC DOCUMENT FOR DEMONSTRATION ONLY - NOT A REAL INSURER LETTER
