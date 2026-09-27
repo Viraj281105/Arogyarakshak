@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Release-candidate pass (2026-09-27)
+
+#### Fixed — correctness
+- **DawaCheck price basis (ADR-012)**: strip/pack/line totals were compared with per-tablet NPPA ceilings ("Dolo 650: ₹33" → +1,335%). Prices are now resolved to a per-unit price from a declared basis, the bill line ("Strip of 15", "15's", "Qty 10") or a "Rate per tablet" heading — or reported as **Cannot compare reliably** with no percentage. Dosage-form mismatches and contradictions are refused. LLM-normalised medicine names keep their source line's quantity facts (Kadi grounding).
+- **BillNyay rate basis (ADR-012)**: per-day/visit/session/shift/bottle CGHS rates were compared with whole line totals (Scenario A's "Room Rent 3 days" showed +200%). Recurring rates now need a stated count; lines without one are not benchmarked, with the reason.
+- **Postgres-only 500**: requesting a doctor's fact confirmation (DaaviSetu, Scenario B) violated a foreign key on Postgres (fact rows flushed before their review). Fixed; the SQLite test engine now enforces foreign keys so this class of bug fails in tests.
+- The web file picker hid `.txt`/`.csv`, which the API accepts (demo documents could not be chosen).
+
+#### Added
+- Demo kit controls: `GET /kadi/clinical-demo/status`, `POST .../reset`, `POST .../scenarios/{A-D}`; web DEMO MODE banner, "What is simulated?" panel, Demo controls (reset, load scenario, one-time persona credentials). Scenario A loads the bill and the discharge summary into one case.
+- `APP_ENV` (the API refuses to start with `CLINICAL_DEMO_MODE=true` under `production`) and `DEMO_DOCUMENTS_DIR`; the API image ships the synthetic demo documents.
+- Case timeline (`GET /kadi/cases/{id}/timeline`, `kadi.timeline`, web "What has happened to this case") built only from persisted records.
+- "Add another document to this case" on the web.
+- `scripts/demo_runtime_smoke.py` — Scenarios A–D over HTTP (49 checks); passed on PostgreSQL 16 and on the full docker-compose stack.
+- Tests: price basis (package, pipeline, web, mobile), rate basis, demo control (guards, idempotency, concurrent resets), timeline, review transitions (duplicate accept/finalize, reviewer swap, one person as both readers, duplicate ingest), FK enforcement guard.
+
+#### Changed — honesty and UX
+- Removed invented example figures (BillNyay totals that did not add up; DawaCheck pack prices with per-pack "ceilings"; a green "✓" DaaviSetu example).
+- "PROD" / "v1.0 Production" branding → "PROTOTYPE" / "Release candidate (academic prototype)"; "DPDP Act 2023 Compliant" → design intent; "nothing is stored" / "zero data retained after the session" corrected (extracted details and a redacted excerpt are kept until deletion or the 90-day TTL).
+- BillNyay no longer calls CGHS rates a "mandated cap" or cites Supreme Court violations; verdicts read "Above / Within CGHS reference".
+- Raw enums/IDs removed from remaining UI paths (fact decisions, confirmation requests, SLA tiers, statement status, DaaviSetu status, case id in the processing header).
+- Mobile quick samples declare what their price buys; the manual form requires a basis. Dead `USE_MOCK_DATA` flag removed.
+- hi/mr replacements for corrected strings are marked `NEEDS NATIVE-SPEAKER QA`.
+
 ### Added
 - Human clinical review, safety governance and human OCR resolution layer (ADR-011, `docs/architecture/clinical-review.md`): attributable clinical statements with mandatory conflict-of-interest disclosure and honest verification status; institution-private DaaviSetu preauth readiness playbooks; bounded BillNyay clinical plausibility review; versioned, independently approved clinical safety escalation rules; blind two-reader transcription of uncertain OCR medication text; provenance classes (`AI_DERIVED`, `HUMAN_REVIEWED`, `HUMAN_AUTHORED`, `EXTERNAL_SOURCE`, `PATIENT_PROVIDED`); web reviewer workspace at `/clinical-review`; mobile patient-side cards.
 

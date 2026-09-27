@@ -3,280 +3,168 @@
 # ArogyaRakshak (आरोग्यरक्षक)
 
 [![CI Pipeline](https://github.com/Viraj281105/Arogyarakshak/actions/workflows/ci.yml/badge.svg)](https://github.com/Viraj281105/Arogyarakshak/actions/workflows/ci.yml)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-15%2F16-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2Bpgvector-4169E1.svg?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![BYOD Privacy](https://img.shields.io/badge/Privacy-BYOD%20Zero--Retention-success.svg)](#-privacy--zero-retention-byod-architecture)
 
-**An intelligent, multi-agent healthcare decision-support platform designed to protect Indian patients from hospital overbilling, wrongful insurance claim repudiation, scheme unawareness, and inflated medicine prices.**
+**Evidence-first decision support for Indian patients facing hospital bills, insurance denials and medicine prices — where every machine output says what it is, and anything uncertain goes to a named human before anyone acts on it.**
 
-*B.E. Computer Engineering Final Year Project | PES Modern College of Engineering, Pune | SPPU 2019 Pattern*  
-*Team Lead: Viraj Jadhao | Status: Active Engineering & Evaluation*
+*B.E. Computer Engineering final-year project · PES Modern College of Engineering, Pune · SPPU 2019 pattern · Team lead: Viraj Jadhao*
+*Status: **release candidate of an academic prototype** — not a production medical, legal or financial service.*
 
-[Explore Docs](docs/README.md) · [System Architecture](docs/architecture/overview.md) · [API Reference](docs/api/overview.md) · [Quickstart](#-quickstart--local-development) · [Contributing](CONTRIBUTING.md)
+[Judge demo guide](docs/JUDGE_DEMO.md) · [Demo kit](demo/README.md) · [Architecture](docs/architecture/overview.md) · [Trust & review model](docs/architecture/clinical-review.md) · [API](docs/api/overview.md)
 
 </div>
 
 ---
 
-## 📖 Table of Contents
-1. [The Problem ArogyaRakshak Solves](#-the-problem-arogyarakshak-solves)
-2. [Core Capabilities & Modules](#-core-capabilities--modules)
-3. [Zero-Overlap Architecture & Kadi Layer](#-zero-overlap-architecture--kadi-layer)
-4. [Technology Stack](#-technology-stack)
-5. [Repository Monorepo Layout](#-repository-monorepo-layout)
-6. [Quickstart & Local Development](#-quickstart--local-development)
-7. [Testing & Evaluation Benchmarks](#-testing--evaluation-benchmarks)
-8. [Configuration & Environment Variables](#-configuration--environment-variables)
-9. [Troubleshooting & Common Failure Modes](#-troubleshooting--common-failure-modes)
-10. [Privacy & Zero-Retention BYOD Architecture](#-privacy--zero-retention-byod-architecture)
-11. [Contributing & Development Community](#-contributing--development-community)
-12. [Documentation Hub](#-documentation-hub)
+## 1. The problem
 
----
+A family at a hospital billing desk or holding an insurance rejection letter usually has no way to check what they are told:
 
-## 🚨 The Problem ArogyaRakshak Solves
+- **Hospital bills** carry line items far above government reference rates (CGHS), bundled items billed separately, and medicines above NPPA price ceilings.
+- **Insurance denials** cite clauses the IRDAI Master Circular (29 May 2024) restricts — for example pre-existing-condition exclusions after the 5-year moratorium.
+- **Pre-authorization** fails for missing paperwork nobody told the patient about.
+- **Welfare schemes** (PM-JAY, MJPJAY) go unused because eligibility is opaque.
 
-Every day across India, patients and families face catastrophic healthcare expenses compounded by institutional friction:
-- **Hospital Overcharging**: Opaque hospital bills charging 2x to 5x above government benchmark rates for basic procedures and consumables.
-- **Wrongful Insurance Claim Repudiations**: Insurers rejecting valid claims under arbitrary clauses (e.g. citing pre-existing conditions on policies active for more than 5 years, violating the **IRDAI 2024 Master Circular**).
-- **Government Welfare Disconnect**: Millions of low-income families are entitled to free tertiary healthcare under **PMJAY** (national) or **MJPJAY** (Maharashtra), but lack visibility into eligibility or empanelled network hospitals.
-- **Pharmaceutical Markups**: Branded medicines are purchased at retail MRP when identical bioequivalent generic formulations exist at **PMBJP Jan Aushadhi Kendras** for 50% to 90% less.
+## 2. Why typical "healthcare AI" fails here
 
-**ArogyaRakshak** solves this through a unified, patient-centric AI platform accessible via web and mobile in **English, Hindi, and Marathi**.
+- **It sounds certain when it is not.** An OCR misread ("Augmntn") or an LLM "correction" of a drug name silently becomes a fact, and a price check or appeal is built on it.
+- **It compares incompatible things.** A strip price (₹33 for 15 tablets) against a per-tablet ceiling (₹2.30) produces an absurd "overcharged by 1,335%".
+- **It manufactures authority.** Generated letters imply a doctor agreed; dashboards show green "verified" badges nobody verified.
+- **It keeps what it should not.** Uploaded medical documents end up on disk "for convenience".
 
----
+## 3. What ArogyaRakshak does
 
-## ⚡ Core Capabilities & Modules
+A patient uploads a document (bill, prescription, discharge summary, denial letter). The shared **Kadi** layer extracts entities in memory and discards the file. Five modules then work on the case — but only on information that has been **settled**:
 
-ArogyaRakshak coordinates five specialized domain modules through a central intelligence layer:
+- uncertain readings are **held back** and sent to **two independent human readers** (blind to each other and to the software's guess);
+- prices are compared **per unit or not at all**;
+- clinical questions go to a **named, conflict-declared doctor** whose statement is attached **verbatim** — never rewritten by the software;
+- every step is recorded in an **append-only audit trail** and shown to the patient as a plain-language **case timeline**.
+
+## 4. Architecture
 
 ```mermaid
-flowchart TD
-    Doc["Patient Document Upload<br/>(Bill / Prescription / Denial Letter / Policy)"]
-    
-    subgraph KadiLayer ["Kadi Shared Intelligence Layer"]
-        OCR["Multilingual OCR (Devanagari + Latin)"]
-        Extract["Entity Normalization (ICD-10, Meds, Procedures)"]
-        Resolve["Entity Normalisation & De-identification"]
-    end
-
-    Doc --> OCR --> Extract --> Resolve
-
-    Resolve --> BN["1. BillNyay<br/>Hospital Bill Audit vs CGHS"]
-    Resolve --> DS["2. DaaviSetu<br/>Claim Application & Pre-Auth Filler"]
-    Resolve --> BMN["3. BimaNyay<br/>Denial Audit & IRDAI Appeal Tracker"]
-    Resolve --> SS["4. SchemeSetu<br/>PMJAY / MJPJAY Welfare Eligibility"]
-    Resolve --> DC["5. DawaCheck<br/>NPPA Price Check & Jan Aushadhi Generics"]
+flowchart LR
+    U["Web (Next.js) / Mobile (Expo)"] -->|upload, SSE status| API["FastAPI gateway<br/>apps/api"]
+    API --> K["Kadi (packages/kadi)<br/>OCR · extraction · entity resolution<br/>trust gate · clinical-review domain · timeline"]
+    K --> BN["BillNyay<br/>bill audit vs CGHS"]
+    K --> DC["DawaCheck<br/>NPPA ceiling, per-unit"]
+    K --> DS["DaaviSetu<br/>pre-auth readiness"]
+    K --> BM["BimaNyay<br/>denial audit, IRDAI appeals"]
+    K --> SS["SchemeSetu<br/>PM-JAY / MJPJAY"]
+    API --> DB[("PostgreSQL 16<br/>entities, reviews, audit —<br/>never the document")]
+    API -. optional .-> G["Groq LLM<br/>(GROQ_MODEL)"]
 ```
 
-| Module | Core Purpose | Ground-Truth Benchmark | Primary Outputs |
-|---|---|---|---|
-| **[BillNyay](packages/billnyay)** | **Hospital Bill Audit** | **CGHS Rate Schedules** | Line-item overcharge audit report; formal overcharge dispute representation letter to hospital billing. |
-| **[DaaviSetu](packages/daavisetu)** | **Claim Application Automation** *(Pre-Claim)* | **Standard Insurer Templates** | Pre-populated cashless pre-authorization form; reimbursement claim package ready for portal submission. |
-| **[BimaNyay](packages/bimanyay)** | **Denial Disputes & Appeals** *(Post-Denial)* | **IRDAI 2024 Master Circular** | Legal audit of repudiation codes (5-yr moratorium, TAT breaches); 3-tier appeals (GRO, Bima Bharosa, Ombudsman Form VI); statutory SLA countdown tracker. |
-| **[SchemeSetu](packages/schemesetu)** | **Healthcare Scheme Advisor** | **PMJAY & MJPJAY Rules** | Provisional eligibility from cited official criteria (income is non-determinative) with verification and claim guides. *(Empanelled-hospital locator not implemented.)* |
-| **[DawaCheck](packages/dawacheck)** | **Medicine Pricing & Generics** | **NPPA Schedule-I Price Orders** | MRP overcharge detection and generic substitute guidance. *(Backed by a small in-code ceiling table, not the full NPPA list; no store map.)* |
+Domain packages are pure Python and DB-agnostic; persistence lives in `apps/api`. Details: [overview](docs/architecture/overview.md), [components](docs/architecture/components.md), [ADRs](docs/architecture/decisions/).
 
----
+## 5. Modules
 
-## 🧩 Zero-Overlap Architecture & Kadi Layer
+| Module | What it does | Reference data |
+|---|---|---|
+| **Kadi** (`packages/kadi`) | Transient OCR (EasyOCR/PyMuPDF), rule-based or Groq extraction, cross-script entity resolution, OCR-uncertainty plan, medicine trust gate, clinical-review domain, case timeline | — |
+| **BillNyay** | Line-by-line bill audit, clinical plausibility (not necessity), 5-agent appeal letter, signed PDF | CGHS rate subset (curated JSON) |
+| **DawaCheck** | Medicine price vs NPPA ceiling **per tablet/capsule/vial**, with an explicit price basis; generic suggestions | 7-formulation curated NPPA subset |
+| **DaaviSetu** | Pre-authorization documentation readiness (never approval odds), institution playbooks, Annexure-B PDF | Generic checklist + private playbooks |
+| **BimaNyay** | Denial clause audit, 3-tier appeals (GRO → Bima Bharosa → Ombudsman), SLA tracker | IRDAI Master Circular 2024 (cited clauses) |
+| **SchemeSetu** | Provisional PM-JAY / MJPJAY eligibility with sources (income is non-determinative) | Cited official criteria |
 
-To preserve maintainability, no two modules perform overlapping tasks:
-- **Kadi (`packages/kadi`)** is pure shared infrastructure. It contains zero pricing or legal rules; it solely extracts, normalizes, and shares entities.
-- **BillNyay** audits hospital bills against CGHS rates and leaves insurance to DaaviSetu/BimaNyay.
-- **DaaviSetu** handles pre-claim application filing, handing off denied claims to BimaNyay.
-- **BimaNyay** handles post-denial appeals and IRDAI grievance tracking.
-- **SchemeSetu** handles government welfare schemes and leaves private commercial insurance to DaaviSetu/BimaNyay.
-- **DawaCheck** handles retail pharmacy pricing and leaves hospital procedure bills to BillNyay.
+## 6. Trust model
 
----
+Every value carries its provenance and is shown with it:
 
-## 💻 Technology Stack
+| Provenance | Meaning | Shown as |
+|---|---|---|
+| `AI_DERIVED` | Read or generated by software | "Machine-derived" |
+| `HUMAN_REVIEWED` | Two independent readers agreed on it | "Human-reviewed" |
+| `HUMAN_AUTHORED` | Written by a named reviewer, verbatim | "Human-authored" |
 
-- **Backend**: [FastAPI](https://fastapi.tiangolo.com) 0.115 with asynchronous request pipeline (`uvicorn`, `asyncpg`, `pydantic-settings`).
-- **Database**: [PostgreSQL 16](https://www.postgresql.org). *(Planned: pgvector / FAISS similarity indexes — `packages/kadi/kadi/vector_store.py` is a scaffold and is not yet wired into any endpoint.)*
-- **LLM Reasoning**: [Groq Cloud](https://groq.com) high-speed inference engine (Default model: `openai/gpt-oss-120b`).
-- **Indic NLP**: rule-based Devanagari romanization and Indic phonetic keys for cross-script entity resolution (#89), plus **IndicSBERT** cross-lingual similarity as an optional, off-by-default signal (#30, ADR-006). **IndicXlit** is not used — its fairseq dependency has no Python 3.11 wheels (#29).
-- **Web Frontend**: [Next.js 15/16](https://nextjs.org) App Router, React 19, TypeScript, Vanilla CSS design tokens.
-- **Mobile App**: [React Native](https://reactnative.dev) with Expo and an in-app camera document capture flow. *(Edge detection / auto-cropping is not implemented.)*
-- **Containerization**: Docker Compose v2.
+Rules the code enforces (and tests pin):
 
----
+- **Trust gate** (`kadi.clinical_review.medicine_trust`): a medicine whose reading is open, disputed, ambiguous, only-resembling, over the task cap or not applicable is **never price-checked**.
+- **Price basis** (`dawacheck.price_basis`, ADR-012): a billed amount is converted to a per-unit price only from a stated strip/pack size or quantity; otherwise **"Cannot compare reliably"** — never a percentage.
+- **Plausibility is not necessity**: conflicting procedures → "Clinical review recommended"; administrative lines excluded; "not assessed" is distinct from "compatible".
+- **Safety floor**: board-approved keyword rules; a failed evaluation shows **"Safety check unavailable"**, never "no issue".
+- **No manufactured authority**: verification labels come only from the server; no reviewer is checked against a real medical council (none is integrated), so the best a real reviewer shows is "Self-declared"; demo personas show "Demo verification only".
 
-## 📂 Repository Monorepo Layout
+## 7. Human-in-the-loop design
 
-```text
-arogyarakshak/
-├── apps/
-│   ├── api/                     # FastAPI backend application
-│   │   ├── app/api/v1/          # Versioned REST endpoints (kadi, billnyay, etc.)
-│   │   ├── app/main.py          # App lifespan, CORS, and global error handlers
-│   │   ├── app/models.py        # SQLAlchemy models (kadi_cases, kadi_entities)
-│   │   └── tests/               # Backend integration test suite
-│   ├── web/                     # Next.js 15 App Router web client
-│   └── mobile/                  # React Native / Expo cross-platform mobile application
-├── packages/                    # Python domain libraries (installed via pip -e)
-│   ├── kadi/                    # Shared context: OCR, extraction, redaction, line-item parsing
-│   ├── billnyay/                # 5-agent hospital bill auditing chain
-│   ├── daavisetu/               # Claim pre-authorization form generator
-│   ├── bimanyay/                # Claim denial dispute analysis & IRDAI appeals
-│   ├── schemesetu/              # Rule-based eligibility agent
-│   └── dawacheck/               # NPPA Schedule-I medicine pricing & generic mapping
-├── data/                        # Government rate schedules (CGHS) and raw benchmarks
-├── docs/                        # Complete technical specifications, ADRs & guides
-│   ├── architecture/            # System overview, component breakdown, and ADRs
-│   ├── development/             # Setup, workflow, testing, and troubleshooting
-│   └── configuration/           # Environment variable reference
-├── .github/                     # Workflows (ci.yml), templates, CODEOWNERS
-└── docker-compose.yml           # PostgreSQL+pgvector, API, and Web container spec
-```
+- **OCR readers** (pharmacist / transcriptionist): two blind readings; agreement settles the entry, disagreement escalates to "confirm with the pharmacist".
+- **Clinical reviewers** (doctors): patient consent per review → assignment by ID → mandatory conflict-of-interest declaration before evidence opens → private draft → lock → finalize with an explicit confirmation sentence. Finalized statements are immutable and versioned; withdrawal or supersession re-signs the stored appeal PDF.
+- **Safety governance**: rules need independent board approval to activate and two members to retire.
 
----
+## 8. Privacy and retention
 
-## 🚀 Quickstart & Local Development
+- The **uploaded file is never stored** — it is processed in memory. Only a SHA-256 digest (duplicate guard), extracted entities, and a **redacted** 1,000-character excerpt are kept.
+- The patient's name is extracted in memory and **not persisted**; the excerpt is stripped of names, phone numbers, Aadhaar/PAN and addresses (direct identifiers only — this is not formal anonymisation).
+- A case is deleted on request (`DELETE /api/v1/kadi/cases/{id}`) or automatically after `CASE_TTL_DAYS` (default 90). Deletion removes everything derived from the case, including clinical-review records and signed PDFs.
+- Per-case access tokens (ADR-009); **there is no user-account authentication** (ADR-008, accepted risk for this scope).
+- Designed around DPDP Act 2023 data-minimisation principles; **no compliance certification is claimed**.
 
-### Prerequisites
-- **Git**
-- **Python 3.11+**
-- **Node.js 18+** or **20+**
-- **Docker Desktop** (with Docker Compose v2)
+## 9. Demo mode
 
-### Step 1: Clone Repository
-```bash
-git clone https://github.com/Viraj281105/Arogyarakshak.git
-cd Arogyarakshak
-```
+`CLINICAL_DEMO_MODE=true` (never with `APP_ENV=production` — the API refuses to start) enables a deterministic demo kit:
 
-### Step 2: Configure Environment Variables
-```bash
-cp .env.example .env
-```
-Populate `.env` with your credentials:
-```env
-GROQ_API_KEY=gsk_your_groq_key_here
-GROQ_MODEL=openai/gpt-oss-120b
-DATABASE_URL=postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak
-```
+- a striped **DEMO MODE** banner with a live **"What is simulated?"** panel (web and reviewer workspace);
+- **Demo controls**: *Reset demo*, *Load Scenario A–D* (a fresh case whose synthetic documents run through the real upload pipeline) and one-time demo persona credentials;
+- deterministic OCR replay for the committed Scenario C image only.
 
-### Step 3: Run with Docker Compose
-```bash
-docker-compose up --build
-```
-Once initialized, access services at:
-- **Web Application**: [http://localhost:3000](http://localhost:3000)
-- **FastAPI Gateway**: [http://localhost:8000](http://localhost:8000)
-- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+What is simulated: the documents, the reviewer personas and their "Demo verification only" status, the demo safety rules and playbook, and Scenario C's OCR confidences. Everything else is the real code path. See [docs/JUDGE_DEMO.md](docs/JUDGE_DEMO.md).
 
-### Running Locally Outside Docker
-For rapid development without container builds, see the [Developer Setup Guide](docs/development/setup.md).
-
----
-
-## 🧪 Testing & Evaluation Benchmarks
-
-Run unit and integration test suites:
+## 10. Setup
 
 ```bash
-# Run all backend tests (packages + API integration): 139 tests
-python -m pytest
-
-# Web client tests (25) and mobile client tests (27)
-cd apps/web && npm test && cd ../..
-cd apps/mobile && npm test && cd ../..
-
-# Run frontend linting
-cd apps/web
-npm run lint
-cd ../..
+git clone https://github.com/Viraj281105/Arogyarakshak.git && cd Arogyarakshak
+cp .env.example .env            # GROQ_API_KEY optional: without it extraction is rule-based and deterministic
+docker compose up --build       # postgres + api (:8000) + web (:3000)
 ```
 
-For evaluation benchmark targets (PEA, BMA, CFMA, CRMA, WER/CER), see the [Testing Guide](docs/development/testing.md).
+Local (no Docker for the API): Python 3.11, `pip install -r apps/api/requirements.txt` and `pip install -e packages/<each>`, then `uvicorn app.main:app` from `apps/api`; `npm install && npm run dev` in `apps/web`. Full guide: [docs/development/setup.md](docs/development/setup.md).
+
+## 11. Testing
+
+```bash
+python -m pytest                          # backend: packages + API (SQLite with foreign keys enforced)
+cd apps/web && npm test && npm run lint && npm run build
+cd apps/mobile && npm test && npm run type-check
+python scripts/ci_guardrails.py           # BYOD, model ban, table prefixes, secrets, port binding
+python scripts/demo_runtime_smoke.py --api http://127.0.0.1:8000 --admin-key <key>   # A–D over HTTP against a running API
+```
+
+Latest local results (2026-09-27): backend **1,011 passed, 6 skipped**; web **93**; mobile **115**; guardrails **8/8**; demo runtime smoke **49/49 on PostgreSQL 16**. Exact numbers are kept current in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md#15-testing-status).
+
+## 12. Demo scenarios
+
+| | Scenario | Shows |
+|---|---|---|
+| A | Bill + discharge summary → plausibility conflict → named doctor's statement → signed appeal PDF | Human-authored vs machine-derived, immutable statement, PDF re-signing |
+| B | Pre-auth request → readiness checklist → doctor confirms a clinical fact | "Needs a doctor's confirmation", no approval odds |
+| C | Prescription with unclear handwriting → trust gate → two blind readers → per-tablet price check | Held-back medicines, consensus, price basis |
+| D | Denial letter mentioning stroke signs → safety escalation → four-eyes retirement | Safety floor, governance |
+
+Scripts: [demo/scenarios/](demo/scenarios/). Each is also an automated test.
+
+## 13. Limitations (said out loud)
+
+- Reference data are **curated subsets** (7 NPPA formulations, a CGHS subset, a 6-code plausibility table) — absence from them proves nothing.
+- A **confidently misread** OCR word is not detectable; only low-confidence readings are routed to humans.
+- Conservative name matching can hold back legitimate abbreviations (safe, but more human work).
+- Processing status is **in memory per API process** (lost on restart; the case data are not).
+- **Hindi/Marathi** copy needs native-speaker review.
+- No real registry verification of reviewers; no user accounts; keyword safety rules miss paraphrase and negation.
+
+## 14. Implemented vs planned
+
+| Status | Items |
+|---|---|
+| **IMPLEMENTED** | Kadi pipeline, trust gate, human transcription consensus, DawaCheck price basis, BillNyay audit/plausibility/appeal/signed PDF, clinical review & safety governance, DaaviSetu readiness, BimaNyay appeals/SLA, SchemeSetu, case timeline, per-case tokens, retention sweep, demo kit |
+| **DEMO-ONLY** | Synthetic documents, demo personas and "Demo verification only", demo safety rules/playbook, Scenario C OCR replay, demo reset / scenario loaders |
+| **PLANNED (not implemented)** | Real registry verification, FAISS/pgvector search (`kadi/vector_store.py` is an unwired scaffold), IndicXlit (blocked, #29), outcome probabilities (no dataset, #90), Jan Aushadhi store map |
+| **NOT RUNTIME-VERIFIED** | Mobile app on a device/emulator (statically tested only), real Groq inference (no key available during verification) |
 
 ---
 
-## ⚙️ Configuration & Environment Variables
-
-Key runtime environment variables:
-
-| Variable | Required | Default Value | Description |
-|---|---|---|---|
-| `GROQ_API_KEY` | Yes (for AI agents) | `""` | Groq inference API key. |
-| `GROQ_MODEL` | No | `openai/gpt-oss-120b` | Model ID. Never use deprecated `llama3-70b`. |
-| `DATABASE_URL` | Yes | `postgresql://...` | Full async PostgreSQL connection URI. |
-| `CORS_ORIGINS` | No | `*` | Allowed origins for browser client requests. |
-
-Complete configuration specifications are in the [Environment Variables Guide](docs/configuration/environment-variables.md).
-
----
-
-## 🛠️ Troubleshooting & Common Failure Modes
-
-- **`ModuleNotFoundError: No module named 'kadi'`**: Run `pip install -e packages/kadi` (and other packages) in your active virtualenv.
-- **`OperationalError: could not translate host name "postgres"`**: When running `apps/api` outside Docker, update `DATABASE_URL` to point to `localhost:5432`.
-- **`Model 'llama3-70b' is deprecated`**: Set `GROQ_MODEL=openai/gpt-oss-120b` in `.env`.
-
-See the full [Troubleshooting Guide](docs/development/troubleshooting.md) for detailed diagnostics.
-
----
-
-## 🔒 Privacy & Zero-Retention BYOD Architecture
-
-ArogyaRakshak operates on a strict **Bring-Your-Own-Document (BYOD)** privacy principle:
-1. **No Persistent Document Storage**: Uploaded files are parsed in transient memory (RAM) and are never written to server disk. Upload size and type are bounded (10 MB; PDF/image/text).
-2. **Consent Boundary**: Cross-module data sharing through Kadi requires an explicit per-case opt-in (`consent_opt_in`, default `false`). It is enforced server-side from the stored case record: BillNyay and DaaviSetu return `403` without it, and a client cannot grant it by sending a flag on the module request.
-3. **Direct-Identifier Removal**: Persisted records hold clinical and billing metadata
-   (diagnosis, hospital, procedures, medicines, line items) linked to a case UUID.
-   The patient's name is extracted in memory but never stored, and the retained document
-   excerpt is passed through `kadi.redaction` to strip names, phone numbers, email addresses,
-   Aadhaar/PAN identifiers and addresses.
-
-   **Scope limit:** this removes *direct* identifiers. It is not formal anonymisation — a
-   diagnosis combined with a hospital name may still be re-identifying in a small population.
-4. **Deletion on request**: a case persists until you delete it — there is no automatic
-   expiry. `DELETE /api/v1/kadi/cases/{case_id}` (using the access token returned when the
-   case was created) permanently removes the case, its extracted entities, and any
-   generated documents (the BillNyay appeal PDF, the DaaviSetu pre-authorization form).
-   See [ADR-010](docs/architecture/decisions/ADR-010-case-data-retention-and-erasure.md).
-
-Read our full [Security Policy](SECURITY.md), [ADR-003](docs/architecture/decisions/ADR-003-bring-your-own-document-privacy.md), and [ADR-010](docs/architecture/decisions/ADR-010-case-data-retention-and-erasure.md).
-
----
-
-## 🤝 Contributing & Development Community
-
-We welcome contributions from developers, researchers, and healthcare professionals!
-- Review the [Contributing Guidelines](CONTRIBUTING.md).
-- Adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
-- AI coding agents must follow [AGENTS.md](AGENTS.md).
-- See our historical progress in [CHANGELOG.md](CHANGELOG.md).
-
----
-
-## 📚 Documentation Hub
-
-Explore our structured documentation in the [`docs/`](docs/) directory:
-- **[Documentation Portal Index](docs/README.md)**
-- **[System Architecture Overview](docs/architecture/overview.md)**
-- **[Component Specifications & Non-Overlap Matrix](docs/architecture/components.md)**
-- **[Data Flow & SSE Streaming Protocol](docs/architecture/data-flow.md)**
-- **[BimaNyay & Mobile App Blueprint](docs/architecture/bimanyay-and-mobile.md)**
-- **[Architecture Decision Records (ADRs)](docs/architecture/decisions/)**
-- **[Developer Setup Guide](docs/development/setup.md)**
-- **[Git Workflow & Commit Standards](docs/development/workflow.md)**
-- **[Testing & Evaluation Guide](docs/development/testing.md)**
-- **[Troubleshooting Guide](docs/development/troubleshooting.md)**
-- **[Environment Variables Reference](docs/configuration/environment-variables.md)**
-- **[REST API Reference](docs/api/overview.md)**
-- **[Agile Planning & Team Strategy](docs/planning/weekly-sprint-playbook.md)**
-- **[Academic & Research Portfolio](docs/academic/README.md)**
-- **[Project Task Backlog](docs/ArogyaRakshak_Task_Backlog.md)**
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Agent manual](AGENTS.md) · MIT [License](LICENSE)

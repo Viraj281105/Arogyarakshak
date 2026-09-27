@@ -333,6 +333,22 @@ For medicines, a variant letter on only one side is a conflict ("Pan-D" is not "
 without this, resolution auto-merged the two and one medicine silently disappeared from the
 case. The entity-resolution evaluation is unchanged (0 false merges, identical recall).
 
+### 10.6 After the trust gate: the price basis (ADR-012)
+A medicine the gate clears is price-checked only on a comparable basis. NPPA ceilings are
+per tablet/capsule/vial; at upload Kadi grounds each medicine to its one source line and
+DawaCheck records what that line (or a "Rate per tablet" heading) states about quantity —
+`meta.price_facts`, a derived fact plus a short matched snippet, never the raw line. A
+strip/pack price is converted with a stated pack size; anything unstated, contradictory or
+of a different dosage form is `CANNOT_COMPARE` with a reason and no percentage. BillNyay
+applies the same rule to CGHS rates that are per day / visit / session / shift / bottle.
+
+### 10.7 Case timeline
+`GET /kadi/cases/{id}/timeline` (`kadi.timeline`) lists what happened to the case in plain
+language, built only from stored records — document digests, the append-only audit trail,
+module insights, safety matches, the appeal/claim rows — each with its own timestamp, so a
+step can never appear before it happened. "Now" (how many medicines can be price-checked)
+is reported separately from past events. Labels never contain clinical text.
+
 ---
 
 ## 11. Threat model (tested in `apps/api/tests/test_clinical_security.py`)
@@ -373,8 +389,10 @@ case. The entity-resolution evaluation is unchanged (0 false merges, identical r
   so reading works in person, not remotely. Two agreeing non-prescriber readers is still
   weaker than confirmation by the dispensing pharmacist.
 - **Plausibility covers 6 ICD-10 codes**; most real cases return INSUFFICIENT_INFORMATION.
-- **DawaCheck compares a per-unit price** with per-unit NPPA ceilings; it does not convert a
-  strip/pack total on a bill into a unit price, so pack totals look overcharged.
+- **Price basis needs a statement.** DawaCheck converts a strip/pack/line total to a unit
+  price only when the document or the person states the unit count; otherwise it reports
+  "Cannot compare reliably" (ADR-012). Bills that never state quantities therefore get few
+  comparisons — by design.
 - **OCR uncertainty is only as good as EasyOCR's confidence**: a confidently misread word is
   not flagged. `UNGROUNDED` compares tokens, so a legitimately abbreviated extraction can be
   held back (conservative).
@@ -392,6 +410,16 @@ limitations) and the fixtures list. Scenarios are pinned by
 extraction) and `apps/api/tests/test_demo_scenario_c.py` (C — demo-mode OCR replay of the
 committed synthetic prescription image). The older API-only walkthrough remains in
 `apps/api/tests/test_clinical_demo_scenarios.py`.
+
+**Demo controls (demo mode only, governance key):** `GET /kadi/clinical-demo/status`
+(public; banner text and the live "what is simulated" list), `POST /kadi/clinical-demo/reset`
+(`{"confirm": "RESET DEMO"}` — deletes cases holding a committed synthetic document,
+re-seeds demo rules ACTIVE, rotates credentials; idempotent and serialised) and
+`POST /kadi/clinical-demo/scenarios/{A-D}` (fresh case through the real pipeline). They are
+refused when `APP_ENV=production`, and the API refuses to start with demo mode under that
+profile. Reset never deletes global audit events; it adds a `DEMO_RESET` event. Runbook:
+[docs/JUDGE_DEMO.md](../JUDGE_DEMO.md); pinned by `apps/api/tests/test_demo_control.py` and
+`scripts/demo_runtime_smoke.py`.
 
 ## 14. Future work
 

@@ -99,7 +99,6 @@ cp .env.example .env
 | Variable | Description | Default (Android) | Default (iOS / Web) |
 |---|---|---|---|
 | `EXPO_PUBLIC_API_URL` | FastAPI Backend Gateway | `http://10.0.2.2:8000` | `http://localhost:8000` |
-| `EXPO_PUBLIC_USE_MOCK_DATA` | Bypass network for UI dev | `false` | `false` |
 
 > **Note for Android Emulator:** The Android emulator uses `10.0.2.2` to access the host machine's `localhost:8000`.
 
@@ -117,6 +116,22 @@ npm run ios
 # Run in Web browser
 npm run web
 ```
+
+### 3.5 First device / emulator run — checklist
+
+The app is unit-tested and type-checked but **has not yet been run on a device or emulator**
+(the development machine has no emulator image). For the first run:
+
+1. API in demo mode on the host: `CLINICAL_DEMO_MODE=true`, a governance key, `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+   (bind `0.0.0.0` only on a trusted network, for a physical device).
+2. `EXPO_PUBLIC_API_URL`: emulator → `http://10.0.2.2:8000` (default on Android); physical device → `http://<host LAN IP>:8000`.
+   Allow the host firewall to accept port 8000.
+3. `npm install && npm start`, open in Expo Go / `npm run android`.
+4. Walk: Home → **Scan** (camera permission) → photograph `demo/documents/A_hospital_bill.txt` printed, or any bill →
+   watch the processing card reach *complete* (or *taking longer than expected* → **Refresh status**) → BillNyay
+   (audit, per-day/visit notes) → DawaCheck (case medicines; manual check requires choosing what the amount paid for) →
+   DaaviSetu → BimaNyay. Switch tabs mid-processing: the active case must survive.
+5. Record what failed in `PROJECT_CONTEXT.md` (§9 validation debt) — do not claim device validation without it.
 
 ---
 

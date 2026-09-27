@@ -57,6 +57,10 @@ than an LLM draft. Treat it as a degraded-mode indicator, not decoration.
 | `POST` | `/api/v1/kadi/cases/{case_id}/upload` | Multipart document upload; schedules transient OCR + extraction | `202 Accepted` |
 | `GET` | `/api/v1/kadi/cases/{case_id}/stream` | Server-Sent Events processing progress | `200 OK (text/event-stream)` |
 | `GET` | `/api/v1/kadi/cases/{case_id}` | Returns the case and its extracted entities | `200 OK` |
+| `GET` | `/api/v1/kadi/cases/{case_id}/timeline` | Plain-language case history built only from persisted records (`events[]` with `at`, `label`, `detail`, `actor` = `MACHINE`/`HUMAN`/`PATIENT`), plus `in_progress` / `failure` from the live processing status and `now` (current medicine trust counts). A step is never listed before its record exists. | `200 OK` |
+
+A case may hold several documents: upload again to the same case (the web's "Add another
+document to this case"). A byte-identical re-upload is reported as a duplicate and adds nothing.
 
 **Consent.** `consent_opt_in` defaults to `false` when omitted. It is stored on the case and
 enforced by every module that reads Kadi context — see §5.
@@ -95,17 +99,27 @@ not render it as such.
   "unmatched_amount": 33.0,
   "audit_items": [
     {
-      "item_name": "ICU",
+      "item_name": "ICU (1 day)",
       "charged": 18500.0,
       "cghs_benchmark": 5400.0,      // null when not benchmarked
       "deviation_percentage": 242.59,
       "is_deviation": true,
       "benchmarked": true,
-      "status": "overcharged"        // overcharged | within_benchmark | bundled | not_benchmarked
+      "status": "overcharged",       // overcharged | within_benchmark | bundled | not_benchmarked
+      "benchmark_basis": "₹5,400 per day × 1 day",
+      "not_benchmarked_reason": null
     }
   ]
 }
 ```
+
+**Rate basis (ADR-012).** Each CGHS entry has a `billing_unit` (`per_day`, `per_visit`,
+`per_session`, `per_shift`, `per_bottle`, `per_service`). A recurring rate is applied only
+to a count the line states ("3 days", "2 visits", "x 2", "Qty 2"); "ICU 18500" with no day
+count is `not_benchmarked` with `not_benchmarked_reason` ("The reference rate is per day,
+and this bill line does not say how many days…"). Per-service lines (a scan, a package) are
+compared as one service unless a count is stated. CGHS rates are reference rates for CGHS
+beneficiaries, not a legal cap on private hospitals; clients say so.
 
 **`AppealResponse`** carries `llm_backed`, which is `false` when the letter is the offline
 statutory template rather than an LLM draft grounded in the case.
@@ -165,10 +179,23 @@ with `status` `FIRE` | `NO_CHANGE` | `INSUFFICIENT_EVIDENCE`, `schemes_applicabl
 
 | Method | Route | Description | Response Code |
 |---|---|---|---|
-| `POST` | `/api/v1/dawacheck/benchmark` | Checks a brand MRP against NPPA ceiling prices | `200 OK` / `404 Not Found` |
+| `POST` | `/api/v1/dawacheck/benchmark` | Checks a billed medicine price against NPPA ceiling prices | `200 OK` / `404 Not Found` / `422` |
+| `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | The case's medicines: trust decision per medicine, then a per-unit price check (consent required) | `200 OK` |
 
-Backed by a small in-code ceiling-price table, not the full NPPA Schedule-I list. Unknown
-brands return `404`.
+Backed by a small in-code ceiling-price table (7 formulations), not the full NPPA Schedule-I
+list. Unknown brands return `404`.
+
+**Price basis (ADR-012).** NPPA ceilings are per tablet/capsule/vial. `/benchmark` accepts
+`price_basis` (`PER_UNIT` | `PER_STRIP` | `PER_PACK` | `LINE_TOTAL` | `UNKNOWN`),
+`units_per_pack` and `quantity`; without `price_basis` the legacy contract (per unit) applies
+unless the name states a pack ("(15s)"). Case medicines use what the document stated (bill
+line or a "Rate per tablet" heading) and never the legacy default. Responses carry
+`comparison_status` (`COMPARED` | `CANNOT_COMPARE`), `price_basis`, `price_basis_label`
+("per strip of 15"), `basis_source` (`DECLARED` | `DOCUMENT_LINE` | `DOCUMENT_HEADER` |
+`API_DEFAULT` | `NONE`), `basis_evidence`, `mrp` (amount as billed), `billed_unit_price`,
+`nppa_ceiling_price` (per `unit_label`), `comparison_reason_code`, `comparison_note`.
+When not compared, `is_overcharged`, `deviation_percentage` and `billed_unit_price` are
+`null` — clients must not render a verdict.
 
 ---
 
@@ -228,7 +255,13 @@ header-only and shown once at registration.
 | `GET` | `/safety-rules/workspace` | board | All rules incl. drafts |
 | `POST`/`PUT` | `/safety-rules` · `/{rule_id}` | board | Propose / edit own DRAFT (source, version, section, limitations, review date required) |
 | `POST` | `/{rule_id}/submit` · `/decisions` · `/activate` · `/retire` · `/new-version` | board | Lifecycle; proposer cannot approve own rule; approvals bound to content hash. `/retire` is four-eyes: the first call records a request (rule stays ACTIVE, `retirement_requested_by` set), a different board member's call retires it |
-| `POST` | `/clinical-demo/seed` | governance + demo mode | Demo reviewers, institution, playbook, rules |
+| `GET` | `/clinical-demo/status` | none | `demo_mode`, banner text, the live "what is simulated" list and scenario scripts. Discloses nothing when demo mode is off |
+| `POST` | `/clinical-demo/seed` | governance + demo mode | Demo reviewers, institution, playbook, rules (rotates credentials) |
+| `POST` | `/clinical-demo/reset` | governance + demo mode | Body `{"confirm": "RESET DEMO"}`. Deletes cases holding a committed synthetic demo document (others are kept), removes demo safety rules and re-seeds them ACTIVE, rotates credentials; returns them. Idempotent, serialised |
+| `POST` | `/clinical-demo/scenarios/{A-D}` | governance + demo mode | Fresh consented case with the scenario's synthetic documents run through the real upload pipeline; returns `case_id`, `access_token`, per-document processing outcome |
+
+Demo routes return `403` unless `CLINICAL_DEMO_MODE=true` **and** `APP_ENV` is not
+`production` (the API also refuses to start with both).
 
 **Module additions**
 

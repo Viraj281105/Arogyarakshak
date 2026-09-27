@@ -15,14 +15,15 @@ fixture: …"). Everything after extraction is the real pipeline. Any other imag
 outside demo mode — runs real OCR.
 
 ## Action sequence
-1. **Patient:** upload `C_prescription_uncertain.png`. The log shows the demo-fixture notice and
+1. **Patient:** Demo controls → **Load Scenario C** (or upload `C_prescription_uncertain.png`). The log shows the demo-fixture notice and
    "1 unclear reading needs a human reader … 3 medicine(s) … will not be price-checked".
 2. DawaCheck tab → **Medicines from your documents** shows the trust decision per medicine.
 3. In "Unclear prescription text", tick consent and assign **both** demo readers to the task.
 4. **Readers (reviewer workspace → Transcriptions):** each types what the line says, blind to the
    software's guess and to each other. Agreement: both type `Tab Augmentin 625mg 1-0-1 x 5 days`.
-5. **Patient:** the Augmentin row becomes **Human-reviewed** and is price-checked: ₹22.00 per
-   tablet against the reference ceiling of ₹20.10 → *Above ceiling*.
+5. **Patient:** the Augmentin row becomes **Human-reviewed** and is price-checked:
+   "₹22.00 billed per tablet · NPPA ceiling ₹20.10 per tablet" → *Above ceiling (+9.45%)*. The
+   basis note says it was read from the document's rate column ("Rate per tablet/capsule").
 6. Disagreement: on the *Amoxicillin 500* row press **Ask for a human reading of this entry**, assign
    both readers; one reads `Amoxycillin 500`, the other `Azithromycin 500` → the row shows **Readers
    disagreed — confirm with pharmacist** and stays un-benchmarked.
@@ -33,7 +34,7 @@ outside demo mode — runs real OCR.
 | Augmntn 625mg | Awaiting human reading | Its whole line was read with confidence 0.34 and names exactly this medicine → a two-reader task |
 | Pan 40, Pan-D | Unclear — not yet read by a human (*Unclear reading could match more than one medicine*) | The faded "Tab Pan 1-0-0" could be either; software does not pick one |
 | Amoxicillin 500 | Unclear — not yet read by a human (*Unclear reading only resembles this name*) | OCR was unsure of "Amoxycilin"; the extractor normalised the spelling — a normalisation is not a confirmation |
-| Dolo 650 | Machine-extracted, price-checked (₹2.10 — within the ₹2.30 ceiling) | Clearly read |
+| Dolo 650 | Machine-extracted, price-checked ("₹2.10 billed per tablet · NPPA ceiling ₹2.30 per tablet" → within) | Clearly read; the slip's "Rate per tablet/capsule" heading sets the price basis |
 
 The prescriber line ("Dr. … MBBS Reg. No.") was also low-confidence but is never sent to readers.
 
@@ -44,8 +45,10 @@ possible-match detection, the task cap, blind consensus, NOT_APPLIED handling, t
 DawaCheck.
 
 ## Known limitations
-Prices on the synthetic slip are **per tablet/capsule**, the unit the NPPA reference ceilings use.
-DawaCheck does not convert pack prices to unit prices: a real bill line that is a strip or pack
-total would be compared against a per-unit ceiling and look overcharged. Do not demo pack prices.
+Prices on the synthetic slip are declared **per tablet/capsule** by its rate column, the unit the
+NPPA ceilings use. Since ADR-012, DawaCheck converts a strip/pack price only when the pack size is
+stated ("Strip of 15", "15's") and otherwise shows **Cannot compare reliably** — never a percentage.
+Demonstrate this with the manual check: `Dolo 650mg Tablet (15s)`, ₹33.50, "One tablet" → refused
+(the name states a pack); "One pack" of 15 → ₹2.23 per tablet, within the ceiling.
 Readers read the original the patient holds (no image is stored), so this works in person, not
 remotely. Two agreeing non-prescriber readers is weaker than confirmation by the dispensing pharmacist.

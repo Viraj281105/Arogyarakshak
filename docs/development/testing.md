@@ -30,13 +30,15 @@ tests/
 
 ## 2. Test Commands
 
-### 2.1 Run All Backend & Package Tests (139 Tests)
+### 2.1 Run All Backend & Package Tests
+
+Current counts are recorded in `PROJECT_CONTEXT.md` §15 (1,000+ backend tests as of 2026-09-27).
 ```bash
 # Run all package unit tests & API integration tests
 python -m pytest packages/ apps/api/tests/
 ```
 
-### 2.2 Run Mobile Client Tests (27 Tests)
+### 2.2 Run Mobile Client Tests
 ```bash
 cd apps/mobile
 npm test
@@ -69,7 +71,22 @@ python -m pytest apps/api/tests/
 
 ---
 
+### 2.4 Runtime smoke against a running API (any database)
+
+`scripts/demo_runtime_smoke.py` drives demo Scenarios A–D over real HTTP with semantic
+assertions (49 checks) and resets the demo afterwards. It is how the PostgreSQL runtime and
+the docker-compose stack were validated:
+
+```bash
+docker compose up -d postgres            # or the full stack with CLINICAL_DEMO_MODE=true
+python scripts/demo_runtime_smoke.py --api http://127.0.0.1:8000 --admin-key <CLINICAL_GOVERNANCE_ADMIN_KEY>
+```
+
 ## 3. Fixtures & Isolation Strategy
+
+- **Foreign keys are enforced in tests.** `apps/api/tests/conftest.py` runs
+  `PRAGMA foreign_keys=ON` on the SQLite test engine, so an insert-ordering bug that
+  Postgres would reject fails locally too (`test_the_test_database_enforces_foreign_keys_like_postgres`).
 
 Integration tests in `apps/api/tests/conftest.py` use a file-backed **SQLite async engine (`sqlite+aiosqlite:///test_temp.db`)**, created and dropped around each test:
 - Tests execute in complete isolation without requiring an active PostgreSQL container.

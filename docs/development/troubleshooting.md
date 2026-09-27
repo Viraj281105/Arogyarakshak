@@ -110,11 +110,44 @@ This document catalogs known failure modes, error messages, and verified solutio
   missing qualifier and merged them. Medicines now conflict on a one-sided variant letter.
 - **Remedy**: cases created before the fix keep the merged entity; delete and re-upload.
 
-### DawaCheck flags a large overcharge on a correctly read medicine
-- **Cause**: DawaCheck compares the price as a per-unit price against per-unit NPPA
-  ceilings. A bill line that is a strip/pack total is not converted to a unit price.
-- **Remedy**: known limitation — check the unit price manually; the demo documents use
-  per-unit rates for this reason.
+### DawaCheck says "Cannot compare reliably" for a correctly read medicine
+- **Cause** (ADR-012): the price basis is unknown or contradictory — the bill line does not
+  say whether the amount is for one tablet, a strip or several units; a strip price has no
+  pack size; the manual check was declared "per tablet" but the name says "(15s)"; or the
+  bill describes an injection while the reference ceiling is for a tablet.
+- **Remedy**: use the manual check with the correct basis ("One strip" + units in it). Before
+  ADR-012 such lines were compared as if per tablet and showed absurd overcharges
+  (e.g. +1,335% for a strip of Dolo 650).
+
+### BillNyay says a room/ICU/consultation line "was not compared"
+- **Cause** (ADR-012): the CGHS rate is per day / per visit / per bottle and the bill line
+  does not state how many ("ICU 18500"). "Room Rent 3 days 13500" is compared as 3 days.
+- **Remedy**: expected. The patient can ask the hospital for the day/visit count.
+
+### A request works in the tests but returns 500 on Postgres (foreign-key violation)
+- **Cause**: rows referencing another row by a plain foreign key (no ORM relationship) were
+  added in the same flush; SQLAlchemy may insert them first. SQLite ignored it because
+  foreign keys were off in tests; Postgres rejects it. Found in the release-candidate
+  Postgres run: DaaviSetu's doctor-confirmation request (`clinical.service.create_review`).
+- **Remedy**: `await db.flush()` after adding the parent. The test engine now runs
+  `PRAGMA foreign_keys=ON` (`apps/api/tests/conftest.py`) so this class of bug fails locally.
+  Validate against Postgres with `scripts/demo_runtime_smoke.py`.
+
+### Demo controls: "Demo operations are disabled" / reviewer token invalid after a reset
+- **Cause**: `CLINICAL_DEMO_MODE` off, `APP_ENV=production`, or no
+  `CLINICAL_GOVERNANCE_ADMIN_KEY`; every reset issues new demo credentials.
+- **Remedy**: set the variables and restart the API; copy the credentials again from the
+  Demo controls panel (they are never stored).
+
+### The web file picker does not offer `.txt` demo documents
+- **Cause** (fixed): the picker accepted only images and PDFs although the API accepts
+  `.txt`/`.csv`. `DOCUMENT_ACCEPT` in `DocumentUploader.tsx` now lists them.
+
+### Line endings flip to CRLF after a scripted edit on Windows
+- **Cause**: Python `open(path, "w")` without `newline=""` writes CRLF on Windows; a
+  regex-based web test failed on it. `.gitattributes` mandates LF.
+- **Remedy**: write with `newline=""`, or run `sed -i 's/\r$//' <file>`; `git diff --stat`
+  showing whole-file changes is the tell.
 
 ### Mobile screen says "Processing is taking longer than expected."
 - **Cause**: no processing event arrived for 90 s (hung or dropped stream), or the server

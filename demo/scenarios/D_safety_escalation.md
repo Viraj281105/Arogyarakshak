@@ -6,7 +6,7 @@
 Demo mode, demo seed run (creates two ACTIVE demo rules: FAST stroke signs; WHO ETAT emergency signs).
 
 ## Action sequence
-1. **Patient:** upload `demo/documents/D_insurance_denial_letter.txt`.
+1. **Patient:** Demo controls → **Load Scenario D** (or upload `demo/documents/D_insurance_denial_letter.txt`). A retired demo rule is restored to ACTIVE by **Reset demo**.
 2. As soon as processing completes, a red **Clinical safety check** banner appears above the modules.
 3. (Optional) BimaNyay tab: analyse the denial; the clinical-review trigger can route it to a doctor.
 4. (Optional governance) In `/clinical-review` → *Safety governance* as Clinician A: **Request

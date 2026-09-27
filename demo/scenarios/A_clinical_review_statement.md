@@ -3,14 +3,21 @@
 **Pinned by:** `apps/api/tests/test_demo_documents.py::test_scenario_a_bill_to_doctor_statement_to_pdf`
 
 ## Starting state
-- API in demo mode, `GROQ_API_KEY` unset, demo seed run (see `demo/README.md`).
-- Browser A: patient app `http://localhost:3000`. Browser B (or private window): `/clinical-review`.
+- API in demo mode, `GROQ_API_KEY` unset (see `demo/README.md`).
+- Browser A: patient app `http://localhost:3000`. Browser B (or another tab): `/clinical-review`.
+- Demo controls → **Reset demo** (copy Clinician A's reviewer ID and token from the panel).
 
 ## Action sequence
-1. **Patient:** upload `demo/documents/A_hospital_bill.txt` (tick consent). Wait for "Document processed".
-   (`A_discharge_summary.txt` is the supporting clinical document; the web uploader starts a new case
-   per upload, so the live demo uses the bill alone and the automated test adds both to one case.)
-2. BillNyay tab → **Run CGHS Benchmark Audit** (shows benchmarked lines and unmatched lines).
+1. **Patient:** Demo controls → **Load Scenario A**: one new case holding **both**
+   `A_hospital_bill.txt` and `A_discharge_summary.txt`, processed. (Manual alternative: upload the
+   bill with consent ticked, then **Add another document to this case** → the discharge summary.)
+2. BillNyay tab → **Run CGHS Benchmark Audit**. Expected per line:
+   *Room Rent (Private Ward) 3 days* → "₹4,500 per day × 3 days" → within reference;
+   *Specialist Consultation* and *Paracetamol IV* → **not compared** (the reference is per visit /
+   per bottle and the line does not say how many); *MRI Brain*, *Ultrasound*, *Laparoscopic
+   Appendectomy* → above the per-service reference; *Nursing Charges* → usually included in the room
+   tariff; *Registration*, *Laparoscopic Cholecystectomy* → no CGHS reference. The footer explains that
+   CGHS rates are reference rates, not a legal cap.
 3. **Check clinical plausibility** → status **Clinical review recommended** (mixed result).
 4. In "Clinical Review by a Named Doctor": tick consent → **Request Clinical Review**.
 5. Assign by reviewer ID: paste **Dr. Demo Clinician A**'s `reviewer_id` from the seed output → the
@@ -40,5 +47,5 @@ lifecycle, hashing, PDF signing and re-rendering. Demo-only: the bill, the demo 
 its DEMO_VERIFIED label.
 
 ## Known limitations
-The plausibility table covers 6 ICD-10 prefixes. The web uploader creates one case per upload. The
-appeal letter text is a static template without Groq (disclosed in the UI).
+The plausibility table covers 6 ICD-10 prefixes and the CGHS table is a curated subset. The appeal
+letter text is a static template without Groq (disclosed in the UI).

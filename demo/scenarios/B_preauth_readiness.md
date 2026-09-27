@@ -7,7 +7,7 @@ Demo mode, demo seed run. You need the seed's `institution.institution_token` an
 (the demo hospital desk's private checklist for laparoscopic cholecystectomy).
 
 ## Action sequence
-1. **Patient:** upload `demo/documents/B_preauth_request.txt` (consent ticked) and wait for completion.
+1. **Patient:** Demo controls → **Load Scenario B** (or upload `demo/documents/B_preauth_request.txt` with consent ticked) and wait for completion. The institution credential and `playbook_id` are in the Demo controls panel after **Reset demo**.
 2. DaaviSetu tab → **Check documentation readiness**, entering the demo `playbook_id` and the
    institution credential when asked.
 3. The checklist shows each item with its status. Select the item(s) marked **Needs a doctor's
