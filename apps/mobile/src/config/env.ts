@@ -35,7 +35,6 @@ const getDefaultApiUrl = (): string => {
 
 export const ENV = {
   API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || getDefaultApiUrl(),
-  USE_MOCK_DATA: process.env.EXPO_PUBLIC_USE_MOCK_DATA === 'true',
   APP_NAME: appName,
   APP_VERSION: appVersion,
   TIMEOUT_MS: 15000,

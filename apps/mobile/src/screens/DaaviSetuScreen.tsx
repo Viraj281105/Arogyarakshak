@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { humanizeEnum } from '../services/labels';
 import { View, Text, StyleSheet, ScrollView, TextInput, Linking, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -283,7 +284,7 @@ export const DaaviSetuScreen: React.FC = () => {
 
           <View style={[styles.statusBar, { borderColor: '#22c55e' }]}>
             <Text style={{ color: '#22c55e', fontSize: 13 }}>
-              {m.status} {result.status === 'ready_for_review' ? `✓ ${m.readyForReview}` : result.status}
+              {m.status} {result.status === 'ready_for_review' ? m.readyForReview : humanizeEnum(result.status)}
             </Text>
           </View>
 

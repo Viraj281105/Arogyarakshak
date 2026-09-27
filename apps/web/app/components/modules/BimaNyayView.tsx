@@ -64,6 +64,14 @@ interface BimaNyayViewProps {
   caseToken?: string;
 }
 
+// Statutory SLA tier states (bimanyay.tracker) in plain language.
+const SLA_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "Current step",
+  OVERDUE: "Deadline passed",
+  COMPLETED: "Done",
+  PENDING: "Later step",
+};
+
 export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.bimanyay;
   const analyzeApi = useApi<DisputeAuditResult>();
@@ -436,7 +444,7 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId,
                             {event.title}
                           </strong>
                           <span className={`badge ${badgeClass}`} style={badgeBg}>
-                            {event.status}
+                            {SLA_STATUS_LABEL[event.status] ?? event.status}
                           </span>
                         </div>
                         <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>

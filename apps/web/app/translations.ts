@@ -199,7 +199,10 @@ export const translations: Record<Language, Translations> = {
       consentRequired: "You must give consent before your document can be analysed.",
       processBtn: "Extract Document Entities",
       processing: "Running OCR & entity extraction...",
-      zeroRetentionNotice: "No documents are stored on any persistent server disk. Conforms to DPDP Act 2023.",
+      // The original file is never stored; extracted details and a redacted excerpt are, until
+      // the case is deleted or expires. No compliance certification is claimed.
+      zeroRetentionNotice:
+        "Your original file is never stored. Only the extracted details and a redacted text excerpt are kept, and they are deleted with the case.",
     },
     stream: {
       statusHeading: "Live Document Processing Stream",
@@ -226,23 +229,23 @@ export const translations: Record<Language, Translations> = {
     modules: {
       billnyay: {
         title: "BillNyay — Hospital Bill Forensic Audit",
-        desc: "Automated 5-agent line-item benchmark against notified CGHS rates & Supreme Court fair billing norms.",
-        chargedTotal: "Total Hospital Charged",
-        cghsBenchmark: "CGHS Mandated Cap",
-        potentialSavings: "Unjustified Discrepancy",
+        desc: "Compares each bill line with CGHS reference rates (a curated subset). A large gap is a reason to ask the hospital for a justification — not proof of wrongdoing.",
+        chargedTotal: "Total billed",
+        cghsBenchmark: "CGHS reference (compared lines)",
+        potentialSavings: "Above CGHS reference",
         overchargesTitle: "Flagged Hospital Line Items",
         itemCol: "Line Item",
         chargedCol: "Hospital Charged",
-        cghsCol: "Statutory Benchmark",
-        varianceCol: "Excess Surcharge",
+        cghsCol: "CGHS reference",
+        varianceCol: "Above reference",
         statusCol: "Audit Status",
-        disputeGrounds: "Dispute Grounds: Overcharging violates Supreme Court Consumer Protection precedents and standardized CGHS tariff guidelines.",
+        disputeGrounds: "How to use this: CGHS rates are reference rates for CGHS beneficiaries, not a legal cap on private hospitals. Use a large gap to ask the hospital for an itemised justification or to support a complaint — it is not proof of overcharging.",
         notBenchmarked: "No CGHS benchmark",
-        withinBenchmark: "Within Benchmark",
+        withinBenchmark: "Within CGHS reference",
         notBenchmarkedBadge: "Not benchmarked",
-        overchargedBadge: "Overcharged",
-        bundledBadge: "Bundled — should not be billed separately",
-        fairBadge: "Fair",
+        overchargedBadge: "Above CGHS reference",
+        bundledBadge: "Usually included in the room tariff — ask why it is billed separately",
+        fairBadge: "Within reference",
         unmatchedNotice: "{count} line item(s) totalling {amount} have no CGHS benchmark and were NOT verified. They are not confirmed fair — review them manually.",
       },
       bimanyay: {
@@ -346,7 +349,8 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       disclaimer: "ArogyaRakshak provides statutory auditing intelligence based on public regulatory frameworks (CGHS, NPPA, IRDAI).",
-      statutoryNote: "All calculations cite official public data sources. Zero patient health data is retained after your active browser session.",
+      statutoryNote:
+        "Reference prices come from curated subsets of public data (CGHS, NPPA). A case's extracted details are kept until you delete the case or it expires (90 days by default); your original file is never kept.",
       cghsRef: "CGHS OM 2024 Tariffs",
       irdaiRef: "IRDAI Master Circular May 2024",
       nppaRef: "NPPA DPCO Schedule-I",
@@ -374,7 +378,9 @@ export const translations: Record<Language, Translations> = {
       consentRequired: "आपके दस्तावेज़ के विश्लेषण से पहले आपकी सहमति आवश्यक है।",
       processBtn: "मल्टी-एजेंट ऑडिट शुरू करें",
       processing: "मल्टी-एजेंट पाइपलाइन द्वारा विश्लेषण जारी है...",
-      zeroRetentionNotice: "सर्वर डिस्क पर कोई दस्तावेज़ सुरक्षित नहीं रखा जाता। DPDP अधिनियम 2023 के अनुरूप।",
+      // NEEDS NATIVE-SPEAKER QA (replaces an inaccurate "nothing is stored / DPDP-conformant" claim).
+      zeroRetentionNotice:
+        "आपकी मूल फ़ाइल कभी संग्रहीत नहीं की जाती। केवल निकाली गई जानकारी और गोपनीय अंश हटाया हुआ पाठ-अंश रखा जाता है, जो केस के साथ हटा दिया जाता है।",
     },
     stream: {
       statusHeading: "लाइव दस्तावेज़ प्रोसेसिंग स्थिति",
@@ -401,23 +407,24 @@ export const translations: Record<Language, Translations> = {
     modules: {
       billnyay: {
         title: "बिलन्याय — अस्पताल बिल फॉरेन्सिक ऑडिट",
-        desc: "CGHS अधिसूचित दरों एवं सर्वोच्च न्यायालय के दिशा-निर्देशों के अनुसार अस्पताल बिलों का स्वचालित ऑडिट।",
+        // NEEDS NATIVE-SPEAKER QA: rewritten to remove "statutory cap" / Supreme Court claims.
+        desc: "हर बिल मद की तुलना CGHS संदर्भ दरों (चुना हुआ अंश) से। बड़ा अंतर अस्पताल से स्पष्टीकरण माँगने का कारण है, गलत काम का प्रमाण नहीं।",
         chargedTotal: "अस्पताल द्वारा लिया गया कुल शुल्क",
-        cghsBenchmark: "CGHS वैधानिक दर सीमा",
-        potentialSavings: "अन्यायपूर्ण अतिरिक्त शुल्क",
+        cghsBenchmark: "CGHS संदर्भ दर (तुलना किए गए मद)",
+        potentialSavings: "CGHS संदर्भ से अधिक",
         overchargesTitle: "चिह्नित अधिक शुल्क वाले मद",
         itemCol: "मद का नाम",
         chargedCol: "अस्पताल शुल्क",
         cghsCol: "मानक दर",
         varianceCol: "अतिरिक्त राशि",
         statusCol: "लेखा-परीक्षा स्थिति",
-        disputeGrounds: "आपत्ति का आधार: अत्यधिक शुल्क सर्वोच्च न्यायालय के उपभोक्ता संरक्षण निर्णयों और CGHS नियमों का उल्लंघन करता है।",
+        disputeGrounds: "उपयोग कैसे करें: CGHS दरें CGHS लाभार्थियों के लिए संदर्भ दरें हैं, निजी अस्पतालों पर कानूनी सीमा नहीं। बड़ा अंतर अस्पताल से मदवार स्पष्टीकरण माँगने का आधार है — अधिक शुल्क का प्रमाण नहीं।",
         notBenchmarked: "कोई CGHS मानक नहीं",
         withinBenchmark: "मानक के भीतर",
         notBenchmarkedBadge: "जाँच नहीं हुई",
-        overchargedBadge: "अधिक शुल्क",
+        overchargedBadge: "CGHS संदर्भ से अधिक",
         bundledBadge: "पैकेज में शामिल — अलग से शुल्क नहीं",
-        fairBadge: "उचित",
+        fairBadge: "संदर्भ के भीतर",
         unmatchedNotice: "{count} मद ({amount}) के लिए कोई CGHS मानक नहीं है, इनकी जाँच नहीं हुई। इन्हें उचित नहीं माना गया है — कृपया स्वयं जाँचें।",
       },
       bimanyay: {
@@ -521,7 +528,9 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       disclaimer: "आरोग्यरक्षक सार्वजनिक विनियामक नियमों (CGHS, NPPA, IRDAI) के आधार पर सूचनात्मक विश्लेषण प्रदान करता है।",
-      statutoryNote: "सभी गणनाएं आधिकारिक सार्वजनिक स्रोतों पर आधारित हैं। ब्राउज़र सत्र समाप्त होने के बाद कोई डेटा संचित नहीं रहता।",
+      // NEEDS NATIVE-SPEAKER QA (the previous copy wrongly said nothing is kept after the session).
+      statutoryNote:
+        "संदर्भ मूल्य सार्वजनिक डेटा (CGHS, NPPA) के चुने हुए अंशों से लिए गए हैं। केस की निकाली गई जानकारी तब तक रखी जाती है जब तक आप केस हटा नहीं देते या वह समाप्त नहीं हो जाता (डिफ़ॉल्ट 90 दिन); आपकी मूल फ़ाइल कभी नहीं रखी जाती।",
       cghsRef: "CGHS दरें 2024",
       irdaiRef: "IRDAI मास्टर सर्कुलर मई 2024",
       nppaRef: "NPPA DPCO शेड्यूल-I",
@@ -549,7 +558,9 @@ export const translations: Record<Language, Translations> = {
       consentRequired: "तुमच्या दस्तऐवजाचे विश्लेषण करण्यापूर्वी तुमची संमती आवश्यक आहे.",
       processBtn: "मल्टी-एजंट ऑडिट सुरू करा",
       processing: "मल्टी-एजंट प्रणालीद्वारे तपासणी चालू आहे...",
-      zeroRetentionNotice: "कोणताही डेटा सर्व्हर डिस्कवर साठवला जात नाही. DPDP कायदा 2023 चे पालन.",
+      // NEEDS NATIVE-SPEAKER QA (replaces an inaccurate "nothing is stored / DPDP-compliant" claim).
+      zeroRetentionNotice:
+        "तुमची मूळ फाइल कधीही साठवली जात नाही. फक्त काढलेली माहिती आणि गोपनीय भाग काढलेला मजकूर-अंश ठेवला जातो, जो केससोबत हटवला जातो.",
     },
     stream: {
       statusHeading: "थेट दस्तऐवज प्रक्रिया स्थिती",
@@ -576,23 +587,24 @@ export const translations: Record<Language, Translations> = {
     modules: {
       billnyay: {
         title: "बिलन्याय — रुग्णालय बिल फॉरेन्सिक ऑडिट",
-        desc: "CGHS अधिसूचित दर आणि सर्वोच्च न्यायालयाच्या मार्गदर्शक तत्त्वांनुसार बिलांची अचूक तपासणी.",
+        // NEEDS NATIVE-SPEAKER QA: rewritten to remove "statutory cap" / Supreme Court claims.
+        desc: "प्रत्येक बिल घटकाची CGHS संदर्भ दरांशी (निवडक भाग) तुलना. मोठा फरक हा रुग्णालयाकडे स्पष्टीकरण मागण्याचे कारण आहे, गैरव्यवहाराचा पुरावा नाही.",
         chargedTotal: "हॉस्पिटलने आकारलेले एकूण शुल्क",
-        cghsBenchmark: "CGHS वैधानिक दर मर्यादा",
-        potentialSavings: "अवाजवी जादा आकारणी",
+        cghsBenchmark: "CGHS संदर्भ दर (तुलना केलेले घटक)",
+        potentialSavings: "CGHS संदर्भापेक्षा जास्त",
         overchargesTitle: "जास्त दर आकारलेले घटक",
         itemCol: "घटकाचे नाव",
         chargedCol: "हॉस्पिटल शुल्क",
         cghsCol: "शासकीय दर",
         varianceCol: "अतिरिक्त रक्कम",
         statusCol: "लेखापरीक्षा स्थिती",
-        disputeGrounds: "तक्रारीचा आधार: जास्त दर आकारणी सर्वोच्च न्यायालयाच्या ग्राहक संरक्षण नियमांचा व CGHS दरांचा भंग करते.",
+        disputeGrounds: "कसे वापरावे: CGHS दर हे CGHS लाभार्थ्यांसाठीचे संदर्भ दर आहेत, खासगी रुग्णालयांवरील कायदेशीर मर्यादा नाहीत. मोठा फरक रुग्णालयाकडे घटकनिहाय स्पष्टीकरण मागण्याचा आधार आहे — जादा आकारणीचा पुरावा नाही.",
         notBenchmarked: "CGHS मानक उपलब्ध नाही",
         withinBenchmark: "मानकाच्या आत",
         notBenchmarkedBadge: "पडताळणी झाली नाही",
-        overchargedBadge: "जादा आकारणी",
+        overchargedBadge: "CGHS संदर्भापेक्षा जास्त",
         bundledBadge: "पॅकेजमध्ये समाविष्ट — वेगळे शुल्क नाही",
-        fairBadge: "योग्य",
+        fairBadge: "संदर्भाच्या आत",
         unmatchedNotice: "{count} नोंदी ({amount}) साठी CGHS मानक नाही, त्यांची पडताळणी झालेली नाही. त्या योग्य ठरवलेल्या नाहीत — कृपया स्वतः तपासा.",
       },
       bimanyay: {
@@ -696,7 +708,9 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       disclaimer: "आरोग्यरक्षक सार्वजनिक विनियामक नियमांवर (CGHS, NPPA, IRDAI) आधारित माहितीपर विश्लेषण प्रदान करते.",
-      statutoryNote: "सर्व आकडेवारी अधिकृत शासकीय स्रोतांवर आधारित आहे. वापरानंतर कोणताही वैयक्तिक डेटा साठवला जात नाही.",
+      // NEEDS NATIVE-SPEAKER QA (the previous copy wrongly said no personal data is kept after use).
+      statutoryNote:
+        "संदर्भ किमती सार्वजनिक डेटाच्या (CGHS, NPPA) निवडक भागांतून घेतल्या आहेत. केसमधून काढलेली माहिती तुम्ही केस हटवेपर्यंत किंवा ती कालबाह्य होईपर्यंत (डीफॉल्ट 90 दिवस) ठेवली जाते; तुमची मूळ फाइल कधीही ठेवली जात नाही.",
       cghsRef: "CGHS दर 2024",
       irdaiRef: "IRDAI मास्टर सर्क्युलर मे 2024",
       nppaRef: "NPPA DPCO शेड्यूल-I",

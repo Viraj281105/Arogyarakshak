@@ -249,3 +249,12 @@ Thumbs.db
 .claude/worktrees/
 .claude/launch.json
 
+
+# ──────────────────────────────────────────────────────────────────────
+# Local databases (pytest's apps/api/tests/conftest.py SQLite file, local dev runs).
+# Case data must never be committed (ADR-003).
+# ──────────────────────────────────────────────────────────────────────
+test_temp.db
+*.db
+*.sqlite
+*.sqlite3

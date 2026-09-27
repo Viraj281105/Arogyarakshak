@@ -40,7 +40,10 @@ export const Header: React.FC<HeaderProps> = ({
             <path d="M8 12h8" />
           </svg>
           <span>{t.appName}</span>
-          <span className="brand-badge">PROD</span>
+          {/* Not a production deployment: an academic release candidate. */}
+          <span className="brand-badge" title="Release candidate of an academic project — not a production medical or legal service">
+            PROTOTYPE
+          </span>
         </Link>
 
         <div className="nav-actions">

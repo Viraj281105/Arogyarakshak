@@ -44,7 +44,7 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
           )}
           {caseId && (
             <span style={{ fontSize: "0.75rem", color: "var(--brand-teal)", background: "rgba(20, 184, 166, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
-              {caseId}
+              Case open
             </span>
           )}
         </div>

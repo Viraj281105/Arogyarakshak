@@ -1,4 +1,12 @@
 import React, { useState } from 'react';
+
+// Statutory SLA tier states (bimanyay.tracker) in plain language.
+const SLA_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: 'Current step',
+  OVERDUE: 'Deadline passed',
+  COMPLETED: 'Done',
+  PENDING: 'Later step',
+};
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Share } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { BottomTabParamList } from '../navigation/types';
@@ -294,7 +302,7 @@ export const BimaNyayScreen: React.FC = () => {
             <View key={idx} style={[styles.timelineItem, { borderColor: event.status === 'ACTIVE' ? colors.brandCyan : colors.borderSubtle }]}>
               <View style={[styles.row, { marginBottom: 2 }]}>
                 <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13, flex: 1 }}>{event.title}</Text>
-                <Badge label={event.status} variant={event.status === 'ACTIVE' ? 'info' : 'brand'} />
+                <Badge label={SLA_STATUS_LABEL[event.status] ?? event.status} variant={event.status === 'OVERDUE' ? 'danger' : event.status === 'ACTIVE' ? 'info' : 'brand'} />
               </View>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
                 {event.instructions} Deadline: {event.deadline_date}

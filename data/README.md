@@ -21,7 +21,7 @@ In accordance with project rules, every record and benchmark must cite an authen
 | `cghs_rates.pdf` | PDF (6.4 MB) | `billnyay` | Official CGHS procedure rate schedules across city tiers. |
 | `insurance_companies.pdf` | PDF | `daavisetu`, `bimanyay` | Directory of registered Indian general & health insurers and TPAs. |
 | `invoices_receipts_ocr/` | Images & Annotations | `kadi`, `billnyay` | Ground-truth dataset for hospital billing layout and OCR token extraction. |
-| `prescriptions_handwritten/` | Images | `kadi`, `dawacheck` | Sample doctor prescription dataset for OCR and entity extraction stress-testing. |
+| `prescriptions_handwritten/` | Images | `kadi`, `dawacheck` | 5 images from the public Hugging Face dataset `chinmays18/medical-prescription-dataset` (`download_actual_data.py`). They are computer-rendered in handwriting-style fonts with fictional clinic/patient names — synthetic, not real prescriptions. Used for OCR stress-testing only. |
 | `indian_medical_insurance_policy/` | PDFs / Text | `bimanyay`, `daavisetu` | Representative Indian retail health insurance policy terms & exclusions. |
 | `health_insurance_claims_synthetic/`| CSV / Structured | `bimanyay` | **Mock scaffold** (2 rows written by `download_datasets.py`), not a dataset. |
 | `healthcare_fraud_detection/` | Tabular | `billnyay` | **Mock scaffold** (2 rows written by `download_datasets.py`), not a dataset. |

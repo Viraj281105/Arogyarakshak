@@ -159,13 +159,6 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
   const appealData = appealApi.data;
   const showExample = !hasRun && !caseId;
 
-  // Example data shown only when no case is active, clearly labeled
-  const exampleItems = [
-    { item: "ICU Day Charges (Deluxe Wing)", charged: 18500, cghs: 6500, overcharge: 12000, status: "Overcharged (184%)" },
-    { item: "Disposable PPE Kit (per shift)", charged: 2400, cghs: 650, overcharge: 1750, status: "Exceeds Ceiling" },
-    { item: "Syringe Infusion Pump Hire", charged: 1200, cghs: 350, overcharge: 850, status: "Bundled in ICU Tariff" },
-    { item: "Paracetamol IV Infusion 100ml", charged: 450, cghs: 42, overcharge: 408, status: "Violates NPPA Ceiling" },
-  ];
 
   return (
     <div className="card">
@@ -604,71 +597,22 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
         </>
       )}
 
-      {/* Example Data (only when no case active) */}
+      {/* Before any case: say what to do. No invented example figures — a judge (or a
+          patient) could otherwise mistake them for an audit result. */}
       {showExample && (
-        <>
-          <div
-            style={{
-              padding: "0.5rem 0.75rem",
-              marginBottom: "1rem",
-              background: "rgba(245, 158, 11, 0.08)",
-              borderRadius: "var(--radius-sm, 4px)",
-              fontSize: "0.8rem",
-              color: "var(--status-warning)",
-              fontWeight: 600,
-            }}
-          >
-            ⓘ Example — Upload a real document to see live audit results
-          </div>
-
-          <div className="grid-3" style={{ marginBottom: "1.5rem", opacity: 0.7 }}>
-            <div className="stat-box">
-              <div className="stat-label">{t.chargedTotal}</div>
-              <div className="stat-val" style={{ color: "var(--text-primary)" }}>₹72,550</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-label">{t.cghsBenchmark}</div>
-              <div className="stat-val" style={{ color: "var(--brand-cyan)" }}>₹34,500</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-label">{t.potentialSavings}</div>
-              <div className="stat-val" style={{ color: "var(--status-danger)" }}>₹38,050</div>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: "1rem" }}>
-            <h3>{t.overchargesTitle}</h3>
-          </div>
-
-          <div className="table-wrapper" style={{ opacity: 0.7 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t.itemCol}</th>
-                  <th>{t.chargedCol}</th>
-                  <th>{t.cghsCol}</th>
-                  <th>{t.varianceCol}</th>
-                  <th>{t.statusCol}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exampleItems.map((row, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: 600 }}>{row.item}</td>
-                    <td>₹{row.charged.toLocaleString("en-IN")}</td>
-                    <td style={{ color: "var(--brand-cyan)" }}>₹{row.cghs.toLocaleString("en-IN")}</td>
-                    <td style={{ color: "var(--status-danger)", fontWeight: 700 }}>
-                      +₹{row.overcharge.toLocaleString("en-IN")}
-                    </td>
-                    <td>
-                      <span className="badge badge-danger">{row.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <div
+          style={{
+            padding: "0.85rem 1rem",
+            border: "1px dashed var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            fontSize: "0.85rem",
+            color: "var(--text-secondary)",
+          }}
+        >
+          Upload a hospital bill above (or add its discharge summary to the same case) to compare each line with the
+          CGHS reference rates. Lines with no matching reference rate are listed as not benchmarked — never as fair or
+          overcharged.
+        </div>
       )}
     </div>
   );
