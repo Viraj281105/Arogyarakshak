@@ -50,6 +50,10 @@ interface AuditResultItem {
   is_deviation: boolean;
   benchmarked: boolean;
   status: AuditItemStatus;
+  /** What the reference covers for this line, e.g. "₹4,500 per day × 3 days". */
+  benchmark_basis?: string | null;
+  /** Why a matched line was not compared (e.g. a per-day rate and no day count). */
+  not_benchmarked_reason?: string | null;
 }
 
 interface AuditResponse {
@@ -521,6 +525,11 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
                             {benchmarked
                               ? `₹${(row.cghs_benchmark as number).toLocaleString("en-IN")}`
                               : "—"}
+                            {row.benchmark_basis && (
+                              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 400 }}>
+                                {row.benchmark_basis}
+                              </div>
+                            )}
                           </td>
                           <td
                             style={{
@@ -533,7 +542,7 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
                             }}
                           >
                             {!benchmarked
-                              ? t.notBenchmarked
+                              ? row.not_benchmarked_reason ?? t.notBenchmarked
                               : row.is_deviation
                               ? `+₹${(row.charged - (row.cghs_benchmark as number)).toLocaleString("en-IN")} (${row.deviation_percentage}%)`
                               : t.withinBenchmark}

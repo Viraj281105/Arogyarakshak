@@ -66,6 +66,8 @@ from app.models import (
 # OCR parser and extraction agent from kadi shared layer
 from kadi.ocr.ocr_parser import parse_document
 from kadi.extraction import extract_entities_from_text
+from kadi.line_items import ground_medicine_source_lines
+from dawacheck.price_basis import annotate_medicine_price_facts
 from kadi.fhir_import import FhirBundleError, parse_fhir_bundle
 from kadi.graph import CaseGraph, EntityRecord, PendingLink, StayInfo, build_case_graph
 from kadi.redaction import redact_pii
@@ -419,6 +421,12 @@ async def process_document_background(
                         MentionInput("procedure", proc_name, str(proc.get("amount", 0.0)), {**proc, **extraction_meta})
                     )
 
+            # What the document says about each medicine's quantity or pack ("strip of 15",
+            # "Qty 10", a "Rate per tablet" column) is read now, while the text is still in
+            # memory, so DawaCheck can later compare like with like — or refuse to. Only the
+            # derived facts and a short matched snippet are stored, never the line itself.
+            ground_medicine_source_lines(text, extracted.medicines)
+            annotate_medicine_price_facts(extracted.medicines, text)
             for med in extracted.medicines:
                 med_name = med.get("name")
                 if med_name:

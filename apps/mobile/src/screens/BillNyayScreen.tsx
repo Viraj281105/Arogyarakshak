@@ -331,6 +331,11 @@ export const BillNyayScreen: React.FC = () => {
                       }`
                     : ` | ${m.notBenchmarked}`}
                 </Text>
+                {(benchmarked ? item.benchmark_basis : item.not_benchmarked_reason) ? (
+                  <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs }}>
+                    {benchmarked ? item.benchmark_basis : item.not_benchmarked_reason}
+                  </Text>
+                ) : null}
               </View>
             );
           })}

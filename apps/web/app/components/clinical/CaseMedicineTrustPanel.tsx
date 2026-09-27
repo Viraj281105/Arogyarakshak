@@ -3,20 +3,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { clinicalPaths, clinicalRequest, Provenance } from "../../lib/clinical";
 import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
+import { describePriceCheck, PriceCheck } from "../../lib/dawacheck";
 import { ProvenanceBadge } from "./Attribution";
 import { StatePanel } from "./StatePanel";
 
 export interface CaseMedicineRow {
   entity_id: string;
   brand_name: string;
-  benchmark: {
-    active_ingredient: string;
-    mrp: number;
-    nppa_ceiling_price: number;
-    is_overcharged: boolean;
-    deviation_percentage: number;
-    reference_entry_count: number;
-  } | null;
+  benchmark: PriceCheck | null;
   note: string | null;
   name_provenance: Provenance;
   transcription_task_id: string | null;
@@ -117,6 +111,7 @@ export const CaseMedicineTrustPanel: React.FC<{
           {rows.map((r) => {
             const state = r.trust?.state ?? "";
             const isBlocked = BLOCKED_STATES.has(state);
+            const price = r.benchmark ? describePriceCheck(r.benchmark) : null;
             return (
               <li
                 key={r.entity_id}
@@ -134,12 +129,7 @@ export const CaseMedicineTrustPanel: React.FC<{
                   ) : (
                     <ProvenanceBadge provenance={r.name_provenance} />
                   )}
-                  {r.benchmark &&
-                    (r.benchmark.is_overcharged ? (
-                      <span className={TONE_CLASS.danger}>Above ceiling (+{r.benchmark.deviation_percentage}%)</span>
-                    ) : (
-                      <span className={TONE_CLASS.success}>Within ceiling</span>
-                    ))}
+                  {price && <span className={TONE_CLASS[price.tone]}>{price.badge}</span>}
                 </div>
                 {(r.trust?.reasons ?? []).length > 0 && (
                   <div style={{ fontSize: "0.78rem", marginTop: "0.3rem", opacity: 0.9 }}>
@@ -147,10 +137,15 @@ export const CaseMedicineTrustPanel: React.FC<{
                   </div>
                 )}
                 <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>
-                  {r.benchmark ? (
+                  {r.benchmark && price ? (
                     <>
-                      ₹{r.benchmark.mrp.toFixed(2)} per unit vs NPPA ceiling ₹{r.benchmark.nppa_ceiling_price.toFixed(2)} (reference:{" "}
-                      {r.benchmark.active_ingredient})
+                      <div>
+                        {price.billed} · {price.ceiling} (reference: {r.benchmark.active_ingredient})
+                      </div>
+                      {price.reason && <div style={{ marginTop: "0.25rem", color: "var(--status-warning)" }}>{price.reason}</div>}
+                      {price.basisNote && (
+                        <div style={{ marginTop: "0.25rem", fontSize: "0.78rem", opacity: 0.85 }}>{price.basisNote}</div>
+                      )}
                     </>
                   ) : (
                     <span>{r.note ?? "Not price-checked."}</span>

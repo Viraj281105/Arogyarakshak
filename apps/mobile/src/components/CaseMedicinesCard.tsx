@@ -8,6 +8,7 @@ import { api } from '../api/endpoints';
 import { ApiError, CaseMedicineBenchmark } from '../api/types';
 import { createRequestGuard } from '../services/caseProcessing';
 import { humanizeEnum } from '../services/labels';
+import { describePriceCheck } from '../services/priceCheck';
 
 const BLOCKED = new Set(['AWAITING_HUMAN_READING', 'READERS_DISAGREED', 'READING_NOT_APPLIED', 'OCR_UNCERTAIN']);
 const FLAGGABLE = new Set(['READERS_DISAGREED', 'READING_NOT_APPLIED', 'OCR_UNCERTAIN']);
@@ -84,6 +85,7 @@ export const CaseMedicinesCard: React.FC<{
       {(rows ?? []).map((r) => {
         const state = r.trust?.state ?? '';
         const blocked = BLOCKED.has(state);
+        const price = r.benchmark ? describePriceCheck(r.benchmark) : null;
         return (
           <View key={r.entity_id} style={{ borderTopWidth: 1, borderColor: colors.borderSubtle, paddingTop: spacing.xs, marginTop: spacing.xs, gap: 4 }}>
             <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{r.brand_name}</Text>
@@ -92,17 +94,16 @@ export const CaseMedicinesCard: React.FC<{
                 label={blocked ? r.trust?.label ?? humanizeEnum(state) : r.name_provenance === 'HUMAN_REVIEWED' ? 'Human-reviewed' : 'Machine-extracted'}
                 variant={blocked ? 'warning' : r.name_provenance === 'HUMAN_REVIEWED' ? 'success' : 'info'}
               />
-              {r.benchmark && (
-                <Badge
-                  label={r.benchmark.is_overcharged ? `Above NPPA ceiling (+${r.benchmark.deviation_percentage}%)` : 'Within NPPA ceiling'}
-                  variant={r.benchmark.is_overcharged ? 'danger' : 'success'}
-                />
-              )}
+              {price && <Badge label={price.badge} variant={price.variant} />}
             </View>
-            {r.benchmark ? (
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-                ₹{r.benchmark.mrp.toFixed(2)} vs ceiling ₹{r.benchmark.nppa_ceiling_price.toFixed(2)}
-              </Text>
+            {price ? (
+              <View style={{ gap: 2 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+                  {price.billed} · {price.ceiling}
+                </Text>
+                {price.reason && <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>{price.reason}</Text>}
+                {price.basisNote && <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs }}>{price.basisNote}</Text>}
+              </View>
             ) : (
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{r.note ?? 'Not price-checked.'}</Text>
             )}

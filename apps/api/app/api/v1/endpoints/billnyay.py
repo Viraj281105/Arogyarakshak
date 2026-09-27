@@ -41,6 +41,7 @@ from billnyay.agents.consensus import (
 )
 from billnyay.agents.feedback_loop import draft_with_self_correction
 from billnyay.agents.icd_audit import audit_icd_procedure_consistency, ICDProcedureAuditItem
+from billnyay.rate_basis import benchmark_line
 from billnyay.tools.pdf_compiler import compile_appeal_packet_bytes
 from billnyay.tools.pdf_integrity import compute_sha256, sign_document, verify_signature
 from billnyay.tools.bima_bharosa_crawler import check_registration_status_mock, RegistrationStatusResult
@@ -108,6 +109,18 @@ def _rate_of(entry: Any):
         return None, False
 
 
+def _billing_unit_of(norm_name: str, rates_source: Dict[str, Any]) -> Optional[str]:
+    """The matched entry's billing unit (per_day, per_visit, ... per_service), using the
+    same longest-substring match as _match_cghs_rate."""
+    key = norm_name if norm_name in rates_source else None
+    if key is None:
+        for k in rates_source:
+            if (k in norm_name or norm_name in k) and (key is None or len(k) > len(key)):
+                key = k
+    entry = rates_source.get(key) if key else None
+    return entry.get("billing_unit") if isinstance(entry, dict) else None
+
+
 def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
     """Finds the CGHS benchmark for a billed item name.
 
@@ -147,6 +160,11 @@ class AuditResultItem(BaseModel):
     is_deviation: bool
     benchmarked: bool
     status: Literal["overcharged", "within_benchmark", "bundled", "not_benchmarked"]
+    # What the reference covers for this line, e.g. "₹4,500 per day × 3 days"
+    # (billnyay.rate_basis). A per-day/visit/bottle rate is never applied to a line that
+    # does not say how many days/visits/bottles it covers.
+    benchmark_basis: Optional[str] = None
+    not_benchmarked_reason: Optional[str] = None
 
 
 class AuditResponse(BaseModel):
@@ -481,6 +499,29 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
 
         matched_rate, is_bundled = _match_cghs_rate(norm_name, rates_source)
 
+        basis_text = None
+        if matched_rate is not None and not is_bundled:
+            line = benchmark_line(item.name, matched_rate, _billing_unit_of(norm_name, rates_source))
+            basis_text = line.basis
+            if line.benchmark_total is None:
+                unmatched_count += 1
+                unmatched_amount += charged
+                audit_items.append(
+                    AuditResultItem(
+                        item_name=item.name,
+                        charged=charged,
+                        cghs_benchmark=None,
+                        deviation_percentage=0.0,
+                        is_deviation=False,
+                        benchmarked=False,
+                        status="not_benchmarked",
+                        benchmark_basis=line.basis,
+                        not_benchmarked_reason=line.reason,
+                    )
+                )
+                continue
+            matched_rate = line.benchmark_total
+
         if matched_rate is None:
             # No CGHS counterpart. Report this honestly as unverified rather than
             # silently benchmarking the item against its own charge.
@@ -526,6 +567,7 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
                 is_deviation=is_dev,
                 benchmarked=True,
                 status=item_status,
+                benchmark_basis=basis_text,
             )
         )
 

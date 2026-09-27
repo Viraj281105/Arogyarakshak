@@ -5,21 +5,26 @@ import { Language, translations } from "../../translations";
 import { useApi } from "../../hooks/useApi";
 import { TranscriptionPanel } from "../clinical/TranscriptionPanel";
 import { CaseMedicineTrustPanel } from "../clinical/CaseMedicineTrustPanel";
+import { describePriceCheck, PriceBasis, PriceCheck } from "../../lib/dawacheck";
+import { TONE_CLASS } from "../../lib/labels";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
-interface MedicineBenchmarkResponse {
+interface MedicineBenchmarkResponse extends PriceCheck {
   brand_name: string;
-  active_ingredient: string;
-  mrp: number;
-  nppa_ceiling_price: number;
-  is_overcharged: boolean;
-  deviation_percentage: number;
   generic_substitute_available: boolean;
   generic_substitute_store_info: string;
   /** Provenance — the reference list is a curated subset of NPPA Schedule-I. */
   data_source: string;
-  reference_entry_count: number;
 }
+
+// What the amount the person paid buys. Required, so a strip price is never sent as a
+// price per tablet by accident.
+const BASIS_OPTIONS: { value: PriceBasis; label: string; needs: "none" | "pack" | "quantity" }[] = [
+  { value: "PER_UNIT", label: "One tablet / capsule / vial", needs: "none" },
+  { value: "PER_STRIP", label: "One strip", needs: "pack" },
+  { value: "PER_PACK", label: "One pack / box / bottle", needs: "pack" },
+  { value: "LINE_TOTAL", label: "Several units (a bill line total)", needs: "quantity" },
+];
 
 interface TranslatedInstruction {
   token: string;
@@ -48,7 +53,10 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
   // paid — never a sample value they might submit unchanged.
   const [brandName, setBrandName] = useState("");
   const [mrp, setMrp] = useState("");
-  const [hasSearched, setHasSearched] = useState(false);
+  const [basis, setBasis] = useState<PriceBasis | "">("");
+  const [count, setCount] = useState("");
+  const basisOption = BASIS_OPTIONS.find((o) => o.value === basis);
+  const needsCount = basisOption ? basisOption.needs !== "none" : false;
 
   const translateApi = useApi<PrescriptionTranslationResponse>();
   // Bumped when either case panel changes transcription state, so the other re-reads it.
@@ -63,12 +71,21 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
     });
   };
 
+  const countVal = parseFloat(count);
+  const formReady =
+    !!brandName.trim() && parseFloat(mrp) > 0 && !!basis && (!needsCount || (Number.isInteger(countVal) && countVal > 0));
+
   const handleSearch = async () => {
     const mrpVal = parseFloat(mrp);
-    if (!brandName.trim() || isNaN(mrpVal) || mrpVal <= 0) return;
-    setHasSearched(true);
+    if (!formReady || !basisOption) return;
     await api.execute("/api/v1/dawacheck/benchmark", {
-      body: { brand_name: brandName.trim(), mrp: mrpVal },
+      body: {
+        brand_name: brandName.trim(),
+        mrp: mrpVal,
+        price_basis: basis,
+        units_per_pack: basisOption.needs === "pack" ? countVal : undefined,
+        quantity: basisOption.needs === "quantity" ? countVal : undefined,
+      },
     });
   };
 
@@ -80,15 +97,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
   };
 
   const result = api.data;
-  const showExample = !hasSearched;
-
-  // Example data shown only before first search, clearly labeled
-  const exampleMedicines = [
-    { brand: "Dolo 650mg Tablet (15s)", generic: "Paracetamol 650mg", mrp: 33.5, nppaCeiling: 28.5, isOvercharged: true, overcharge: 5.0 },
-    { brand: "Augmentin 625 Duo Tablet (10s)", generic: "Amoxicillin (500mg) + Clavulanic Acid (125mg)", mrp: 220.0, nppaCeiling: 198.4, isOvercharged: true, overcharge: 21.6 },
-    { brand: "Metformin 500mg SR Tablet (10s)", generic: "Metformin Hydrochloride 500mg", mrp: 18.0, nppaCeiling: 22.0, isOvercharged: false, overcharge: 0 },
-    { brand: "Meropenem 1g Injection", generic: "Meropenem 1000mg Powder for Injection", mrp: 1850.0, nppaCeiling: 950.0, isOvercharged: true, overcharge: 900.0 },
-  ];
+  const price = result ? describePriceCheck(result) : null;
 
   return (
     <div className="card">
@@ -128,18 +137,50 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
           type="number"
           className="input-field"
           style={{ flex: 1, minWidth: "120px" }}
-          placeholder="MRP per unit (₹)"
-          step="0.1"
+          placeholder="Amount paid (₹)"
+          aria-label="Amount paid in rupees"
+          step="0.01"
           min="0"
           value={mrp}
           onChange={(e) => setMrp(e.target.value)}
           onKeyDown={handleKeyDown}
         />
+        <select
+          className="input-field"
+          style={{ flex: 1.4, minWidth: "190px" }}
+          aria-label="What the amount paid is for"
+          value={basis}
+          onChange={(e) => {
+            setBasis(e.target.value as PriceBasis | "");
+            setCount("");
+          }}
+        >
+          <option value="">The amount is for…</option>
+          {BASIS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {needsCount && (
+          <input
+            type="number"
+            className="input-field"
+            style={{ flex: 1, minWidth: "140px" }}
+            placeholder={basisOption?.needs === "pack" ? "Units in it (e.g. 15)" : "Number of units"}
+            aria-label={basisOption?.needs === "pack" ? "Number of tablets or capsules in one strip or pack" : "Number of units the amount covers"}
+            step="1"
+            min="1"
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+        )}
         <button
           type="button"
           className="btn btn-primary"
           onClick={handleSearch}
-          disabled={api.loading || !brandName.trim() || !mrp.trim()}
+          disabled={api.loading || !formReady}
         >
           {api.loading ? "Checking..." : `🔍 ${t.searchBtn}`}
         </button>
@@ -163,7 +204,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
       )}
 
       {/* Real Result */}
-      {result && (
+      {result && price && (
         <div style={{ marginBottom: "1.5rem" }}>
           <div className="table-wrapper">
             <table>
@@ -180,23 +221,25 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
                 <tr>
                   <td style={{ fontWeight: 600 }}>{result.brand_name}</td>
                   <td style={{ color: "var(--text-secondary)" }}>{result.active_ingredient}</td>
-                  <td>₹{result.mrp.toFixed(2)}</td>
-                  <td style={{ color: "var(--brand-cyan)", fontWeight: 600 }}>
-                    ₹{result.nppa_ceiling_price.toFixed(2)}
-                  </td>
+                  <td>{price.billed}</td>
+                  <td style={{ color: "var(--brand-cyan)", fontWeight: 600 }}>{price.ceiling}</td>
                   <td>
-                    {result.is_overcharged ? (
-                      <span className="badge badge-danger">
-                        ⚠️ {t.statusOvercharged} (+{result.deviation_percentage}%)
-                      </span>
-                    ) : (
-                      <span className="badge badge-success">✓ {t.statusFair}</span>
-                    )}
+                    <span className={TONE_CLASS[price.tone]}>{price.badge}</span>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+          {price.reason && (
+            <div role="status" style={{ marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--status-warning)" }}>
+              {price.reason}
+            </div>
+          )}
+          {result.match_method === "fuzzy_phonetic" && (
+            <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--status-warning)" }}>
+              Matched by spelling similarity to “{result.active_ingredient}” — check this is the same medicine.
+            </div>
+          )}
 
           {/* Generic Substitute Info */}
           {result.generic_substitute_available && (
@@ -228,58 +271,21 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
         </div>
       )}
 
-      {/* Example Data (before first search) */}
-      {showExample && (
-        <>
-          <div
-            style={{
-              padding: "0.5rem 0.75rem",
-              marginBottom: "1rem",
-              background: "rgba(245, 158, 11, 0.08)",
-              borderRadius: "var(--radius-sm, 4px)",
-              fontSize: "0.8rem",
-              color: "var(--status-warning)",
-              fontWeight: 600,
-            }}
-          >
-            ⓘ Example — Enter a medicine name and MRP to check against NPPA ceiling prices
-          </div>
-
-          <div className="table-wrapper" style={{ opacity: 0.7 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t.brandName}</th>
-                  <th>{t.genericName}</th>
-                  <th>{t.mrp}</th>
-                  <th>{t.nppaCeiling}</th>
-                  <th>{t.complianceCol}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exampleMedicines.map((med, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: 600 }}>{med.brand}</td>
-                    <td style={{ color: "var(--text-secondary)" }}>{med.generic}</td>
-                    <td>₹{med.mrp.toFixed(2)}</td>
-                    <td style={{ color: "var(--brand-cyan)", fontWeight: 600 }}>
-                      ₹{med.nppaCeiling.toFixed(2)}
-                    </td>
-                    <td>
-                      {med.isOvercharged ? (
-                        <span className="badge badge-danger">
-                          ⚠️ {t.statusOvercharged} (+₹{med.overcharge.toFixed(2)})
-                        </span>
-                      ) : (
-                        <span className="badge badge-success">✓ {t.statusFair}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+      {!result && !api.loading && (
+        <div
+          style={{
+            padding: "0.65rem 0.85rem",
+            marginBottom: "1rem",
+            border: "1px dashed var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            fontSize: "0.85rem",
+            color: "var(--text-secondary)",
+          }}
+        >
+          NPPA ceiling prices are <strong>per tablet, capsule or vial</strong>. Tell us what your amount paid for — one
+          unit, a strip, a pack, or several units — and DawaCheck converts it to a price per unit before comparing. If the
+          number of units is not known, it says so instead of guessing.
+        </div>
       )}
 
       <div

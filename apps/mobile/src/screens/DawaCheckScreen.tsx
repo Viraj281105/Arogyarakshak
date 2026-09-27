@@ -13,19 +13,25 @@ import { useCaseProcessing } from '../hooks/useCaseProcessing';
 import { useActiveCaseId } from '../hooks/useActiveCase';
 import { resolveCaseId } from '../services/activeCase';
 import { createRequestGuard } from '../services/caseProcessing';
+import { BASIS_OPTIONS, PriceBasis, buildBenchmarkRequest, describePriceCheck } from '../services/priceCheck';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface QuickSample {
   name: string;
   mrp: string;
+  basis: PriceBasis;
+  count: string;
+  caption: string;
 }
 
+// Synthetic sample prices. Each states what the amount buys, so a strip price is never
+// compared with a per-tablet ceiling (the old samples produced "+1356%").
 const QUICK_SAMPLES: QuickSample[] = [
-  { name: 'Dolo 650mg Tablet (15s)', mrp: '33.5' },
-  { name: 'Augmentin 625 Duo Tablet (10s)', mrp: '220.0' },
-  { name: 'Metformin 500mg SR Tablet (10s)', mrp: '18.0' },
-  { name: 'Meropenem 1g Injection', mrp: '1850.0' },
+  { name: 'Dolo 650', mrp: '33', basis: 'PER_STRIP', count: '15', caption: '₹33 / strip of 15' },
+  { name: 'Augmentin 625 Duo', mrp: '220', basis: 'PER_PACK', count: '10', caption: '₹220 / pack of 10' },
+  { name: 'Metformin 500mg SR', mrp: '18', basis: 'PER_STRIP', count: '10', caption: '₹18 / strip of 10' },
+  { name: 'Meropenem 1g Injection', mrp: '900', basis: 'PER_UNIT', count: '', caption: '₹900 / vial' },
 ];
 
 export const DawaCheckScreen: React.FC = () => {
@@ -93,6 +99,9 @@ export const DawaCheckScreen: React.FC = () => {
   // paid — never a sample value they might submit unchanged.
   const [brandName, setBrandName] = useState('');
   const [mrp, setMrp] = useState('');
+  const [basis, setBasis] = useState<PriceBasis | null>(null);
+  const [count, setCount] = useState('');
+  const basisOption = BASIS_OPTIONS.find((o) => o.value === basis);
 
   // Result state
   const [loading, setLoading] = useState(false);
@@ -100,16 +109,12 @@ export const DawaCheckScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [offlineQueued, setOfflineQueued] = useState(false);
 
-  const handleBenchmark = async (targetBrand?: string, targetMrp?: string) => {
-    const brandToQuery = (targetBrand ?? brandName).trim();
-    const mrpVal = parseFloat(targetMrp ?? mrp);
-
-    if (!brandToQuery) {
-      setError('Please enter a medicine or brand name.');
-      return;
-    }
-    if (isNaN(mrpVal) || mrpVal <= 0) {
-      setError('Please enter a valid MRP per unit greater than 0.');
+  const handleBenchmark = async (sample?: QuickSample) => {
+    const built = sample
+      ? buildBenchmarkRequest(sample.name, sample.mrp, sample.basis, sample.count)
+      : buildBenchmarkRequest(brandName, mrp, basis, count);
+    if (!built.ok) {
+      setError(built.error);
       return;
     }
 
@@ -118,17 +123,11 @@ export const DawaCheckScreen: React.FC = () => {
     setOfflineQueued(false);
 
     try {
-      const response = await api.dawacheck.benchmark({
-        brand_name: brandToQuery,
-        mrp: mrpVal,
-      });
+      const response = await api.dawacheck.benchmark(built.body);
       setResult(response);
     } catch (err) {
       const apiErr = err as ApiError;
-      const queuedId = await enqueueAction('BENCHMARK_MEDICINE', {
-        brand_name: brandToQuery,
-        mrp: mrpVal,
-      });
+      const queuedId = await enqueueAction('BENCHMARK_MEDICINE', { ...built.body });
       if (queuedId) {
         setOfflineQueued(true);
         setError(
@@ -148,8 +147,11 @@ export const DawaCheckScreen: React.FC = () => {
   const handleSelectSample = (sample: QuickSample) => {
     setBrandName(sample.name);
     setMrp(sample.mrp);
-    handleBenchmark(sample.name, sample.mrp);
+    setBasis(sample.basis);
+    setCount(sample.count);
+    handleBenchmark(sample);
   };
+  const price = result ? describePriceCheck(result) : null;
 
   return (
     <ScrollView
@@ -192,12 +194,47 @@ export const DawaCheckScreen: React.FC = () => {
         </Text>
         <TextInput
           style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
-          placeholder="e.g. 3.50"
+          placeholder="Amount paid, e.g. 33"
           placeholderTextColor={colors.textMuted}
           keyboardType="numeric"
           value={mrp}
           onChangeText={setMrp}
         />
+
+        <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 4 }]}>
+          The amount paid is for… (NPPA ceilings are per tablet/capsule/vial)
+        </Text>
+        <View style={styles.samplesContainer}>
+          {BASIS_OPTIONS.map((o) => (
+            <TouchableOpacity
+              key={o.value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: basis === o.value }}
+              onPress={() => {
+                setBasis(o.value);
+                setCount('');
+              }}
+              style={[
+                styles.sampleChip,
+                { borderColor: basis === o.value ? colors.brandCyan : colors.borderSubtle, minHeight: 44, justifyContent: 'center' },
+              ]}
+            >
+              <Text style={{ color: basis === o.value ? colors.brandCyan : colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                {o.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {basisOption && basisOption.needs !== 'none' && (
+          <TextInput
+            style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
+            placeholder={basisOption.needs === 'pack' ? 'Units in the strip/pack, e.g. 15' : 'Number of units, e.g. 10'}
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            value={count}
+            onChangeText={setCount}
+          />
+        )}
 
         {/* Quick Test Samples */}
         <Text style={[styles.fieldLabel, { color: colors.textMuted, marginTop: 4, marginBottom: 6 }]}>
@@ -211,7 +248,7 @@ export const DawaCheckScreen: React.FC = () => {
               style={[styles.sampleChip, { borderColor: colors.borderSubtle, backgroundColor: 'rgba(255,255,255,0.04)' }]}
             >
               <Text style={{ color: colors.brandCyan, fontSize: 11, fontWeight: '600' }}>
-                {sample.name.split(' ')[0]} (₹{sample.mrp})
+                {sample.name.split(' ')[0]} · {sample.caption}
               </Text>
             </TouchableOpacity>
           ))}
@@ -242,7 +279,7 @@ export const DawaCheckScreen: React.FC = () => {
       </Card>
 
       {/* Benchmark Results */}
-      {result && (
+      {result && price && (
         <Card style={{ marginBottom: spacing.md }}>
           <View style={[styles.row, { marginBottom: spacing.sm }]}>
             <View style={{ flex: 1 }}>
@@ -253,31 +290,14 @@ export const DawaCheckScreen: React.FC = () => {
                 {m.activeApi} {result.active_ingredient}
               </Text>
             </View>
-            <Badge
-              label={result.is_overcharged ? `⚠️ ${m.overcharged} (+${result.deviation_percentage}%)` : `✓ ${m.fairPrice}`}
-              variant={result.is_overcharged ? 'danger' : 'success'}
-            />
+            <Badge label={price.badge} variant={price.variant} />
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.chargedMrp}</Text>
-              <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.md, fontWeight: '700' }}>
-                ₹{result.mrp.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.nppaCap}</Text>
-              <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.md, fontWeight: '700' }}>
-                ₹{result.nppa_ceiling_price.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{m.deviation}</Text>
-              <Text style={{ color: result.is_overcharged ? '#ef4444' : '#22c55e', fontSize: typography.sizes.md, fontWeight: '700' }}>
-                {result.deviation_percentage > 0 ? `+${result.deviation_percentage}%` : '0%'}
-              </Text>
-            </View>
+          <View style={{ marginVertical: 8, gap: 4 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.sm, fontWeight: '600' }}>{price.billed}</Text>
+            <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.sm, fontWeight: '600' }}>{price.ceiling}</Text>
+            {price.reason && <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>{price.reason}</Text>}
+            {price.basisNote && <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs }}>{price.basisNote}</Text>}
           </View>
 
           {/* Generic Substitute Notice */}

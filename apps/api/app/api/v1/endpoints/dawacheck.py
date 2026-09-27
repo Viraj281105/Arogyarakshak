@@ -6,7 +6,7 @@ Handles medicine price benchmarking against NPPA ceiling rates.
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -38,7 +38,17 @@ router = APIRouter()
 # --- Pydantic Schemas ---------------------------------------------------------
 class BenchRequest(BaseModel):
     brand_name: str = Field(..., description="Brand name of the medicine", json_schema_extra={"example": "Paracetamol 650mg"})
-    mrp: float = Field(..., description="Maximum Retail Price (MRP) per tablet/unit", json_schema_extra={"example": 3.5})
+    mrp: float = Field(
+        ...,
+        description="The price paid, on the basis given in `price_basis`. Without `price_basis` the "
+        "legacy contract applies: per tablet/unit, unless the name itself states a pack (e.g. '15s').",
+        json_schema_extra={"example": 3.5},
+    )
+    price_basis: Optional[Literal["PER_UNIT", "PER_STRIP", "PER_PACK", "LINE_TOTAL", "UNKNOWN"]] = Field(
+        None, description="What `mrp` buys: one unit, one strip, one pack, or a total for `quantity` units."
+    )
+    units_per_pack: Optional[float] = Field(None, description="Units in one strip/pack (PER_STRIP / PER_PACK).")
+    quantity: Optional[float] = Field(None, description="Units the amount covers (LINE_TOTAL).")
 
 
 class TranslateInstructionsRequest(BaseModel):
@@ -74,7 +84,13 @@ class CaseMedicineBenchmark(BaseModel):
 @router.post("/benchmark", response_model=MedicineBenchmark, status_code=status.HTTP_200_OK)
 async def check_medicine_pricing(req: BenchRequest):
     """Checks medicine MRP against NPPA Schedule-I ceiling price list."""
-    benchmark = benchmark_medicine(brand_name=req.brand_name, mrp=req.mrp)
+    benchmark = benchmark_medicine(
+        brand_name=req.brand_name,
+        mrp=req.mrp,
+        price_basis=req.price_basis,
+        units_per_pack=req.units_per_pack,
+        quantity=req.quantity,
+    )
     if not benchmark:
         # Do not imply the medicine is uncontrolled — it is simply absent from the curated
         # reference subset this build ships with.
@@ -145,7 +161,8 @@ async def _persist_generic_mapping(
         f"{benchmark.queried_dosage_mg:g}mg" if benchmark.queried_dosage_mg else None
     )
     mapping.ceiling_price = benchmark.nppa_ceiling_price
-    mapping.mrp = benchmark.mrp
+    # Only a per-unit price is comparable with the per-unit ceiling stored beside it.
+    mapping.mrp = benchmark.billed_unit_price
 
 
 @router.get(
@@ -245,7 +262,17 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
             continue
 
         norm_brand = brand_name.strip().lower()
-        benchmark = benchmark_medicine(brand_name=brand_name, mrp=cost, dosage_hint=dosage_hint)
+        # What the document said about quantity/pack (recorded at upload by
+        # dawacheck.price_basis.annotate_medicine_price_facts). Entities recorded before
+        # that existed fall back to reading their own name. Never the legacy per-unit
+        # default: a bill amount of unknown basis is not compared (CANNOT_COMPARE).
+        price_facts = meta.get("price_facts") if isinstance(meta.get("price_facts"), dict) else None
+        price_kwargs = dict(
+            price_facts=price_facts,
+            read_name_for_quantity=price_facts is None,
+            allow_api_default=False,
+        )
+        benchmark = benchmark_medicine(brand_name=brand_name, mrp=cost, dosage_hint=dosage_hint, **price_kwargs)
 
         if benchmark is None:
             # Fall back to a mapping this endpoint learned on an earlier case, before
@@ -259,6 +286,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
                     active_ingredient=learned.generic_name,
                     ceiling_price=learned.ceiling_price,
                     dosage_hint=dosage_hint,
+                    **price_kwargs,
                 )
 
         if benchmark is None:
@@ -286,7 +314,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
 
     logger.info(
         "[DawaCheck] Benchmarked %d/%d medicine entities for case %s",
-        sum(1 for r in results if r.benchmark is not None),
+        sum(1 for r in results if r.benchmark is not None and r.benchmark.comparison_status.value == "COMPARED"),
         len(medicine_entities),
         case_id,
     )

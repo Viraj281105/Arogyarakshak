@@ -261,7 +261,9 @@ def test_billnyay_audit():
     case_id = res_case.json()["id"]
 
     # 2. Upload document with line items
-    files = {"file": ("bill.txt", b"Consultation: 500\nWard Stay: 2500\nTotal: 3000")}
+    # CGHS consultation rates are per visit and ward rates per day, so the bill states how
+    # many (billnyay.rate_basis); a line that does not is not compared — see below.
+    files = {"file": ("bill.txt", b"Consultation (1 visit): 500\nWard Stay (1 day): 2500\nTotal: 3000")}
     upload_res = client.post(f"/api/v1/kadi/cases/{case_id}/upload", files=files)
     assert upload_res.status_code == 202
 
@@ -272,15 +274,16 @@ def test_billnyay_audit():
     assert data["case_id"] == case_id
 
     items = {i["item_name"]: i for i in data["audit_items"]}
-    assert set(items) == {"Consultation", "Ward Stay"}, "Total must not be audited as a charge"
+    assert set(items) == {"Consultation (1 visit)", "Ward Stay (1 day)"}, "Total must not be audited as a charge"
 
-    assert items["Consultation"]["charged"] == 500.0
-    assert items["Consultation"]["cghs_benchmark"] == 350.0
-    assert items["Consultation"]["status"] == "overcharged"
+    assert items["Consultation (1 visit)"]["charged"] == 500.0
+    assert items["Consultation (1 visit)"]["cghs_benchmark"] == 350.0
+    assert items["Consultation (1 visit)"]["status"] == "overcharged"
+    assert items["Consultation (1 visit)"]["benchmark_basis"] == "₹350 per visit × 1 visit"
 
-    assert items["Ward Stay"]["charged"] == 2500.0
-    assert items["Ward Stay"]["cghs_benchmark"] == 1500.0
-    assert items["Ward Stay"]["status"] == "overcharged"
+    assert items["Ward Stay (1 day)"]["charged"] == 2500.0
+    assert items["Ward Stay (1 day)"]["cghs_benchmark"] == 1500.0
+    assert items["Ward Stay (1 day)"]["status"] == "overcharged"
 
     assert data["total_charged"] == 3000.0
     assert data["total_benchmark"] == 1850.0
@@ -339,9 +342,12 @@ def test_dawacheck_mobile_samples():
 
 
 def test_dawacheck_case_benchmark_resolves_kadi_medicine_entity():
-    """'Dolo 650: 33' in AUDIT_PROBE_BILL is extracted by Kadi as a medicine entity;
-    this must be benchmarked against the same NPPA reference DawaCheck's standalone
-    /benchmark route uses, without the caller re-typing the brand name and price."""
+    """'Dolo 650: 33' in AUDIT_PROBE_BILL is extracted by Kadi as a medicine entity and
+    resolved against the same NPPA reference DawaCheck's standalone /benchmark route uses.
+
+    The bill does not say what ₹33 buys (one tablet? a strip of 15?). The ceiling is ₹2.30
+    per tablet, so this used to be reported as "overcharged +1,335%" — a strip price read
+    as a tablet price. It must now be matched but NOT compared, with the reason stated."""
     case_id, _ = _audited_case()
 
     res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
@@ -353,8 +359,43 @@ def test_dawacheck_case_benchmark_resolves_kadi_medicine_entity():
     dolo = by_brand["Dolo 650"]
     assert dolo["benchmark"] is not None
     assert dolo["benchmark"]["active_ingredient"] == "Paracetamol 650mg"
-    assert dolo["benchmark"]["is_overcharged"] is True
+    assert dolo["benchmark"]["comparison_status"] == "CANNOT_COMPARE"
+    assert dolo["benchmark"]["comparison_reason_code"] == "BASIS_UNKNOWN"
+    assert dolo["benchmark"]["is_overcharged"] is None
+    assert dolo["benchmark"]["deviation_percentage"] is None
+    assert dolo["benchmark"]["billed_unit_price"] is None
+    assert "cannot be compared" in dolo["benchmark"]["comparison_note"]
     assert dolo["note"] is None
+
+
+def test_dawacheck_case_benchmark_converts_a_stated_strip_to_a_unit_price():
+    """When the bill line states the strip size, the strip price is converted to a price
+    per tablet before comparison: ₹33 for a strip of 15 is ₹2.20 per tablet, within the
+    ₹2.30 per-tablet ceiling — the opposite of the old "+1,335%" verdict."""
+    case_id, _ = _audited_case(
+        b"Lifeline Multispeciality Hospital\n"
+        b"Diagnosis: Fever\n"
+        b"Tab Dolo 650 (Strip of 15): 33\n"
+        b"Tab Pan 40 strip of 10 tablets: 60\n"
+        b"Total Amount: 93\n"
+    )
+    rows = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark").json()
+    by_ingredient = {r["benchmark"]["active_ingredient"]: r["benchmark"] for r in rows if r["benchmark"]}
+
+    dolo = by_ingredient["Paracetamol 650mg"]
+    assert dolo["comparison_status"] == "COMPARED"
+    assert dolo["price_basis"] == "PER_STRIP"
+    assert dolo["basis_source"] == "DOCUMENT_LINE"
+    assert dolo["price_basis_label"] == "per strip of 15"
+    assert dolo["mrp"] == 33.0
+    assert dolo["billed_unit_price"] == 2.2
+    assert dolo["unit_label"] == "tablet"
+    assert dolo["is_overcharged"] is False
+
+    pan = by_ingredient["Pantoprazole 40mg"]
+    assert pan["billed_unit_price"] == 6.0  # ₹60 / 10 tablets
+    assert pan["is_overcharged"] is True
+    assert pan["deviation_percentage"] == 87.5  # (6.00 - 3.20) / 3.20
 
 
 def test_dawacheck_case_benchmark_requires_consent():
@@ -631,6 +672,20 @@ AUDIT_PROBE_BILL = (
 )
 
 
+# AUDIT_PROBE_BILL with the quantities stated. CGHS consultation rates are per visit and
+# ICU rates per day: "ICU: 18500" does not say how many days it covers, so it is not
+# compared (it could be three days at ₹6,167 or four at ₹4,625).
+QUANTIFIED_PROBE_BILL = (
+    b"Lifeline Multispeciality Hospital\n"
+    b"Diagnosis: Acute Appendicitis\n"
+    b"Consultation (1 visit): 900\n"
+    b"ICU (1 day): 18500\n"
+    b"Blood Test: 750\n"
+    b"Dolo 650: 33\n"
+    b"Total Amount: 20183\n"
+)
+
+
 def _audited_case(payload: bytes = AUDIT_PROBE_BILL):
     case_id = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
     assert client.post(
@@ -668,23 +723,45 @@ def test_unmatched_item_is_not_reported_as_fair():
 
 
 def test_benchmarked_overcharges_still_flagged():
-    _, data = _audited_case()
+    _, data = _audited_case(QUANTIFIED_PROBE_BILL)
     items = {i["item_name"]: i for i in data["audit_items"]}
 
-    icu = items["ICU"]
+    icu = items["ICU (1 day)"]
     assert icu["benchmarked"] is True
     assert icu["status"] == "overcharged"
     assert icu["cghs_benchmark"] == 5400.0
     assert icu["is_deviation"] is True
     assert icu["deviation_percentage"] > 200
 
-    consultation = items["Consultation"]
+    consultation = items["Consultation (1 visit)"]
     assert consultation["status"] == "overcharged"
     assert consultation["cghs_benchmark"] == 350.0
 
 
-def test_audit_totals_separate_benchmarked_from_unmatched():
+def test_per_day_and_per_visit_lines_without_a_quantity_are_not_compared():
+    """"ICU: 18500" against the ₹5,400-per-day rate used to be reported as +242%, and
+    "Room Rent 3 days" as one day's rent. A recurring rate is applied only to a stated
+    count; otherwise the line is not benchmarked and says why."""
     _, data = _audited_case()
+    items = {i["item_name"]: i for i in data["audit_items"]}
+    for name, unit in (("ICU", "day"), ("Consultation", "visit")):
+        item = items[name]
+        assert item["benchmarked"] is False and item["status"] == "not_benchmarked", name
+        assert item["deviation_percentage"] == 0.0 and item["cghs_benchmark"] is None
+        assert f"per {unit}" in item["not_benchmarked_reason"]
+
+    _, stay = _audited_case(b"Room Rent (Private Ward) 3 days 13500\nParacetamol IV 450\nMRI Brain 12000\n")
+    items = {i["item_name"]: i for i in stay["audit_items"]}
+    room = items["Room Rent (Private Ward) 3 days"]
+    assert room["cghs_benchmark"] == 13500.0, "₹4,500 per day × 3 days"
+    assert room["status"] == "within_benchmark"
+    assert room["benchmark_basis"] == "₹4,500 per day × 3 days"
+    assert items["Paracetamol IV"]["status"] == "not_benchmarked", "per 100 ml bottle; count not stated"
+    assert items["MRI Brain"]["cghs_benchmark"] == 3500.0, "one scan is one service"
+
+
+def test_audit_totals_separate_benchmarked_from_unmatched():
+    _, data = _audited_case(QUANTIFIED_PROBE_BILL)
 
     assert data["unmatched_count"] == 1
     assert data["unmatched_amount"] == 33.0
@@ -810,7 +887,7 @@ def test_unmatched_disclosure_invariant():
     coverage notice — gated on unmatched_count > 0 — must fire in precisely that case.
     """
     # Case A: every line benchmarked -> totals comparable, no notice needed.
-    _, matched = _audited_case(b"Consultation: 900\nBlood Test: 750\n")
+    _, matched = _audited_case(b"Consultation (1 visit): 900\nBlood Test: 750\n")
     assert matched["unmatched_count"] == 0
     assert matched["total_charged"] == matched["benchmarked_charged"]
 
@@ -1835,7 +1912,11 @@ def test_end_to_end_document_drives_every_module_consistently():
     audit = client.post(f"/api/v1/billnyay/cases/{case_id}/audit").json()
     assert audit["total_charged"] == case["case"]["total_charged"]
     assert audit["benchmarked_charged"] + audit["unmatched_amount"] == audit["total_charged"]
-    assert audit["unmatched_count"] == 1  # Dolo 650 has no CGHS counterpart
+    # Dolo 650 has no CGHS counterpart; Consultation (per visit) and ICU (per day) state no
+    # count, so they are not compared either — never compared as if they were one unit.
+    assert audit["unmatched_count"] == 3
+    reasons = {i["item_name"]: i["not_benchmarked_reason"] for i in audit["audit_items"] if not i["benchmarked"]}
+    assert "per day" in reasons["ICU"] and "per visit" in reasons["Consultation"]
 
     # 4. DaaviSetu: hospital/diagnosis/cost flow from Kadi without being re-invented
     claim = client.post(

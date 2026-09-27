@@ -90,11 +90,18 @@ async def _run_dawacheck_benchmark(session: AsyncSession, case: KadiCase) -> Dic
     from app.api.v1.endpoints.dawacheck import build_case_medicine_benchmarks
 
     results = await build_case_medicine_benchmarks(case.id, session)
-    benchmarked = [r for r in results if r.benchmark is not None]
+    # A medicine matched to a reference but whose billed amount has no comparable per-unit
+    # basis is not "benchmarked": no verdict was reached for it.
+    benchmarked = [
+        r for r in results if r.benchmark is not None and r.benchmark.comparison_status.value == "COMPARED"
+    ]
     return {
         "medicines": len(results),
         "benchmarked": len(benchmarked),
         "overcharged": sum(1 for r in benchmarked if r.benchmark.is_overcharged),
+        "price_basis_unclear": sum(
+            1 for r in results if r.benchmark is not None and r.benchmark.comparison_status.value != "COMPARED"
+        ),
         "not_benchmarked": len(results) - len(benchmarked),
     }
 

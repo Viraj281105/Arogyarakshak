@@ -79,6 +79,12 @@ def test_scenario_c_end_to_end(demo_mode):
     resolved = next(r for r in bench.values() if r["entity_id"] == tasks[0]["entity_id"])
     assert resolved["trust"]["state"] == "HUMAN_RESOLVED" and resolved["name_provenance"] == "HUMAN_REVIEWED"
     assert resolved["benchmark"] is not None and resolved["benchmark"]["is_overcharged"] is True, "₹22.00 vs ₹20.10 ceiling"
+    # Like with like: the slip's "Rate per tablet/capsule" heading makes ₹22.00 a per-tablet price.
+    aug = resolved["benchmark"]
+    assert aug["comparison_status"] == "COMPARED" and aug["price_basis"] == "PER_UNIT"
+    assert aug["basis_source"] == "DOCUMENT_HEADER" and aug["unit_label"] == "tablet"
+    assert aug["billed_unit_price"] == 22.0 and aug["nppa_ceiling_price"] == 20.1
+    assert aug["deviation_percentage"] == 9.45
 
     # Disagreement on a whole-entry reading of the normalised name -> stays blocked.
     amox = bench["Amoxicillin 500"]["entity_id"]
@@ -95,3 +101,15 @@ def test_demo_prices_are_per_unit_so_no_false_overcharge(demo_mode):
     case_id = _upload()
     dolo = _bench(case_id)["Dolo 650"]["benchmark"]
     assert dolo is not None and dolo["is_overcharged"] is False
+    assert dolo["comparison_status"] == "COMPARED" and dolo["price_basis_label"] == "per tablet"
+    assert dolo["billed_unit_price"] == 2.1 and dolo["nppa_ceiling_price"] == 2.3
+
+
+def test_held_back_medicines_are_not_price_checked_whatever_their_price_basis(demo_mode):
+    """The price basis is only consulted after the trust gate: an unresolved, ambiguous or
+    possibly-misread medicine gets no comparison even though its per-tablet basis is known."""
+    case_id = _upload()
+    bench = _bench(case_id)
+    for name in ("Augmntn 625mg", "Pan 40", "Pan-D", "Amoxicillin 500"):
+        assert bench[name]["benchmark"] is None, name
+        assert bench[name]["trust"]["benchmarkable"] is False, name

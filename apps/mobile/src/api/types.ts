@@ -101,6 +101,10 @@ export interface BillNyayAuditItem {
   is_deviation: boolean;
   benchmarked: boolean;
   status: BillNyayAuditItemStatus;
+  /** What the reference covers, e.g. "₹4,500 per day × 3 days" (billnyay.rate_basis). */
+  benchmark_basis?: string | null;
+  /** Why a matched line was not compared (e.g. a per-day rate and no day count). */
+  not_benchmarked_reason?: string | null;
 }
 
 export interface BillNyayAuditResponse {
@@ -278,16 +282,31 @@ export interface SchemeResult {
 // --- DawaCheck ---
 export interface DawaCheckBenchmarkRequest {
   brand_name: string;
+  /** The amount paid, on the basis in `price_basis`. */
   mrp: number;
+  price_basis?: 'PER_UNIT' | 'PER_STRIP' | 'PER_PACK' | 'LINE_TOTAL' | 'UNKNOWN';
+  units_per_pack?: number;
+  quantity?: number;
 }
 
 export interface DawaCheckBenchmarkResponse {
   brand_name: string;
   active_ingredient: string;
+  /** Amount as billed/entered (see price_basis); the per-unit figure is billed_unit_price. */
   mrp: number;
+  /** Ceiling per unit_label (one tablet/capsule/vial). */
   nppa_ceiling_price: number;
-  is_overcharged: boolean;
-  deviation_percentage: number;
+  /** null when no comparison could be made (comparison_status CANNOT_COMPARE). */
+  is_overcharged: boolean | null;
+  deviation_percentage: number | null;
+  comparison_status?: 'COMPARED' | 'CANNOT_COMPARE';
+  price_basis?: 'PER_UNIT' | 'PER_STRIP' | 'PER_PACK' | 'LINE_TOTAL' | 'UNKNOWN';
+  price_basis_label?: string;
+  basis_source?: string;
+  basis_evidence?: string | null;
+  billed_unit_price?: number | null;
+  unit_label?: string;
+  comparison_note?: string | null;
   generic_substitute_available: boolean;
   generic_substitute_store_info: string;
   /** Provenance of the ceiling price — the reference list is a curated subset. */
