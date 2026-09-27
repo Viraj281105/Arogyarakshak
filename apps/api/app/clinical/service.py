@@ -141,6 +141,10 @@ async def create_review(
         consent_confirmed_at=datetime.utcnow(),
     )
     db.add(review)
+    # The fact rows reference the review by a plain FK (no ORM relationship), so the unit of
+    # work does not know to insert the review first. SQLite does not enforce FKs; Postgres
+    # does, and rejected every doctor-confirmation request (found in the Postgres smoke run).
+    await db.flush()
     for fact in facts:
         db.add(
             KadiClinicalFactConfirmation(
