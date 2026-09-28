@@ -16,6 +16,7 @@ import {
   SchemeResult,
   DawaCheckBenchmarkRequest,
   DawaCheckBenchmarkResponse,
+  CaseMedicineBenchmark,
   TranslateInstructionsRequest,
   PrescriptionTranslationResponse,
   IncomeProfileRequest,
@@ -197,5 +198,8 @@ export const api = {
       apiClient.post<DawaCheckBenchmarkResponse>('/api/v1/dawacheck/benchmark', data),
     translateInstructions: (data: TranslateInstructionsRequest) =>
       apiClient.post<PrescriptionTranslationResponse>('/api/v1/dawacheck/translate-instructions', data),
+    /** The case's own medicines; unsettled OCR readings come back NOT benchmarked. */
+    caseBenchmark: (caseId: string) =>
+      apiClient.get<CaseMedicineBenchmark[]>(`/api/v1/dawacheck/cases/${encodeURIComponent(caseId)}/benchmark`),
   },
 };

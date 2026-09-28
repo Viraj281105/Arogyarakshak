@@ -94,11 +94,15 @@ describe('Audit fixes (mobile)', () => {
   });
 
   it('screens wait for server-side processing before reading the scanned case (issue 5)', () => {
+    // Demo-hardening pass: `processing` used to be `sse.isStreaming && !sse.isCompleted`,
+    // which is false on the first render, so screens read the case before extraction.
+    // Screens now use the processing state machine (tests/case_processing.test.ts).
     for (const screen of [daaviSetu, dawaCheck, bimaNyay]) {
-      assert.ok(/useSSEStream\(caseId/.test(screen), 'must follow the processing stream');
-      assert.ok(/const processing = sse\.isStreaming && !sse\.isCompleted/.test(screen));
+      assert.ok(/useCaseProcessing\(caseId\)/.test(screen), 'must follow the processing lifecycle');
+      assert.ok(/const processing = !proc\.ready/.test(screen));
+      assert.ok(!/sse\.isStreaming && !sse\.isCompleted/.test(screen), 'the racy derivation must be gone');
     }
-    assert.ok(/if \(!caseId \|\| processing\) return;/.test(dawaCheck), 'medicines load only after processing');
+    assert.ok(/if \(!caseId \|\| !proc\.ready\)/.test(dawaCheck), 'medicines load only after processing');
     assert.ok(/<ReadinessCard caseId=\{caseId\} processing=\{processing\}/.test(daaviSetu));
   });
 

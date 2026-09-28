@@ -2,21 +2,39 @@
 
 import React from "react";
 import { ClinicalStatement, PROVENANCE_LABELS, Provenance, ReviewerProfile, ReviewerSnapshot } from "../../lib/clinical";
+import { TONE_CLASS, Tone, formatTimestamp, humanizeEnum, verificationTone } from "../../lib/labels";
 
-const PROVENANCE_TONE: Record<Provenance, string> = {
-  AI_DERIVED: "badge-info",
-  HUMAN_REVIEWED: "badge-success",
-  HUMAN_AUTHORED: "badge-success",
-  EXTERNAL_SOURCE: "badge-warning",
-  PATIENT_PROVIDED: "badge-warning",
+// Machine-derived, human-reviewed and human-authored must never look alike.
+const PROVENANCE_TONE: Record<Provenance, Tone> = {
+  AI_DERIVED: "machine",
+  HUMAN_REVIEWED: "human-reviewed",
+  HUMAN_AUTHORED: "human-authored",
+  EXTERNAL_SOURCE: "warning",
+  PATIENT_PROVIDED: "warning",
+};
+
+const PROVENANCE_ICON: Record<Provenance, string> = {
+  AI_DERIVED: "⚙",
+  HUMAN_REVIEWED: "👁",
+  HUMAN_AUTHORED: "✍",
+  EXTERNAL_SOURCE: "↗",
+  PATIENT_PROVIDED: "🧾",
 };
 
 export const ProvenanceBadge: React.FC<{ provenance: Provenance | null | undefined }> = ({ provenance }) =>
   provenance ? (
-    <span className={`badge ${PROVENANCE_TONE[provenance]}`} title={provenance}>
+    <span className={TONE_CLASS[PROVENANCE_TONE[provenance]]} title={`Provenance: ${PROVENANCE_LABELS[provenance]}`}>
+      <span aria-hidden="true">{PROVENANCE_ICON[provenance]} </span>
       {PROVENANCE_LABELS[provenance]}
     </span>
   ) : null;
+
+/** The server's verification label, verbatim, in a tone that never upgrades it. */
+export const VerificationBadge: React.FC<{ status: string; label: string }> = ({ status, label }) => (
+  <span className={TONE_CLASS[verificationTone(status)]} title="What ArogyaRakshak actually knows about this registration">
+    {label}
+  </span>
+);
 
 /**
  * Who the reviewer is, as far as ArogyaRakshak actually knows. The verification wording is
@@ -28,7 +46,6 @@ export const ReviewerAttribution: React.FC<{
   coiDisclosure?: string | null;
 }> = ({ reviewer, coiLabel, coiDisclosure }) => {
   if (!reviewer) return null;
-  const verified = reviewer.verification_status === "EXTERNALLY_VERIFIED";
   return (
     <div style={{ fontSize: "0.85rem", lineHeight: 1.6 }}>
       <div>
@@ -43,7 +60,7 @@ export const ReviewerAttribution: React.FC<{
         </div>
       )}
       <div>
-        <span className={`badge ${verified ? "badge-success" : "badge-warning"}`}>{reviewer.verification_label}</span>
+        <VerificationBadge status={reviewer.verification_status} label={reviewer.verification_label} />
       </div>
       {coiLabel && (
         <div style={{ marginTop: "0.35rem" }}>
@@ -70,7 +87,7 @@ export const ClinicalStatementCard: React.FC<{ statement: ClinicalStatement }> =
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginBottom: "0.5rem" }}>
         <ProvenanceBadge provenance={statement.provenance} />
         <span className={`badge ${current ? "badge-success" : "badge-info"}`}>
-          v{statement.statement_version} · {statement.status}
+          Version {statement.statement_version} · {humanizeEnum(statement.status)}
         </span>
       </div>
       <ReviewerAttribution
@@ -103,7 +120,7 @@ export const ClinicalStatementCard: React.FC<{ statement: ClinicalStatement }> =
         <p style={{ fontSize: "0.75rem", opacity: 0.75 }}>
           This is the named reviewer&apos;s own professional opinion. It is not an insurer determination and not a
           finding of ArogyaRakshak.
-          {statement.finalized_at ? ` Finalized ${statement.finalized_at}.` : ""}
+          {statement.finalized_at ? ` Finalized ${formatTimestamp(statement.finalized_at)}.` : ""}
           {statement.content_sha256 ? ` SHA-256 ${statement.content_sha256.slice(0, 16)}…` : ""}
         </p>
       </div>

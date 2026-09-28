@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
-import { DocumentUploader } from "./components/DocumentUploader";
+import { DOCUMENT_ACCEPT, DocumentUploader } from "./components/DocumentUploader";
+import { DemoBanner, useDemoStatus } from "./components/demo/DemoBanner";
+import { DemoControls } from "./components/demo/DemoControls";
+import { CaseTimeline } from "./components/CaseTimeline";
+import type { DemoScenario, DemoScenarioResult } from "./lib/demo";
 import { AgentStreamVisualizer, PipelineStep } from "./components/AgentStreamVisualizer";
 import { EntityResolutionReview } from "./components/EntityResolutionReview";
 import { SafetyEscalationBanner } from "./components/clinical/SafetyEscalationBanner";
+import { StatePanel } from "./components/clinical/StatePanel";
 import { BillNyayView } from "./components/modules/BillNyayView";
 import { BimaNyayView } from "./components/modules/BimaNyayView";
 import { DaaviSetuView } from "./components/modules/DaaviSetuView";
@@ -16,6 +21,12 @@ import { DawaCheckView } from "./components/modules/DawaCheckView";
 import { Language, translations } from "./translations";
 
 type ModuleTab = "billnyay" | "bimanyay" | "daavisetu" | "schemesetu" | "dawacheck";
+
+// The module each demo scenario starts in.
+const SCENARIO_TAB: Record<DemoScenario["id"], ModuleTab> = { A: "billnyay", B: "daavisetu", C: "dawacheck", D: "bimanyay" };
+
+// A processing stream silent for this long is reported as "taking longer than expected".
+const PROCESSING_SILENCE_MS = 90_000;
 
 export default function Home() {
   const [currentLang, setCurrentLang] = useState<Language>("en");
@@ -45,6 +56,95 @@ export default function Home() {
   const [caseToken, setCaseToken] = useState<string>("");
   const [liveLog, setLiveLog] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Processing stream health: a dropped or silent stream is shown as such, with a way to
+  // refresh — never as completion.
+  const [streamIssue, setStreamIssue] = useState<"lost" | "timeout" | null>(null);
+  const streamRef = useRef<EventSource | null>(null);
+  const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const demoStatus = useDemoStatus();
+  // Bumped whenever the case changes server-side (a document added, a scenario loaded), so
+  // the timeline re-reads it.
+  const [caseVersion, setCaseVersion] = useState(0);
+  const addDocInput = useRef<HTMLInputElement | null>(null);
+
+  const clearSilenceTimer = () => {
+    if (silenceTimer.current) clearTimeout(silenceTimer.current);
+    silenceTimer.current = null;
+  };
+
+  const connectStream = useCallback((id: string, token: string) => {
+    streamRef.current?.close();
+    setStreamIssue(null);
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    // The browser's native EventSource cannot set custom headers, so the token travels via
+    // query string here only (ADR-009) — every other request uses the X-Case-Access-Token header.
+    const es = new EventSource(`${API_BASE}/api/v1/kadi/cases/${id}/stream?access_token=${encodeURIComponent(token)}`);
+    streamRef.current = es;
+    let settled = false;
+    const armSilenceTimer = () => {
+      clearSilenceTimer();
+      silenceTimer.current = setTimeout(() => {
+        if (!settled) setStreamIssue("timeout");
+      }, PROCESSING_SILENCE_MS);
+    };
+    armSilenceTimer();
+
+    es.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        armSilenceTimer();
+        setStreamIssue(null);
+        if (payload.log) {
+          setLiveLog(payload.log);
+        }
+        if (payload.status === "upload_received" || payload.status === "ocr_start") {
+          setPipelineStep(1);
+        } else if (payload.status === "extraction_start") {
+          setPipelineStep(2);
+        } else if (payload.status === "database_write" || payload.status === "entity_resolution" || payload.status === "transcription_flags" || payload.status === "module_checks") {
+          setPipelineStep(3);
+        } else if (payload.status === "completed" || payload.status === "idle") {
+          settled = true;
+          clearSilenceTimer();
+          setPipelineStep(4);
+          setIsProcessing(false);
+          setCaseVersion((v) => v + 1);
+          // The backend log says when a document was a duplicate or which module checks ran.
+          setLiveLog(payload.log || "Document processed successfully. Entities extracted.");
+          es.close();
+        } else if (payload.status === "timeout") {
+          settled = true;
+          clearSilenceTimer();
+          setStreamIssue("timeout");
+          es.close();
+        } else if (payload.status === "failed") {
+          settled = true;
+          clearSilenceTimer();
+          setErrorMessage(payload.log || "Document processing failed");
+          setIsProcessing(false);
+          es.close();
+        }
+      } catch (err) {
+        console.error("SSE parse error:", err);
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+      if (!settled) {
+        clearSilenceTimer();
+        setStreamIssue("lost");
+      }
+    };
+  }, []);
+
+  useEffect(
+    () => () => {
+      streamRef.current?.close();
+      clearSilenceTimer();
+    },
+    []
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -61,6 +161,8 @@ export default function Home() {
   };
 
   const t = translations[currentLang];
+  const caseReady = !!caseId && pipelineStep === 4 && !isProcessing;
+  const readyCaseId = caseReady ? caseId : "";
 
   // SEC-03: the server also purges a case automatically once its retention deadline
   // passes (app/case_retention.py — does not depend on the patient coming back), but
@@ -86,6 +188,10 @@ export default function Home() {
       if (!res.ok && res.status !== 204) {
         throw new Error(`Delete failed: HTTP ${res.status}`);
       }
+      streamRef.current?.close();
+      clearSilenceTimer();
+      setStreamIssue(null);
+      setIsProcessing(false);
       setCaseId("");
       setCaseToken("");
       setPipelineStep(0);
@@ -138,7 +244,7 @@ export default function Home() {
       const newCaseToken: string = caseData.access_token;
       setCaseId(newCaseId);
       setCaseToken(newCaseToken);
-      setLiveLog(`Case ${newCaseId} created. Uploading document for transient OCR...`);
+      setLiveLog("Case created. Uploading document for transient OCR...");
 
       // 2. Upload document to /kadi/cases/{case_id}/upload
       const formData = new FormData();
@@ -154,47 +260,9 @@ export default function Home() {
         throw new Error(`API /upload returned HTTP ${uploadRes.status}`);
       }
 
-      // 3. Connect real-time Server-Sent Events (SSE) stream. The browser's native
-      // EventSource cannot set custom headers, so the token travels via query string
-      // here only (ADR-009) — every other request uses the X-Case-Access-Token header.
+      // 3. Connect real-time Server-Sent Events (SSE) stream.
       setLiveLog("Document received. Listening to live multi-agent SSE status stream...");
-      const es = new EventSource(
-        `${API_BASE}/api/v1/kadi/cases/${newCaseId}/stream?access_token=${encodeURIComponent(newCaseToken)}`
-      );
-
-      es.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.log) {
-            setLiveLog(payload.log);
-          }
-
-          if (payload.status === "upload_received" || payload.status === "ocr_start") {
-            setPipelineStep(1);
-          } else if (payload.status === "extraction_start") {
-            setPipelineStep(2);
-          } else if (payload.status === "database_write") {
-            setPipelineStep(3);
-          } else if (payload.status === "completed") {
-            setPipelineStep(4);
-            setIsProcessing(false);
-            // The backend log says when a document was a duplicate or which module checks ran.
-            setLiveLog(payload.log || "Document processed successfully. Entities extracted.");
-            es.close();
-          } else if (payload.status === "failed") {
-            setErrorMessage(payload.log || "Document processing failed");
-            setIsProcessing(false);
-            es.close();
-          }
-        } catch (err) {
-          console.error("SSE parse error:", err);
-        }
-      };
-
-      es.onerror = () => {
-        es.close();
-        setIsProcessing(false);
-      };
+      connectStream(newCaseId, newCaseToken);
     } catch (err) {
       // Previously fell back to a fake "simulated audit" here — animating the pipeline
       // to a green "completed" state and telling the user their document was processed
@@ -214,6 +282,63 @@ export default function Home() {
     }
   };
 
+  const resetCaseView = () => {
+    streamRef.current?.close();
+    clearSilenceTimer();
+    setStreamIssue(null);
+    setIsProcessing(false);
+    setCaseId("");
+    setCaseToken("");
+    setPipelineStep(0);
+    setActiveFileName("");
+    setLiveLog("");
+  };
+
+  // Demo kit: a scenario arrives as an already-processed case; its processing log is
+  // replayed from the server's status stream, and the scenario's module opens.
+  const handleScenarioLoaded = (result: DemoScenarioResult, scenario: DemoScenario) => {
+    resetCaseView();
+    setErrorMessage(null);
+    setCaseId(result.case_id);
+    setCaseToken(result.access_token);
+    setActiveFileName(result.documents.join(" + "));
+    setIsProcessing(true);
+    setPipelineStep(1);
+    setLiveLog(`Demo Scenario ${scenario.id} loaded — reading its processing log…`);
+    setActiveTab(SCENARIO_TAB[scenario.id]);
+    setCaseVersion((v) => v + 1);
+    connectStream(result.case_id, result.access_token);
+  };
+
+  // A case can hold several documents (e.g. a bill and its discharge summary); both feed
+  // the same entities, plausibility check and evidence packet.
+  const handleAddDocument = async (file: File | undefined) => {
+    if (!file || !caseId || !caseToken || isProcessing) return;
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    setErrorMessage(null);
+    setActiveFileName(file.name);
+    setIsProcessing(true);
+    setPipelineStep(1);
+    setLiveLog("Adding a document to this case...");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_BASE}/api/v1/kadi/cases/${caseId}/upload`, {
+        method: "POST",
+        headers: { "X-Case-Access-Token": caseToken },
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`API /upload returned HTTP ${res.status}`);
+      connectStream(caseId, caseToken);
+    } catch (err) {
+      setIsProcessing(false);
+      setPipelineStep(4);
+      setErrorMessage(err instanceof Error ? `Could not add the document: ${err.message}` : "Could not add the document.");
+    } finally {
+      if (addDocInput.current) addDocInput.current.value = "";
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header
@@ -224,6 +349,7 @@ export default function Home() {
       />
 
       <main className="container" style={{ flex: 1 }}>
+        <DemoBanner status={demoStatus} />
         {/* Hero Section */}
         <section className="hero-section">
           <h1>
@@ -236,6 +362,8 @@ export default function Home() {
             Clinician, pharmacist or transcription reviewer? <Link href="/clinical-review">Open the reviewer workspace →</Link>
           </p>
         </section>
+
+        <DemoControls status={demoStatus} onScenarioLoaded={handleScenarioLoaded} onReset={resetCaseView} />
 
         {/* BYOD Document Intake Dropzone */}
         <DocumentUploader
@@ -261,6 +389,18 @@ export default function Home() {
           </div>
         )}
 
+        {streamIssue && caseId && (
+          <StatePanel
+            kind="warning"
+            onRetry={() => connectStream(caseId, caseToken)}
+            retryLabel="Refresh status"
+          >
+            {streamIssue === "timeout"
+              ? "Processing is taking longer than expected. Your document may still be being read — nothing has been checked yet."
+              : "Lost contact with the processing status stream. Your document may still be processing."}
+          </StatePanel>
+        )}
+
         {/* Live SSE Multi-Agent Stream Visualizer */}
         {pipelineStep > 0 && (
           <AgentStreamVisualizer
@@ -270,6 +410,11 @@ export default function Home() {
             caseId={caseId}
             liveLog={liveLog}
           />
+        )}
+
+        {/* What has actually happened to this case, from persisted records only */}
+        {caseId && (
+          <CaseTimeline caseId={caseId} caseToken={caseToken} refreshKey={caseVersion} processing={isProcessing} failure={errorMessage} />
         )}
 
         {/* ADR-011: red-flag escalations from active, board-approved safety rules */}
@@ -284,7 +429,24 @@ export default function Home() {
 
         {/* SEC-03: explicit patient-initiated case deletion */}
         {caseId && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
+            <input
+              ref={addDocInput}
+              type="file"
+              accept={DOCUMENT_ACCEPT}
+              style={{ display: "none" }}
+              aria-label="Add another document to this case"
+              onChange={(e) => handleAddDocument(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary btn-compact"
+              disabled={!caseReady}
+              title={caseReady ? undefined : "Available once the current document has finished processing"}
+              onClick={() => addDocInput.current?.click()}
+            >
+              ➕ Add another document to this case
+            </button>
             <button
               type="button"
               onClick={handleDeleteCase}
@@ -357,11 +519,18 @@ export default function Home() {
 
         {/* Active Module Panel */}
         <div role="tabpanel" id={`panel-${activeTab}`}>
-          {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
-          {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
-          {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
-          {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
-          {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} caseId={caseId} caseToken={caseToken} />}
+          {/* Module views receive the case only once extraction has finished, so nothing is
+              computed (or shown as "empty") from a half-built case. */}
+          {caseId && !caseReady && (
+            <StatePanel kind="loading">
+              Your document is still being processed. Case results appear here as soon as extraction finishes.
+            </StatePanel>
+          )}
+          {activeTab === "billnyay" && <BillNyayView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
+          {activeTab === "bimanyay" && <BimaNyayView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
+          {activeTab === "daavisetu" && <DaaviSetuView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
+          {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
+          {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
         </div>
       </main>
 

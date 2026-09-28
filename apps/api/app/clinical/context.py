@@ -5,6 +5,7 @@ Machine-derived signals (plausibility, safety escalations) are computed here onc
 module route and the review service can never disagree about them.
 """
 
+import logging
 import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -17,6 +18,7 @@ from kadi.clinical_review import SAFETY_FLOOR_DISCLAIMER
 from kadi.clinical_review.evidence import EntityRecord
 from kadi.clinical_review.safety import (
     ActiveRule,
+    carried_forward_terms,
     escalation_for,
     evaluate_rules,
     scan_full_text,
@@ -24,6 +26,8 @@ from kadi.clinical_review.safety import (
 )
 
 from app.models import KadiCase, KadiEntity, KadiSafetyRule, KadiSafetyScanResult
+
+logger = logging.getLogger("arogyarakshak.clinical.context")
 
 NO_ACTIVE_RULES_NOTE = (
     "No clinical safety rules are active on this deployment. The absence of an escalation "
@@ -81,9 +85,10 @@ async def load_active_rules(db: AsyncSession) -> List[ActiveRule]:
 
 SCAN_SCOPE_NOTE = (
     "Each uploaded document was checked in full against the rules active when it was "
-    "uploaded. Rules activated later are checked only against the extracted diagnoses, "
-    "procedures and medicines and the first 1,000 characters of each document (the "
-    "redacted excerpt ArogyaRakshak keeps)."
+    "uploaded (a term found then still counts under a newer version of the same rule that "
+    "still lists it). Rules or terms activated later are checked only against the extracted "
+    "diagnoses, procedures and medicines and the first 1,000 characters of each document "
+    "(the redacted excerpt ArogyaRakshak keeps)."
 )
 
 
@@ -114,22 +119,34 @@ async def evaluate_case_safety(
     rules = await load_active_rules(db)
     escalations = evaluate_rules(rules, safety_context(entities), today=date.today())
 
-    # Merge red flags found in the full text at upload time, for rules still ACTIVE.
+    # Merge red flags found in the full text at upload time, for rules still ACTIVE — or
+    # for the ACTIVE successor of a superseded version, when it still lists the term.
     by_rule = {e["rule_id"]: e for e in escalations}
     active = {r.rule_id: r for r in rules}
-    stored = await db.execute(select(KadiSafetyScanResult).where(KadiSafetyScanResult.case_id == case_id))
-    for scan in stored.scalars().all():
+    active_by_key = {r.rule_key: r for r in rules}
+    scans = (await db.execute(select(KadiSafetyScanResult).where(KadiSafetyScanResult.case_id == case_id))).scalars().all()
+    stale_ids = {s.rule_id for s in scans if s.rule_id not in active}
+    stale_keys: Dict[str, str] = {}
+    if stale_ids:
+        rows = await db.execute(select(KadiSafetyRule.id, KadiSafetyRule.rule_key).where(KadiSafetyRule.id.in_(stale_ids)))
+        stale_keys = {rid: key for rid, key in rows.all()}
+    for scan in scans:
         rule = active.get(scan.rule_id)
+        terms = list(scan.matched_terms or [])
         if rule is None:
-            continue
-        if scan.rule_id in by_rule:
-            merged = by_rule[scan.rule_id]["matched_terms"] + list(scan.matched_terms or [])
-            by_rule[scan.rule_id]["matched_terms"] = list(dict.fromkeys(merged))
+            rule = active_by_key.get(stale_keys.get(scan.rule_id, ""))
+            terms = carried_forward_terms(rule, terms) if rule is not None else []
+            if not terms:
+                continue
+        if rule.rule_id in by_rule:
+            merged = by_rule[rule.rule_id]["matched_terms"] + terms
+            by_rule[rule.rule_id]["matched_terms"] = list(dict.fromkeys(merged))
         else:
-            by_rule[scan.rule_id] = escalation_for(rule, scan.matched_terms or [], date.today())
+            by_rule[rule.rule_id] = escalation_for(rule, terms, date.today())
 
     return {
         "case_id": case_id,
+        "status": "EVALUATED",
         "active_rule_count": len(rules),
         "escalations": sort_escalations(list(by_rule.values())),
         "disclaimer": SAFETY_FLOOR_DISCLAIMER,
@@ -149,14 +166,48 @@ def _refs(entities: Sequence[EntityRecord], entity_type: str) -> List[EvidenceRe
     ]
 
 
+SAFETY_UNAVAILABLE_NOTE = (
+    "Safety check unavailable: the clinical safety rules could not be evaluated for this case. "
+    "No safety assessment has been made — this is not the same as \"no escalation\"."
+)
+
+
+def safety_unavailable(case_id: str) -> Dict[str, Any]:
+    """What a caller gets when the safety evaluation itself failed. It must never look
+    like an evaluation that found nothing (or like "no rules are active")."""
+    return {
+        "case_id": case_id,
+        "status": "UNAVAILABLE",
+        "active_rule_count": None,
+        "escalations": [],
+        "disclaimer": SAFETY_FLOOR_DISCLAIMER,
+        "scope_note": None,
+        "coverage_note": SAFETY_UNAVAILABLE_NOTE,
+    }
+
+
+async def evaluate_case_safety_or_unavailable(
+    db: AsyncSession, case_id: str, entities: Optional[Sequence[EntityRecord]] = None
+) -> Dict[str, Any]:
+    """`evaluate_case_safety`, isolated in a SAVEPOINT so a failure is reported as
+    UNAVAILABLE without poisoning the caller's transaction."""
+    try:
+        async with db.begin_nested():
+            return await evaluate_case_safety(db, case_id, entities)
+    except Exception:  # noqa: BLE001 — any failure must surface as UNAVAILABLE, never as "safe"
+        logger.exception("Clinical safety evaluation failed for case %s", case_id)
+        return safety_unavailable(case_id)
+
+
 async def assess_case_plausibility(
     db: AsyncSession, case_id: str, entities: Optional[Sequence[EntityRecord]] = None
 ) -> Tuple[PlausibilityAssessment, Dict[str, Any]]:
     entities = entities if entities is not None else await load_entity_records(db, case_id)
-    safety = await evaluate_case_safety(db, case_id, entities)
+    safety = await evaluate_case_safety_or_unavailable(db, case_id, entities)
     assessment = assess_clinical_plausibility(
         _refs(entities, "diagnosis"),
         _refs(entities, "procedure"),
         safety_escalations=len(safety["escalations"]),
+        safety_check_available=safety.get("status") != "UNAVAILABLE",
     )
     return assessment, safety

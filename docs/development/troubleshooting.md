@@ -87,6 +87,92 @@ This document catalogs known failure modes, error messages, and verified solutio
 - **Remedy**: set it to a long random value (and `CLINICAL_DEMO_MODE=true` only for local
   demos), restart the API, and send it as `X-Governance-Admin-Key`.
 
+### DawaCheck shows a medicine as "not benchmarked" after transcription resolved
+- **Cause**: two readers agreed, but their reading could not be placed into the extracted
+  entry (e.g. the uncertain line carried more than the entry, or the reading named no drug). The entity records
+  `human_transcription.status = "NOT_APPLIED"` and is deliberately kept unsettled (ADR-011).
+- **Remedy**: confirm the medicine with the dispensing pharmacist, then have the case holder
+  flag the whole entry (`POST .../transcriptions`, `field_type: MEDICINE_NAME`) so two readers
+  read it in full; a later partial reading will not clear the state. Do not "fix" this by
+  falling back to the OCR name; that is the defect this state prevents.
+
+### DawaCheck says "Unclear on the document — not yet read by a human" but no task exists
+- **Cause**: an uncertain OCR reading could not be linked to exactly one medicine — it named
+  several (`AMBIGUOUS`), only resembled the extracted name (`POSSIBLE_MATCH`, typical after an
+  LLM spelling correction), was beyond the 10-task cap (`OVER_CAP`), or matched nothing while
+  this medicine's name is absent from the clearly read text (`UNGROUNDED`). The medicine is
+  held back in `meta.ocr_uncertainty` by design (`clinical-review.md` §10).
+- **Remedy**: press "Ask for a human reading of this entry" (whole-entry flag) and have two
+  readers read it; only a whole-entry reading clears the state.
+
+### Two different medicines ("Pan 40", "Pan-D") appear as one entity
+- **Cause** (fixed 2026-09-27): entity resolution treated a variant letter on one side as a
+  missing qualifier and merged them. Medicines now conflict on a one-sided variant letter.
+- **Remedy**: cases created before the fix keep the merged entity; delete and re-upload.
+
+### DawaCheck says "Cannot compare reliably" for a correctly read medicine
+- **Cause** (ADR-012): the price basis is unknown or contradictory — the bill line does not
+  say whether the amount is for one tablet, a strip or several units; a strip price has no
+  pack size; the manual check was declared "per tablet" but the name says "(15s)"; or the
+  bill describes an injection while the reference ceiling is for a tablet.
+- **Remedy**: use the manual check with the correct basis ("One strip" + units in it). Before
+  ADR-012 such lines were compared as if per tablet and showed absurd overcharges
+  (e.g. +1,335% for a strip of Dolo 650).
+
+### BillNyay says a room/ICU/consultation line "was not compared"
+- **Cause** (ADR-012): the CGHS rate is per day / per visit / per bottle and the bill line
+  does not state how many ("ICU 18500"). "Room Rent 3 days 13500" is compared as 3 days.
+- **Remedy**: expected. The patient can ask the hospital for the day/visit count.
+
+### A request works in the tests but returns 500 on Postgres (foreign-key violation)
+- **Cause**: rows referencing another row by a plain foreign key (no ORM relationship) were
+  added in the same flush; SQLAlchemy may insert them first. SQLite ignored it because
+  foreign keys were off in tests; Postgres rejects it. Found in the release-candidate
+  Postgres run: DaaviSetu's doctor-confirmation request (`clinical.service.create_review`).
+- **Remedy**: `await db.flush()` after adding the parent. The test engine now runs
+  `PRAGMA foreign_keys=ON` (`apps/api/tests/conftest.py`) so this class of bug fails locally.
+  Validate against Postgres with `scripts/demo_runtime_smoke.py`.
+
+### Demo controls: "Demo operations are disabled" / reviewer token invalid after a reset
+- **Cause**: `CLINICAL_DEMO_MODE` off, `APP_ENV=production`, or no
+  `CLINICAL_GOVERNANCE_ADMIN_KEY`; every reset issues new demo credentials.
+- **Remedy**: set the variables and restart the API; copy the credentials again from the
+  Demo controls panel (they are never stored).
+
+### The web file picker does not offer `.txt` demo documents
+- **Cause** (fixed): the picker accepted only images and PDFs although the API accepts
+  `.txt`/`.csv`. `DOCUMENT_ACCEPT` in `DocumentUploader.tsx` now lists them.
+
+### Line endings flip to CRLF after a scripted edit on Windows
+- **Cause**: Python `open(path, "w")` without `newline=""` writes CRLF on Windows; a
+  regex-based web test failed on it. `.gitattributes` mandates LF.
+- **Remedy**: write with `newline=""`, or run `sed -i 's/\r$//' <file>`; `git diff --stat`
+  showing whole-file changes is the tell.
+
+### Mobile screen says "Processing is taking longer than expected."
+- **Cause**: no processing event arrived for 90 s (hung or dropped stream), or the server
+  sent `timeout`. The app never assumes completion.
+- **Remedy**: press "Refresh status": the stream is reopened; the server replays the
+  status or reports `idle` if nothing is being processed (e.g. after an API restart —
+  processing status is held in memory by one process).
+
+### Safety banner says "Safety check unavailable"
+- **Cause**: the safety rules could not be evaluated (`status: UNAVAILABLE`) or the request
+  failed. This is deliberately different from "no escalation".
+- **Remedy**: check the API log for "Clinical safety evaluation failed" and the database.
+
+### Scenario C demo upload runs real OCR instead of the fixture
+- **Cause**: `CLINICAL_DEMO_MODE` is off, or the uploaded file is not byte-identical to
+  `demo/documents/C_prescription_uncertain.png` (the replay matches its SHA-256).
+- **Remedy**: enable demo mode and upload the committed file unmodified; if the image was
+  regenerated, update `DEMO_PRESCRIPTION_SHA256` in `app/clinical/demo_ocr.py`.
+
+### A safety escalation disappears after a rule is re-versioned
+- **Cause**: full-text scan results carry forward to the new ACTIVE version only for terms
+  it still lists. If the board removed the term, the escalation is correctly dropped.
+- **Remedy**: check the new version's `trigger.match_any`; terms added later are checked
+  only against entities and the 1,000-character excerpt of earlier uploads.
+
 ---
 
 ## 5. Frontend & Next.js Issues

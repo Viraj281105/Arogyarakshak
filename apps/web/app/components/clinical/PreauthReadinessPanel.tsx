@@ -1,5 +1,6 @@
 "use client";
 
+import { humanizeEnum } from "../../lib/labels";
 import React, { useState } from "react";
 import { API_BASE, caseAuthHeaders, normalizeErrorDetail } from "../../hooks/useApi";
 import { ReviewerProfile, CaseClinicalReview, clinicalPaths, clinicalRequest } from "../../lib/clinical";
@@ -172,7 +173,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
                 {item.origin === "INSTITUTION_PLAYBOOK" && <span className="badge badge-info" style={{ marginLeft: "0.4rem" }}>playbook</span>}
                 {item.clinical_decision && item.clinical_decision.decision !== "PENDING" && (
                   <div style={{ fontSize: "0.75rem" }}>
-                    {item.clinical_decision.decision} by {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label};
+                    {humanizeEnum(item.clinical_decision.decision)} — {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label};
                     COI: {item.clinical_decision.coi_label})
                   </div>
                 )}
@@ -207,7 +208,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
           {factReview && (
             <div style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
               <p>
-                Confirmation request {factReview.review_id}: {factReview.status}
+                Doctor confirmation request: {humanizeEnum(factReview.status)}
               </p>
               {factReview.assigned_reviewer ? (
                 <ReviewerAttribution reviewer={factReview.assigned_reviewer} />

@@ -310,11 +310,12 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
               fontWeight: 600,
             }}
           >
-            ⓘ Example — Upload a document first to generate a real pre-authorization package
+            ⓘ Nothing generated yet — upload a document first. The fields below are what you have typed, not a
+            submitted or approved form.
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-            <h3>✓ {t.preAuthSummary}</h3>
-            <span className="badge badge-success">IRDAI Standard Annexure-B</span>
+            <h3>{t.preAuthSummary}</h3>
+            <span className="badge badge-info">IRDAI Annexure-B format (not generated yet)</span>
           </div>
           <div className="grid-2" style={{ fontSize: "0.875rem" }}>
             <div>

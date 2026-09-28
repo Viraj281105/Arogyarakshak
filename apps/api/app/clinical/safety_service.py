@@ -260,16 +260,48 @@ async def activate_rule(db, actor: KadiClinicalReviewer, rule: KadiSafetyRule) -
     return rule
 
 
+async def pending_retirement_requester(db: AsyncSession, rule: KadiSafetyRule) -> Optional[str]:
+    """The board member who asked to retire this ACTIVE rule, if the request is still
+    open (retirement requests live only in the rule's own audit trail)."""
+    if rule.status != RuleStatus.ACTIVE.value:
+        return None
+    rows = await db.execute(
+        select(KadiClinicalAuditEvent.actor_id)
+        .where(
+            KadiClinicalAuditEvent.subject_id == rule.id,
+            KadiClinicalAuditEvent.event_type == AuditEventType.RULE_RETIREMENT_REQUESTED.value,
+        )
+        .order_by(KadiClinicalAuditEvent.created_at)
+    )
+    requesters = [r for (r,) in rows.all()]
+    return requesters[0] if requesters else None
+
+
 async def retire_rule(db, actor: KadiClinicalReviewer, rule: KadiSafetyRule, reason: Optional[str]) -> KadiSafetyRule:
+    """Retiring a rule removes a safety escalation from every case, so it is four-eyes
+    like activation: the first board member records a retirement REQUEST (the rule stays
+    ACTIVE and keeps escalating); a DIFFERENT board member confirms it. The requester
+    cannot confirm their own request."""
     try:
         ensure_rule_transition(rule.status, RuleStatus.RETIRED.value)
     except RuleValidationError as e:
         raise _http(e, status.HTTP_409_CONFLICT)
-    rule.retired_reason = _text(reason, "reason", 1000)
+    clean_reason = _text(reason, "reason", 1000)
+    await db.flush()
+    requester = await pending_retirement_requester(db, rule)
+    if requester is None:
+        _audit(db, rule, AuditEventType.RULE_RETIREMENT_REQUESTED, actor)
+        return rule
+    if requester == actor.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already requested retirement of this rule; a different board member must confirm it.",
+        )
+    rule.retired_reason = clean_reason
     rule.status = RuleStatus.RETIRED.value
     rule.retired_at = datetime.utcnow()
     rule.retired_by = actor.id
-    _audit(db, rule, AuditEventType.RULE_RETIRED, actor)
+    _audit(db, rule, AuditEventType.RULE_RETIRED, actor, {"requested_by": requester})
     return rule
 
 
@@ -348,6 +380,7 @@ async def rule_view(db: AsyncSession, rule: KadiSafetyRule) -> Dict[str, Any]:
         "changelog": rule.changelog,
         "supersedes_rule_id": rule.supersedes_rule_id,
         "activated_at": rule.activated_at,
+        "retirement_requested_by": await pending_retirement_requester(db, rule),
         "retired_at": rule.retired_at,
         "retired_reason": rule.retired_reason,
         "created_at": rule.created_at,

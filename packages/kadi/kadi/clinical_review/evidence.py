@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from kadi.redaction import redact_pii
 
+from .medicine_trust import decide_medicine_trust
 from .types import ProvenanceClass, SourceModule
 
 SHAREABLE_ENTITY_TYPES = frozenset(
@@ -67,6 +68,11 @@ def resolve_scope(source_module: str, requested: Optional[Sequence[str]]) -> Lis
 
 
 def _entity_provenance(entity: EntityRecord) -> ProvenanceClass:
+    if entity.type == "medicine":
+        # One trust decision for medicines (kadi.clinical_review.medicine_trust): a
+        # partial human reading does not make an otherwise-uncertain entry reviewed.
+        decision = decide_medicine_trust(entity.name, entity.meta)
+        return ProvenanceClass(decision.name_provenance)
     meta = entity.meta or {}
     transcription = meta.get("human_transcription") if isinstance(meta, dict) else None
     if isinstance(transcription, dict) and transcription.get("status") == "RESOLVED":
@@ -88,9 +94,20 @@ def _entity_source(entity: EntityRecord) -> str:
 
 def _display_value(entity: EntityRecord) -> str:
     meta = entity.meta or {}
+    if entity.type == "medicine" and isinstance(meta, dict):
+        uncertainty = meta.get("ocr_uncertainty")
+        if isinstance(uncertainty, dict) and uncertainty.get("status") == "UNRESOLVED":
+            dosage = meta.get("dosage")
+            base = f"{entity.name} ({dosage})" if dosage else entity.name
+            return f"{base} (unsettled: part of this entry was read with low confidence and no human has read it)"
     transcription = meta.get("human_transcription") if isinstance(meta, dict) else None
     if isinstance(transcription, dict) and transcription.get("status") == "RESOLVED":
         return str(transcription.get("value") or entity.name)
+    if isinstance(transcription, dict) and transcription.get("status") == "NOT_APPLIED":
+        return (
+            f"{entity.name} (unsettled: human readers read '{transcription.get('human_reading')}', "
+            "which could not be matched to this extracted entry)"
+        )
     if entity.type in ("billing_item",):
         return f"{entity.name} — charged {entity.value}" if entity.value else entity.name
     if entity.type == "document_text":

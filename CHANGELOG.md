@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Release-candidate pass (2026-09-27)
+
+#### Fixed — correctness
+- **DawaCheck price basis (ADR-012)**: strip/pack/line totals were compared with per-tablet NPPA ceilings ("Dolo 650: ₹33" → +1,335%). Prices are now resolved to a per-unit price from a declared basis, the bill line ("Strip of 15", "15's", "Qty 10") or a "Rate per tablet" heading — or reported as **Cannot compare reliably** with no percentage. Dosage-form mismatches and contradictions are refused. LLM-normalised medicine names keep their source line's quantity facts (Kadi grounding).
+- **BillNyay rate basis (ADR-012)**: per-day/visit/session/shift/bottle CGHS rates were compared with whole line totals (Scenario A's "Room Rent 3 days" showed +200%). Recurring rates now need a stated count; lines without one are not benchmarked, with the reason.
+- **Postgres-only 500**: requesting a doctor's fact confirmation (DaaviSetu, Scenario B) violated a foreign key on Postgres (fact rows flushed before their review). Fixed; the SQLite test engine now enforces foreign keys so this class of bug fails in tests.
+- The web file picker hid `.txt`/`.csv`, which the API accepts (demo documents could not be chosen).
+
+#### Added
+- Demo kit controls: `GET /kadi/clinical-demo/status`, `POST .../reset`, `POST .../scenarios/{A-D}`; web DEMO MODE banner, "What is simulated?" panel, Demo controls (reset, load scenario, one-time persona credentials). Scenario A loads the bill and the discharge summary into one case.
+- `APP_ENV` (the API refuses to start with `CLINICAL_DEMO_MODE=true` under `production`) and `DEMO_DOCUMENTS_DIR`; the API image ships the synthetic demo documents.
+- Case timeline (`GET /kadi/cases/{id}/timeline`, `kadi.timeline`, web "What has happened to this case") built only from persisted records.
+- "Add another document to this case" on the web.
+- `scripts/demo_runtime_smoke.py` — Scenarios A–D over HTTP (49 checks); passed on PostgreSQL 16 and on the full docker-compose stack.
+- Tests: price basis (package, pipeline, web, mobile), rate basis, demo control (guards, idempotency, concurrent resets), timeline, review transitions (duplicate accept/finalize, reviewer swap, one person as both readers, duplicate ingest), FK enforcement guard.
+
+#### Changed — honesty and UX
+- Removed invented example figures (BillNyay totals that did not add up; DawaCheck pack prices with per-pack "ceilings"; a green "✓" DaaviSetu example).
+- "PROD" / "v1.0 Production" branding → "PROTOTYPE" / "Release candidate (academic prototype)"; "DPDP Act 2023 Compliant" → design intent; "nothing is stored" / "zero data retained after the session" corrected (extracted details and a redacted excerpt are kept until deletion or the 90-day TTL).
+- BillNyay no longer calls CGHS rates a "mandated cap" or cites Supreme Court violations; verdicts read "Above / Within CGHS reference".
+- Raw enums/IDs removed from remaining UI paths (fact decisions, confirmation requests, SLA tiers, statement status, DaaviSetu status, case id in the processing header).
+- Mobile quick samples declare what their price buys; the manual form requires a basis. Dead `USE_MOCK_DATA` flag removed.
+- hi/mr replacements for corrected strings are marked `NEEDS NATIVE-SPEAKER QA`.
+
 ### Added
 - Human clinical review, safety governance and human OCR resolution layer (ADR-011, `docs/architecture/clinical-review.md`): attributable clinical statements with mandatory conflict-of-interest disclosure and honest verification status; institution-private DaaviSetu preauth readiness playbooks; bounded BillNyay clinical plausibility review; versioned, independently approved clinical safety escalation rules; blind two-reader transcription of uncertain OCR medication text; provenance classes (`AI_DERIVED`, `HUMAN_REVIEWED`, `HUMAN_AUTHORED`, `EXTERNAL_SOURCE`, `PATIENT_PROVIDED`); web reviewer workspace at `/clinical-review`; mobile patient-side cards.
 
@@ -21,6 +45,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Only independently verified reviewers are listed publicly; others are assigned by shared ID. Demo reviewers are locked out outside demo mode.
 - Safety-rule approvals are tied to a submission round.
 - Safety-check failures are shown explicitly. Mobile DaaviSetu now receives its scanned case; mobile screens wait for processing before reading it.
+
+### Fixed (second ADR-011 audit)
+- The per-document OCR task cap now counts linked tasks only; letterhead noise at the top of a page could previously use it up so the medicine lines were never flagged.
+- A whole uncertain OCR line naming a medicine (e.g. "Tab Augmntn 625mg 1-0-1") now links to that medicine; a leading "Tab."/"Cap." no longer prevents a human reading from being applied.
+- A human reading that cannot be placed into the extracted entry is recorded as `NOT_APPLIED`; DawaCheck no longer falls back to benchmarking the uncertain OCR text, and a later partial reading cannot clear that state (a whole-entry flag can).
+- A red flag found in a document's full text is no longer lost when the safety rule is re-versioned; it carries forward to the active version while that version still lists the term.
+- Plausibility coverage is PARTIAL (not FULL) when a diagnosis could not be assessed.
+- Reviewer-facing review responses no longer include the patient's case id.
+
+### Added (demo-hardening pass, 2026-09-27)
+- One medicine trust gate (`kadi.clinical_review.medicine_trust`) used by DawaCheck and reviewer evidence; DawaCheck rows carry `trust` (state, label, reasons).
+- Uncertain OCR readings that cannot be linked to exactly one medicine are no longer dropped: the medicine(s) they may concern are held back as `ocr_uncertainty` (`AMBIGUOUS`, `POSSIBLE_MATCH`, `OVER_CAP`, `UNGROUNDED`) and are not benchmarked until a whole-entry human reading settles them.
+- Deterministic demo kit (`demo/`): synthetic documents, Scenarios A–D with expected output, and a demo-mode-only OCR replay for the Scenario C prescription image (`app/clinical/demo_ocr.py`). Each scenario is an automated test.
+- Web DawaCheck shows the case's own medicines with their trust decision and an "Ask for a human reading" action.
+- Mobile: processing lifecycle state machine (`services/caseProcessing.ts`) with a 90 s inactivity timeout ("Processing is taking longer than expected." + "Refresh status"), shared active case across tabs, case-medicines card.
+- SSE stream emits `idle` at once when nothing is being processed for the case.
+
+### Fixed (demo-hardening pass, 2026-09-27)
+- Readings linking to no medicine, to several medicines, or beyond the task cap let the medicine be benchmarked as `AI_DERIVED`; LLM-normalised names ("Amoxycilin" → "Amoxicillin") lost the OCR uncertainty.
+- A human reading of only a marker could produce names like "Tab. 40"; results that name no drug are now refused.
+- An agreed transcription of a whole uncertain line that is exactly the entry ("Tab Augmntn 625mg 1-0-1 x 5 days") was always `NOT_APPLIED`; it is now placed. A later whole-entry reading overrides an earlier escalation only if it is later; partial readings never clear held-back states.
+- Entity resolution auto-merged combination products into their base drug ("Pan-D" into "Pan 40"); a one-sided variant letter is now a conflict for medicines (evaluation unchanged: 0 false merges).
+- Plausibility returned PLAUSIBLE when one intervention matched and another is expected for an undocumented diagnosis; now CLINICAL_REVIEW_RECOMMENDED with `conflicting_items`. More administrative lines are excluded; the summary says unassessed diagnoses are not treated as compatible.
+- A failing safety evaluation surfaces as `status: UNAVAILABLE` ("Safety check unavailable"), never as "no rules active"; plausibility survives it and recommends review.
+- One board member could retire a safety rule alone; retirement is now request + independent confirmation.
+- Mobile screens read the case before processing was established (first-render race), BillNyay audited straight after the upload 202, a stale response could overwrite newer state, and tabs did not share the scanned case (DaaviSetu was unreachable for a scanned bill).
+- Web module views computed on a half-built case during processing; a dropped/silent stream showed nothing.
+- "Judge-Approved Draft" (an automated scorer) relabelled "Passed automated quality check" (web + mobile; Hindi/Marathi rewording needs native-speaker QA). "Audit Completed" after extraction relabelled "Extraction complete".
 
 ### Changed
 - BillNyay appeals now append finalized clinician statements verbatim (or state that none exists); the Barrister prompt forbids implying a clinician's opinion; the offline appeal template no longer asserts that physician records prove necessity.

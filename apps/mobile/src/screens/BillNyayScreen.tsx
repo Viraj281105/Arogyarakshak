@@ -9,7 +9,7 @@ import {
   Card,
   Button,
   Badge,
-  AgentStreamVisualizer,
+  ProcessingStatusCard,
   ResolutionReviewCard,
   ClinicalReviewCard,
   SafetyNotice,
@@ -17,7 +17,10 @@ import {
 } from '../components';
 import { api, BillNyayAuditResponse, BillNyayAppealResponse, ApiError, PlausibilityResponse } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
-import { useSSEStream } from '../hooks/useSSEStream';
+import { useCaseProcessing } from '../hooks/useCaseProcessing';
+import { useActiveCaseId } from '../hooks/useActiveCase';
+import { clearActiveCase, resolveCaseId } from '../services/activeCase';
+import { humanizeEnum } from '../services/labels';
 import { ENV } from '../config/env';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -33,7 +36,12 @@ export const BillNyayScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [auditResult, setAuditResult] = useState<BillNyayAuditResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
+  // The scan that brought the patient here, else the case they are working on in
+  // another tab. A case deleted from this screen is dropped immediately.
+  const activeCaseId = useActiveCaseId();
+  const [deletedCaseId, setDeletedCaseId] = useState<string | null>(null);
+  const resolvedCaseId = resolveCaseId(route.params?.caseId, activeCaseId);
+  const caseId = resolvedCaseId && resolvedCaseId !== deletedCaseId ? resolvedCaseId : null;
 
   const [appealLoading, setAppealLoading] = useState(false);
   const [appealResult, setAppealResult] = useState<BillNyayAppealResponse | null>(null);
@@ -50,17 +58,27 @@ export const BillNyayScreen: React.FC = () => {
   };
   const [appealError, setAppealError] = useState<string | null>(null);
 
-  const sse = useSSEStream(caseId || undefined);
+  // Processing lifecycle: `ready` only once the server reports extraction finished.
+  const proc = useCaseProcessing(caseId);
 
+  // A fresh scan asks for the audit, but it runs only when extraction has finished —
+  // auditing straight after the upload 202 audited an empty case.
+  const [pendingAuditFor, setPendingAuditFor] = useState<string | null>(null);
   useEffect(() => {
-    if (route.params?.caseId) {
-      setCaseId(route.params.caseId || null);
-      // Auto-trigger audit if coming directly from completed scan
-      if (route.params.scanCompleted) {
-        handleRunAudit(route.params.caseId);
-      }
+    if (route.params?.caseId && route.params.scanCompleted) {
+      setPendingAuditFor(route.params.caseId);
+      setAuditResult(null);
+      setPlausibility(null);
+      setAppealResult(null);
     }
   }, [route.params?.caseId, route.params?.scanCompleted]);
+  useEffect(() => {
+    if (pendingAuditFor && proc.ready && proc.caseId === pendingAuditFor) {
+      setPendingAuditFor(null);
+      handleRunAudit(pendingAuditFor);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAuditFor, proc.ready, proc.caseId]);
 
   const handleRunAudit = async (targetCaseId?: string) => {
     setLoading(true);
@@ -105,7 +123,8 @@ export const BillNyayScreen: React.FC = () => {
           onPress: async () => {
             try {
               await api.kadi.deleteCase(caseId);
-              setCaseId(null);
+              setDeletedCaseId(caseId);
+              clearActiveCase(caseId);
               setAuditResult(null);
               setError(null);
               setAppealResult(null);
@@ -202,17 +221,9 @@ export const BillNyayScreen: React.FC = () => {
         </View>
       )}
 
-      {caseId && (sse.isStreaming || sse.progress > 0) && (
-        <AgentStreamVisualizer
-          progress={sse.progress}
-          latestEvent={sse.latestEvent}
-          isStreaming={sse.isStreaming}
-          isCompleted={sse.isCompleted}
-          error={sse.error}
-        />
-      )}
+      <ProcessingStatusCard proc={proc} />
 
-      <ResolutionReviewCard caseId={caseId} refreshToken={sse.isCompleted} />
+      <ResolutionReviewCard caseId={proc.ready ? caseId : null} refreshToken={proc.ready} />
 
       <Card style={{ marginVertical: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>
@@ -240,7 +251,7 @@ export const BillNyayScreen: React.FC = () => {
             title={loading ? m.auditing : m.cta}
             onPress={() => handleRunAudit()}
             variant="primary"
-            disabled={loading}
+            disabled={loading || (!!caseId && !proc.ready)}
           />
 
           {caseId && (
@@ -248,7 +259,7 @@ export const BillNyayScreen: React.FC = () => {
               title={appealLoading ? m.drafting : m.draftAppealBtn}
               onPress={handleDraftAppeal}
               variant="outline"
-              disabled={appealLoading}
+              disabled={appealLoading || !proc.ready}
             />
           )}
         </View>
@@ -320,6 +331,11 @@ export const BillNyayScreen: React.FC = () => {
                       }`
                     : ` | ${m.notBenchmarked}`}
                 </Text>
+                {(benchmarked ? item.benchmark_basis : item.not_benchmarked_reason) ? (
+                  <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs }}>
+                    {benchmarked ? item.benchmark_basis : item.not_benchmarked_reason}
+                  </Text>
+                ) : null}
               </View>
             );
           })}
@@ -389,13 +405,19 @@ export const BillNyayScreen: React.FC = () => {
 
       {caseId && (
         <Card style={{ marginVertical: spacing.sm }}>
-          <Button title="🩺 Check clinical plausibility" onPress={handleCheckPlausibility} variant="outline" size="sm" />
+          <Button
+            title="🩺 Check clinical plausibility"
+            onPress={handleCheckPlausibility}
+            variant="outline"
+            size="sm"
+            disabled={!proc.ready}
+          />
           {plausibility && (
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
                 <Badge label="Machine-derived" variant="info" />
                 <Badge
-                  label={plausibility.assessment.status.replaceAll('_', ' ')}
+                  label={humanizeEnum(plausibility.assessment.status)}
                   variant={plausibility.assessment.status === 'PLAUSIBLE' ? 'success' : 'warning'}
                 />
               </View>
@@ -413,7 +435,8 @@ export const BillNyayScreen: React.FC = () => {
           )}
         </Card>
       )}
-      <SafetyNotice caseId={caseId} refreshToken={sse.isCompleted} />
+      {/* Only after extraction: an early check would read a half-built case as "no escalation". */}
+      <SafetyNotice caseId={proc.ready ? caseId : null} refreshToken={proc.ready} />
       <ClinicalReviewCard
         caseId={caseId}
         sourceModule="billnyay"

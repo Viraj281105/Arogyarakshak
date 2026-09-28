@@ -163,6 +163,17 @@ def review_summary(
     }
 
 
+def reviewer_review_summary(
+    review: KadiClinicalReview,
+    reviewer: Optional[KadiClinicalReviewer],
+) -> Dict[str, Any]:
+    """What a reviewer sees about a review: no case id. A reviewer reaches case data only
+    through the review itself; the patient's case identifier is not theirs to hold."""
+    view = review_summary(review, reviewer)
+    view.pop("case_id", None)
+    return view
+
+
 def case_holder_review_view(
     review: KadiClinicalReview,
     reviewer: Optional[KadiClinicalReviewer],

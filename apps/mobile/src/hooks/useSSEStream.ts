@@ -69,8 +69,13 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
       if (typeof data.progress === 'number') {
         setProgress(data.progress);
       }
-      if (data.status === 'completed') {
+      // 'idle' = nothing is being processed for this case (the server says so);
+      // 'duplicate' = already ingested. Both mean the case is settled.
+      if (data.status === 'completed' || data.status === 'idle' || data.status === 'duplicate') {
         setIsCompleted(true);
+        setIsStreaming(false);
+      } else if (data.status === 'timeout') {
+        // The server stopped waiting; this is NOT completion.
         setIsStreaming(false);
       } else if (data.status === 'failed') {
         setIsFailed(true);

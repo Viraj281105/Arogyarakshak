@@ -51,11 +51,16 @@ from app.clinical.auth import (
     require_reviewer,
     reviewer_available,
 )
-from app.clinical.context import assess_case_plausibility, evaluate_case_safety, load_entity_records
+from app.clinical.context import (
+    assess_case_plausibility,
+    evaluate_case_safety,
+    evaluate_case_safety_or_unavailable,
+    load_entity_records,
+)
 from app.clinical.serializers import (
     case_holder_review_view,
     fact_view,
-    review_summary,
+    reviewer_review_summary,
     reviewer_public,
     statement_view,
 )
@@ -442,7 +447,7 @@ async def clinical_context(case_id: str, case: KadiCase = Depends(require_case_a
         ],
         "fact_decisions": [f for r in reviews if r["status"] != "CANCELLED" for f in r["facts"] if f["decision"] != "PENDING"],
         "transcriptions": tasks,
-        "safety": await evaluate_case_safety(db, case_id),
+        "safety": await evaluate_case_safety_or_unavailable(db, case_id),
         "provenance_legend": {p.value: PROVENANCE_DESCRIPTIONS[p] for p in ProvenanceClass},
     }
 
@@ -452,7 +457,7 @@ async def clinical_context(case_id: str, case: KadiCase = Depends(require_case_a
 @router.get("/clinical-reviews/assigned")
 async def my_assigned_reviews(reviewer: KadiClinicalReviewer = Depends(require_reviewer), db: AsyncSession = Depends(get_db)):
     return [
-        {**review_summary(r, reviewer), "coi_context": r.coi_context}
+        {**reviewer_review_summary(r, reviewer), "coi_context": r.coi_context}
         for r in await service.reviewer_queue(db, reviewer)
     ]
 
@@ -464,7 +469,7 @@ async def reviewer_review_detail(
     review = await service.reviewer_review(db, reviewer, review_id, need_evidence_access=False)
     own = [s for s in await service.statements_for_review(db, review.id) if s.reviewer_id == reviewer.id]
     return {
-        **review_summary(review, reviewer),
+        **reviewer_review_summary(review, reviewer),
         "coi_context": review.coi_context,
         "statements": [statement_view(s, include_draft_fields=True) for s in own],
         "facts": [fact_view(f) for f in await service.facts_for_review(db, review.id)],
@@ -483,7 +488,7 @@ async def accept_review(
     review = await service.reviewer_review(db, reviewer, review_id, need_evidence_access=False)
     await service.accept_review(db, reviewer, review, req.coi_category, req.coi_disclosure)
     await db.commit()
-    return review_summary(review, reviewer)
+    return reviewer_review_summary(review, reviewer)
 
 
 @router.post("/clinical-reviews/{review_id}/decline")

@@ -14,17 +14,44 @@ import {
   clinicalRequest,
 } from "../lib/clinical";
 import { ClinicalStatementCard, ProvenanceBadge, ReviewerAttribution } from "../components/clinical/Attribution";
+import { StatePanel } from "../components/clinical/StatePanel";
+import { DemoBanner, useDemoStatus } from "../components/demo/DemoBanner";
+import { TONE_CLASS, formatTimestamp, humanizeEnum } from "../lib/labels";
 
+// The reviewer never holds the patient's case id (the server omits it).
 interface AssignedReview {
   review_id: string;
-  case_id: string;
   source_module: string;
   review_type: "CLINICAL_STATEMENT" | "FACT_CONFIRMATION";
   status: string;
   clinical_question: string;
+  trigger?: string;
+  evidence_scope?: string[];
+  insurer_name?: string | null;
+  created_at?: string;
+  assigned_at?: string | null;
+  accepted_at?: string | null;
   coi_context: { hospital_names: string[]; insurer_name: string | null; note: string };
   coi_label: string | null;
+  coi_disclosure?: string | null;
 }
+
+const MODULE_LABEL: Record<string, string> = {
+  billnyay: "BillNyay — hospital bill audit",
+  bimanyay: "BimaNyay — insurance denial appeal",
+  daavisetu: "DaaviSetu — pre-authorization readiness",
+  dawacheck: "DawaCheck — medicines",
+  kadi: "Case context",
+};
+
+// Mirrors kadi.clinical_review.types.ReviewTrigger.
+const TRIGGER_LABEL: Record<string, string> = {
+  MANUAL: "The patient asked for a clinical review",
+  PLAUSIBILITY_FLAG: "The software's plausibility check flagged something it cannot judge",
+  DENIAL_CATEGORY: "The insurer's denial turns on clinical judgment",
+  SAFETY_RULE: "A clinical safety rule fired",
+  READINESS_CLINICAL_FACT: "The pre-authorization relies on clinical facts only a doctor can confirm",
+};
 
 interface ReviewerDetail extends AssignedReview {
   statements: ClinicalStatement[];
@@ -38,6 +65,7 @@ interface TranscriptionView {
   field_type: string;
   risk_level: string;
   masked_context: string;
+  location_hint?: { segment_index?: number | null; bbox?: number[][] | null } | null;
   ocr_candidate: string | null;
   ocr_candidate_hidden: boolean;
   accepting_readings: boolean;
@@ -61,6 +89,7 @@ interface RuleView {
   review_due_date: string;
   review_overdue: boolean;
   is_demo: boolean;
+  retirement_requested_by?: string | null;
 }
 
 type Tab = "reviews" | "transcriptions" | "safety";
@@ -76,6 +105,7 @@ const panel: React.CSSProperties = {
 export default function ClinicalReviewWorkspace() {
   // Held in memory only: the credential is a bearer secret and is never written to
   // localStorage. Reloading the page means pasting it again.
+  const demoStatus = useDemoStatus();
   const [token, setToken] = useState("");
   const [tokenInput, setTokenInput] = useState("");
   const [me, setMe] = useState<ReviewerProfile | null>(null);
@@ -301,6 +331,7 @@ export default function ClinicalReviewWorkspace() {
 
   return (
     <main className="container" style={{ paddingTop: "1.5rem", paddingBottom: "3rem" }}>
+      <DemoBanner status={demoStatus} />
       <p>
         <Link href="/">← Back to ArogyaRakshak</Link>
       </p>
@@ -311,12 +342,8 @@ export default function ClinicalReviewWorkspace() {
         registration is shown to patients exactly as verified — self-declared details are labelled as such.
       </p>
 
-      {error && (
-        <div role="alert" style={{ ...panel, borderColor: "var(--status-danger)", color: "#fca5a5" }}>
-          ⚠️ {error}
-        </div>
-      )}
-      {notice && <div style={{ ...panel, borderColor: "var(--status-success)" }}>✓ {notice}</div>}
+      {error && <StatePanel kind="error">{error}</StatePanel>}
+      {notice && <StatePanel kind="success">{notice}</StatePanel>}
 
       {!me && (
         <div className="grid-2">
@@ -382,8 +409,13 @@ export default function ClinicalReviewWorkspace() {
       {me && (
         <>
           <section style={panel}>
+            <div className="stat-label">Signed in as</div>
             <ReviewerAttribution reviewer={me} />
-            {me.is_safety_board_member && <span className="badge badge-info">Clinical safety board member</span>}
+            {me.is_safety_board_member && <span className={TONE_CLASS.neutral}>Clinical safety board member</span>}
+            <p style={{ fontSize: "0.8rem", marginTop: "0.5rem", opacity: 0.9 }}>
+              Verification limits: ArogyaRakshak is not connected to any medical or pharmacy council registry. Patients see your
+              registration exactly as labelled above — {me.verification_status === "DEMO_VERIFIED" ? "a demo fixture, not a real check" : "self-declared, not verified"}.
+            </p>
             <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
               Your reviewer ID: <code>{me.id}</code> — give it to your patient so they can assign you. Only independently
               verified reviewers appear in the public list.
@@ -414,14 +446,27 @@ export default function ClinicalReviewWorkspace() {
             <>
               <section style={panel}>
                 <h3>Assigned to you</h3>
-                {queue.length === 0 && <p style={{ fontSize: "0.9rem" }}>No reviews are assigned to you.</p>}
+                {queue.length === 0 && (
+                  <StatePanel kind="empty">
+                    No reviews are assigned to you yet. A patient assigns you by the reviewer ID shown above; press refresh after they do.
+                  </StatePanel>
+                )}
+                <button type="button" className="btn btn-secondary btn-compact" onClick={refreshQueue}>
+                  Refresh queue
+                </button>
                 {queue.map((r) => (
-                  <div key={r.review_id} style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", padding: "0.4rem 0" }}>
-                    <span>
-                      {r.review_id} · {r.source_module} · {r.review_type === "FACT_CONFIRMATION" ? "fact confirmation" : "clinical statement"} ·{" "}
-                      <span className="badge badge-info">{r.status}</span>
+                  <div
+                    key={r.review_id}
+                    style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", padding: "0.6rem 0", borderTop: "1px solid var(--border-subtle)" }}
+                  >
+                    <span style={{ minWidth: 0 }}>
+                      <strong>{r.review_type === "FACT_CONFIRMATION" ? "Confirm clinical facts" : "Clinical statement"}</strong> ·{" "}
+                      {MODULE_LABEL[r.source_module] ?? humanizeEnum(r.source_module)}
+                      <br />
+                      <span className={TONE_CLASS.neutral}>{humanizeEnum(r.status)}</span>{" "}
+                      {r.created_at && <span style={{ fontSize: "0.75rem", opacity: 0.8 }}>requested {formatTimestamp(r.created_at)}</span>}
                     </span>
-                    <button type="button" className="btn btn-secondary" onClick={() => openReview(r.review_id)}>
+                    <button type="button" className="btn btn-secondary btn-compact" onClick={() => openReview(r.review_id)}>
                       Open
                     </button>
                   </div>
@@ -430,10 +475,44 @@ export default function ClinicalReviewWorkspace() {
 
               {detail && (
                 <section style={panel} aria-labelledby="review-detail">
-                  <h3 id="review-detail">Review {detail.review_id}</h3>
-                  <p>
-                    <strong>Question:</strong> {detail.clinical_question}
-                  </p>
+                  <h3 id="review-detail">
+                    {detail.review_type === "FACT_CONFIRMATION" ? "Confirm clinical facts" : "Clinical statement request"}
+                  </h3>
+                  <dl style={{ display: "grid", gridTemplateColumns: "minmax(8rem, max-content) 1fr", gap: "0.25rem 1rem", fontSize: "0.85rem" }}>
+                    <dt className="stat-label">Case context</dt>
+                    <dd>{MODULE_LABEL[detail.source_module] ?? humanizeEnum(detail.source_module)}</dd>
+                    <dt className="stat-label">Why it was routed to you</dt>
+                    <dd>{TRIGGER_LABEL[detail.trigger ?? ""] ?? humanizeEnum(detail.trigger)}</dd>
+                    <dt className="stat-label">Status</dt>
+                    <dd>
+                      <span className={TONE_CLASS.neutral}>{humanizeEnum(detail.status)}</span>
+                    </dd>
+                    <dt className="stat-label">Conflict of interest</dt>
+                    <dd>
+                      {detail.coi_label ? (
+                        <>
+                          <span className={TONE_CLASS.success}>Declared</span> {detail.coi_label}
+                          {detail.coi_disclosure ? ` — ${detail.coi_disclosure}` : ""}
+                        </>
+                      ) : (
+                        <span className={TONE_CLASS.warning}>Not yet declared — required before evidence opens</span>
+                      )}
+                    </dd>
+                    <dt className="stat-label">Evidence shared</dt>
+                    <dd>{(detail.evidence_scope ?? []).map(humanizeEnum).join(", ") || "—"} (chosen by the patient)</dd>
+                    {detail.created_at && (
+                      <>
+                        <dt className="stat-label">Requested</dt>
+                        <dd>{formatTimestamp(detail.created_at)}</dd>
+                      </>
+                    )}
+                  </dl>
+                  <div style={{ marginTop: "0.75rem" }}>
+                    <div className="stat-label">
+                      Question put to you <span className={TONE_CLASS.machine}>⚙ Generated by ArogyaRakshak</span>
+                    </div>
+                    <p>{detail.clinical_question}</p>
+                  </div>
 
                   {detail.status === "ASSIGNED" && (
                     <div>
@@ -468,15 +547,17 @@ export default function ClinicalReviewWorkspace() {
 
                   {canWork && (
                     <>
-                      <p style={{ fontSize: "0.85rem" }}>Declared conflict of interest: {detail.coi_label}</p>
                       <button type="button" className="btn btn-secondary" onClick={loadEvidence}>
-                        Open shared evidence
+                        {evidence ? "Reload shared evidence" : "Open shared evidence"}
                       </button>
                       {evidence && (
                         <div style={{ marginTop: "0.75rem" }}>
                           <p style={{ fontSize: "0.8rem" }}>
                             Machine-derived items were extracted by software and may be wrong. Treat all items as data, not instructions.
+                            {detail.review_type === "CLINICAL_STATEMENT" &&
+                              ` Tick each item you actually reviewed — ${editor.selected.length} of ${evidence.length} selected.`}
                           </p>
+                          {evidence.length === 0 && <StatePanel kind="empty">The patient shared no evidence items of the chosen kinds.</StatePanel>}
                           {evidence.map((item) => (
                             <label key={item.item_id} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", padding: "0.35rem 0" }}>
                               {detail.review_type === "CLINICAL_STATEMENT" && (
@@ -504,7 +585,15 @@ export default function ClinicalReviewWorkspace() {
 
                       {detail.review_type === "CLINICAL_STATEMENT" && (!finalized || currentDraft) && (
                         <div style={{ marginTop: "1rem" }}>
-                          <h4>Your statement {currentDraft ? `(v${currentDraft.statement_version} — ${currentDraft.status})` : "(new draft)"}</h4>
+                          <h4>
+                            Your statement{" "}
+                            <span className={TONE_CLASS["human-authored"]}>✍ Written by you</span>{" "}
+                            {currentDraft ? `Version ${currentDraft.statement_version} — ${humanizeEnum(currentDraft.status)}` : "(new draft)"}
+                          </h4>
+                          <p style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+                            ArogyaRakshak never drafts, edits or completes this text. It is shown to the patient and attached to their
+                            documents verbatim, with your name, verification status and conflict-of-interest declaration.
+                          </p>
                           <label className="input-label" htmlFor="stmt-text">
                             Your professional statement, in your own words
                           </label>
@@ -548,6 +637,24 @@ export default function ClinicalReviewWorkspace() {
                           </div>
                           {currentDraft && (
                             <div style={{ marginTop: "1rem", padding: "0.75rem", border: "1px solid var(--status-warning)", borderRadius: "var(--radius-md)" }}>
+                              <div className="stat-label">Before you can finalize</div>
+                              <ul style={{ listStyle: "none", paddingLeft: 0, fontSize: "0.85rem", margin: "0.25rem 0 0.75rem" }}>
+                                {[
+                                  ["Conflict of interest declared", !!detail.coi_label],
+                                  ["Evidence you reviewed is selected (saved in the draft)", currentDraft.evidence_reviewed.length > 0],
+                                  ["Statement written in your own words", currentDraft.reviewer_statement.trim().length > 0],
+                                  ["Limitations of your review stated", currentDraft.limitations.trim().length > 0],
+                                  ["You tick the confirmation below yourself", confirmTicked],
+                                ].map(([label, done]) => (
+                                  <li key={String(label)}>
+                                    {done ? "✓" : "○"} {label}
+                                  </li>
+                                ))}
+                              </ul>
+                              <p style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+                                Finalizing freezes this version (a content hash is recorded). Later changes create a new version; the
+                                patient then sees only the newest finalized one.
+                              </p>
                               <label style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
                                 <input type="checkbox" checked={confirmTicked} onChange={(e) => setConfirmTicked(e.target.checked)} />
                                 <span>{detail.finalization_confirmation_text}</span>
@@ -569,6 +676,13 @@ export default function ClinicalReviewWorkspace() {
                       {detail.review_type === "CLINICAL_STATEMENT" && detail.statements.filter((s) => s.status !== "DRAFT" && s.status !== "UNDER_REVIEW").length > 0 && (
                         <div style={{ marginTop: "1rem" }}>
                           <h4>Your published versions</h4>
+                          {finalized && !currentDraft && (
+                            <StatePanel kind="info">
+                              Version {finalized.statement_version} is finalized and immutable. To change it, create a new version;
+                              to retract it, withdraw it with a reason — a withdrawn statement is removed from the patient&apos;s current
+                              documents.
+                            </StatePanel>
+                          )}
                           {detail.statements
                             .filter((s) => s.status !== "DRAFT" && s.status !== "UNDER_REVIEW")
                             .map((s) => (
@@ -610,7 +724,10 @@ export default function ClinicalReviewWorkspace() {
                               <p>{f.fact_question}</p>
                               {f.decision !== "PENDING" ? (
                                 <p>
-                                  <span className="badge badge-success">{f.decision}</span> {f.reviewer_note}
+                                  <span className={f.decision === "CONFIRMED" ? TONE_CLASS["human-reviewed"] : TONE_CLASS.warning}>
+                                    {humanizeEnum(f.decision)}
+                                  </span>{" "}
+                                  {f.reviewer_note}
                                 </p>
                               ) : (
                                 <>
@@ -664,7 +781,7 @@ export default function ClinicalReviewWorkspace() {
                     <ol className="timeline-list" style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
                       {audit.map((e) => (
                         <li key={e.id} className="timeline-item">
-                          {e.created_at} — {e.event_type} ({e.actor_type})
+                          {formatTimestamp(e.created_at)} — {humanizeEnum(e.event_type)} ({humanizeEnum(e.actor_type)})
                         </li>
                       ))}
                     </ol>
@@ -681,15 +798,22 @@ export default function ClinicalReviewWorkspace() {
                 You are reading as a transcription reviewer. For possible-medication fields you cannot see the software&apos;s guess or
                 any other reader&apos;s answer. If you cannot read it with confidence, mark it unreadable.
               </p>
-              {tasks.length === 0 && <p>No transcription tasks are assigned to you.</p>}
+              {tasks.length === 0 && <StatePanel kind="empty">No transcription tasks are assigned to you.</StatePanel>}
               {tasks.map((t) => (
                 <div key={t.task_id} style={{ borderTop: "1px solid var(--border-subtle)", padding: "0.75rem 0" }}>
                   <p>
-                    <strong>{t.field_type.replace("_", " ")}</strong> · <span className="badge badge-warning">{t.risk_level} risk</span>
+                    <strong>{humanizeEnum(t.field_type)}</strong> ·{" "}
+                    <span className={TONE_CLASS.warning}>{t.risk_level === "HIGH" ? "Two independent readers required" : "One reader required"}</span>
                   </p>
                   <p>
                     Context: <code>{t.masked_context}</code>
                   </p>
+                  {typeof t.location_hint?.segment_index === "number" && (
+                    <p style={{ fontSize: "0.8rem" }}>
+                      Where to look on the patient&apos;s original: text line {t.location_hint.segment_index + 1} from the top
+                      (as the scanner counted it; the patient can point to it).
+                    </p>
+                  )}
                   {t.ocr_candidate && <p style={{ fontSize: "0.8rem" }}>Software reading: {t.ocr_candidate}</p>}
                   {t.ocr_candidate_hidden && <p style={{ fontSize: "0.8rem" }}>Software reading hidden (blind review).</p>}
                   <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>{t.instructions}</p>
@@ -740,12 +864,15 @@ export default function ClinicalReviewWorkspace() {
             <section style={panel}>
               <h3>Clinical safety governance</h3>
               <p style={{ fontSize: "0.85rem" }}>{SAFETY_FLOOR_DISCLAIMER}</p>
-              {rules.length === 0 && <p>No rules to show.</p>}
+              {rules.length === 0 && <StatePanel kind="empty">No rules to show.</StatePanel>}
               {rules.map((rule) => (
                 <div key={rule.rule_id} style={{ borderTop: "1px solid var(--border-subtle)", padding: "0.75rem 0" }}>
                   <p>
-                    <strong>{rule.title}</strong> · v{rule.version} · <span className="badge badge-info">{rule.status}</span>
-                    {rule.is_demo && <span className="badge badge-warning" style={{ marginLeft: "0.4rem" }}>demo fixture</span>}
+                    <strong>{rule.title}</strong> · version {rule.version} · <span className={TONE_CLASS.neutral}>{humanizeEnum(rule.status)}</span>
+                    {rule.is_demo && <span className={TONE_CLASS.demo} style={{ marginLeft: "0.4rem" }}>Demo fixture</span>}
+                    {rule.retirement_requested_by && (
+                      <span className={TONE_CLASS.warning} style={{ marginLeft: "0.4rem" }}>Retirement requested — awaiting a second board member</span>
+                    )}
                     {rule.review_overdue && <span className="badge badge-danger" style={{ marginLeft: "0.4rem" }}>review overdue</span>}
                   </p>
                   <p style={{ fontSize: "0.85rem" }}>{rule.description}</p>
@@ -755,7 +882,9 @@ export default function ClinicalReviewWorkspace() {
                   </p>
                   <p style={{ fontSize: "0.8rem" }}>
                     Proposed by {rule.proposed_by?.name} ({rule.proposed_by?.verification_label}).{" "}
-                    {rule.approvals.map((a) => `${a.decision} by ${a.reviewer.name}${a.applies_to_current_content ? "" : " (earlier content)"}`).join("; ")}
+                    {rule.approvals
+                      .map((a) => `${a.decision === "APPROVE" ? "Approved" : "Rejected"} by ${a.reviewer.name}${a.applies_to_current_content ? "" : " (earlier submission)"}`)
+                      .join("; ")}
                   </p>
                   {me.is_safety_board_member && (
                     <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -791,8 +920,19 @@ export default function ClinicalReviewWorkspace() {
                           <button type="button" className="btn btn-secondary" onClick={() => ruleAction(rule, "new-version")}>
                             New version
                           </button>
-                          <button type="button" className="btn" style={{ border: "1px solid var(--status-danger)" }} onClick={() => ruleAction(rule, "retire")}>
-                            Retire
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ border: "1px solid var(--status-danger)" }}
+                            disabled={rule.retirement_requested_by === me.id}
+                            title="Retirement needs two board members: one requests, a different one confirms."
+                            onClick={() => ruleAction(rule, "retire")}
+                          >
+                            {rule.retirement_requested_by
+                              ? rule.retirement_requested_by === me.id
+                                ? "Retirement requested by you"
+                                : "Confirm retirement"
+                              : "Request retirement"}
                           </button>
                         </>
                       )}

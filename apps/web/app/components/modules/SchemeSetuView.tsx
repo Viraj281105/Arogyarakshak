@@ -342,7 +342,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
               fontWeight: 600,
             }}
           >
-            ⓘ Example — Fill in your details and check eligibility for a live assessment
+            ⓘ About the schemes checked — fill in your details above for a provisional assessment
           </div>
 
           <h3 style={{ marginBottom: "1rem" }}>{t.eligibleSchemes}</h3>

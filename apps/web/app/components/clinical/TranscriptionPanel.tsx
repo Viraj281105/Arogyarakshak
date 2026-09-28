@@ -5,6 +5,8 @@ import { API_BASE, caseAuthHeaders } from "../../hooks/useApi";
 import { ReviewerProfile, TranscriptionTask, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { AssignReviewer } from "./AssignReviewer";
 import { ProvenanceBadge } from "./Attribution";
+import { StatePanel } from "./StatePanel";
+import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
 
 interface MedicineEntity {
   id: string;
@@ -26,7 +28,25 @@ const STATUS_TEXT: Record<TranscriptionTask["status"], string> = {
  * never silently into a medication fact. Possible-medication fields need two agreeing
  * independent readings.
  */
-export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }> = ({ caseId, caseToken }) => {
+function statusText(task: TranscriptionTask): string {
+  if (task.status === "RESOLVED" && task.outcome === "NOT_APPLIED") {
+    return "Readers agreed, but the reading could not be applied — the entry stays unsettled";
+  }
+  return STATUS_TEXT[task.status];
+}
+
+function statusTone(task: TranscriptionTask): string {
+  if (task.status === "RESOLVED" && task.outcome !== "NOT_APPLIED") return TONE_CLASS["human-reviewed"];
+  if (task.status === "HUMAN_ESCALATION_REQUIRED") return TONE_CLASS.danger;
+  return TONE_CLASS.warning;
+}
+
+export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string; refreshKey?: number; onChanged?: () => void }> = ({
+  caseId,
+  caseToken,
+  refreshKey = 0,
+  onChanged,
+}) => {
   const [tasks, setTasks] = useState<TranscriptionTask[]>([]);
   const [medicines, setMedicines] = useState<MedicineEntity[]>([]);
   const [readers, setReaders] = useState<ReviewerProfile[]>([]);
@@ -63,7 +83,8 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
     return () => {
       cancelled = true;
     };
-  }, [fetchAll]);
+    // refreshKey: a sibling panel (DawaCheck's case medicines) created a task.
+  }, [fetchAll, refreshKey]);
 
   const load = async () => apply(await fetchAll());
 
@@ -72,6 +93,7 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
     try {
       await fn();
       await load();
+      onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -108,10 +130,11 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
         name, strength, frequency, route or duration needs two independent readings that agree. ArogyaRakshak never stores
         the document image — readers look at the original you hold.
       </p>
-      {error && (
-        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-          ⚠️ {error}
-        </div>
+      {error && <StatePanel kind="error">{error}</StatePanel>}
+      {tasks.length === 0 && !error && (
+        <StatePanel kind="empty">
+          No unclear readings are waiting for a human reader. If a medicine below looks misread, flag it.
+        </StatePanel>
       )}
 
       {medicines.length > 0 && (
@@ -121,7 +144,7 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
             <button
               key={m.id}
               type="button"
-              className="btn"
+              className="btn btn-compact"
               style={{ border: "1px solid var(--border-subtle)", margin: "0.25rem 0.5rem 0 0" }}
               disabled={flaggedEntities.has(m.id)}
               onClick={() => flag(m.id)}
@@ -143,20 +166,30 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string }
         <div key={task.task_id} style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem", marginTop: "0.75rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
             <strong>
-              {task.field_type.replace("_", " ")} · <span className={`badge ${task.risk_level === "HIGH" ? "badge-danger" : "badge-info"}`}>{task.risk_level} risk</span>
+              {humanizeEnum(task.field_type)} ·{" "}
+              <span className={task.risk_level === "HIGH" ? TONE_CLASS.danger : TONE_CLASS.neutral}>
+                {task.risk_level === "HIGH" ? "Two readers required" : "One reader required"}
+              </span>
             </strong>
-            <span className={`badge ${task.status === "RESOLVED" ? "badge-success" : task.status === "HUMAN_ESCALATION_REQUIRED" ? "badge-danger" : "badge-warning"}`}>
-              {STATUS_TEXT[task.status]}
-            </span>
+            <span className={statusTone(task)}>{statusText(task)}</span>
           </div>
           <p style={{ fontSize: "0.8rem", margin: "0.35rem 0" }}>
             Context: <code>{task.masked_context}</code> · readings {task.readings_received}/{task.required_reviews} · readers assigned{" "}
             {task.assigned_reviewer_count}
           </p>
-          {task.final_value && (
+          {task.final_value && task.outcome !== "NOT_APPLIED" && (
             <p>
               Human-confirmed reading: <strong>{task.final_value}</strong> <ProvenanceBadge provenance={task.final_value_provenance} />
             </p>
+          )}
+          {task.final_value && task.outcome === "NOT_APPLIED" && (
+            <p style={{ fontSize: "0.85rem" }}>
+              Readers agreed on <strong>{task.final_value}</strong>, but it could not be placed into the extracted entry, so the
+              medicine is <strong>not</strong> treated as settled or price-checked.
+            </p>
+          )}
+          {task.resolution_reason && task.status !== "OPEN" && (
+            <p style={{ fontSize: "0.75rem", opacity: 0.85 }}>{task.resolution_reason}</p>
           )}
           {task.readings.length > 0 && (
             <ul style={{ fontSize: "0.8rem", paddingLeft: "1.1rem" }}>

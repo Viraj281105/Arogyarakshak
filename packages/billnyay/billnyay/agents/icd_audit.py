@@ -97,6 +97,11 @@ def _extract_icd10_code(diagnosis_text: str) -> Optional[str]:
     return match.group(1).upper() if match else None
 
 
+def reference_codes() -> List[str]:
+    """Every ICD-10 code prefix the curated table covers."""
+    return list(_ICD10_PROCEDURE_INDEX)
+
+
 def audit_icd_procedure_consistency(
     diagnosis_text: str, procedures_billed: List[str]
 ) -> ICDProcedureAuditItem:

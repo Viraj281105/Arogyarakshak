@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ReviewerProfile, clinicalPaths, clinicalRequest } from "../../lib/clinical";
+import { VerificationBadge } from "./Attribution";
 
 /**
  * Choose a reviewer: from the directory (only independently verified reviewers, or demo
@@ -74,9 +75,7 @@ export const AssignReviewer: React.FC<{
           <span>
             <strong>{looked.name}</strong> · {looked.category_label}
             {looked.specialty ? ` · ${looked.specialty}` : ""} ·{" "}
-            <span className={`badge ${looked.verification_status === "EXTERNALLY_VERIFIED" ? "badge-success" : "badge-warning"}`}>
-              {looked.verification_label}
-            </span>
+            <VerificationBadge status={looked.verification_status} label={looked.verification_label} />
           </span>
           <button type="button" className="btn btn-secondary" disabled={disabled} onClick={() => onAssign(looked.id)}>
             {label}: {looked.name}

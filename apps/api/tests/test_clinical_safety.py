@@ -129,10 +129,26 @@ def test_rejection_returns_to_draft_and_invalidates_approvals():
 
 
 def test_retirement_is_attributable():
-    active, a, _ = _active_rule()
-    res = client.post(f"{K}/safety-rules/{active['rule_id']}/retire", json={"reason": "Superseded by national protocol."}, headers=rh(a))
+    # Four-eyes (demo-hardening pass): one board member requests, a different one confirms.
+    active, a, b = _active_rule()
+    requested = client.post(f"{K}/safety-rules/{active['rule_id']}/retire", json={"reason": "Superseded by national protocol."}, headers=rh(a))
+    assert requested.json()["status"] == "ACTIVE" and requested.json()["retirement_requested_by"]
+    res = client.post(f"{K}/safety-rules/{active['rule_id']}/retire", json={"reason": "Agreed: superseded."}, headers=rh(b))
     assert res.json()["status"] == "RETIRED"
     assert client.get(f"{K}/safety-rules").json()["rules"] == []
+
+
+def test_one_board_member_cannot_retire_a_rule_alone():
+    active, a, _ = _active_rule()
+    case_id = make_case(STROKE_DOC)
+    client.post(f"{K}/safety-rules/{active['rule_id']}/retire", json={"reason": "No longer needed."}, headers=rh(a))
+    again = client.post(f"{K}/safety-rules/{active['rule_id']}/retire", json={"reason": "Still me."}, headers=rh(a))
+    assert again.status_code == 409, "the requester cannot confirm their own retirement request"
+    assert client.get(f"{K}/safety-rules/{active['rule_id']}").json()["status"] == "ACTIVE"
+    body = client.get(f"{K}/cases/{case_id}/safety-escalations").json()
+    assert body["escalations"], "a pending retirement request never silences an escalation"
+    no_reason = client.post(f"{K}/safety-rules/{active['rule_id']}/retire", json={"reason": ""}, headers=rh(_board_member("Dr. Third")[1]))
+    assert no_reason.status_code == 422, "confirmation needs its own reason"
 
 
 def test_escalation_fires_with_source_version_and_disclaimer():

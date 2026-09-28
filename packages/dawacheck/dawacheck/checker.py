@@ -5,9 +5,16 @@ Benchmarks MRP against NPPA ceiling prices and suggests generic alternatives.
 """
 
 import logging
-from typing import Optional
+from typing import Any, Mapping, Optional
 from pydantic import BaseModel, Field
 
+from dawacheck.price_basis import (
+    ComparisonStatus,
+    PriceBasis,
+    PriceComparison,
+    compare_with_ceiling,
+    resolve_billed_price,
+)
 from dawacheck.reference_data import (
     NPPA_REFERENCE_DATA,
     REFERENCE_SOURCE,
@@ -25,10 +32,16 @@ logger.setLevel(logging.INFO)
 class MedicineBenchmark(BaseModel):
     brand_name: str
     active_ingredient: str
-    mrp: float
-    nppa_ceiling_price: float
-    is_overcharged: bool
-    deviation_percentage: float
+    mrp: float = Field(
+        ...,
+        description="The amount as billed/entered, on the basis in `price_basis` (not necessarily "
+        "per unit). The per-unit figure compared with the ceiling is `billed_unit_price`.",
+    )
+    nppa_ceiling_price: float = Field(..., description="Reference ceiling per `unit_label` (one tablet/capsule/vial).")
+    # None when the comparison could not be made (`comparison_status` = CANNOT_COMPARE):
+    # an unknown answer is never reported as "within ceiling".
+    is_overcharged: Optional[bool]
+    deviation_percentage: Optional[float]
     generic_substitute_available: bool
     generic_substitute_store_info: str
     data_source: str = Field(
@@ -61,12 +74,61 @@ class MedicineBenchmark(BaseModel):
     queried_dosage_mg: Optional[float] = Field(
         None, description="Strength (mg) parsed from the query brand name/dosage hint, if any."
     )
+    # --- Price basis (see dawacheck.price_basis) ---
+    comparison_status: ComparisonStatus = ComparisonStatus.COMPARED
+    price_basis: PriceBasis = PriceBasis.PER_UNIT
+    price_basis_label: str = "per unit"
+    basis_source: str = Field(
+        "API_DEFAULT",
+        description="Where the basis came from: DECLARED (entered by the person), DOCUMENT_LINE, "
+        "DOCUMENT_HEADER (e.g. a 'Rate per tablet' column), API_DEFAULT (legacy manual-API "
+        "contract: MRP per unit), NONE.",
+    )
+    basis_evidence: Optional[str] = Field(None, description="The short text the basis was read from.")
+    billed_unit_price: Optional[float] = Field(None, description="Billed price per unit, when it could be worked out.")
+    unit_label: str = "unit"
+    comparison_reason_code: Optional[str] = None
+    comparison_note: Optional[str] = Field(None, description="Why no comparison was made, in plain language.")
+
+
+def _price_fields(comparison: PriceComparison) -> dict:
+    return dict(
+        mrp=comparison.billed_amount,
+        is_overcharged=comparison.is_overcharged,
+        deviation_percentage=comparison.deviation_percentage,
+        comparison_status=comparison.status,
+        price_basis=comparison.price_basis,
+        price_basis_label=comparison.price_basis_label,
+        basis_source=comparison.basis_source,
+        basis_evidence=comparison.basis_evidence,
+        billed_unit_price=comparison.billed_unit_price,
+        unit_label=comparison.unit_label,
+        comparison_reason_code=comparison.reason_code,
+        comparison_note=comparison.reason,
+    )
 
 
 def benchmark_medicine(
-    brand_name: str, mrp: float, dosage_hint: Optional[str] = None
+    brand_name: str,
+    mrp: float,
+    dosage_hint: Optional[str] = None,
+    *,
+    price_basis: Optional[str] = None,
+    units_per_pack: Optional[float] = None,
+    quantity: Optional[float] = None,
+    price_facts: Optional[Mapping[str, Any]] = None,
+    read_name_for_quantity: bool = True,
+    allow_api_default: bool = True,
 ) -> Optional[MedicineBenchmark]:
-    """Checks medicine MRP against NPPA ceiling prices.
+    """Checks a billed medicine price against NPPA ceiling prices.
+
+    The ceiling is per dosage unit. The billed amount is first resolved to a per-unit
+    price (`dawacheck.price_basis`): from the declared basis (`price_basis`,
+    `units_per_pack`, `quantity`), from what the document states (`price_facts`) or from
+    the name itself ("Dolo 650 (15s)"). When that cannot be done the result carries
+    `comparison_status = CANNOT_COMPARE` and no overcharge verdict.
+    `allow_api_default` keeps the legacy manual-API contract (an undeclared price whose
+    name states no pack is per unit); document-derived callers pass False.
 
     Resolution order (most to least confident):
       1. Exact reference key, substring, or known alias.
@@ -114,6 +176,16 @@ def benchmark_medicine(
         )
         return None
 
+    billed = resolve_billed_price(
+        mrp,
+        declared_basis=price_basis,
+        units_per_pack=units_per_pack,
+        quantity=quantity,
+        name_text=brand_name if read_name_for_quantity else "",
+        facts=price_facts,
+        allow_api_default=allow_api_default,
+    )
+
     ceiling = matched_data["ceiling_price"]
     reference_dosage_mg = matched_data.get("dosage_mg")
     dosage_normalized = False
@@ -126,16 +198,13 @@ def benchmark_medicine(
         ceiling = round(ceiling * (queried_dosage_mg / reference_dosage_mg), 4)
         dosage_normalized = True
 
-    is_over = mrp > ceiling
-    dev_percentage = ((mrp - ceiling) / ceiling) * 100 if is_over else 0.0
+    comparison = compare_with_ceiling(billed, ceiling, matched_data.get("unit_form"))
 
     benchmark = MedicineBenchmark(
         brand_name=brand_name,
         active_ingredient=matched_data["active_ingredient"],
-        mrp=mrp,
         nppa_ceiling_price=round(ceiling, 2),
-        is_overcharged=is_over,
-        deviation_percentage=round(dev_percentage, 2),
+        **_price_fields(comparison),
         # Derived, not asserted: only true when the reference entry actually records a
         # generic equivalent for this formulation.
         generic_substitute_available=bool(matched_data.get("generic_info")),
@@ -152,9 +221,10 @@ def benchmark_medicine(
     )
 
     logger.info(
-        "[DawaCheck] Benchmarked %s via %s: Overcharged=%s",
+        "[DawaCheck] Benchmarked %s via %s: %s overcharged=%s",
         brand_name,
         match_method,
+        benchmark.comparison_status.value,
         benchmark.is_overcharged,
     )
     return benchmark
@@ -166,6 +236,10 @@ def benchmark_from_known_generic(
     active_ingredient: str,
     ceiling_price: float,
     dosage_hint: Optional[str] = None,
+    *,
+    price_facts: Optional[Mapping[str, Any]] = None,
+    read_name_for_quantity: bool = True,
+    allow_api_default: bool = True,
 ) -> MedicineBenchmark:
     """Builds a benchmark from a mapping already resolved elsewhere (e.g. a DawaCheck
     brand->generic mapping learned from an earlier lookup), instead of re-running the
@@ -179,16 +253,20 @@ def benchmark_from_known_generic(
     if queried_dosage_mg is None and dosage_hint:
         queried_dosage_mg = extract_dosage_mg(str(dosage_hint))
 
-    is_over = mrp > ceiling_price
-    dev_percentage = ((mrp - ceiling_price) / ceiling_price) * 100 if is_over else 0.0
+    billed = resolve_billed_price(
+        mrp,
+        name_text=brand_name if read_name_for_quantity else "",
+        facts=price_facts,
+        allow_api_default=allow_api_default,
+    )
+    # A learned mapping records no dosage form, so none is checked.
+    comparison = compare_with_ceiling(billed, ceiling_price, None)
 
     return MedicineBenchmark(
         brand_name=brand_name,
         active_ingredient=active_ingredient,
-        mrp=mrp,
         nppa_ceiling_price=round(ceiling_price, 2),
-        is_overcharged=is_over,
-        deviation_percentage=round(dev_percentage, 2),
+        **_price_fields(comparison),
         generic_substitute_available=False,
         generic_substitute_store_info=(
             "Resolved from a previously recorded DawaCheck brand mapping; no fresh "

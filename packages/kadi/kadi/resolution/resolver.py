@@ -53,12 +53,15 @@ from kadi.resolution.semantic import (
 from kadi.resolution.similarity import (
     FACILITY_STOPWORDS,
     GENERIC_STOPWORDS,
+    UNIT_TOKENS,
     dosage_form_conflict,
     laterality_conflict,
     numeric_conflict,
     opposing_prefix_conflict,
     string_similarity,
+    tokenize,
     variant_conflict,
+    variant_markers,
 )
 from kadi.resolution.transliteration import detect_script, romanize_devanagari
 from kadi.resolution.types import SignalName, SignalScore
@@ -159,6 +162,17 @@ def _conflicts(a: str, b: str) -> List[str]:
     return found
 
 
+def _medicine_variant_differs(a: str, b: str) -> bool:
+    """For medicines a variant letter on ONE side is a different product, not a missing
+    qualifier: "Pan-D" (pantoprazole + domperidone) is not "Pan 40" (pantoprazole), nor
+    is "Glycomet-GP" "Glycomet". Merging them would silently drop one medicine from the
+    case (and from price checks). Other entity types keep the "missing, not conflicting"
+    rule of `variant_conflict`."""
+    ra, rb = romanize_devanagari(a), romanize_devanagari(b)
+    # A unit letter ("0.5 g") is a quantity, which numeric_conflict already handles.
+    return variant_markers(tokenize(ra)) - UNIT_TOKENS != variant_markers(tokenize(rb)) - UNIT_TOKENS
+
+
 def score_pair(
     a: str,
     b: str,
@@ -202,10 +216,14 @@ def score_pair(
                 SignalScore(signal="semantic", status=semantic.status, score=semantic.score, detail=semantic.reason)
             )
 
+    conflicts = _conflicts(a, b)
+    if entity_type == "medicine" and "variant_conflict" not in conflicts and _medicine_variant_differs(a, b):
+        conflicts.append("variant_conflict")
+
     return PairScore(
         confidence=combine_signals(signals),
         signals=signals,
-        conflicts=_conflicts(a, b),
+        conflicts=conflicts,
         compared_text=b,
         cross_script=cross_script,
     )

@@ -4,6 +4,7 @@ import { useTheme } from '../theme';
 import { Card } from './Card';
 import { Button } from './Button';
 import { Badge } from './Badge';
+import { humanizeEnum } from '../services/labels';
 import { api } from '../api/endpoints';
 import { ApiError, CaseClinicalReview, ClinicalStatement, ReviewerProfile } from '../api/types';
 
@@ -32,7 +33,7 @@ export const StatementView: React.FC<{ statement: ClinicalStatement }> = ({ stat
     <View style={[styles.statement, { borderColor: colors.statusSuccess, padding: spacing.sm, marginTop: spacing.sm }]}>
       <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
         <Badge label="Human-authored" variant="success" />
-        <Badge label={`v${statement.statement_version} · ${statement.status}`} variant="info" />
+        <Badge label={`Version ${statement.statement_version} · ${humanizeEnum(statement.status)}`} variant="info" />
       </View>
       {rv && (
         <View style={{ marginTop: spacing.xs }}>

@@ -114,7 +114,9 @@ describe('Universal case deletion parity: DaaviSetu gets the same control BillNy
     const fnMatch = daaviSetuScreenSrc.match(/const handleDeleteCase[\s\S]*?\n  };/);
     assert.ok(fnMatch, 'handleDeleteCase not found on DaaviSetuScreen');
     assert.ok(/api\.kadi\.deleteCase\(caseId\)/.test(fnMatch![0]));
-    assert.ok(/setCaseId\(null\)/.test(fnMatch![0]), 'must clear local case state after real deletion');
+    // Local state is cleared by dropping the deleted case and the shared active case.
+    assert.ok(/setDeletedCaseId\(caseId\)/.test(fnMatch![0]), 'must clear local case state after real deletion');
+    assert.ok(/clearActiveCase\(caseId\)/.test(fnMatch![0]), 'must clear the shared active case too');
   });
 
   it('confirms before deleting, same UX contract as BillNyayScreen', () => {

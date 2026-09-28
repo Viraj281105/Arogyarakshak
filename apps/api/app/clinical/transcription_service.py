@@ -20,14 +20,18 @@ from kadi.clinical_review import ActorType, AuditEventType, ProvenanceClass
 from kadi.clinical_review.transcription import (
     MASK,
     OPEN_TASK_STATES,
+    MAX_TASKS_PER_DOCUMENT,
     FieldType,
+    MedicineRef,
     ReaderConfidence,
     Reading,
     RiskLevel,
     TaskStatus,
     clean_reading,
     evaluate_consensus,
-    link_candidate_to_entity,
+    merge_ocr_uncertainty,
+    normalize_reading,
+    plan_ocr_uncertainty,
     required_reviews_for,
     risk_for_field,
     substitute_reading,
@@ -48,6 +52,11 @@ from app.models import (
 )
 
 NOT_FOUND = "Transcription task not found."
+NOT_APPLIED_REASON = (
+    "The reading was not applied: it could not be matched to the extracted entry, it named no "
+    "drug, or another agreed reading of this entry is still unplaced. The entry is NOT treated as "
+    "settled (it will not be price-benchmarked) — confirm it with the dispensing pharmacist."
+)
 REVIEWER_INSTRUCTIONS = (
     "Read the original document held by the patient (ArogyaRakshak does not store document "
     "images). Type exactly what is written in the masked position. If you cannot read it "
@@ -72,26 +81,65 @@ def _audit(db, task: KadiTranscriptionTask, event: AuditEventType, actor_type: s
     )
 
 
+def _medicine_ref(m: KadiEntity) -> MedicineRef:
+    meta = m.meta if isinstance(m.meta, dict) else {}
+    dosage = meta.get("dosage")
+    return MedicineRef(m.id, m.name or "", str(dosage) if dosage else None)
+
+
 async def create_tasks_from_ocr(
     db: AsyncSession,
     case_id: str,
     payloads: Sequence[Dict[str, Any]],
     medicines: Sequence[KadiEntity],
+    *,
+    document_medicine_ids: Optional[Sequence[str]] = None,
+    confident_texts: Sequence[str] = (),
 ) -> List[KadiTranscriptionTask]:
-    """Creates a task only for an uncertain reading that links, token for token, to one
-    extracted medicine — the only readings anything downstream (DawaCheck) consumes.
-    Everything else is dropped rather than turned into human work that goes nowhere.
+    """Carries every uncertain OCR reading forward (kadi `plan_ocr_uncertainty`):
+
+    - a reading that names exactly one medicine becomes a human-reading task (at most
+      MAX_TASKS_PER_DOCUMENT per document, counted after linking);
+    - a reading that names several medicines, only resembles one, lies beyond the cap,
+      or names none at all holds the medicine(s) it may concern back as
+      `meta.ocr_uncertainty` — so DawaCheck does not benchmark them — until a human
+      reads the whole entry. Nothing uncertain silently becomes a trusted fact.
 
     `medicines` is passed in (the case's in-session entities) because newly resolved
     entities are not flushed yet when this runs inside the upload pipeline."""
     if not payloads:
         return []
-    named = [(m.id, m.name or "") for m in medicines]
-    tasks = []
-    for p in payloads:
-        entity_id = link_candidate_to_entity(p.get("ocr_candidate") or "", named)
-        if entity_id is None:
+    plan = plan_ocr_uncertainty(
+        payloads,
+        [_medicine_ref(m) for m in medicines],
+        document_medicine_ids=document_medicine_ids,
+        confident_texts=confident_texts,
+        cap=MAX_TASKS_PER_DOCUMENT,
+    )
+    by_id = {m.id: m for m in medicines}
+    for entity_id, held in plan.held_back.items():
+        entity = by_id.get(entity_id)
+        if entity is None:
             continue
+        meta = dict(entity.meta) if isinstance(entity.meta, dict) else {}
+        meta["ocr_uncertainty"] = merge_ocr_uncertainty(meta.get("ocr_uncertainty"), held)
+        entity.meta = meta
+    if plan.held_back or plan.unplaced:
+        record_event(
+            db,
+            event_type=AuditEventType.TRANSCRIPTION_REQUESTED.value,
+            subject_type="TRANSCRIPTION",
+            subject_id=case_id,
+            actor_type=ActorType.SYSTEM.value,
+            case_id=case_id,
+            details={
+                "source": "OCR_LOW_CONFIDENCE",
+                "held_back_entities": len(plan.held_back),
+                "unplaced_readings": len(plan.unplaced),
+            },
+        )
+    tasks = []
+    for p, entity_id in plan.linked:
         task = KadiTranscriptionTask(
             id=_new_id("TR"),
             case_id=case_id,
@@ -272,17 +320,29 @@ async def reviewer_task_view(db: AsyncSession, reviewer: KadiClinicalReviewer, t
 
 def _entity_meta_update(entity: KadiEntity, task: KadiTranscriptionTask, reader_roles: List[str]) -> bool:
     """Records the human reading on the entity by substituting only the uncertain part of
-    its name. Returns False (entity untouched) when that cannot be done safely."""
+    its name. Returns False when that cannot be done safely: the entity name is left as
+    extracted, but the agreed reading is recorded as NOT_APPLIED so consumers keep
+    treating the entry as unsettled rather than falling back to the uncertain OCR text."""
     meta = dict(entity.meta) if isinstance(entity.meta, dict) else {}
-    base_name = (meta.get("human_transcription") or {}).get("value") or entity.name
-    resolved_name = substitute_reading(base_name or "", task.ocr_candidate or "", task.final_value or "")
-    if resolved_name is None:
+    previous = meta.get("human_transcription") or {}
+    # A whole-entry reading (a case-holder flag of the entry, or an OCR reading that was
+    # the entire entry) is the only thing that can settle an entry held back as
+    # NOT_APPLIED or `ocr_uncertainty`; a later partial reading must not erase either and
+    # mark the entry settled while the unplaced part may still contradict it.
+    whole_entry = task.source == "CASE_HOLDER_FLAGGED" or (
+        normalize_reading(task.ocr_candidate or "") == normalize_reading(entity.name or "")
+    )
+    if previous.get("status") == "NOT_APPLIED" and not whole_entry:
         return False
-    meta["human_transcription"] = {
+    if whole_entry:
+        resolved_name = substitute_reading(entity.name or "", entity.name or "", task.final_value or "")
+    else:
+        base_name = (previous.get("value") if previous.get("status") == "RESOLVED" else None) or entity.name
+        resolved_name = substitute_reading(base_name or "", task.ocr_candidate or "", task.final_value or "")
+    record = {
         "task_id": task.id,
         "field_type": task.field_type,
-        "status": "RESOLVED",
-        "value": resolved_name,
+        "whole_entry": whole_entry,
         "replaced_reading": task.ocr_candidate,
         "human_reading": task.final_value,
         "provenance": ProvenanceClass.HUMAN_REVIEWED.value,
@@ -291,6 +351,14 @@ def _entity_meta_update(entity: KadiEntity, task: KadiTranscriptionTask, reader_
         "reader_roles": reader_roles,
         "resolved_at": task.resolved_at.isoformat() if task.resolved_at else None,
     }
+    if resolved_name is None:
+        meta["human_transcription"] = {**record, "status": "NOT_APPLIED"}
+        entity.meta = meta
+        return False
+    meta["human_transcription"] = {**record, "status": "RESOLVED", "value": resolved_name}
+    uncertainty = meta.get("ocr_uncertainty")
+    if whole_entry and isinstance(uncertainty, dict) and uncertainty.get("status") == "UNRESOLVED":
+        meta["ocr_uncertainty"] = {**uncertainty, "status": "SETTLED_BY_HUMAN_READING", "settled_by_task_id": task.id}
     entity.meta = meta
     return True
 
@@ -350,10 +418,7 @@ async def submit_reading(
                     roles.append(category_label(r.category) if r else "Reader")
                 applied = _entity_meta_update(entity, task, roles)
         if task.entity_id and not applied:
-            task.resolution_reason = (
-                f"{result.reason} The reading could not be matched to the extracted entry, so the "
-                "entry was left unchanged — confirm it with the dispensing pharmacist."
-            )
+            task.resolution_reason = f"{result.reason} {NOT_APPLIED_REASON}"
         _audit(db, task, AuditEventType.TRANSCRIPTION_CONFIRMED, ActorType.SYSTEM.value,
                details={"independent_readings": len({r.reviewer_id for r in readings}), "applied_to_entity": applied})
     elif result.status == TaskStatus.HUMAN_ESCALATION_REQUIRED:
@@ -393,6 +458,13 @@ async def case_task_view(db: AsyncSession, task: KadiTranscriptionTask) -> Dict[
         "masked_context": task.masked_context,
         "status": task.status,
         "resolution_reason": task.resolution_reason,
+        # RESOLVED only says the readers agreed; whether the agreed reading was placed
+        # into the entry (APPLIED) or held back as unsettled (NOT_APPLIED) is separate.
+        "outcome": (
+            None
+            if task.status != TaskStatus.RESOLVED.value
+            else ("NOT_APPLIED" if NOT_APPLIED_REASON in (task.resolution_reason or "") else "APPLIED")
+        ),
         "final_value": task.final_value,
         "final_value_provenance": ProvenanceClass.HUMAN_REVIEWED.value if task.final_value else None,
         "readings_received": len(submissions),
@@ -414,4 +486,17 @@ async def open_tasks_by_entity(db: AsyncSession, case_id: str) -> Dict[str, Kadi
             KadiTranscriptionTask.status.in_(list(OPEN_TASK_STATES) + [TaskStatus.HUMAN_ESCALATION_REQUIRED.value]),
         )
     )
-    return {t.entity_id: t for t in rows.scalars().all()}
+    # Deterministic when an entry has several unresolved tasks: an OPEN one (still
+    # awaiting readers) is reported first; otherwise the MOST RECENT escalation, so only
+    # a whole-entry reading settled after every escalation can clear the entry.
+    def rank(t: KadiTranscriptionTask):
+        if t.status in OPEN_TASK_STATES:
+            return (1, t.created_at or datetime.min, t.id)
+        return (0, t.resolved_at or t.created_at or datetime.min, t.id)
+
+    out: Dict[str, KadiTranscriptionTask] = {}
+    for t in rows.scalars().all():
+        current = out.get(t.entity_id)
+        if current is None or rank(t) > rank(current):
+            out[t.entity_id] = t
+    return out

@@ -332,6 +332,43 @@ def parse_line_items(text: str, max_items: int = MAX_LINE_ITEMS) -> List[Dict[st
     return items
 
 
+_NAME_TOKEN_RE = re.compile(r"[a-z][a-z\-]{2,}")
+
+
+def ground_medicine_source_lines(text: str, medicines: List[Dict[str, Any]]) -> None:
+    """Sets ``source_line`` on each medicine dict to the description of the one document
+    line it was read from, when that line can be identified with certainty.
+
+    An extractor (the LLM especially) may normalise "Pan 40 (Strip of 15)" to "Pan 40",
+    dropping what the document says about quantity or pack size — the facts needed to
+    know whether a price is per tablet or per strip. A line is accepted only when it is
+    the single line whose amount equals the medicine's cost and which contains a word of
+    the medicine's name; otherwise ``source_line`` is left unset (never guessed).
+    Mutates the dicts in place; the line text is used transiently and is not a stored field.
+    """
+    lines = [(parse_line_item(raw), raw) for raw in (text or "").splitlines()]
+    for med in medicines:
+        if med.get("source_line"):
+            continue
+        name = str(med.get("name") or "").lower()
+        tokens = set(_NAME_TOKEN_RE.findall(name)) - {"tab", "tablet", "cap", "capsule", "inj", "syr"}
+        try:
+            cost = float(med.get("cost")) if med.get("cost") is not None else None
+        except (TypeError, ValueError):
+            cost = None
+        if cost is None or not tokens:
+            continue
+        hits = [
+            item["item"]
+            for item, raw in lines
+            if item is not None
+            and abs(item["charged"] - cost) < 0.005
+            and tokens & set(_NAME_TOKEN_RE.findall(raw.lower()))
+        ]
+        if len(hits) == 1:
+            med["source_line"] = hits[0]
+
+
 def extract_total_amount(text: str) -> float:
     """Returns the document's stated grand total, or 0.0 when none is present.
 
