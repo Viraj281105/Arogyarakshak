@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { DocumentScanType, scannerService, ScannedDocument } from '../services/scanner';
+import { setActiveCaseId } from '../services/activeCase';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Badge, Button } from '../components';
@@ -59,6 +60,9 @@ export const CameraScanScreen: React.FC = () => {
       });
 
       setUploadStatus('Document uploaded. Expunging transient memory...');
+      // Every module tab now works on this case (DaaviSetu/DawaCheck/BimaNyay no longer
+      // need their own scan to receive it).
+      setActiveCaseId(result.caseId);
 
       if (route.params?.onScanComplete) {
         route.params.onScanComplete({
@@ -69,7 +73,14 @@ export const CameraScanScreen: React.FC = () => {
         });
       }
 
-      if (documentType === 'bill' || documentType === 'general') {
+      if (route.params?.returnTo) {
+        // The screen that opened the scanner gets the case back (e.g. DaaviSetu, which
+        // used to be sent to BillNyay and so never received a case at all).
+        (navigation as any).navigate('MainTabs', {
+          screen: route.params.returnTo,
+          params: { caseId: result.caseId, scanCompleted: true },
+        });
+      } else if (documentType === 'bill' || documentType === 'general') {
         (navigation as any).navigate('MainTabs', {
           screen: 'BillNyay',
           params: { caseId: result.caseId, scanCompleted: true },

@@ -401,7 +401,14 @@ def test_auto_triggered_insights_match_the_module_routes():
     benchmarks = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark").json()
     dawa = insights["dawacheck_benchmark"]["summary"]
     assert dawa["medicines"] == len(benchmarks) >= 1
-    assert dawa["benchmarked"] == sum(1 for r in benchmarks if r["benchmark"])
+    # "benchmarked" counts medicines that reached a price verdict; a medicine matched to a
+    # reference whose billed amount has no comparable per-unit basis is counted separately.
+    assert dawa["benchmarked"] == sum(
+        1 for r in benchmarks if r["benchmark"] and r["benchmark"]["comparison_status"] == "COMPARED"
+    )
+    assert dawa["price_basis_unclear"] == sum(
+        1 for r in benchmarks if r["benchmark"] and r["benchmark"]["comparison_status"] == "CANNOT_COMPARE"
+    )
 
     icd = client.get(f"/api/v1/billnyay/cases/{case_id}/icd-audit").json()
     assert insights["billnyay_icd_audit"]["summary"]["status"] == icd["status"]

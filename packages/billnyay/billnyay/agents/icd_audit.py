@@ -49,6 +49,28 @@ _ICD10_PROCEDURE_INDEX = {
 
 _ICD10_CODE_RE = re.compile(r"\b([A-TV-Z][0-9]{2})(?:\.[0-9A-Z]{1,4})?\b")
 
+# Identity of the table above, cited by anything that relies on it (e.g. the clinical
+# plausibility assessment). It is a project-curated subset, and says so.
+ICD_REFERENCE_SOURCE = {
+    "name": "ArogyaRakshak curated ICD-10 to expected-procedure keyword subset",
+    "type": "PROJECT_CURATED_REFERENCE",
+    "version": f"billnyay icd_audit ({len(_ICD10_PROCEDURE_INDEX)} codes)",
+    "note": (
+        "A small table maintained by this project, not a published clinical guideline and "
+        "not the full ICD-10-CM code set. A code missing from it is 'not checked', never 'fine'."
+    ),
+}
+
+
+def get_reference_entry(code: str) -> Optional[dict]:
+    """The curated entry for an ICD-10 3-character code, or None if not covered."""
+    entry = _ICD10_PROCEDURE_INDEX.get((code or "").upper())
+    return dict(entry) if entry else None
+
+
+def extract_icd10_code(diagnosis_text: str) -> Optional[str]:
+    return _extract_icd10_code(diagnosis_text)
+
 
 class ICDProcedureAuditItem(BaseModel):
     icd10_code: Optional[str] = None
@@ -73,6 +95,11 @@ class ICDProcedureAuditItem(BaseModel):
 def _extract_icd10_code(diagnosis_text: str) -> Optional[str]:
     match = _ICD10_CODE_RE.search(diagnosis_text or "")
     return match.group(1).upper() if match else None
+
+
+def reference_codes() -> List[str]:
+    """Every ICD-10 code prefix the curated table covers."""
+    return list(_ICD10_PROCEDURE_INDEX)
 
 
 def audit_icd_procedure_consistency(

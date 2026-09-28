@@ -60,6 +60,13 @@ services:
       # Optional IndicSBERT cross-lingual signal for Kadi entity resolution (#30). Off by
       # default; when true, the ~950 MB model downloads from the Hugging Face Hub on first use.
       KADI_SEMANTIC_MATCHING: ${KADI_SEMANTIC_MATCHING:-false}
+      # ADR-011 clinical review. Empty governance key = governance actions disabled.
+      CLINICAL_GOVERNANCE_ADMIN_KEY: ${CLINICAL_GOVERNANCE_ADMIN_KEY:-}
+      CLINICAL_DEMO_MODE: ${CLINICAL_DEMO_MODE:-false}
+      # production refuses to start together with demo mode (app.config).
+      APP_ENV: ${APP_ENV:-development}
+      OCR_LOW_CONFIDENCE_THRESHOLD: ${OCR_LOW_CONFIDENCE_THRESHOLD:-0.5}
+      SAFETY_RULE_REQUIRED_APPROVALS: ${SAFETY_RULE_REQUIRED_APPROVALS:-1}
     volumes:
       # Model weights only (never documents), so the download survives container rebuilds.
       # Must match HF_HOME in apps/api/Dockerfile, which the non-root app user owns.

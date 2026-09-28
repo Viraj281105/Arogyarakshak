@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 
 from app.main import app as fastapi_app
@@ -16,6 +17,16 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
+
+
+# SQLite ignores foreign keys unless asked; Postgres (the real database) enforces them.
+# Without this, an insert-ordering bug that Postgres rejects passes every test — which is
+# exactly how DaaviSetu's doctor-confirmation request shipped broken on Postgres.
+@event.listens_for(engine.sync_engine, "connect")
+def _enforce_foreign_keys(dbapi_connection, _record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 TestingSessionLocal = async_sessionmaker(
     bind=engine,

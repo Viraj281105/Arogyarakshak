@@ -6,189 +6,217 @@
       "benchmark_rate": 350.0,
       "category": "Consultation",
       "bundled": false,
-      "notes": "Revised CGHS 2024 consultation ceiling."
+      "notes": "Revised CGHS 2024 consultation ceiling.",
+      "billing_unit": "per_visit"
     },
     "specialist consultation": {
       "name": "Specialist / Super-Specialist Consultation",
       "benchmark_rate": 500.0,
       "category": "Consultation",
       "bundled": false,
-      "notes": "Super-specialist consultation ceiling."
+      "notes": "Super-specialist consultation ceiling.",
+      "billing_unit": "per_visit"
     },
     "icu": {
       "name": "ICU Charges (including nursing, monitoring, resident doctor)",
       "benchmark_rate": 5400.0,
       "category": "Room & Critical Care",
       "bundled": false,
-      "notes": "CGHS NABH accredited ICU ceiling cap per 24 hours."
+      "notes": "CGHS NABH accredited ICU ceiling cap per 24 hours.",
+      "billing_unit": "per_day"
     },
     "icu day charges": {
       "name": "ICU Day Charges (NABH)",
       "benchmark_rate": 5400.0,
       "category": "Room & Critical Care",
       "bundled": false,
-      "notes": "Includes resident doctor and patient monitoring."
+      "notes": "Includes resident doctor and patient monitoring.",
+      "billing_unit": "per_day"
     },
     "ward stay": {
       "name": "General Ward Bed Charges",
       "benchmark_rate": 1500.0,
       "category": "Room Tariff",
       "bundled": false,
-      "notes": "General ward daily tariff cap."
+      "notes": "General ward daily tariff cap.",
+      "billing_unit": "per_day"
     },
     "semi private ward": {
       "name": "Semi-Private Ward Charges",
       "benchmark_rate": 3000.0,
       "category": "Room Tariff",
       "bundled": false,
-      "notes": "Semi-private room ceiling cap."
+      "notes": "Semi-private room ceiling cap.",
+      "billing_unit": "per_day"
     },
     "private ward": {
       "name": "Single Private Room Charges",
       "benchmark_rate": 4500.0,
       "category": "Room Tariff",
       "bundled": false,
-      "notes": "Single room ceiling cap."
+      "notes": "Single room ceiling cap.",
+      "billing_unit": "per_day"
     },
     "deluxe ward": {
       "name": "Deluxe Room Charges",
       "benchmark_rate": 4500.0,
       "category": "Room Tariff",
       "bundled": false,
-      "notes": "Room rent capping benchmark under IRDAI guidelines."
+      "notes": "Room rent capping benchmark under IRDAI guidelines.",
+      "billing_unit": "per_day"
     },
     "nursing charges": {
       "name": "Routine Nursing Charges",
       "benchmark_rate": 0.0,
       "category": "Nursing",
       "bundled": true,
-      "notes": "Mandatorily bundled into room tariff under CGHS and IRDAI rules."
+      "notes": "Mandatorily bundled into room tariff under CGHS and IRDAI rules.",
+      "billing_unit": "per_day"
     },
     "syringe infusion pump": {
       "name": "Syringe Infusion Pump Hire",
       "benchmark_rate": 0.0,
       "category": "Equipment",
       "bundled": true,
-      "notes": "Infusion equipment is bundled into ICU day tariffs; unbundling is an irregularity."
+      "notes": "Infusion equipment is bundled into ICU day tariffs; unbundling is an irregularity.",
+      "billing_unit": "per_day"
     },
     "infusion pump": {
       "name": "Infusion Pump Charges",
       "benchmark_rate": 0.0,
       "category": "Equipment",
       "bundled": true,
-      "notes": "Bundled into critical care tariff."
+      "notes": "Bundled into critical care tariff.",
+      "billing_unit": "per_day"
     },
     "ppe": {
       "name": "Disposable PPE Kit (per shift)",
       "benchmark_rate": 650.0,
       "category": "Consumables",
       "bundled": false,
-      "notes": "CGHS / NPPA capped rate per standard shift kit."
+      "notes": "CGHS / NPPA capped rate per standard shift kit.",
+      "billing_unit": "per_shift"
     },
     "ppe kit": {
       "name": "Disposable PPE Kit (per shift)",
       "benchmark_rate": 650.0,
       "category": "Consumables",
       "bundled": false,
-      "notes": "CGHS / NPPA capped rate per standard shift kit."
+      "notes": "CGHS / NPPA capped rate per standard shift kit.",
+      "billing_unit": "per_shift"
     },
     "paracetamol iv": {
       "name": "Paracetamol IV Infusion 100ml",
       "benchmark_rate": 42.0,
       "category": "Pharmacy",
       "bundled": false,
-      "notes": "NPPA DPCO Schedule-I price ceiling."
+      "notes": "NPPA DPCO Schedule-I price ceiling.",
+      "billing_unit": "per_bottle"
     },
     "x-ray": {
       "name": "Chest / General Digital X-Ray",
       "benchmark_rate": 350.0,
       "category": "Diagnostics",
       "bundled": false,
-      "notes": "Standard 2-view digital radiography."
+      "notes": "Standard 2-view digital radiography.",
+      "billing_unit": "per_service"
     },
     "blood test": {
       "name": "Complete Blood Count (CBC) / Routine Panel",
       "benchmark_rate": 250.0,
       "category": "Pathology",
       "bundled": false,
-      "notes": "Routine hematology automated panel."
+      "notes": "Routine hematology automated panel.",
+      "billing_unit": "per_service"
     },
     "mri": {
       "name": "MRI Scan (Brain / Spine without contrast)",
       "benchmark_rate": 3500.0,
       "category": "Radiology",
       "bundled": false,
-      "notes": "Standard 1.5T/3T MRI study."
+      "notes": "Standard 1.5T/3T MRI study.",
+      "billing_unit": "per_service"
     },
     "ct scan": {
       "name": "CT Scan (Brain / Abdomen without contrast)",
       "benchmark_rate": 2000.0,
       "category": "Radiology",
       "bundled": false,
-      "notes": "Multi-slice helical CT."
+      "notes": "Multi-slice helical CT.",
+      "billing_unit": "per_service"
     },
     "ultrasound": {
       "name": "USG Whole Abdomen & Pelvis",
       "benchmark_rate": 700.0,
       "category": "Diagnostics",
       "bundled": false,
-      "notes": "Diagnostic abdominal sonography."
+      "notes": "Diagnostic abdominal sonography.",
+      "billing_unit": "per_service"
     },
     "laparoscopic surgery": {
       "name": "Laparoscopic Surgery (Appendectomy / Cholecystectomy)",
       "benchmark_rate": 28000.0,
       "category": "Surgical",
       "bundled": false,
-      "notes": "Comprehensive procedure package including OT charges."
+      "notes": "Comprehensive procedure package including OT charges.",
+      "billing_unit": "per_service"
     },
     "laparoscopic appendectomy": {
       "name": "Laparoscopic Appendectomy Package",
       "benchmark_rate": 28000.0,
       "category": "Surgical",
       "bundled": false,
-      "notes": "NABH package rate."
+      "notes": "NABH package rate.",
+      "billing_unit": "per_service"
     },
     "coronary angioplasty": {
       "name": "PTCA Coronary Angioplasty (Single Stent)",
       "benchmark_rate": 65000.0,
       "category": "Cardiology",
       "bundled": false,
-      "notes": "Procedure package excluding DES stent cost."
+      "notes": "Procedure package excluding DES stent cost.",
+      "billing_unit": "per_service"
     },
     "coronary artery bypass": {
       "name": "CABG (Heart Bypass Surgery)",
       "benchmark_rate": 125000.0,
       "category": "Cardiology",
       "bundled": false,
-      "notes": "NABH elective bypass surgery package."
+      "notes": "NABH elective bypass surgery package.",
+      "billing_unit": "per_service"
     },
     "cabg": {
       "name": "CABG (Heart Bypass Surgery)",
       "benchmark_rate": 125000.0,
       "category": "Cardiology",
       "bundled": false,
-      "notes": "NABH elective bypass surgery package."
+      "notes": "NABH elective bypass surgery package.",
+      "billing_unit": "per_service"
     },
     "total knee replacement": {
       "name": "Total Knee Replacement (Unilateral)",
       "benchmark_rate": 95000.0,
       "category": "Orthopedics",
       "bundled": false,
-      "notes": "Package excluding NPPA-capped knee implant."
+      "notes": "Package excluding NPPA-capped knee implant.",
+      "billing_unit": "per_service"
     },
     "cataract surgery": {
       "name": "Cataract Surgery with Foldable IOL",
       "benchmark_rate": 12000.0,
       "category": "Ophthalmology",
       "bundled": false,
-      "notes": "Phacoemulsification package."
+      "notes": "Phacoemulsification package.",
+      "billing_unit": "per_service"
     },
     "dialysis": {
       "name": "Hemodialysis (single session)",
       "benchmark_rate": 1800.0,
       "category": "Nephrology",
       "bundled": false,
-      "notes": "Per-session dialysis inclusive of consumables."
+      "notes": "Per-session dialysis inclusive of consumables.",
+      "billing_unit": "per_session"
     }
-  }
+  },
+  "billing_unit_note": "billing_unit says what one benchmark_rate covers: per_day, per_visit, per_session, per_shift, per_bottle or per_service. Recurring units need the bill line to state a count (billnyay.rate_basis); otherwise the line is not benchmarked."
 }

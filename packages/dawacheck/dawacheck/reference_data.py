@@ -16,12 +16,16 @@ from dawacheck.metaphone import phonetic_codes_match
 
 REFERENCE_SOURCE = "NPPA Schedule-I (curated subset)"
 
+# Ceiling prices are PER DOSAGE UNIT of `unit_form` (one tablet, one capsule, one vial) —
+# DawaCheck.price_basis converts a billed strip/pack/line total to that unit or refuses
+# to compare.
 # Each entry is one reference formulation. `ingredient_base` is the bare active
 # ingredient with no dosage/strength token, used for dosage normalization (#73) and as
 # the phonetic-matching target (#72) so "Paracetamol 500mg" can be recognized as a
 # dosage variant of the "paracetamol 650mg" reference entry rather than an unknown drug.
 NPPA_REFERENCE_DATA: Dict[str, dict] = {
     "paracetamol 650mg": {
+        "unit_form": "tablet",
         "ingredient_base": "paracetamol",
         "dosage_mg": 650.0,
         "active_ingredient": "Paracetamol 650mg",
@@ -30,6 +34,7 @@ NPPA_REFERENCE_DATA: Dict[str, dict] = {
         "aliases": ["dolo 650", "dolo 650mg", "crocin 650", "crocin 650mg", "calpol 650", "pacimol 650"],
     },
     "amoxicillin 500mg": {
+        "unit_form": "capsule",
         "ingredient_base": "amoxicillin",
         "dosage_mg": 500.0,
         "active_ingredient": "Amoxicillin 500mg",
@@ -38,6 +43,7 @@ NPPA_REFERENCE_DATA: Dict[str, dict] = {
         "aliases": ["mox 500", "novamox 500", "amoxil 500"],
     },
     "augmentin 625": {
+        "unit_form": "tablet",
         "ingredient_base": "amoxicillin clavulanate",
         "dosage_mg": 625.0,
         "active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)",
@@ -46,6 +52,7 @@ NPPA_REFERENCE_DATA: Dict[str, dict] = {
         "aliases": ["augmentin 625 duo", "augmentin 625 duo tablet", "moxikind cv 625", "clavum 625"],
     },
     "metformin 500mg": {
+        "unit_form": "tablet",
         "ingredient_base": "metformin",
         "dosage_mg": 500.0,
         "active_ingredient": "Metformin Hydrochloride 500mg SR",
@@ -54,6 +61,7 @@ NPPA_REFERENCE_DATA: Dict[str, dict] = {
         "aliases": ["metformin 500mg sr", "glycomet 500", "glyciphage 500", "metformin sr"],
     },
     "meropenem 1g": {
+        "unit_form": "injection",
         "ingredient_base": "meropenem",
         "dosage_mg": 1000.0,
         "active_ingredient": "Meropenem 1000mg Powder for Injection",
@@ -62,6 +70,7 @@ NPPA_REFERENCE_DATA: Dict[str, dict] = {
         "aliases": ["meropenem 1g injection", "meronem 1g", "meromac 1g"],
     },
     "pantoprazole 40mg": {
+        "unit_form": "tablet",
         "ingredient_base": "pantoprazole",
         "dosage_mg": 40.0,
         "active_ingredient": "Pantoprazole 40mg",
@@ -70,6 +79,7 @@ NPPA_REFERENCE_DATA: Dict[str, dict] = {
         "aliases": ["pan 40", "pantocid 40", "pantodac 40"],
     },
     "azithromycin 500mg": {
+        "unit_form": "tablet",
         "ingredient_base": "azithromycin",
         "dosage_mg": 500.0,
         "active_ingredient": "Azithromycin 500mg",

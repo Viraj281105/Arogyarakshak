@@ -28,6 +28,11 @@ from sqlalchemy.orm import selectinload
 
 from app.auto_triggers import readiness_for_case, run_auto_triggers
 from app.background import get_background_session
+from app.clinical.context import scan_document_for_safety
+from app.clinical.demo_ocr import REPLAY_LOG as DEMO_REPLAY_LOG, demo_ocr_replay
+from app.clinical.purge import purge_clinical_records_for_case
+from app.clinical.transcription_service import create_tasks_from_ocr
+from kadi.clinical_review.transcription import OcrSegment, select_uncertain_segments
 from app.config import settings
 from app.case_auth import generate_case_access_token, require_case_access
 from app.consent import require_case_consent
@@ -61,6 +66,8 @@ from app.models import (
 # OCR parser and extraction agent from kadi shared layer
 from kadi.ocr.ocr_parser import parse_document
 from kadi.extraction import extract_entities_from_text
+from kadi.line_items import ground_medicine_source_lines
+from dawacheck.price_basis import annotate_medicine_price_facts
 from kadi.fhir_import import FhirBundleError, parse_fhir_bundle
 from kadi.graph import CaseGraph, EntityRecord, PendingLink, StayInfo, build_case_graph
 from kadi.redaction import redact_pii
@@ -304,7 +311,15 @@ async def process_document_background(
         # /health and every other case's SSE stream) for as long as this document takes
         # to read. run_in_threadpool runs it on FastAPI's worker thread pool instead.
         processing_status[case_id].append({"status": "ocr_start", "progress": 30, "log": "Running document OCR parser..."})
-        parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
+        # Demo mode only: the committed synthetic Scenario C document replays a recorded
+        # OCR + extraction result (app.clinical.demo_ocr) so the demo is reproducible.
+        replay = demo_ocr_replay(digest, settings.clinical_demo_mode)
+        if replay is not None:
+            parsed, replayed_extraction = replay
+            processing_status[case_id].append({"status": "demo_fixture", "progress": 35, "log": DEMO_REPLAY_LOG})
+        else:
+            replayed_extraction = None
+            parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
 
         # A parse failure must stop the pipeline. Previously the parser substituted a
         # placeholder sentence, so the stream reported "processed successfully" and the
@@ -329,9 +344,12 @@ async def process_document_background(
         # configured — a blocking network call directly on the event loop, same
         # starvation risk as the OCR step above.
         processing_status[case_id].append({"status": "extraction_start", "progress": 60, "log": "Extracting clinical & billing entities with Kadi agent..."})
-        extracted = await run_in_threadpool(
-            extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
-        )
+        if replayed_extraction is not None:
+            extracted = replayed_extraction
+        else:
+            extracted = await run_in_threadpool(
+                extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
+            )
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
@@ -403,6 +421,12 @@ async def process_document_background(
                         MentionInput("procedure", proc_name, str(proc.get("amount", 0.0)), {**proc, **extraction_meta})
                     )
 
+            # What the document says about each medicine's quantity or pack ("strip of 15",
+            # "Qty 10", a "Rate per tablet" column) is read now, while the text is still in
+            # memory, so DawaCheck can later compare like with like — or refuse to. Only the
+            # derived facts and a short matched snippet are stored, never the line itself.
+            ground_medicine_source_lines(text, extracted.medicines)
+            annotate_medicine_price_facts(extracted.medicines, text)
             for med in extracted.medicines:
                 med_name = med.get("name")
                 if med_name:
@@ -439,6 +463,50 @@ async def process_document_background(
                     f"entities, {summary.pending_review} awaiting your review."
                 ),
             })
+
+            # ADR-011: OCR readings the engine itself was unsure of become human
+            # transcription tasks rather than silently trusted facts. Only redacted text
+            # and a location hint are kept — never the image.
+            segments = [
+                OcrSegment(s.get("text", ""), float(s.get("confidence", 1.0)), s.get("bbox"))
+                for s in parsed.get("ocr_segments", [])
+            ]
+            uncertain = select_uncertain_segments(segments, threshold=settings.ocr_low_confidence_threshold)
+            # Readings that cannot be linked to exactly one medicine are not dropped: the
+            # medicines they may concern are held back from benchmarking (ocr_uncertainty).
+            transcription_tasks = await create_tasks_from_ocr(
+                session,
+                case_id,
+                uncertain,
+                [e for e in case.entities if e.type == "medicine"],
+                document_medicine_ids=[e.id for e in summary.touched() if e.type == "medicine"],
+                confident_texts=[s.text for s in segments if s.confidence >= settings.ocr_low_confidence_threshold],
+            )
+            # ADR-011: check the WHOLE document against active safety rules while it is
+            # still in memory; only rule ids and matched terms are persisted.
+            await scan_document_for_safety(session, case_id, text)
+            held_back = sum(
+                1 for e in case.entities
+                if e.type == "medicine" and isinstance(e.meta, dict)
+                and (e.meta.get("ocr_uncertainty") or {}).get("status") == "UNRESOLVED"
+            )
+            if transcription_tasks or held_back:
+                parts = []
+                if transcription_tasks:
+                    parts.append(
+                        f"{len(transcription_tasks)} unclear handwriting/print reading(s) need a human reader "
+                        "before they are trusted."
+                    )
+                if held_back:
+                    parts.append(
+                        f"{held_back} medicine(s) could not be matched to an unclear reading with certainty "
+                        "and will not be price-checked until a human reads the entry."
+                    )
+                processing_status[case_id].append({
+                    "status": "transcription_flags",
+                    "progress": 87,
+                    "log": " ".join(parts),
+                })
 
             if total_cost > 0:
                 case.total_charged += total_cost
@@ -495,9 +563,9 @@ async def process_document_background(
 
 # --- Route Implementations ----------------------------------------------------
 
-@router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
-async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
-    """Creates a new patient case session and its one-time access token (ADR-009)."""
+async def create_case_record(db: AsyncSession, consent_opt_in: bool) -> "tuple[KadiCase, str]":
+    """Creates a case and its one-time access token (ADR-009); commits. Shared by the
+    route below and the demo scenario loader (app.clinical.demo_control)."""
     # 16 hex chars (64 bits) rather than 8 (32 bits): raises the cost of blindly guessing
     # a case id, but — per ADR-008/ADR-009 — entropy alone is not authorization. The
     # access_token below is the actual authorization boundary; every subsequent
@@ -506,7 +574,7 @@ async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
     plaintext_token, token_hash = generate_case_access_token()
     case = KadiCase(
         id=case_id,
-        consent_opt_in=case_in.consent_opt_in,
+        consent_opt_in=consent_opt_in,
         status="active",
         total_charged=0.0,
         access_token_hash=token_hash,
@@ -517,6 +585,38 @@ async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
     db.add(case)
     await db.commit()
     await db.refresh(case)
+    return case, plaintext_token
+
+
+async def ingest_document_now(db: AsyncSession, case_id: str, file_bytes: bytes, filename: str) -> Dict[str, Any]:
+    """Runs one document through the same pipeline an upload queues, but awaits it, and
+    returns the final processing event. Used by the demo scenario loader, which must hand
+    the judge a case that has finished processing."""
+    digest = hashlib.sha256(file_bytes).hexdigest()
+    received = {
+        "status": "upload_received",
+        "progress": 10,
+        "log": "Upload received. Queueing document extraction task...",
+        "timestamp": time.time(),
+    }
+    if await _document_already_ingested(db, case_id, digest):
+        processing_status[case_id] = [received, _duplicate_event()]
+    else:
+        processing_status[case_id] = [received]
+        await process_document_background(case_id=case_id, file_bytes=file_bytes, filename=filename, db=db, digest=digest)
+    final = dict(processing_status.get(case_id, [{}])[-1])
+    return {
+        "filename": filename,
+        "status": final.get("status"),
+        "duplicate": bool(final.get("duplicate_document")),
+        "log": final.get("log"),
+    }
+
+
+@router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
+async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
+    """Creates a new patient case session and its one-time access token (ADR-009)."""
+    case, plaintext_token = await create_case_record(db, case_in.consent_opt_in)
     return CaseCreatedResponse(
         id=case.id,
         status=case.status,
@@ -630,6 +730,14 @@ async def stream_processing_status(
     async def event_generator():
         last_index = 0
         started_at = time.time()
+        # Nothing has been queued for this case in this process (the upload route records
+        # `upload_received` BEFORE it returns 202, so a client that connects after an
+        # upload always finds it). Say so at once instead of holding the connection open
+        # until the timeout: a screen opened on an already-processed case is not
+        # "processing". Single-process in-memory status — see docs (known limitation).
+        if case_id not in processing_status:
+            yield f"data: {json.dumps({'status': 'idle', 'progress': 100, 'log': 'No document is being processed for this case.'})}\n\n"
+            return
         while True:
             if await request.is_disconnected():
                 logger.info("SSE client disconnected for case %s; stopping stream.", case_id)
@@ -674,6 +782,22 @@ async def latency_metrics_recent(limit: int = Query(20, ge=1, le=200)):
     docstring), so samples carry only a one-way fingerprint of each case id, never the
     real id — a real case id is itself sensitive (ADR-008/ADR-009)."""
     return latency_tracker.recent(limit=limit)
+
+
+@router.get("/cases/{case_id}/timeline")
+async def get_case_timeline(
+    case_id: str,
+    case: KadiCase = Depends(require_case_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """What has happened to this case, in plain language, from persisted records only
+    (kadi.timeline): each step carries the timestamp of the record that proves it, so a
+    step is never shown before it happened. `in_progress` / `failure` come from the live
+    processing status; `now` is the current medicine trust state."""
+    from app.case_timeline import case_timeline
+
+    events = processing_status.get(case_id) or []
+    return await case_timeline(db, case_id, events[-1] if events else None)
 
 
 @router.get("/cases/{case_id}", response_model=CaseDetailResponse)
@@ -760,6 +884,9 @@ async def purge_case(db: AsyncSession, case_id: str) -> None:
     await db.execute(delete(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
     await db.execute(delete(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id))
     await _purge_bimanyay_records_for_case(db, case_id)
+    # ADR-011: reviews, statements, fact decisions, transcription tasks/readings and
+    # their audit trail. Global reviewer/rule/playbook records are kept.
+    await purge_clinical_records_for_case(db, case_id)
     await db.execute(delete(KadiCase).where(KadiCase.id == case_id))
 
 

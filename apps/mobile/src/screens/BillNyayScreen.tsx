@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Share, Linking } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, AgentStreamVisualizer, ResolutionReviewCard } from '../components';
-import { api, BillNyayAuditResponse, ApiError } from '../api';
-import { useSSEStream } from '../hooks/useSSEStream';
+import {
+  Card,
+  Button,
+  Badge,
+  ProcessingStatusCard,
+  ResolutionReviewCard,
+  ClinicalReviewCard,
+  SafetyNotice,
+  StatementView,
+} from '../components';
+import { api, BillNyayAuditResponse, BillNyayAppealResponse, ApiError, PlausibilityResponse } from '../api';
+import { getCaseAccessToken } from '../api/caseAuth';
+import { useCaseProcessing } from '../hooks/useCaseProcessing';
+import { useActiveCaseId } from '../hooks/useActiveCase';
+import { clearActiveCase, resolveCaseId } from '../services/activeCase';
+import { humanizeEnum } from '../services/labels';
+import { ENV } from '../config/env';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type BillNyayRouteProp = RouteProp<BottomTabParamList, 'BillNyay'>;
@@ -16,25 +30,55 @@ export const BillNyayScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BillNyayRouteProp>();
   const { colors, spacing, typography } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const m = t.modules.billnyay;
 
   const [loading, setLoading] = useState(false);
   const [auditResult, setAuditResult] = useState<BillNyayAuditResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
+  // The scan that brought the patient here, else the case they are working on in
+  // another tab. A case deleted from this screen is dropped immediately.
+  const activeCaseId = useActiveCaseId();
+  const [deletedCaseId, setDeletedCaseId] = useState<string | null>(null);
+  const resolvedCaseId = resolveCaseId(route.params?.caseId, activeCaseId);
+  const caseId = resolvedCaseId && resolvedCaseId !== deletedCaseId ? resolvedCaseId : null;
 
-  const sse = useSSEStream(caseId || undefined);
+  const [appealLoading, setAppealLoading] = useState(false);
+  const [appealResult, setAppealResult] = useState<BillNyayAppealResponse | null>(null);
+  const [plausibility, setPlausibility] = useState<PlausibilityResponse | null>(null);
 
+  // ADR-011: bounded plausibility check (machine-derived, never a necessity verdict).
+  const handleCheckPlausibility = async () => {
+    if (!caseId) return;
+    try {
+      setPlausibility(await api.billnyay.plausibility(caseId));
+    } catch (err) {
+      setError((err as ApiError).detail || (err as ApiError).message);
+    }
+  };
+  const [appealError, setAppealError] = useState<string | null>(null);
+
+  // Processing lifecycle: `ready` only once the server reports extraction finished.
+  const proc = useCaseProcessing(caseId);
+
+  // A fresh scan asks for the audit, but it runs only when extraction has finished —
+  // auditing straight after the upload 202 audited an empty case.
+  const [pendingAuditFor, setPendingAuditFor] = useState<string | null>(null);
   useEffect(() => {
-    if (route.params?.caseId) {
-      setCaseId(route.params.caseId || null);
-      // Auto-trigger audit if coming directly from completed scan
-      if (route.params.scanCompleted) {
-        handleRunAudit(route.params.caseId);
-      }
+    if (route.params?.caseId && route.params.scanCompleted) {
+      setPendingAuditFor(route.params.caseId);
+      setAuditResult(null);
+      setPlausibility(null);
+      setAppealResult(null);
     }
   }, [route.params?.caseId, route.params?.scanCompleted]);
+  useEffect(() => {
+    if (pendingAuditFor && proc.ready && proc.caseId === pendingAuditFor) {
+      setPendingAuditFor(null);
+      handleRunAudit(pendingAuditFor);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAuditFor, proc.ready, proc.caseId]);
 
   const handleRunAudit = async (targetCaseId?: string) => {
     setLoading(true);
@@ -79,9 +123,12 @@ export const BillNyayScreen: React.FC = () => {
           onPress: async () => {
             try {
               await api.kadi.deleteCase(caseId);
-              setCaseId(null);
+              setDeletedCaseId(caseId);
+              clearActiveCase(caseId);
               setAuditResult(null);
               setError(null);
+              setAppealResult(null);
+              setAppealError(null);
             } catch (err) {
               const apiErr = err as ApiError;
               setError(apiErr.message || 'Failed to delete this case.');
@@ -90,6 +137,56 @@ export const BillNyayScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  // Runs the 5-agent appeal pipeline (#18) and persists a signed PDF server-side.
+  // Does not require a prior audit — the appeal reads the case's document text
+  // directly — so the button is available as soon as a case exists.
+  const handleDraftAppeal = async () => {
+    if (!caseId) return;
+    setAppealLoading(true);
+    setAppealError(null);
+    try {
+      const result = await api.billnyay.appeal(caseId, language);
+      setAppealResult(result);
+    } catch (err) {
+      const apiErr = err as ApiError;
+      setAppealError(apiErr.message || 'Failed to draft the appeal letter.');
+    } finally {
+      setAppealLoading(false);
+    }
+  };
+
+  // Downloads the exact signed PDF the appeal drafted (#66) — served from stored
+  // bytes, never regenerated, so it always matches what was hashed and signed.
+  // Same query-token pattern as DaaviSetu's PDF download: Linking.openURL cannot
+  // attach a custom header, so the one-time case access token travels as a
+  // query parameter on this safe, read-only GET.
+  const handleDownloadAppealPdf = async () => {
+    if (!caseId) return;
+    const token = getCaseAccessToken(caseId);
+    if (!token) {
+      setAppealError('Missing this case\'s access token — cannot download the PDF. Re-open the case from a fresh scan.');
+      return;
+    }
+    const pdfUrl = `${ENV.API_BASE_URL}/api/v1/billnyay/cases/${caseId}/appeal/pdf?access_token=${encodeURIComponent(token)}`;
+    try {
+      const supported = await Linking.canOpenURL(pdfUrl);
+      if (supported) {
+        await Linking.openURL(pdfUrl);
+      }
+    } catch (e) {
+      console.warn('Cannot open appeal PDF URL:', e);
+    }
+  };
+
+  const handleShareAppeal = async () => {
+    if (!appealResult) return;
+    try {
+      await Share.share({ message: appealResult.appeal_letter });
+    } catch (e) {
+      console.warn('Cannot share appeal letter:', e);
+    }
   };
 
   return (
@@ -124,17 +221,9 @@ export const BillNyayScreen: React.FC = () => {
         </View>
       )}
 
-      {caseId && (sse.isStreaming || sse.progress > 0) && (
-        <AgentStreamVisualizer
-          progress={sse.progress}
-          latestEvent={sse.latestEvent}
-          isStreaming={sse.isStreaming}
-          isCompleted={sse.isCompleted}
-          error={sse.error}
-        />
-      )}
+      <ProcessingStatusCard proc={proc} />
 
-      <ResolutionReviewCard caseId={caseId} refreshToken={sse.isCompleted} />
+      <ResolutionReviewCard caseId={proc.ready ? caseId : null} refreshToken={proc.ready} />
 
       <Card style={{ marginVertical: spacing.md }}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>
@@ -162,8 +251,17 @@ export const BillNyayScreen: React.FC = () => {
             title={loading ? m.auditing : m.cta}
             onPress={() => handleRunAudit()}
             variant="primary"
-            disabled={loading}
+            disabled={loading || (!!caseId && !proc.ready)}
           />
+
+          {caseId && (
+            <Button
+              title={appealLoading ? m.drafting : m.draftAppealBtn}
+              onPress={handleDraftAppeal}
+              variant="outline"
+              disabled={appealLoading || !proc.ready}
+            />
+          )}
         </View>
       </Card>
 
@@ -233,11 +331,118 @@ export const BillNyayScreen: React.FC = () => {
                       }`
                     : ` | ${m.notBenchmarked}`}
                 </Text>
+                {(benchmarked ? item.benchmark_basis : item.not_benchmarked_reason) ? (
+                  <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs }}>
+                    {benchmarked ? item.benchmark_basis : item.not_benchmarked_reason}
+                  </Text>
+                ) : null}
               </View>
             );
           })}
         </Card>
       )}
+
+      {/* Appeal Letter (5-agent pipeline, #18) */}
+      {appealError && (
+        <Text style={{ color: '#ef4444', fontSize: typography.sizes.sm, marginTop: spacing.sm }}>
+          ⚠️ {appealError}
+        </Text>
+      )}
+
+      {appealResult && (
+        <Card style={{ marginVertical: spacing.sm }}>
+          <View style={[styles.header, { marginBottom: spacing.sm }]}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>
+              {m.appealTitle}
+            </Text>
+            <Badge
+              label={appealResult.status === 'approve' ? m.appealApprove : m.appealNeedsRevision}
+              variant={appealResult.status === 'approve' ? 'success' : 'warning'}
+            />
+          </View>
+
+          {!appealResult.llm_backed && (
+            <Text style={{ color: '#f59e0b', fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+              {m.appealTemplateNotice}
+            </Text>
+          )}
+          {appealResult.llm_backed && (
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+              {m.appealLlmBacked}
+            </Text>
+          )}
+          {!appealResult.denial_facts_extracted && (
+            <Text style={{ color: '#f59e0b', fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+              {m.appealFactsNotExtracted}
+            </Text>
+          )}
+
+          <Text
+            style={{ color: colors.textPrimary, fontSize: typography.sizes.sm, lineHeight: 20, marginBottom: spacing.sm }}
+          >
+            {appealResult.appeal_letter}
+          </Text>
+
+          {/* ADR-011: attached verbatim when it exists; its absence is stated, never implied away. */}
+          {appealResult.human_clinical_statement_attached ? (
+            appealResult.clinical_statements.map((s) => <StatementView key={s.statement_id} statement={s} />)
+          ) : (
+            <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+              No statement from a named clinician is attached. Clinical reasoning in this letter is general,
+              software-drafted reasoning — not a doctor&apos;s opinion. (This note is for you; it is not in the PDF.)
+            </Text>
+          )}
+          <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+            The PDF is re-generated whenever a clinician&apos;s statement changes — download it again right before sending.
+          </Text>
+
+          <View style={{ gap: spacing.xs }}>
+            <Button title={m.downloadAppealPdf} onPress={handleDownloadAppealPdf} variant="outline" />
+            <Button title={m.shareAppealBtn} onPress={handleShareAppeal} variant="outline" />
+          </View>
+        </Card>
+      )}
+
+      {caseId && (
+        <Card style={{ marginVertical: spacing.sm }}>
+          <Button
+            title="🩺 Check clinical plausibility"
+            onPress={handleCheckPlausibility}
+            variant="outline"
+            size="sm"
+            disabled={!proc.ready}
+          />
+          {plausibility && (
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+              <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
+                <Badge label="Machine-derived" variant="info" />
+                <Badge
+                  label={humanizeEnum(plausibility.assessment.status)}
+                  variant={plausibility.assessment.status === 'PLAUSIBLE' ? 'success' : 'warning'}
+                />
+              </View>
+              <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.sm }}>{plausibility.assessment.summary}</Text>
+              {plausibility.assessment.not_assessed_items.length > 0 && (
+                <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>
+                  Not assessed (outside the reference): {plausibility.assessment.not_assessed_items.join(', ')}
+                </Text>
+              )}
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{plausibility.assessment.guideline_note}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                {plausibility.assessment.disclaimer}
+              </Text>
+            </View>
+          )}
+        </Card>
+      )}
+      {/* Only after extraction: an early check would read a half-built case as "no escalation". */}
+      <SafetyNotice caseId={proc.ready ? caseId : null} refreshToken={proc.ready} />
+      <ClinicalReviewCard
+        caseId={caseId}
+        sourceModule="billnyay"
+        trigger={plausibility?.clinical_review.required ? 'PLAUSIBILITY_FLAG' : 'MANUAL'}
+        recommendationReason={plausibility?.assessment.review_reasons.join(' ') || null}
+      />
     </ScrollView>
   );
 };

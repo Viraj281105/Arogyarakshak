@@ -78,6 +78,11 @@ def test_stream_times_out_instead_of_holding_the_connection_forever(monkeypatch)
     empty/never-completing status list forever."""
     monkeypatch.setattr(settings, "sse_timeout_seconds", 1)
     case_id, token = _create_case()
+    # Simulate an upload whose background processing hangs: the status list exists (the
+    # upload route writes it before returning 202) but never reaches a terminal event.
+    # (A case with NO upload in flight now gets an immediate `idle` event — see below.)
+    from app.api.v1.endpoints.kadi import processing_status
+    processing_status[case_id] = [{"status": "upload_received", "progress": 10, "log": "queued"}]
 
     started = time.time()
     res = client.get(
@@ -114,3 +119,16 @@ def test_stream_completes_promptly_for_a_case_that_finishes_processing():
     assert res.status_code == 200
     assert '"status": "completed"' in res.text or "completed" in res.text
     assert elapsed < 5
+
+
+def test_stream_reports_idle_at_once_when_nothing_is_processing():
+    """Demo-hardening pass: a patient opening a module for a case with no upload in
+    flight (e.g. switching tabs later) previously waited for the full server timeout while
+    the app showed "processing". The stream now says `idle` immediately and closes."""
+    case_id, token = _create_case()
+    started = time.time()
+    res = client.get(f"/api/v1/kadi/cases/{case_id}/stream", headers={"X-Case-Access-Token": token})
+    assert res.status_code == 200
+    assert '"status": "idle"' in res.text
+    assert "completed" not in res.text, "idle is not a claim that anything was processed"
+    assert time.time() - started < 5

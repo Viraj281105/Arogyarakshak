@@ -5,6 +5,8 @@ Pydantic Schemas for BimaNyay Insurance Denial and Grievance Engine.
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
+from .clinical_triggers import ClinicalReviewTrigger
+
 
 class ClaimDenialInput(BaseModel):
     """Input payload representing a denied or partially settled insurance claim."""
@@ -48,6 +50,9 @@ class DisputeAuditResult(BaseModel):
     level_1_gro_appeal: str
     level_2_bimabharosa_text: str
     level_3_ombudsman_grounds: str
+    # ADR-011: whether this denial turns on clinical interpretation, so the user can route
+    # it to a named human reviewer. Always present; never a prediction of the outcome.
+    clinical_review: Optional[ClinicalReviewTrigger] = None
 
 
 class GrievanceTimelineEvent(BaseModel):

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi, API_BASE, caseAuthHeaders } from "../../hooks/useApi";
+import { PreauthReadinessPanel } from "../clinical/PreauthReadinessPanel";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -57,32 +58,40 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
     });
   };
 
-  const handleDownloadPdf = async () => {
+  const downloadBlob = async (path: string, filename: string, notFoundLabel: string) => {
     if (!caseId) return;
     setDownloadError(null);
     try {
       // A plain <a href> cannot carry the X-Case-Access-Token header (ADR-009), so the
-      // PDF is fetched here and handed to the browser as a blob download instead.
-      const res = await fetch(`${API_BASE}/api/v1/daavisetu/cases/${caseId}/claim/pdf`, {
+      // file is fetched here and handed to the browser as a blob download instead.
+      const res = await fetch(`${API_BASE}${path}`, {
         headers: caseAuthHeaders(caseToken),
       });
       if (!res.ok) {
-        setDownloadError(`Could not download the PDF (HTTP ${res.status}).`);
+        setDownloadError(`Could not download the ${notFoundLabel} (HTTP ${res.status}).`);
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `preauth_${caseId}.pdf`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch {
-      setDownloadError("Could not download the PDF. Is the backend reachable?");
+      setDownloadError(`Could not download the ${notFoundLabel}. Is the backend reachable?`);
     }
   };
+
+  const handleDownloadPdf = () =>
+    downloadBlob(`/api/v1/daavisetu/cases/${caseId}/claim/pdf`, `preauth_${caseId}.pdf`, "PDF");
+
+  // #81 — ZIP package: the pre-auth PDF, a redacted case-summary excerpt (when Kadi
+  // extracted one), and a manifest disclosing exactly what is and is not included.
+  const handleDownloadPackage = () =>
+    downloadBlob(`/api/v1/daavisetu/cases/${caseId}/claim/package`, `claim_package_${caseId}.zip`, "claim package");
 
   const result = api.data;
 
@@ -92,6 +101,9 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
         <h2>{t.title}</h2>
         <p>{t.desc}</p>
       </div>
+
+      {/* ADR-011: documentation completeness + clinician fact confirmation (no approval claims) */}
+      {caseId && <PreauthReadinessPanel caseId={caseId} caseToken={caseToken} />}
 
       {/* Input Form */}
       <div
@@ -261,6 +273,14 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
             >
               📥 Download Form VI / Pre-Auth PDF
             </button>
+            <button
+              type="button"
+              onClick={handleDownloadPackage}
+              className="btn btn-secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              🗂️ Download Full Claim Package (ZIP)
+            </button>
           </div>
           {downloadError && (
             <p style={{ color: "#ef4444", fontSize: "0.85rem", marginTop: "0.5rem" }}>⚠️ {downloadError}</p>
@@ -290,11 +310,12 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
               fontWeight: 600,
             }}
           >
-            ⓘ Example — Upload a document first to generate a real pre-authorization package
+            ⓘ Nothing generated yet — upload a document first. The fields below are what you have typed, not a
+            submitted or approved form.
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-            <h3>✓ {t.preAuthSummary}</h3>
-            <span className="badge badge-success">IRDAI Standard Annexure-B</span>
+            <h3>{t.preAuthSummary}</h3>
+            <span className="badge badge-info">IRDAI Annexure-B format (not generated yet)</span>
           </div>
           <div className="grid-2" style={{ fontSize: "0.875rem" }}>
             <div>

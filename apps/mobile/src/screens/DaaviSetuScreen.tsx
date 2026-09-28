@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { humanizeEnum } from '../services/labels';
+import { View, Text, StyleSheet, ScrollView, TextInput, Linking, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, ResolutionReviewCard } from '../components';
+import { Card, Button, Badge, ResolutionReviewCard, ReadinessCard, ProcessingStatusCard } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useCaseProcessing } from '../hooks/useCaseProcessing';
+import { useActiveCaseId } from '../hooks/useActiveCase';
+import { clearActiveCase, resolveCaseId } from '../services/activeCase';
 import { ENV } from '../config/env';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -33,17 +37,21 @@ export const DaaviSetuScreen: React.FC = () => {
   const [treatmentPlan, setTreatmentPlan] = useState('');
 
   // Case & Result state
-  const [caseId, setCaseId] = useState<string | null>(route.params?.caseId || null);
+  // The scan that brought the patient here, else the case scanned in another tab (a
+  // bill scanned in BillNyay reaches pre-auth readiness without a second scan).
+  const activeCaseId = useActiveCaseId();
+  const [deletedCaseId, setDeletedCaseId] = useState<string | null>(null);
+  const resolvedCaseId = resolveCaseId(route.params?.caseId, activeCaseId);
+  const caseId = resolvedCaseId && resolvedCaseId !== deletedCaseId ? resolvedCaseId : null;
+  // The scan hands over a case whose OCR/extraction is still running server-side;
+  // case-derived cards wait for it instead of reading a half-built case.
+  const proc = useCaseProcessing(caseId);
+  const processing = !proc.ready;
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DaaviSetuClaimResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offlineQueued, setOfflineQueued] = useState(false);
 
-  useEffect(() => {
-    if (route.params?.caseId) {
-      setCaseId(route.params.caseId || null);
-    }
-  }, [route.params?.caseId]);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -117,6 +125,57 @@ export const DaaviSetuScreen: React.FC = () => {
     }
   };
 
+  // Downloads the full claim package ZIP (#81): pre-auth PDF + redacted case-summary
+  // excerpt + a manifest disclosing what is and is not included. Same query-token
+  // pattern as the PDF download above — Linking.openURL cannot attach a custom header.
+  const handleDownloadPackage = async () => {
+    if (!caseId) return;
+    const token = getCaseAccessToken(caseId);
+    if (!token) {
+      setError('Missing this case\'s access token — cannot download the package. Re-open the case from a fresh scan.');
+      return;
+    }
+    const zipUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/package?access_token=${encodeURIComponent(token)}`;
+    try {
+      const supported = await Linking.canOpenURL(zipUrl);
+      if (supported) {
+        await Linking.openURL(zipUrl);
+      }
+    } catch (e) {
+      console.warn('Cannot open claim package URL:', e);
+    }
+  };
+
+  // SEC-03: same pattern as BillNyayScreen's handleDeleteCase — the server also
+  // purges a case automatically once its retention deadline passes, but this lets
+  // the patient ask for real erasure (DELETE /cases/{id}, P1-10) right now.
+  const handleDeleteCase = () => {
+    if (!caseId) return;
+    Alert.alert(
+      t.common.deleteCaseConfirmTitle,
+      t.common.deleteCaseConfirmBody,
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.common.delete,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.kadi.deleteCase(caseId);
+              setDeletedCaseId(caseId);
+              clearActiveCase(caseId);
+              setResult(null);
+              setError(null);
+            } catch (err) {
+              const apiErr = err as ApiError;
+              setError(apiErr.message || 'Failed to delete this case.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.bgBase }]}
@@ -132,6 +191,8 @@ export const DaaviSetuScreen: React.FC = () => {
       <Text style={[styles.desc, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
         {m.desc}
       </Text>
+
+      <ProcessingStatusCard proc={proc} />
 
       {/* Input Form */}
       <Card style={{ marginBottom: spacing.md }}>
@@ -180,7 +241,7 @@ export const DaaviSetuScreen: React.FC = () => {
 
           <Button
             title="📷 Scan Admission / Policy Slip"
-            onPress={() => navigation.navigate('CameraScan', { documentType: 'general' })}
+            onPress={() => navigation.navigate('CameraScan', { documentType: 'general', returnTo: 'DaaviSetu' })}
             variant="outline"
           />
         </View>
@@ -223,15 +284,20 @@ export const DaaviSetuScreen: React.FC = () => {
 
           <View style={[styles.statusBar, { borderColor: '#22c55e' }]}>
             <Text style={{ color: '#22c55e', fontSize: 13 }}>
-              {m.status} {result.status === 'ready_for_review' ? `✓ ${m.readyForReview}` : result.status}
+              {m.status} {result.status === 'ready_for_review' ? m.readyForReview : humanizeEnum(result.status)}
             </Text>
           </View>
 
           {caseId && (
-            <View style={{ marginTop: spacing.sm }}>
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               <Button
                 title={m.downloadPdf}
                 onPress={handleDownloadPdf}
+                variant="outline"
+              />
+              <Button
+                title={m.downloadPackage}
+                onPress={handleDownloadPackage}
                 variant="outline"
               />
             </View>
@@ -239,7 +305,19 @@ export const DaaviSetuScreen: React.FC = () => {
         </Card>
       )}
 
-      <ResolutionReviewCard caseId={caseId} />
+      {caseId && (
+        <View style={{ alignItems: 'flex-end', marginBottom: spacing.md }}>
+          <Button
+            title={t.common.deleteCaseBtn}
+            onPress={handleDeleteCase}
+            variant="outline"
+            size="sm"
+          />
+        </View>
+      )}
+
+      <ResolutionReviewCard caseId={proc.ready ? caseId : null} refreshToken={proc.ready} />
+      <ReadinessCard caseId={caseId} processing={processing} />
     </ScrollView>
   );
 };

@@ -8,6 +8,7 @@ GROQ_MODEL defaults to "openai/gpt-oss-120b".  Never use deprecated model
 names (llama3-70b, llama-3.3-70b-versatile) — see AGENTS.md.
 """
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -71,7 +72,47 @@ class Settings(BaseSettings):
     # expired case is not retained much longer than the stated TTL.
     case_purge_interval_seconds: int = 6 * 60 * 60  # 6 hours
 
+    # --- Clinical review & safety governance (ADR-011) --------------------------
+    # Operator secret for governance actions only: seating safety-board members,
+    # recording a verification attempt, and seeding demo fixtures. Empty (default) means
+    # those actions are disabled outright — never "open to anyone".
+    clinical_governance_admin_key: str = ""
+    # Enables POST /kadi/clinical-demo/seed and the DEMO_VERIFIED status. Off by default;
+    # a production deployment must never turn this on.
+    clinical_demo_mode: bool = False
+    # EasyOCR segments below this confidence become human transcription tasks instead
+    # of being trusted.
+    ocr_low_confidence_threshold: float = 0.5
+    # Independent board approvals (the proposer's own never counts) before a safety rule
+    # can be activated.
+    safety_rule_required_approvals: int = 1
+
+    # --- Deployment profile & demo kit -------------------------------------------
+    # "production" marks a real deployment. Demo mode is refused outright under it (the
+    # process will not start), so demo reset/seed/scenario routes and DEMO_VERIFIED can
+    # never be reachable against production configuration.
+    app_env: str = "development"
+    # Where the synthetic demo documents (demo/documents) live, for the demo scenario
+    # loaders. Empty = the repository's demo/documents (local runs) or /app/demo/documents
+    # (the API image copies them there; they are inert unless demo mode is on).
+    demo_documents_dir: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def _demo_mode_never_in_production(self) -> "Settings":
+        if self.clinical_demo_mode and self.app_env.strip().lower() == "production":
+            raise ValueError(
+                "CLINICAL_DEMO_MODE=true is not allowed with APP_ENV=production: demo reviewers, "
+                "demo verification labels and the demo reset would be reachable on a real deployment."
+            )
+        return self
+
+    @property
+    def demo_operations_allowed(self) -> bool:
+        """Demo seed/reset/scenario routes: demo mode on and not a production profile.
+        (Checked at call time too, because tests toggle settings after start-up.)"""
+        return bool(self.clinical_demo_mode) and self.app_env.strip().lower() != "production"
 
 
 settings = Settings()

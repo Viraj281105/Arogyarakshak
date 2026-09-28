@@ -1,0 +1,16 @@
+SUNRISE MULTISPECIALITY HOSPITAL (SYNTHETIC DEMO)
+Final Inpatient Bill
+Bill No: DEMO-A-0001     Admission: 03/09/2026     Discharge: 06/09/2026
+Patient Name: Demo Patient A
+Diagnosis: K35.8 Acute appendicitis
+Room Rent (Private Ward) 3 days 13500
+Nursing Charges 4500
+Registration Charges 500
+Specialist Consultation 2000
+Ultrasound Abdomen 1800
+MRI Brain 12000
+Laparoscopic Appendectomy 65000
+Laparoscopic Cholecystectomy 48000
+Paracetamol IV 450
+Total: 147750
+SYNTHETIC DOCUMENT FOR DEMONSTRATION ONLY - NOT A REAL BILL

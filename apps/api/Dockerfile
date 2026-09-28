@@ -39,14 +39,10 @@ RUN groupadd --system --gid 10001 app \
 # Copy app code
 COPY apps/api/app/ /app/app/
 
-# Copy test configuration
-COPY pytest.ini apps/api/conftest.py /app/
-
-# Copy API tests
-COPY apps/api/tests/ /app/tests/
-
-RUN mkdir -p /app/testdata && \
-    chown -R app:app /app/testdata
+# Synthetic demo documents for the demo scenario loaders (POST /kadi/clinical-demo/
+# scenarios/{A-D}). Every file is labelled SYNTHETIC; the loaders refuse to run unless
+# CLINICAL_DEMO_MODE=true and APP_ENV is not "production" (app.config).
+COPY demo/documents/ /app/demo/documents/
 
 USER app
 

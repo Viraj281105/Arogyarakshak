@@ -17,7 +17,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLang }) => {
           <div style={{ maxWidth: "480px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
               <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{t.appName}</span>
-              <span style={{ fontSize: "0.8rem", color: "var(--brand-teal)" }}>• v1.0 Production</span>
+              <span style={{ fontSize: "0.8rem", color: "var(--brand-teal)" }}>• Release candidate (academic prototype)</span>
             </div>
             <p style={{ fontSize: "0.85rem", lineHeight: 1.6 }}>{t.footer.disclaimer}</p>
             <p style={{ fontSize: "0.8rem", marginTop: "0.5rem", color: "var(--brand-emerald)" }}>{t.footer.statutoryNote}</p>
@@ -46,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLang }) => {
             © 2026 ArogyaRakshak (आरोग्यरक्षक) — Open Source MIT License
           </div>
           <div style={{ display: "flex", gap: "1rem" }}>
-            <span>DPDP Act 2023 Compliant</span>
+            <span title="Design intent, not a legal compliance certification">Built around DPDP Act 2023 data-minimisation principles</span>
             <span>•</span>
             <span>Zero Document Retention (BYOD)</span>
           </div>
