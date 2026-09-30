@@ -59,7 +59,7 @@ def test_status_in_demo_mode_says_what_is_simulated(demo):
     assert items["Reviewer personas and their verification"]["status"] == "SIMULATED"
     # Without a Groq key the extraction line says it is rule-based, not "AI".
     assert items["Entity extraction"]["status"] == "REAL (rule-based)"
-    assert [s["id"] for s in body["scenarios"]] == ["A", "B", "C", "D"]
+    assert [s["id"] for s in body["scenarios"]] == ["A", "B", "C", "D", "E"]
     assert all(s["actions"] and s["expected"] and s["starting_state"] for s in body["scenarios"])
 
 

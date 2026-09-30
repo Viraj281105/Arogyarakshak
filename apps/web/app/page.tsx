@@ -23,7 +23,7 @@ import { Language, translations } from "./translations";
 type ModuleTab = "billnyay" | "bimanyay" | "daavisetu" | "schemesetu" | "dawacheck";
 
 // The module each demo scenario starts in.
-const SCENARIO_TAB: Record<DemoScenario["id"], ModuleTab> = { A: "billnyay", B: "daavisetu", C: "dawacheck", D: "bimanyay" };
+const SCENARIO_TAB: Record<DemoScenario["id"], ModuleTab> = { A: "billnyay", B: "daavisetu", C: "dawacheck", D: "bimanyay", E: "daavisetu" };
 
 // A processing stream silent for this long is reported as "taking longer than expected".
 const PROCESSING_SILENCE_MS = 90_000;

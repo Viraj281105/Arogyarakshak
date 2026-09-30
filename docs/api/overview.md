@@ -256,9 +256,9 @@ header-only and shown once at registration.
 | `POST`/`PUT` | `/safety-rules` · `/{rule_id}` | board | Propose / edit own DRAFT (source, version, section, limitations, review date required) |
 | `POST` | `/{rule_id}/submit` · `/decisions` · `/activate` · `/retire` · `/new-version` | board | Lifecycle; proposer cannot approve own rule; approvals bound to content hash. `/retire` is four-eyes: the first call records a request (rule stays ACTIVE, `retirement_requested_by` set), a different board member's call retires it |
 | `GET` | `/clinical-demo/status` | none | `demo_mode`, banner text, the live "what is simulated" list and scenario scripts. Discloses nothing when demo mode is off |
-| `POST` | `/clinical-demo/seed` | governance + demo mode | Demo reviewers, institution, playbook, rules (rotates credentials) |
+| `POST` | `/clinical-demo/seed` | governance + demo mode | Demo reviewers, institution, playbooks (`playbook_id` for Scenario B, `diabetes_playbook_id` for Scenario E), rules (rotates credentials) |
 | `POST` | `/clinical-demo/reset` | governance + demo mode | Body `{"confirm": "RESET DEMO"}`. Deletes cases holding a committed synthetic demo document (others are kept), removes demo safety rules and re-seeds them ACTIVE, rotates credentials; returns them. Idempotent, serialised |
-| `POST` | `/clinical-demo/scenarios/{A-D}` | governance + demo mode | Fresh consented case with the scenario's synthetic documents run through the real upload pipeline; returns `case_id`, `access_token`, per-document processing outcome |
+| `POST` | `/clinical-demo/scenarios/{A-E}` | governance + demo mode | Fresh consented case with the scenario's synthetic documents run through the real upload pipeline; returns `case_id`, `access_token`, per-document processing outcome |
 
 Demo routes return `403` unless `CLINICAL_DEMO_MODE=true` **and** `APP_ENV` is not
 `production` (the API also refuses to start with both).

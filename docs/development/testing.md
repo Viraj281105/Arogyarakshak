@@ -74,7 +74,8 @@ python -m pytest apps/api/tests/
 ### 2.4 Runtime smoke against a running API (any database)
 
 `scripts/demo_runtime_smoke.py` drives demo Scenarios A–D over real HTTP with semantic
-assertions (49 checks) and resets the demo afterwards. It is how the PostgreSQL runtime and
+assertions (49 checks) and resets the demo afterwards. Scenario E is covered by
+`apps/api/tests/test_demo_documents.py` only; the smoke script has not been extended to it. It is how the PostgreSQL runtime and
 the docker-compose stack were validated:
 
 ```bash

@@ -155,6 +155,56 @@ DEMO_PLAYBOOK = {
     "owner": "Demo insurance desk lead",
 }
 
+# Scenario E: documentation checklist for a type 2 diabetes admission. Labels name KINDS of
+# documentation only; nothing here interprets a value or assesses glycaemic control.
+DEMO_PLAYBOOK_DIABETES = {
+    "playbook_key": "demo-diabetes-admission",
+    "title": "Diabetes-related admission — documentation checklist (demo)",
+    "insurer": "Demo Health Insurer (fictional)",
+    "policy_product": None,
+    "procedure_category": "Diabetes-related admission",
+    "items": [
+        {
+            "item_id": "pb_hba1c_report",
+            "label": "HbA1c (glycated haemoglobin) report",
+            "evidence_rule": {
+                "kind": "document_keywords",
+                "keywords": ["hba1c", "glycated haemoglobin", "glycosylated haemoglobin"],
+            },
+        },
+        {
+            "item_id": "pb_blood_glucose",
+            "label": "Blood glucose report (fasting or post-meal)",
+            "evidence_rule": {
+                "kind": "document_keywords",
+                "keywords": ["fasting blood sugar", "blood glucose", "blood sugar", "fbs", "ppbs", "rbs"],
+            },
+        },
+        {
+            "item_id": "pb_renal_function",
+            "label": "Renal function report (creatinine / eGFR)",
+            "evidence_rule": {"kind": "document_keywords", "keywords": ["creatinine", "egfr"]},
+        },
+        {
+            "item_id": "pb_diabetes_treatment_history",
+            "label": "Documentation of diabetes treatment tried before admission",
+            "evidence_rule": {
+                "kind": "document_keywords",
+                "keywords": ["metformin", "glimepiride", "oral hypoglycaemic", "oral hypoglycemic", "on insulin"],
+            },
+            "clinical_fact": True,
+            "clinical_fact_question": (
+                "Do the records you reviewed document the diabetes treatment tried before this "
+                "admission? Confirm only what the records show."
+            ),
+        },
+    ],
+    "commonly_requested_evidence": ["Admission note", "Itemised cost estimate"],
+    "internal_notes": "Demo fixture for walkthroughs.",
+    "source_provenance": "Demo fixture — illustrative only, not real insurer guidance",
+    "owner": "Demo insurance desk lead",
+}
+
 
 async def _demo_reviewer(db: AsyncSession, spec: Dict[str, Any]) -> "tuple[KadiClinicalReviewer, str]":
     token, token_hash = generate_credential()
@@ -224,27 +274,31 @@ async def seed_demo(db: AsyncSession) -> Dict[str, Any]:
         await db.flush()
     else:
         institution.credential_hash = inst_hash
-    pb_row = await db.execute(
-        select(DaaviSetuPlaybook).where(
-            DaaviSetuPlaybook.institution_id == institution.id,
-            DaaviSetuPlaybook.playbook_key == DEMO_PLAYBOOK["playbook_key"],
-            DaaviSetuPlaybook.status == "ACTIVE",
+    playbook_ids: Dict[str, str] = {}
+    for spec in (DEMO_PLAYBOOK, DEMO_PLAYBOOK_DIABETES):
+        pb_row = await db.execute(
+            select(DaaviSetuPlaybook).where(
+                DaaviSetuPlaybook.institution_id == institution.id,
+                DaaviSetuPlaybook.playbook_key == spec["playbook_key"],
+                DaaviSetuPlaybook.status == "ACTIVE",
+            )
         )
-    )
-    playbook = pb_row.scalars().first()
-    if playbook is None:
-        playbook = await create_playbook(
-            db, institution,
-            {**DEMO_PLAYBOOK, "effective_date": today - timedelta(days=1), "review_due_date": today + timedelta(days=180)},
-            status_value="ACTIVE",
-        )
-        playbook.activated_at = datetime.utcnow()
+        playbook = pb_row.scalars().first()
+        if playbook is None:
+            playbook = await create_playbook(
+                db, institution,
+                {**spec, "effective_date": today - timedelta(days=1), "review_due_date": today + timedelta(days=180)},
+                status_value="ACTIVE",
+            )
+            playbook.activated_at = datetime.utcnow()
+        playbook_ids[spec["playbook_key"]] = playbook.id
 
     await db.commit()
     return {
         "warning": "DEMO FIXTURES ONLY. Demo reviewers are not real clinicians and demo rules are not a real governance decision.",
         "reviewers": reviewers,
         "institution": {"institution_id": institution.id, "name": institution.name, "institution_token": inst_token},
-        "playbook_id": playbook.id,
+        "playbook_id": playbook_ids[DEMO_PLAYBOOK["playbook_key"]],
+        "diabetes_playbook_id": playbook_ids[DEMO_PLAYBOOK_DIABETES["playbook_key"]],
         "safety_rules_created": rules_out,
     }

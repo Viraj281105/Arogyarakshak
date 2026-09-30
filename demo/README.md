@@ -9,7 +9,7 @@ synthetic.** No real patient, prescriber, hospital, insurer or registry is repre
 ```text
 demo/
 ├── README.md                 ← this file: setup, reset, what is real vs demo-only
-├── scenarios/                ← one script per scenario (A–D): steps, expected output, limits
+├── scenarios/                ← one script per scenario (A–E): steps, expected output, limits
 ├── documents/                ← synthetic documents (all labelled SYNTHETIC); also copied into the API image
 └── fixtures/README.md        ← where the runtime fixtures live and what they contain
 ```
@@ -37,8 +37,8 @@ In the web app, a striped **DEMO MODE** banner appears (with **What is simulated
 - **Reset demo** — deletes every case that holds a committed synthetic demo document
   (cases with any other upload are kept), removes the demo safety rules and re-seeds them
   ACTIVE, rotates the demo credentials and shows them once (reviewer IDs + tokens, the demo
-  insurance-desk credential and playbook id). Idempotent; double clicks are serialised.
-- **Load Scenario A / B / C / D** — creates a fresh consented case and runs the scenario's
+  insurance-desk credential and the two playbook ids: Scenario B's and Scenario E's). Idempotent; double clicks are serialised.
+- **Load Scenario A / B / C / D / E** — creates a fresh consented case and runs the scenario's
   synthetic documents through the *real* upload pipeline (Scenario A puts the bill **and**
   the discharge summary in one case), then opens the scenario's module and shows its script.
 
@@ -63,10 +63,11 @@ python scripts/demo_runtime_smoke.py --api http://127.0.0.1:8000 --admin-key <ke
 | B | Pre-auth readiness + missing clinical confirmation | `B_preauth_request.txt` | DaaviSetu | [scenarios/B_preauth_readiness.md](scenarios/B_preauth_readiness.md) |
 | C | Uncertain medicine OCR + two-reader agreement / disagreement + per-tablet price check | `C_prescription_uncertain.png` | DawaCheck | [scenarios/C_uncertain_ocr_prescription.md](scenarios/C_uncertain_ocr_prescription.md) |
 | D | Safety escalation | `D_insurance_denial_letter.txt` | Kadi / BimaNyay | [scenarios/D_safety_escalation.md](scenarios/D_safety_escalation.md) |
+| E | Diabetes admission: documentation readiness + missing document (paperwork only) | `E_diabetes_admission_note.txt` | DaaviSetu | [scenarios/E_diabetes_admission_readiness.md](scenarios/E_diabetes_admission_readiness.md) |
 
 Each scenario is also an automated test, so its expected output cannot silently drift:
-`apps/api/tests/test_demo_documents.py` (A, B, D), `test_demo_scenario_c.py` (C),
-`test_demo_control.py` (reset / loaders), and `scripts/demo_runtime_smoke.py` (over HTTP).
+`apps/api/tests/test_demo_documents.py` (A, B, D, E), `test_demo_scenario_c.py` (C),
+`test_demo_control.py` (reset / loaders), and `scripts/demo_runtime_smoke.py` (over HTTP; covers A–D only).
 
 ## 4. What is real and what is demo-only
 

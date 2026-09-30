@@ -6,7 +6,7 @@ synthetic.
 
 | Fixture | Location | Used by | Contents |
 |---|---|---|---|
-| Demo reviewers, institution, playbook, safety rules | `apps/api/app/clinical/demo.py` (`POST /api/v1/kadi/clinical-demo/seed`) | Scenarios A–D | 4 reviewer personas (DEMO_VERIFIED ×2 board members, SELF_DECLARED pharmacist, UNVERIFIED transcriptionist); "Demo Hospital Insurance Desk" + a cholecystectomy playbook; FAST and WHO-ETAT demo rules |
+| Demo reviewers, institution, playbook, safety rules | `apps/api/app/clinical/demo.py` (`POST /api/v1/kadi/clinical-demo/seed`) | Scenarios A–E | 4 reviewer personas (DEMO_VERIFIED ×2 board members, SELF_DECLARED pharmacist, UNVERIFIED transcriptionist); "Demo Hospital Insurance Desk" + two playbooks (cholecystectomy for B, diabetes-related admission for E); FAST and WHO-ETAT demo rules |
 | Scenario C OCR + extraction replay | `apps/api/app/clinical/demo_ocr.py` | Scenario C | Per-segment OCR text + confidences and an extraction result for `demo/documents/C_prescription_uncertain.png`, matched by SHA-256, used only when `CLINICAL_DEMO_MODE=true` |
 
 Both are refused or inert outside demo mode:
