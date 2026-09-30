@@ -1,0 +1,12 @@
+SUNRISE MULTISPECIALITY HOSPITAL (SYNTHETIC DEMO)
+Cashless Pre-Authorisation Request - Supporting Note
+Patient Name: Demo Patient E
+Insurer: Demo Health Insurer (fictional)
+Diagnosis: E11.65 Type 2 diabetes mellitus with hyperglycaemia
+Proposed procedure: Admission for glycaemic stabilisation 42000
+Chief complaint: increased thirst and tiredness for two weeks.
+On examination: alert and oriented.
+Past history: type 2 diabetes for nine years; on metformin.
+Investigations: HbA1c report dated 12 Sep; fasting blood sugar report attached.
+Estimated stay: 3 days.
+SYNTHETIC DOCUMENT FOR DEMONSTRATION ONLY - NOT A REAL MEDICAL RECORD

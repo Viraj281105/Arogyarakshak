@@ -71,6 +71,12 @@ const Credentials: React.FC<{ creds: DemoCredentials }> = ({ creds }) => (
       <CopyButton value={creds.playbook_id} label="playbook ID" />{" "}
       institution credential <CopyButton value={creds.institution.institution_token} label="institution credential" />
     </p>
+    {creds.diabetes_playbook_id && (
+      <p style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}>
+        Scenario E desk: same institution — playbook <code>{creds.diabetes_playbook_id}</code>{" "}
+        <CopyButton value={creds.diabetes_playbook_id} label="diabetes playbook ID" />
+      </p>
+    )}
   </div>
 );
 

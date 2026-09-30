@@ -97,6 +97,18 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
         ],
         "expected": "Escalation 'Possible stroke warning signs (FAST)', severity Urgent, matched words shown, floor disclaimer.",
     },
+    "E": {
+        "title": "Diabetes admission: documentation readiness + missing document",
+        "module": "DaaviSetu",
+        "documents": ["E_diabetes_admission_note.txt"],
+        "starting_state": "A new case holding the synthetic diabetes admission note, processed.",
+        "actions": [
+            "DaaviSetu → Check documentation readiness with the demo diabetes playbook ID and institution credential.",
+            "Ask a doctor to confirm the item marked 'Needs a doctor's confirmation'; assign Dr. Demo Clinician B.",
+            "Reviewer (Clinician B): accept, record a decision; patient re-checks readiness.",
+        ],
+        "expected": "HbA1c and blood glucose found (weak keyword evidence), renal function not found, treatment history needs a doctor; paperwork only, no interpretation of any value, no approval probability.",
+    },
 }
 
 

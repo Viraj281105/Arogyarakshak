@@ -15,7 +15,7 @@ export interface SimulatedItem {
 }
 
 export interface DemoScenario {
-  id: "A" | "B" | "C" | "D";
+  id: "A" | "B" | "C" | "D" | "E";
   title: string;
   module: string;
   documents: string[];
@@ -43,6 +43,8 @@ export interface DemoCredentials {
   reviewers: Record<string, DemoPersona>;
   institution: { institution_id: string; name: string; institution_token: string };
   playbook_id: string;
+  /** Scenario E (diabetes admission) checklist. Absent on an API older than Scenario E. */
+  diabetes_playbook_id?: string;
 }
 
 export interface DemoResetResult {

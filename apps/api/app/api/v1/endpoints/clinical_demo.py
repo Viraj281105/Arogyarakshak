@@ -73,7 +73,7 @@ async def reset_clinical_demo(
 
 @router.post("/clinical-demo/scenarios/{scenario_id}")
 async def load_clinical_demo_scenario(
-    scenario_id: Literal["A", "B", "C", "D", "a", "b", "c", "d"],
+    scenario_id: Literal["A", "B", "C", "D", "E", "a", "b", "c", "d", "e"],
     admin: str = Depends(require_governance_admin),
     db: AsyncSession = Depends(get_db),
 ):
