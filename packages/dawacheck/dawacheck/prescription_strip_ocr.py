@@ -13,6 +13,7 @@ import logging
 import re
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
+
 from pydantic import BaseModel, Field
 
 from dawacheck.reference_data import (
@@ -30,6 +31,7 @@ logger.setLevel(logging.INFO)
 @dataclass
 class ExtractedMedicine:
     """A single medicine extracted from a prescription strip or packaging photo."""
+
     name: str
     dosage_mg: Optional[float] = None
     quantity: Optional[int] = None  # e.g., "10 tablets", "5 capsules"
@@ -43,12 +45,22 @@ class ExtractedMedicine:
 
 class PrescriptionStripAnalysis(BaseModel):
     """Result of analyzing a prescription or medicine strip photo."""
+
     medicines: List[ExtractedMedicine] = Field(default_factory=list)
-    raw_text: str = Field(default="", description="Raw OCR text before parsing")
-    parsing_notes: List[str] = Field(default_factory=list, description="Warnings/notes about parsing")
+    raw_text: str = Field(
+        default="",
+        description="Raw OCR text before parsing",
+    )
+    parsing_notes: List[str] = Field(
+        default_factory=list,
+        description="Warnings/notes about parsing",
+    )
     extraction_confidence: float = Field(
         default=1.0,
-        description="Overall confidence in the extraction (0.0-1.0). Lower when parsing is ambiguous."
+        description=(
+            "Overall confidence in the extraction (0.0-1.0). "
+            "Lower when parsing is ambiguous."
+        ),
     )
 
 
@@ -56,7 +68,7 @@ class MedicineStripParser:
     """
     Parses medicine strip text (from Kadi OCR output or user-supplied text)
     to extract medicine information.
-    
+
     Handles common patterns found on Indian medicine strips and packaging:
     - Medicine name with dosage (e.g., "Paracetamol 500mg")
     - Quantity (e.g., "10 tablets", "5 caps")
@@ -67,24 +79,35 @@ class MedicineStripParser:
 
     # Regex patterns for common extraction tasks
     _QUANTITY_PATTERN = re.compile(
-        r"(\d+)\s*(?:x\s*)?(?:tablet|tab|capsule|cap|strip|sheet|vial|ampoule|injection|infusion|suspension|syrup|cream|ointment)",
-        re.IGNORECASE
+        r"(?:qty\s*:?\s*)?"
+        r"(?:\d+\s*x\s*)?"
+        r"(\d+)\s*"
+        r"(?:tablets?|tabs?|capsules?|caps?|strips?|sheets?|"
+        r"vials?|ampoules?|injections?|infusions?|suspensions?|"
+        r"syrups?|creams?|ointments?)",
+        re.IGNORECASE,
     )
+
     _MRP_PATTERN = re.compile(
         r"[Mm][Rr][Pp]\s*[Rr]s\.?\s*(\d+(?:\.\d+)?)",
-        re.IGNORECASE
+        re.IGNORECASE,
     )
+
     _BATCH_PATTERN = re.compile(
         r"(?:[Bb]atch|[Bb]\.?\s*[Nn]o?)\s*[:=]?\s*(\w+)",
-        re.IGNORECASE
+        re.IGNORECASE,
     )
+
     _EXPIRY_PATTERN = re.compile(
-        r"(?:[Ee]xpiry|[Ee]xp\.?|[Vv]alid\s+[Tt]ill?|[Uu]se\s+[Bb]y)\s*[:=]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
-        re.IGNORECASE
+        r"(?:exp|expiry|exp\.|valid\s+till|use\s+by)"
+        r"\s*[:=\-]?\s*([0-9]{1,2}[/-][0-9]{2,4})",
+        re.IGNORECASE,
     )
+
     _MANUFACTURER_PATTERN = re.compile(
-        r"(?:[Mm]fg\.|[Mm]anufacturer|[Cc]o\.?|[Pp]vt\.?|Ltd\.?)\s+(?P<mfg>[\w\s&\(\)]+?)(?:\.|,|$)",
-        re.IGNORECASE
+        r"(?:[Mm]fg\.|[Mm]anufacturer|[Cc]o\.?|[Pp]vt\.?|Ltd\.?)"
+        r"\s+(?P<mfg>[\w\s&\(\)]+?)(?:\.|,|$)",
+        re.IGNORECASE,
     )
 
     def __init__(self):
@@ -112,15 +135,15 @@ class MedicineStripParser:
             return PrescriptionStripAnalysis(
                 raw_text=text or "",
                 parsing_notes=["No text provided or invalid format"],
-                extraction_confidence=0.0
+                extraction_confidence=0.0,
             )
 
         text = text.strip()
         medicines: List[ExtractedMedicine] = []
 
         # Split text into lines and process each
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
+
         for line in lines:
             extracted = self._parse_line(line)
             if extracted:
@@ -128,14 +151,16 @@ class MedicineStripParser:
 
         if not medicines:
             logger.info("No medicines found in strip text")
-            self.parsing_notes.append("No medicine information could be extracted from the text")
+            self.parsing_notes.append(
+                "No medicine information could be extracted from the text"
+            )
             self.confidence = 0.0
 
         return PrescriptionStripAnalysis(
             medicines=medicines,
             raw_text=text,
             parsing_notes=self.parsing_notes,
-            extraction_confidence=self.confidence
+            extraction_confidence=self.confidence,
         )
 
     def _parse_line(self, line: str) -> Optional[ExtractedMedicine]:
@@ -148,8 +173,23 @@ class MedicineStripParser:
             return None
 
         # Skip lines that look like headers, timestamps, or metadata
-        skip_keywords = ["patient", "age", "date", "doctor", "signature", "phone", "hospital", "clinic", "email"]
-        if any(skip in line.lower() for skip in skip_keywords):
+        line_lower = line.lower().strip()
+        metadata_prefixes = {
+            "patient",
+            "doctor",
+            "age",
+            "gender",
+            "date",
+            "prescription",
+            "address",
+            "phone",
+            "hospital",
+            "clinic",
+            "email",
+            "signature",
+        }
+
+        if any(line_lower.startswith(prefix) for prefix in metadata_prefixes):
             return None
 
         working_line = line
@@ -162,6 +202,7 @@ class MedicineStripParser:
                 medicine.mrp = float(mrp_match.group(1))
             except ValueError:
                 pass
+
             working_line = self._MRP_PATTERN.sub("", working_line).strip()
 
         # Extract batch number
@@ -182,21 +223,41 @@ class MedicineStripParser:
             medicine.manufacturer = mfg_match.group("mfg").strip()
             working_line = self._MANUFACTURER_PATTERN.sub("", working_line).strip()
 
-        # Extract quantity (e.g., "10 tablets")
+        # Extract quantity
+        # Handles:
+        #   "10 tablets"
+        #   "2 x 10 Tablets"
+        #   "Qty:2 x 10 Tablets"
         qty_match = self._QUANTITY_PATTERN.search(working_line)
+
         if qty_match:
             medicine.quantity = int(qty_match.group(1))
-            # Extract unit from the matched text
-            unit_match = re.search(r"(tablet|tab|capsule|cap|strip|sheet|vial|ampoule|injection|infusion|suspension|syrup|cream|ointment)", working_line[qty_match.start():], re.IGNORECASE)
+
+            # Extract unit from the full matched text
+            full_match = qty_match.group(0)
+
+            unit_match = re.search(
+                r"(tablet|tab|capsule|cap|strip|sheet|vial|ampoule|"
+                r"injection|infusion|suspension|syrup|cream|ointment)s?",
+                full_match,
+                re.IGNORECASE,
+            )
+
             if unit_match:
                 medicine.unit = unit_match.group(1).lower()
-            # Remove quantity from line
-            working_line = self._QUANTITY_PATTERN.sub("", working_line).strip()
+
+            # Remove the entire quantity expression, including
+            # optional Qty: and "2 x" prefixes.
+            working_line = (
+                working_line[: qty_match.start()] + working_line[qty_match.end() :]
+            ).strip()
 
         # Extract dosage (e.g., "500mg") and remove it from the line
         dosage_mg = extract_dosage_mg(working_line)
+
         if dosage_mg is not None:
             medicine.dosage_mg = dosage_mg
+
             # Remove dosage pattern from line using the utility function
             working_line = strip_dosage_token(working_line).strip()
 
@@ -210,31 +271,85 @@ class MedicineStripParser:
 
     def _clean_medicine_name(self, name: str) -> str:
         """
-        Cleans a medicine name by removing common suffixes, extra whitespace,
-        and normalizing case.
+        Cleans a medicine name by removing dosages, quantities, and extra whitespace.
+        Returns normalized lowercase medicine name.
         """
         if not name:
             return ""
 
-        # Remove common non-medicine text
-        name = name.strip()
-        
-        # Remove common suffixes
-        suffixes = [" tablet", " tablets", " tab", " tabs", " capsule", " capsules", " cap", " caps", 
-                   " injection", " injections", " inj", " sr", " er", " xl", " mr", " ds",
-                   " syrup", " cream", " ointment", " solution", " suspension", " vial", " ampoule"]
-        for suffix in suffixes:
-            if name.lower().endswith(suffix):
-                name = name[:-len(suffix)].strip()
+        # Normalize to lowercase first
+        name = name.lower().strip()
 
-        # Remove extra whitespace
-        name = " ".join(name.split())
-        name = re.sub(r"[:\-,]+\s*$", "", name).strip()  # Remove trailing punctuation
-        
-        # Normalize case to lowercase
-        name = name.lower()
-        
-        return name
+        # Remove dosage patterns such as:
+        #   500mg
+        #   250 mcg
+        #   1g
+        #   30ml
+        #   100IU
+        #   100IU/ml
+        name = re.sub(
+            r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|iu/ml|iu)\b",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove quantity expressions such as:
+        #   Qty:2 x
+        #   Qty:2
+        #   2 x
+        name = re.sub(
+            r"\bqty\s*:?\s*\d*\s*x?\b",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+        name = re.sub(
+            r"\b\d+\s*x\b",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove dosage-form prefixes that are not part of the medicine name
+        # e.g. TAB, CAP, INJ, SYRUP
+        name = re.sub(
+            r"\b(?:tab|tablet|cap|capsule|inj|injection|syrup)\b",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove quantity/unit patterns left behind by OCR
+        name = re.sub(
+            r"\b\d+\s+(?:tablets?|capsules?|caps?|tabs?|"
+            r"strips?|bottles?|vials?|injections?)\b",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove common OCR metadata tokens and everything after them
+        # so fields such as "Batch", "EXP", and "MRP" don't become
+        # part of the medicine name.
+        name = re.sub(
+            r"\b(?:mrp|exp|expiry|batch|b\.?no)\b.*",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove a standalone trailing "s" sometimes introduced by OCR
+        name = re.sub(r"\bs\b$", "", name).strip()
+
+        # Clean up whitespace
+        name = re.sub(r"\s+", " ", name)
+
+        # Remove trailing punctuation
+        name = re.sub(r"[:\-,]+\s*$", "", name)
+
+        return name.strip()
 
     def parse_structured_medicines(
         self, medicines_list: List[Dict[str, Any]]
@@ -258,23 +373,27 @@ class MedicineStripParser:
                 continue
 
             name = med_dict.get("name", "").strip()
+
             if not name:
                 continue
 
-            # Normalize name to lowercase
+            # Normalize name to lowercase and clean
             name = self._clean_medicine_name(name)
-            
+
             medicine = ExtractedMedicine(name=name)
 
             # Parse dosage if provided
             dosage_str = med_dict.get("dosage") or med_dict.get("strength")
+
             if dosage_str:
                 dosage_mg = extract_dosage_mg(str(dosage_str))
+
                 if dosage_mg:
                     medicine.dosage_mg = dosage_mg
 
             # Parse quantity
             qty = med_dict.get("quantity") or med_dict.get("qty")
+
             if qty:
                 try:
                     medicine.quantity = int(qty)
@@ -282,10 +401,13 @@ class MedicineStripParser:
                     pass
 
             # Parse unit
-            medicine.unit = str(med_dict.get("unit") or med_dict.get("form") or "").lower() or None
+            medicine.unit = (
+                str(med_dict.get("unit") or med_dict.get("form") or "").lower() or None
+            )
 
             # Parse MRP
             mrp = med_dict.get("mrp") or med_dict.get("price")
+
             if mrp:
                 try:
                     medicine.mrp = float(mrp)
@@ -293,13 +415,21 @@ class MedicineStripParser:
                     pass
 
             # Parse other optional fields
-            medicine.manufacturer = str(med_dict.get("manufacturer") or "").strip() or None
+            medicine.manufacturer = (
+                str(med_dict.get("manufacturer") or "").strip() or None
+            )
+
             medicine.batch_number = str(med_dict.get("batch") or "").strip() or None
+
             medicine.expiry_date = str(med_dict.get("expiry") or "").strip() or None
 
             # Set confidence based on how many fields were provided
             fields_provided = sum(1 for v in [name, dosage_str, qty, medicine.mrp] if v)
-            medicine.confidence = min(1.0, fields_provided / 2.0)
+
+            medicine.confidence = min(
+                1.0,
+                fields_provided / 2.0,
+            )
 
             extracted_medicines.append(medicine)
 
@@ -307,12 +437,13 @@ class MedicineStripParser:
             medicines=extracted_medicines,
             raw_text="",
             parsing_notes=self.parsing_notes,
-            extraction_confidence=self.confidence
+            extraction_confidence=self.confidence,
         )
 
 
 def extract_medicines_from_prescription(
-    ocr_text: str, source: str = "kadi_ocr"
+    ocr_text: str,
+    source: str = "kadi_ocr",
 ) -> PrescriptionStripAnalysis:
     """
     Convenience function: extracts medicines from OCR text in one call.
@@ -325,11 +456,14 @@ def extract_medicines_from_prescription(
         PrescriptionStripAnalysis with extracted medicines.
     """
     parser = MedicineStripParser()
-    return parser.parse_medicine_strip_text(ocr_text, source=source)
+    return parser.parse_medicine_strip_text(
+        ocr_text,
+        source=source,
+    )
 
 
 def extract_medicines_from_form(
-    medicines_data: List[Dict[str, Any]]
+    medicines_data: List[Dict[str, Any]],
 ) -> PrescriptionStripAnalysis:
     """
     Convenience function: parses user-supplied medicine list from a form.
