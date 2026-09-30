@@ -109,10 +109,10 @@ Rules the code enforces (and tests pin):
 `CLINICAL_DEMO_MODE=true` (never with `APP_ENV=production` — the API refuses to start) enables a deterministic demo kit:
 
 - a striped **DEMO MODE** banner with a live **"What is simulated?"** panel (web and reviewer workspace);
-- **Demo controls**: *Reset demo*, *Load Scenario A–D* (a fresh case whose synthetic documents run through the real upload pipeline) and one-time demo persona credentials;
+- **Demo controls**: *Reset demo*, *Load Scenario A–E* (a fresh case whose synthetic documents run through the real upload pipeline) and one-time demo persona credentials;
 - deterministic OCR replay for the committed Scenario C image only.
 
-What is simulated: the documents, the reviewer personas and their "Demo verification only" status, the demo safety rules and playbook, and Scenario C's OCR confidences. Everything else is the real code path. See [docs/JUDGE_DEMO.md](docs/JUDGE_DEMO.md).
+What is simulated: the documents, the reviewer personas and their "Demo verification only" status, the demo safety rules and playbooks, and Scenario C's OCR confidences. Everything else is the real code path. See [docs/JUDGE_DEMO.md](docs/JUDGE_DEMO.md).
 
 ## 10. Setup
 

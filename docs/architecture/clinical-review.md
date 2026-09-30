@@ -401,12 +401,12 @@ is reported separately from past events. Labels never contain clinical text.
 - **No payments / marketplace**, by design.
 - **Mobile**: patient-side flows only; reviewer administration is web-only.
 
-## 13. Demo walkthrough (Scenarios A–D)
+## 13. Demo walkthrough (Scenarios A–E)
 
 The deterministic demo kit lives in [`demo/`](../../demo/README.md): synthetic documents,
 one script per scenario (starting state, steps, expected output, real vs demo-only,
 limitations) and the fixtures list. Scenarios are pinned by
-`apps/api/tests/test_demo_documents.py` (A, B, D — real upload pipeline with rule-based
+`apps/api/tests/test_demo_documents.py` (A, B, D, E — real upload pipeline with rule-based
 extraction) and `apps/api/tests/test_demo_scenario_c.py` (C — demo-mode OCR replay of the
 committed synthetic prescription image). The older API-only walkthrough remains in
 `apps/api/tests/test_clinical_demo_scenarios.py`.
@@ -415,7 +415,7 @@ committed synthetic prescription image). The older API-only walkthrough remains 
 (public; banner text and the live "what is simulated" list), `POST /kadi/clinical-demo/reset`
 (`{"confirm": "RESET DEMO"}` — deletes cases holding a committed synthetic document,
 re-seeds demo rules ACTIVE, rotates credentials; idempotent and serialised) and
-`POST /kadi/clinical-demo/scenarios/{A-D}` (fresh case through the real pipeline). They are
+`POST /kadi/clinical-demo/scenarios/{A-E}` (fresh case through the real pipeline). They are
 refused when `APP_ENV=production`, and the API refuses to start with demo mode under that
 profile. Reset never deletes global audit events; it adds a `DEMO_RESET` event. Runbook:
 [docs/JUDGE_DEMO.md](../JUDGE_DEMO.md); pinned by `apps/api/tests/test_demo_control.py` and

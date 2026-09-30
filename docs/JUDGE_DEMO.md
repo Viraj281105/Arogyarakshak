@@ -135,6 +135,15 @@ ID and institution credential (Copy buttons). USG *found* (weak keyword evidence
 found*, conservative management **Needs a doctor's confirmation** → ask Dr. Demo Clinician
 B. No approval probability anywhere.
 
+## 5a. Scenario E — diabetes paperwork readiness (optional, 2 minutes)
+
+**Load Scenario E** → DaaviSetu → open *Hospital desk*, enter the **Scenario E desk** playbook ID
+and the institution credential (Copy buttons) → **Check documentation readiness**. HbA1c and blood
+glucose reports *found* (weak keyword evidence), renal function report *not found*, diabetes
+treatment history **Needs a doctor's confirmation** → ask Dr. Demo Clinician B. Say plainly: this
+is paperwork only — it never reads or scores a glucose or HbA1c value, never assesses diabetes
+control, and the checklist wording is illustrative, not real insurer guidance.
+
 ---
 
 ## 6. Recovering from mistakes
@@ -161,7 +170,7 @@ B. No approval probability anywhere.
 
 ## 8. What is deterministic / simulated (say it plainly)
 
-- The documents, the reviewer personas ("Demo verification only"), the two demo safety rules and the demo insurance-desk playbook.
+- The documents, the reviewer personas ("Demo verification only"), the two demo safety rules and the demo insurance-desk playbooks (Scenarios B and E).
 - Scenario C only: OCR confidences and extraction are replayed from a recorded fixture keyed to the committed image. Everything after extraction is the real pipeline.
 - Without `GROQ_API_KEY`, extraction is rule-based and the appeal letter is a template (the UI says so).
 

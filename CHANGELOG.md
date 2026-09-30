@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Diabetes admission demo scenario (2026-09-30)
+
+#### Added
+- **Demo Scenario E — diabetes admission, documentation readiness (paperwork only).** A synthetic admission note (`demo/documents/E_diabetes_admission_note.txt`) runs through the real upload pipeline, then DaaviSetu's readiness check with a second demo playbook ("Diabetes-related admission — documentation checklist (demo)": HbA1c report, blood glucose report, renal function report, diabetes treatment history as a doctor-confirmed clinical fact). The note deliberately omits the renal function report so the output names one missing document. No clinical value is interpreted and no approval is predicted. The playbook wording is illustrative and unsourced; it needs clinical-lead review before being presented as realistic.
+- `POST /kadi/clinical-demo/scenarios/{A-E}`; the demo seed returns `diabetes_playbook_id` beside `playbook_id`.
+- Scenario script `demo/scenarios/E_diabetes_admission_readiness.md`; test `test_scenario_e_diabetes_admission_readiness_with_one_missing_document`.
+
+#### Changed
+- Web: Demo controls list the Scenario E playbook ID after a reset; loading Scenario E opens the DaaviSetu tab.
+
 ### Release-candidate pass (2026-09-27)
 
 #### Fixed — correctness
