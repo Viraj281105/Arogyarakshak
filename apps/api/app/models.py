@@ -199,6 +199,22 @@ class DawaCheckGenericMapping(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class NppaReferencePrice(Base):
+    """Authoritative NPPA Schedule-I ceiling-price reference record."""
+
+    __tablename__ = "dawacheck_nppa_reference_prices"
+
+    id = Column(String, primary_key=True, index=True)
+    sl_no = Column(Integer, nullable=False, unique=True, index=True)
+    medicine = Column(String, nullable=False, index=True)
+    dosage_form_strength = Column(String, nullable=False)
+    unit = Column(String, nullable=False)
+    ceiling_price = Column(Float, nullable=False)
+    existing_so_no = Column(String, nullable=False)
+    existing_so_date = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class BimaNyayCase(Base):
     """Represents an insurance claim dispute dossier.
 
