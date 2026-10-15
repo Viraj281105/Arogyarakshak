@@ -4,6 +4,13 @@ import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi, API_BASE, caseAuthHeaders } from "../../hooks/useApi";
 import { PreauthReadinessPanel } from "../clinical/PreauthReadinessPanel";
+import {
+  ENCRYPTED_EXTENSION,
+  PackageCryptoError,
+  decryptPackage,
+  encryptPackage,
+  passwordProblem,
+} from "../../lib/packageCrypto";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -40,6 +47,45 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
   const [treatment, setTreatment] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  // #101 — optional client-side password protection. The password never leaves the browser.
+  const [protect, setProtect] = useState(false);
+  const [protectPassword, setProtectPassword] = useState("");
+  const [protectConfirm, setProtectConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState("");
+  const [unlockMessage, setUnlockMessage] = useState<string | null>(null);
+
+  const saveBytes = (bytes: BlobPart, filename: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([bytes], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const protectionProblem = protect
+    ? passwordProblem(protectPassword) ?? (protectPassword !== protectConfirm ? "The two passwords do not match." : null)
+    : null;
+
+  const handleUnlock = async (file: File | undefined) => {
+    setUnlockMessage(null);
+    if (!file) return;
+    if (!unlockPassword) {
+      setUnlockMessage("Enter the password first, then choose the file.");
+      return;
+    }
+    try {
+      const plain = await decryptPackage(await file.arrayBuffer(), unlockPassword);
+      const original = file.name.endsWith(ENCRYPTED_EXTENSION) ? file.name.slice(0, -ENCRYPTED_EXTENSION.length) : `${file.name}.decrypted`;
+      saveBytes(plain as BlobPart, original, "application/octet-stream");
+      setUnlockMessage("Unlocked on this device. Nothing was sent anywhere.");
+    } catch (e) {
+      setUnlockMessage(e instanceof PackageCryptoError ? e.message : "Could not unlock the file.");
+    }
+  };
 
   const handleGenerate = async () => {
     if (!caseId) return;
@@ -61,6 +107,10 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
   const downloadBlob = async (path: string, filename: string, notFoundLabel: string) => {
     if (!caseId) return;
     setDownloadError(null);
+    if (protect && protectionProblem) {
+      setDownloadError(protectionProblem);
+      return;
+    }
     try {
       // A plain <a href> cannot carry the X-Case-Access-Token header (ADR-009), so the
       // file is fetched here and handed to the browser as a blob download instead.
@@ -72,16 +122,22 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
         return;
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      if (protect) {
+        const problem = protectionProblem;
+        if (problem) {
+          setDownloadError(problem);
+          return;
+        }
+        setBusy(true);
+        const sealed = await encryptPackage(await blob.arrayBuffer(), protectPassword);
+        saveBytes(sealed as BlobPart, `${filename}${ENCRYPTED_EXTENSION}`, "application/octet-stream");
+      } else {
+        saveBytes(blob, filename, blob.type);
+      }
     } catch {
       setDownloadError(`Could not download the ${notFoundLabel}. Is the backend reachable?`);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -281,6 +337,33 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
             >
               🗂️ Download Full Claim Package (ZIP)
             </button>
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
+              <input type="checkbox" checked={protect} onChange={(e) => setProtect(e.target.checked)} />
+              Protect downloads with a password (encrypted on this device)
+            </label>
+            {protect && (
+              <div className="grid-2" style={{ marginTop: "0.5rem" }}>
+                <input type="password" className="input-field" autoComplete="new-password" placeholder="Password (8+ characters)" aria-label="Download password" value={protectPassword} onChange={(e) => setProtectPassword(e.target.value)} />
+                <input type="password" className="input-field" autoComplete="new-password" placeholder="Repeat password" aria-label="Repeat download password" value={protectConfirm} onChange={(e) => setProtectConfirm(e.target.value)} />
+              </div>
+            )}
+            {protect && (
+              <p style={{ fontSize: "0.8rem", marginTop: "0.5rem", opacity: 0.8 }}>
+                The password is never sent to our servers and cannot be recovered. If you forget it, the file cannot be opened.
+                The downloaded file ends in {ENCRYPTED_EXTENSION}; open it with &ldquo;Unlock a protected file&rdquo; below.
+                {busy ? " Encrypting…" : ""}
+              </p>
+            )}
+            <details style={{ marginTop: "0.75rem" }}>
+              <summary style={{ cursor: "pointer", fontSize: "0.9rem" }}>Unlock a protected file</summary>
+              <div className="grid-2" style={{ marginTop: "0.5rem" }}>
+                <input type="password" className="input-field" autoComplete="off" placeholder="Password" aria-label="Unlock password" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} />
+                <input type="file" accept={ENCRYPTED_EXTENSION} aria-label="Protected file" onChange={(e) => { void handleUnlock(e.target.files?.[0]); e.target.value = ""; }} />
+              </div>
+              {unlockMessage && <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>{unlockMessage}</p>}
+            </details>
           </div>
           {downloadError && (
             <p style={{ color: "#ef4444", fontSize: "0.85rem", marginTop: "0.5rem" }}>⚠️ {downloadError}</p>

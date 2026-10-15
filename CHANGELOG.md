@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Independent-task pass (2026-10-15)
+
+#### Added
+- **Client-side password protection for DaaviSetu downloads (#101, ADR-014)** — optional AES-256-GCM (PBKDF2-SHA256) encryption in the browser; `.arenc` files unlock in the same panel. The password never leaves the device.
+- **Mobile SLA reminder planner** (`apps/mobile/src/services/slaReminders.ts`) with tests; delivery via `expo-notifications` is not wired (see `docs/development/mobile-sla-reminders.md`).
+- **`docker-compose.demo.yml`** and `docs/development/deployment.md` — local demo deployment (ADR-013, #40).
+- Scenario E in `scripts/demo_runtime_smoke.py` (58/58 on SQLite).
+- Appeal PDFs carry a quiet provenance footer (page number; states it is not a digital signature certificate).
+
+#### Changed
+- `DOCUMENT_SIGNING_SECRET` documented in `.env.example` and the environment reference.
+
 ### Diabetes admission demo scenario (2026-09-30)
 
 #### Added

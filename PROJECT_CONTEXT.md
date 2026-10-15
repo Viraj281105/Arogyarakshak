@@ -160,12 +160,17 @@ arogyarakshak/
 
 ## 8. Current Work
 
-### Active Task (2026-09-30) — Scenario E: diabetes admission readiness (Health-a-thon theme: Diabetes Care → Patient/Caregiver → Financial & Administrative Support)
+### Active Task (2026-10-15) — independent-task pass
+- [x] Scenario E added to the demo smoke script (58/58, SQLite). [x] #40 decided: local demo via Docker Compose (ADR-013, `docker-compose.demo.yml`, `docs/development/deployment.md`) — validated with `docker compose config` only; the Docker daemon was not running. [x] #101: client-side encryption for DaaviSetu downloads (ADR-014), browser-verified. [x] Appeal PDF provenance footer. [x] Mobile SLA reminder planner (no push delivery).
+- [x] #90 needed no new code: `billnyay/outcome/` + `POST /billnyay/outcome-estimate` already refuse a probability without a cited, non-synthetic dataset. It is blocked on the data, not on code.
+- [ ] Not done / needs the user: Android device run, real-Groq Scenario A run (no key), Postgres SAVEPOINT path, Expo SDK decision, native-speaker QA, clinical-lead review.
+
+### Earlier task (2026-09-30) — Scenario E: diabetes admission readiness (Health-a-thon theme: Diabetes Care → Patient/Caregiver → Financial & Administrative Support)
 Smallest real end-to-end workflow for the theme, reusing existing machinery (no new module). Status:
 - [x] Synthetic note, diabetes demo playbook (4 items), scenario registration, route `Literal`, web tab mapping and playbook ID display, pinned test (mutation-checked), docs.
 - [x] Live check: API in demo mode + web dev server; Scenario E loaded from the UI, readiness run with the playbook — HbA1c/glucose found (weak evidence), renal function missing, two clinical facts need a doctor, console clean.
 - [ ] Clinical-lead review of the checklist wording (unsourced, illustrative).
-- [ ] Extend `scripts/demo_runtime_smoke.py` to Scenario E (still A–D, 49 checks).
+- [x] `scripts/demo_runtime_smoke.py` now covers Scenario E (58/58 on SQLite, 2026-10-15).
 
 ### Earlier task (2026-09-27) — release-candidate pass (committed b0cd0eb..576abd1, merged to `main` via PR #149)
 Take the demo-hardened build to a judge-ready release candidate without weakening any
@@ -234,13 +239,13 @@ None. Ready for Product Phase 2 when directed by user.
 
 ### P1 — High (Core Integration)
 - [ ] **Clinical review follow-ups (ADR-011)**: native-speaker Hindi/Marathi copy for clinical UI (and the new hi/mr "passed automated quality check" strings in `apps/mobile/src/translations/strings.ts`); run mobile clinical flows on a device; a real `RegistryVerificationAdapter` only if an authorised registry API becomes available; reviewer notifications.
-- [ ] **Scenario E follow-ups**: clinical-lead review of the diabetes playbook wording; add E to `scripts/demo_runtime_smoke.py`; real diabetes-drug coverage in DawaCheck depends on PR #150 (NPPA Schedule-I 2025 data) going green — the curated list holds only metformin.
+- [ ] **Scenario E follow-ups**: clinical-lead review of the diabetes playbook wording; real diabetes-drug coverage in DawaCheck depends on PR #150 (NPPA Schedule-I 2025 data) going green — the curated list holds only metformin.
 - [ ] **Validation debt**: Android emulator/device run of scan → processing → modules (checklist: `apps/mobile/README.md` §3.5); one real-Groq run of Scenario A (extraction + appeal letter). *Postgres and the compose stack were validated on 2026-09-27 (49/49); the SAVEPOINT "safety unavailable" path was not forced on Postgres.*
 - [x] **DawaCheck unit basis** (ADR-012, 2026-09-27) — also applied to BillNyay CGHS rates.
 - [ ] **Native-speaker QA** of the hi/mr strings marked `NEEDS NATIVE-SPEAKER QA` in `apps/web/app/translations.ts` and `apps/mobile/src/translations/strings.ts`.
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
 - [x] **Kadi Entity Resolution (Phase 3)**: string similarity + rule-based cross-script phonetics + optional IndicSBERT, merge/ask/new branching and feedback-calibrated thresholds (ADR-006). IndicXlit remains blocked on fairseq / Python 3.11 (#29).
-- [ ] **Mobile Push SLA Alerts**: Local notifications for 15-day GRO and Bima Bharosa statutory deadlines.
+- [ ] **Mobile Push SLA Alerts**: planner + sync logic done and tested (`slaReminders.ts`); the `expo-notifications` adapter, permission flow and device run are NOT done and wait on the Expo SDK decision (see Known Issues §3).
 
 ### P2 — Medium (Evaluation & QA)
 - [ ] **Implement Benchmark Mapping Accuracy (BMA) Harness**: Build automated evaluation test comparing hospital bills against CGHS codes.
@@ -248,7 +253,7 @@ None. Ready for Product Phase 2 when directed by user.
 - [ ] **Trilingual Copy Polish**: Native speaker review of generated Hindi and Marathi appeal templates.
 
 ### P3 — Low (Polish & Presentation)
-- [ ] **PDF Digital Signature & Watermarking**: Implement cryptographic hash verification for generated dispute PDFs.
+- [~] **PDF integrity & provenance**: SHA-256 + HMAC verification already existed (#66); a provenance footer was added 2026-10-15. A licensed DSC remains out of scope (no certificate).
 - [ ] **Jan Aushadhi Store Geolocation API**: Embed interactive map of registered PMBJP stores in web and mobile clients.
 
 ---
@@ -295,6 +300,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **Impact:** Command fails with `No module named pytest`.
 - **Workaround:** Always activate `.venv\Scripts\Activate.ps1` or run directly with `C:\Users\VIRAJ\AppData\Local\Programs\Python\Python311\python.exe`.
 - **Status:** Documented in `docs/development/troubleshooting.md`.
+
+### 3. Expo SDK mismatch in `apps/mobile` (open, found 2026-10-15)
+- **Problem:** `package.json` declares `expo ~57.0.25` (dependabot commit fe4b773) while `expo-camera ~16`, `expo-constants ~17` etc. and CI/README target SDK 52; `npm ls` marks the installed `expo@52.0.49` invalid. Dependabot PR #148 also fails the mobile CI job.
+- **Impact:** blocks adding `expo-notifications`; risks a broken `npm ci`/build.
+- **Status:** needs a decision (stay on 52 or upgrade the whole SDK).
 
 ### 2. Pytest Asyncio Default Fixture Loop Scope Warning (RESOLVED)
 - **Problem:** Deprecation warning during pytest run: `asyncio_default_fixture_loop_scope is unset`.
@@ -412,6 +422,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-10-15 — Independent-task pass (uncommitted on `viraj-dev` at time of writing)
+- **Added**: `apps/web/app/lib/packageCrypto.ts` + `tests/package_crypto.test.ts` (8) and the opt-in protect/unlock controls in `DaaviSetuView.tsx`; `apps/mobile/src/services/slaReminders.ts` + tests (8); `docker-compose.demo.yml`; ADR-013, ADR-014; `docs/development/deployment.md`, `mobile-sla-reminders.md`; PDF footer in `billnyay/tools/pdf_compiler.py` + test; Scenario E in the smoke script; `DOCUMENT_SIGNING_SECRET` documented.
+- **Verified**: backend baseline 1012 passed / 6 skipped before the changes; web 101 tests, lint 0, `tsc` clean; mobile 123 tests, `tsc` clean; smoke 58/58; browser: protected download gave `.pdf.arenc` (no plaintext), unlock gave `%PDF-`.
+- **Reviews posted** on PRs #150 and #145 (both red; no code changed there).
 
 ### 2026-09-30 — Demo Scenario E: diabetes admission readiness (committed on `viraj-dev`)
 - **Added**: `demo/documents/E_diabetes_admission_note.txt` (synthetic, labelled); `DEMO_PLAYBOOK_DIABETES` seeded beside the cholecystectomy playbook (seed returns `diabetes_playbook_id`); `SCENARIOS["E"]`; `POST /clinical-demo/scenarios/{A-E}`; test `test_scenario_e_diabetes_admission_readiness_with_one_missing_document`; `demo/scenarios/E_diabetes_admission_readiness.md`.
@@ -607,7 +622,14 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
-### Latest handoff (2026-09-30, Scenario E)
+### Latest handoff (2026-10-15, independent-task pass)
+- Client encryption lives only in the web DaaviSetu view; BillNyay's signed appeal PDF is deliberately excluded (ADR-014). Mobile has no equivalent.
+- The `/billnyay/.../appeal/verify` hash/HMAC feature already existed; do not rebuild it. A file's own hash cannot be printed inside it, so the PDF footer only describes it.
+- The smoke script needs `--admin-key`; on SQLite use `DATABASE_URL=sqlite+aiosqlite:///./x.db` and delete the file afterwards.
+- `apps/mobile/package.json` has `expo ~57` but SDK-52 sibling packages: resolve this before adding any `expo-*` dependency.
+- Open reviews: PRs #150 (NPPA data) and #145 (prescription OCR) need their authors' fixes; merge #150 first.
+
+### Earlier handoff (2026-09-30, Scenario E)
 - Scenario E is a second *playbook* on DaaviSetu's existing readiness engine, not new logic. The checklist lives in `DEMO_PLAYBOOK_DIABETES` (`apps/api/app/clinical/demo.py`); label text must describe documentation, never assert a fact about the claimant (the validator rejects assertions).
 - Adding a scenario touches: `SCENARIOS` (`demo_control.py`), the route `Literal` (`clinical_demo.py`), `SCENARIO_TAB` (`apps/web/app/page.tsx`), `DemoScenario["id"]` (`apps/web/app/lib/demo.ts`), the pinned list in `test_demo_control.py`, and `scripts/demo_runtime_smoke.py` if it should be checked over HTTP.
 - Keep it paperwork-only (Health-a-thon scope): never interpret an HbA1c/glucose value or assess control; no approval probability. The checklist wording is unsourced — say so and get clinical-lead review.

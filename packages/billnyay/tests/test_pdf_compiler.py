@@ -55,3 +55,19 @@ def test_fuzz_a_battery_of_adversarial_and_normal_paragraphs():
 def test_empty_letter_still_compiles():
     pdf_bytes = compile_appeal_packet_bytes("")
     assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_every_page_carries_the_provenance_footer_and_no_dsc_claim():
+    """The footer must state provenance and must never imply a licensed digital signature."""
+    import io
+
+    pypdf = __import__("pytest").importorskip("pypdf")
+    long_letter = "\n\n".join(f"Paragraph {i}: " + ("clinical text " * 40) for i in range(60))
+    pdf_bytes = compile_appeal_packet_bytes(long_letter)
+    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+    assert len(reader.pages) >= 2
+    for page in reader.pages:
+        text = page.extract_text()
+        assert "Prepared with ArogyaRakshak" in text
+        assert "not a digital signature certificate" in text
+    assert "Page 2" in reader.pages[1].extract_text()
