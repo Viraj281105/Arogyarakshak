@@ -163,7 +163,7 @@ arogyarakshak/
 ### Active Task (2026-10-15) — independent-task pass
 - [x] Scenario E added to the demo smoke script (58/58, SQLite). [x] #40 decided: local demo via Docker Compose (ADR-013, `docker-compose.demo.yml`, `docs/development/deployment.md`) — validated with `docker compose config` only; the Docker daemon was not running. [x] #101: client-side encryption for DaaviSetu downloads (ADR-014), browser-verified. [x] Appeal PDF provenance footer. [x] Mobile SLA reminder planner (no push delivery).
 - [x] #90 needed no new code: `billnyay/outcome/` + `POST /billnyay/outcome-estimate` already refuse a probability without a cited, non-synthetic dataset. It is blocked on the data, not on code.
-- [ ] Not done / needs the user: Android device run, real-Groq Scenario A run (no key), Postgres SAVEPOINT path, Expo SDK decision, native-speaker QA, clinical-lead review.
+- [ ] Not done / needs the user: Android device run, real-Groq Scenario A run (no key), Postgres SAVEPOINT path, native-speaker QA, clinical-lead review.
 
 ### Earlier task (2026-09-30) — Scenario E: diabetes admission readiness (Health-a-thon theme: Diabetes Care → Patient/Caregiver → Financial & Administrative Support)
 Smallest real end-to-end workflow for the theme, reusing existing machinery (no new module). Status:
@@ -245,7 +245,7 @@ None. Ready for Product Phase 2 when directed by user.
 - [ ] **Native-speaker QA** of the hi/mr strings marked `NEEDS NATIVE-SPEAKER QA` in `apps/web/app/translations.ts` and `apps/mobile/src/translations/strings.ts`.
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
 - [x] **Kadi Entity Resolution (Phase 3)**: string similarity + rule-based cross-script phonetics + optional IndicSBERT, merge/ask/new branching and feedback-calibrated thresholds (ADR-006). IndicXlit remains blocked on fairseq / Python 3.11 (#29).
-- [ ] **Mobile Push SLA Alerts**: planner + sync logic done and tested (`slaReminders.ts`); the `expo-notifications` adapter, permission flow and device run are NOT done and wait on the Expo SDK decision (see Known Issues §3).
+- [ ] **Mobile Push SLA Alerts**: planner + sync logic done and tested (`slaReminders.ts`); the `expo-notifications` adapter, permission flow and device run are NOT done and are unblocked: the SDK decision is made (stay on 52, Known Issues §3); add `expo-notifications` at the SDK-52 version (`npx expo install expo-notifications`) and run on a device.
 
 ### P2 — Medium (Evaluation & QA)
 - [ ] **Implement Benchmark Mapping Accuracy (BMA) Harness**: Build automated evaluation test comparing hospital bills against CGHS codes.
@@ -301,10 +301,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **Workaround:** Always activate `.venv\Scripts\Activate.ps1` or run directly with `C:\Users\VIRAJ\AppData\Local\Programs\Python\Python311\python.exe`.
 - **Status:** Documented in `docs/development/troubleshooting.md`.
 
-### 3. Expo SDK mismatch in `apps/mobile` (open, found 2026-10-15)
-- **Problem:** `package.json` declares `expo ~57.0.25` (dependabot commit fe4b773) while `expo-camera ~16`, `expo-constants ~17` etc. and CI/README target SDK 52; `npm ls` marks the installed `expo@52.0.49` invalid. Dependabot PR #148 also fails the mobile CI job.
-- **Impact:** blocks adding `expo-notifications`; risks a broken `npm ci`/build.
-- **Status:** needs a decision (stay on 52 or upgrade the whole SDK).
+### 3. Expo SDK mismatch in `apps/mobile` (RESOLVED 2026-10-15)
+- **Problem:** dependabot commit fe4b773 ("bump postcss", an indirect dependency) rewrote `expo` to `~57.0.25` in `package.json`/lockfile while every other Expo package, the README and CI target SDK 52; dependabot PR #148 failed mobile CI for the same reason.
+- **Resolution:** restored `expo ~52.0.37` and the SDK-52 lockfile; kept the postcss fix via `"overrides": {"postcss": "^8.5.28"}` (resolves 8.5.30). `npm ci`, `tsc` and 123 mobile tests pass; `npm ls` is clean.
+- **Decision:** stay on SDK 52. A future SDK upgrade must move every `expo-*` package together. Group-update PRs that touch `expo` itself should be reviewed, not auto-merged.
 
 ### 2. Pytest Asyncio Default Fixture Loop Scope Warning (RESOLVED)
 - **Problem:** Deprecation warning during pytest run: `asyncio_default_fixture_loop_scope is unset`.
@@ -626,7 +626,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - Client encryption lives only in the web DaaviSetu view; BillNyay's signed appeal PDF is deliberately excluded (ADR-014). Mobile has no equivalent.
 - The `/billnyay/.../appeal/verify` hash/HMAC feature already existed; do not rebuild it. A file's own hash cannot be printed inside it, so the PDF footer only describes it.
 - The smoke script needs `--admin-key`; on SQLite use `DATABASE_URL=sqlite+aiosqlite:///./x.db` and delete the file afterwards.
-- `apps/mobile/package.json` has `expo ~57` but SDK-52 sibling packages: resolve this before adding any `expo-*` dependency.
+- Mobile stays on Expo SDK 52 (the `expo ~57` bump from dependabot was reverted); install new Expo packages with `npx expo install` so versions match the SDK.
 - Open reviews: PRs #150 (NPPA data) and #145 (prescription OCR) need their authors' fixes; merge #150 first.
 
 ### Earlier handoff (2026-09-30, Scenario E)

@@ -12,11 +12,9 @@ into local reminders for the two short statutory windows (insurer GRO, Bima Bhar
 
 ## Not done
 The `NotificationScheduler` interface has no production implementation. That needs
-`expo-notifications`, a permission prompt, an Android notification channel and a device run, and
-should not be added until the Expo SDK mismatch below is resolved.
+`expo-notifications` (install with `npx expo install expo-notifications` so the version matches
+SDK 52), a permission prompt, an Android notification channel and a device run.
 
-## Known blocker: Expo SDK mismatch
-`apps/mobile/package.json` declares `expo ~57.0.25` (changed by the dependabot commit fe4b773),
-but the other Expo packages (`expo-camera ~16`, `expo-constants ~17`, …) and CI/README target
-SDK 52, and `npm ls` reports the installed `expo@52.0.49` as invalid. Choose one SDK, align every
-`expo-*` package, then add `expo-notifications` at the version that SDK expects.
+## Expo SDK (resolved 2026-10-15)
+`apps/mobile` stays on Expo SDK 52. A dependabot "bump postcss" commit had changed `expo` to
+`~57.0.25`; that was reverted and postcss is kept current with an `overrides` entry.

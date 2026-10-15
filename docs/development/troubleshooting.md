@@ -186,3 +186,10 @@ This document catalogs known failure modes, error messages, and verified solutio
   npm install
   npm run lint
   ```
+
+
+## 6. Mobile (Expo) Issues
+
+### `npm ci` / `npm ls` reports `expo` invalid, or mobile CI fails after a dependabot PR
+- **Cause**: a dependency-group update rewrote `expo` to a different SDK (for example `~57`) while `expo-camera`, `expo-constants` and the rest stay on SDK 52.
+- **Remedy**: keep `expo ~52.0.37` and the SDK-52 lockfile; add Expo packages with `npx expo install <pkg>`. Do not merge a dependabot PR that changes `expo` itself without upgrading every `expo-*` package together. Fixed on 2026-10-15; see PROJECT_CONTEXT Known Issues 3.
