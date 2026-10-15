@@ -1,6 +1,6 @@
 """Runtime smoke test of the demo golden paths against a RUNNING API (any database).
 
-Drives Scenarios A–D over real HTTP — the same calls the web client makes — and asserts
+Drives Scenarios A–E over real HTTP — the same calls the web client makes — and asserts
 what each step should mean, not just HTTP 200. Used to validate the Postgres runtime:
 
     # API in demo mode against Postgres (docker compose up -d postgres), then:
@@ -212,6 +212,37 @@ def scenario_d(api, creds):
     check("D: second member retires it", status == 200 and second.get("status") == "RETIRED")
 
 
+def scenario_e(api, creds):
+    body = load(api, "E")
+    cid, ch = body["case_id"], case_headers(body["access_token"])
+    inst = {**ch, "X-Institution-Token": creds["institution"]["institution_token"]}
+    playbook = creds["diabetes_playbook_id"]
+    _, r = api.call("POST", f"/api/v1/daavisetu/cases/{cid}/readiness", {"playbook_id": playbook}, inst)
+    items = {i["item_id"]: i for i in r["items"]}
+    check("E: HbA1c found (keyword)", items["pb_hba1c_report"]["status"] == "PRESENT")
+    check("E: blood glucose found (keyword)", items["pb_blood_glucose"]["status"] == "PRESENT")
+    check("E: renal function not found", items["pb_renal_function"]["status"] == "MISSING")
+    check("E: treatment history needs a doctor",
+          items["pb_diabetes_treatment_history"]["status"] == "NEEDS_CLINICAL_CONFIRMATION")
+    lowered = json.dumps(r).lower()
+    check("E: no approval claim", "approval probability" not in lowered)
+    status, review = api.call("POST", f"/api/v1/daavisetu/cases/{cid}/readiness/clinical-confirmations",
+                              {"item_ids": ["pb_diabetes_treatment_history"], "playbook_id": playbook,
+                               "share_with_reviewer_consent": True}, inst)
+    check("E: doctor confirmation requested", status == 201, str(review)[:200])
+    doc = creds["reviewers"]["clinician_b"]
+    api.call("POST", f"/api/v1/kadi/cases/{cid}/clinical-reviews/{review['review_id']}/assign", {"reviewer_id": doc["reviewer_id"]}, ch)
+    api.call("POST", f"/api/v1/kadi/clinical-reviews/{review['review_id']}/accept", {"coi_category": "INDEPENDENT_REVIEWER"}, rh(doc["reviewer_token"]))
+    fact = review["facts"][0]["fact_id"]
+    status, _ = api.call("POST", f"/api/v1/kadi/clinical-reviews/{review['review_id']}/facts/{fact}/decision",
+                         {"decision": "CANNOT_DETERMINE", "note": "Not documented.", "confirmation": True, "confirmation_text": FACT_TEXT},
+                         rh(doc["reviewer_token"]))
+    check("E: doctor decision recorded", status == 200)
+    _, after = api.call("POST", f"/api/v1/daavisetu/cases/{cid}/readiness", {"playbook_id": playbook}, inst)
+    item = next(i for i in after["items"] if i["item_id"] == "pb_diabetes_treatment_history")
+    check("E: shows the doctor's decision, never 'satisfied'", item["status"] == "REVIEWER_COULD_NOT_DETERMINE")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--api", default="http://127.0.0.1:8000")
@@ -231,9 +262,10 @@ def main():
     scenario_b(api, creds)
     scenario_c(api, creds)
     scenario_d(api, creds)
+    scenario_e(api, creds)
 
     status, again = api.call("POST", "/api/v1/kadi/clinical-demo/reset", {"confirm": "RESET DEMO"}, api.admin())
-    check("Reset after the run removes the scenario cases", status == 200 and again["demo_cases_removed"] >= 4, str(again)[:200])
+    check("Reset after the run removes the scenario cases", status == 200 and again["demo_cases_removed"] >= 5, str(again)[:200])
     status, _ = api.call("GET", f"/api/v1/kadi/cases/{cid}", headers=ch)
     check("A's case (and its signed PDF) is gone after reset", status in (401, 403, 404))
     _, rules = api.call("GET", "/api/v1/kadi/safety-rules")

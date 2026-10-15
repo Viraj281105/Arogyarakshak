@@ -18,8 +18,10 @@ says what you should see. Total demo time: 8–12 minutes.
 # From the repository root. Pick any long random operator key and keep it to hand.
 $env:CLINICAL_DEMO_MODE = "true"
 $env:CLINICAL_GOVERNANCE_ADMIN_KEY = "choose-a-long-random-demo-key"
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
 ```
+
+The demo override (ADR-013, `docs/development/deployment.md`) turns off hot reload and runs the web production build.
 
 - Web: http://localhost:3000 · API: http://localhost:8000/health (`"status":"ok"`).
 - Leave `GROQ_API_KEY` **unset** for a deterministic demo (rule-based extraction; every
@@ -36,7 +38,7 @@ uses the `DATABASE_URL` in `.env` (Postgres) — see `docs/development/setup.md`
 python scripts/demo_runtime_smoke.py --api http://127.0.0.1:8000 --admin-key choose-a-long-random-demo-key
 ```
 
-Expect `49/49 checks passed`. It runs Scenarios A–D over HTTP and resets afterwards.
+Expect every check to pass (58/58 on SQLite). It runs Scenarios A–E over HTTP and resets afterwards.
 
 ### Prepare the browser
 

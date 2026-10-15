@@ -24,6 +24,23 @@ MUTED = colors.HexColor("#475569")
 BORDER = colors.HexColor("#cbd5e1")
 
 
+FOOTER_NOTE = (
+    "Prepared with ArogyaRakshak. Integrity: the SHA-256 of this file can be checked against the "
+    "value shown when it was generated. This is not a digital signature certificate."
+)
+
+
+def _draw_footer(canvas, doc) -> None:
+    """Quiet footer on every page: provenance, honest integrity wording and the page number.
+    Deliberately not a diagonal watermark - this is a formal letter sent to an insurer."""
+    canvas.saveState()
+    canvas.setFont("Helvetica", 7)
+    canvas.setFillColor(MUTED)
+    canvas.drawString(40, 24, FOOTER_NOTE)
+    canvas.drawRightString(A4[0] - 40, 24, f"Page {doc.page}")
+    canvas.restoreState()
+
+
 def _styles():
     base = getSampleStyleSheet()
 
@@ -112,7 +129,7 @@ def compile_appeal_packet(
         topMargin=40,
         bottomMargin=40,
     )
-    doc.build(_build_story(appeal_letter, _styles()))
+    doc.build(_build_story(appeal_letter, _styles()), onFirstPage=_draw_footer, onLaterPages=_draw_footer)
     return output_path
 
 
@@ -133,5 +150,9 @@ def compile_appeal_packet_bytes(
         topMargin=40,
         bottomMargin=40,
     )
-    doc.build(_build_story(appeal_letter, _styles(), clinical_annex))
+    doc.build(
+        _build_story(appeal_letter, _styles(), clinical_annex),
+        onFirstPage=_draw_footer,
+        onLaterPages=_draw_footer,
+    )
     return buffer.getvalue()
