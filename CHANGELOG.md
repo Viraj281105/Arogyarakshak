@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mobile Expo SDK pin (2026-10-15)
+
+#### Fixed
+- `apps/mobile`: reverted the accidental `expo ~57` bump from dependabot commit fe4b773 back to SDK 52 (`npm ci` and `npm ls` were failing/invalid; dependabot PR #148 failed mobile CI). The postcss security bump is kept through an `overrides` entry.
+
 ### Independent-task pass (2026-10-15)
 
 #### Added
