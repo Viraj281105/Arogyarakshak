@@ -1,172 +1,491 @@
 """
-DawaCheck — shared NPPA reference data and brand/generic matching.
+NPPA Schedule-I reference data loader for DawaCheck.
 
-Single source of truth for the curated NPPA Schedule-I subset and the matching logic
-used to resolve a free-text brand mention (as typed by a user or extracted by Kadi's
-OCR/LLM pipeline) to a reference formulation. Previously this table and its matching
-logic lived inline in `checker.py`; it moved here so the same lookup can be reused by
-fuzzy matching (#72), dosage normalization (#73), and the Kadi case-integration
-endpoint (#27) without duplicating the data.
+Loads the curated 2025 NPPA Schedule-I CSV containing 748 formulations
+and exposes the same matching functions expected by checker.py.
 """
 
+import csv
 import re
-from typing import Dict, List, Optional, Tuple
+from difflib import SequenceMatcher
+from pathlib import Path
+from typing import List, Optional, Tuple
 
-from dawacheck.metaphone import phonetic_codes_match
 
-REFERENCE_SOURCE = "NPPA Schedule-I (curated subset)"
+REFERENCE_SOURCE = "NPPA Schedule-I 2025 (748 formulations)"
 
-# Ceiling prices are PER DOSAGE UNIT of `unit_form` (one tablet, one capsule, one vial) —
-# DawaCheck.price_basis converts a billed strip/pack/line total to that unit or refuses
-# to compare.
-# Each entry is one reference formulation. `ingredient_base` is the bare active
-# ingredient with no dosage/strength token, used for dosage normalization (#73) and as
-# the phonetic-matching target (#72) so "Paracetamol 500mg" can be recognized as a
-# dosage variant of the "paracetamol 650mg" reference entry rather than an unknown drug.
-NPPA_REFERENCE_DATA: Dict[str, dict] = {
-    "paracetamol 650mg": {
-        "unit_form": "tablet",
-        "ingredient_base": "paracetamol",
-        "dosage_mg": 650.0,
-        "active_ingredient": "Paracetamol 650mg",
-        "ceiling_price": 2.30,
-        "generic_info": "Generic Paracetamol 650mg available at PMBJP Jan Aushadhi Kendras for ₹0.80/tablet (65% savings).",
-        "aliases": ["dolo 650", "dolo 650mg", "crocin 650", "crocin 650mg", "calpol 650", "pacimol 650"],
-    },
-    "amoxicillin 500mg": {
-        "unit_form": "capsule",
-        "ingredient_base": "amoxicillin",
-        "dosage_mg": 500.0,
-        "active_ingredient": "Amoxicillin 500mg",
-        "ceiling_price": 7.50,
-        "generic_info": "Generic Amoxicillin 500mg available at PMBJP Jan Aushadhi for ₹2.40/capsule (68% savings).",
-        "aliases": ["mox 500", "novamox 500", "amoxil 500"],
-    },
-    "augmentin 625": {
-        "unit_form": "tablet",
-        "ingredient_base": "amoxicillin clavulanate",
-        "dosage_mg": 625.0,
-        "active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)",
-        "ceiling_price": 20.10,
-        "generic_info": "Generic Amoxyclav 625mg available at PMBJP Kendras for ₹6.50/tablet (68% savings).",
-        "aliases": ["augmentin 625 duo", "augmentin 625 duo tablet", "moxikind cv 625", "clavum 625"],
-    },
-    "metformin 500mg": {
-        "unit_form": "tablet",
-        "ingredient_base": "metformin",
-        "dosage_mg": 500.0,
-        "active_ingredient": "Metformin Hydrochloride 500mg SR",
-        "ceiling_price": 2.15,
-        "generic_info": "Generic Metformin 500mg SR available at PMBJP Jan Aushadhi for ₹0.45/tablet (79% savings).",
-        "aliases": ["metformin 500mg sr", "glycomet 500", "glyciphage 500", "metformin sr"],
-    },
-    "meropenem 1g": {
-        "unit_form": "injection",
-        "ingredient_base": "meropenem",
-        "dosage_mg": 1000.0,
-        "active_ingredient": "Meropenem 1000mg Powder for Injection",
-        "ceiling_price": 850.00,
-        "generic_info": "Generic Meropenem 1g Injection available at Jan Aushadhi stores for ₹245.00/vial (71% savings).",
-        "aliases": ["meropenem 1g injection", "meronem 1g", "meromac 1g"],
-    },
-    "pantoprazole 40mg": {
-        "unit_form": "tablet",
-        "ingredient_base": "pantoprazole",
-        "dosage_mg": 40.0,
-        "active_ingredient": "Pantoprazole 40mg",
-        "ceiling_price": 3.20,
-        "generic_info": "Generic Pantoprazole 40mg available at PMBJP Kendras for ₹0.90/tablet (72% savings).",
-        "aliases": ["pan 40", "pantocid 40", "pantodac 40"],
-    },
-    "azithromycin 500mg": {
-        "unit_form": "tablet",
-        "ingredient_base": "azithromycin",
-        "dosage_mg": 500.0,
-        "active_ingredient": "Azithromycin 500mg",
-        "ceiling_price": 21.50,
-        "generic_info": "Generic Azithromycin 500mg available at PMBJP Jan Aushadhi for ₹8.00/tablet (63% savings).",
-        "aliases": ["azithral 500", "aziwok 500", "zithrox 500"],
-    },
-}
 
-_DOSAGE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(mcg|mg|g)\b", re.IGNORECASE)
-_UNIT_TO_MG = {"mcg": 0.001, "mg": 1.0, "g": 1000.0}
+# ---------------------------------------------------------------------------
+# Locate NPPA CSV
+# ---------------------------------------------------------------------------
+
+def _find_nppa_csv() -> Path:
+    """Find data/raw/NPPA_schedule_2025.csv from the package location."""
+
+    filename = "NPPA_schedule_2025.csv"
+
+    current = Path(__file__).resolve()
+
+    for parent in current.parents:
+        candidate = parent / "data" / "raw" / filename
+        if candidate.exists():
+            return candidate
+
+    # Fallback: search from current working directory.
+    cwd_candidate = Path.cwd() / "data" / "raw" / filename
+    if cwd_candidate.exists():
+        return cwd_candidate
+
+    raise FileNotFoundError(
+        f"Could not find {filename}. "
+        "Expected it at data/raw/NPPA_schedule_2025.csv"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Normalization helpers
+# ---------------------------------------------------------------------------
+
+def _normalize(value: str) -> str:
+    """Normalize text for reliable matching."""
+
+    value = str(value or "").lower().strip()
+
+    value = value.replace("µ", "u")
+    value = value.replace("μ", "u")
+
+    # Normalize common punctuation/separators.
+    value = re.sub(r"[/(),:;]+", " ", value)
+    value = re.sub(r"[-]+", " ", value)
+
+    # Normalize whitespace.
+    value = re.sub(r"\s+", " ", value)
+
+    return value.strip()
+
+
+def _extract_dosage_mg(text: str) -> Optional[float]:
+    """
+    Extract dosage strength and convert it to mg.
+
+    Examples:
+        500mg   -> 500
+        1g      -> 1000
+        250 mcg -> 0.25
+        650 mg  -> 650
+    """
+
+    if not text:
+        return None
+
+    text = str(text).lower().replace("µ", "u").replace("μ", "u")
+
+    # Prefer mg first.
+    match = re.search(r"(\d+(?:\.\d+)?)\s*mg\b", text)
+    if match:
+        return float(match.group(1))
+
+    # Micrograms.
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mcg|ug)\b", text)
+    if match:
+        return float(match.group(1)) / 1000.0
+
+    # Grams.
+    match = re.search(r"(\d+(?:\.\d+)?)\s*g\b", text)
+    if match:
+        return float(match.group(1)) * 1000.0
+
+    return None
 
 
 def extract_dosage_mg(text: str) -> Optional[float]:
-    """Extracts the first mg/mcg/g strength mentioned in `text`, normalized to mg.
+    """Public dosage extraction helper used by checker.py."""
 
-    Returns None when no strength token is present — callers must not assume a
-    default strength, since guessing one could silently mis-price a different dose.
-    """
-    match = _DOSAGE_RE.search(text)
-    if not match:
-        return None
-    value, unit = match.groups()
-    return round(float(value) * _UNIT_TO_MG[unit.lower()], 4)
+    return _extract_dosage_mg(text)
 
 
 def strip_dosage_token(text: str) -> str:
-    """Removes the first mg/mcg/g strength token, leaving the bare brand/ingredient text."""
-    return _DOSAGE_RE.sub("", text).strip()
+    """Remove a dosage-strength token from a medicine query."""
 
+    if not text:
+        return ""
+
+    result = str(text)
+
+    result = re.sub(
+        r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|ug|g)\b",
+        " ",
+        result,
+        flags=re.IGNORECASE,
+    )
+
+    result = re.sub(r"\s+", " ", result)
+
+    return result.strip()
+
+
+# ---------------------------------------------------------------------------
+# Unit/form helper
+# ---------------------------------------------------------------------------
+
+def _derive_unit_form(dosage_form_strength: str, unit: str) -> str:
+    """Derive a simple formulation name for compatibility with DawaCheck."""
+
+    text = f"{dosage_form_strength} {unit}".lower()
+
+    form_words = [
+        "tablet",
+        "capsule",
+        "injection",
+        "ointment",
+        "cream",
+        "gel",
+        "syrup",
+        "solution",
+        "suspension",
+        "drops",
+        "drop",
+        "powder",
+        "inhaler",
+        "respules",
+        "suppository",
+        "patch",
+        "implant",
+        "iud",
+        "vial",
+        "ampoule",
+        "ampule",
+        "oral liquid",
+        "oral solution",
+        "oral suspension",
+        "nasal spray",
+        "spray",
+        "cream",
+        "lotion",
+        "mouth paint",
+        "eye drops",
+        "ear drops",
+    ]
+
+    for form in form_words:
+        if form in text:
+            return form
+
+    # Fall back to the first meaningful part of the dosage/formulation text.
+    words = _normalize(dosage_form_strength).split()
+
+    if words:
+        return words[0]
+
+    return _normalize(unit)
+
+
+# ---------------------------------------------------------------------------
+# Load NPPA reference data
+# ---------------------------------------------------------------------------
+
+def _load_nppa_reference_data() -> dict:
+    """Load all 748 NPPA formulations from the extracted CSV."""
+
+    csv_path = _find_nppa_csv()
+
+    required_columns = {
+        "sl_no",
+        "medicine",
+        "dosage_form_strength",
+        "unit",
+        "ceiling_price",
+        "existing_so_no",
+        "existing_so_date",
+    }
+
+    data = {}
+
+    with csv_path.open("r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+
+        if reader.fieldnames is None:
+            raise ValueError("NPPA CSV has no header row.")
+
+        missing = required_columns - set(reader.fieldnames)
+
+        if missing:
+            raise ValueError(
+                f"NPPA CSV is missing required columns: {sorted(missing)}"
+            )
+
+        for row in reader:
+            medicine = (row.get("medicine") or "").strip()
+            dosage_form_strength = (
+                row.get("dosage_form_strength") or ""
+            ).strip()
+            unit = (row.get("unit") or "").strip()
+
+            if not medicine:
+                continue
+
+            ceiling_price_text = (
+                row.get("ceiling_price") or ""
+            ).strip()
+
+            if not ceiling_price_text:
+                continue
+
+            try:
+                ceiling_price = float(ceiling_price_text)
+            except ValueError:
+                continue
+
+            dosage_mg = _extract_dosage_mg(
+                f"{medicine} {dosage_form_strength}"
+            )
+
+            entry = {
+                "unit_form": _derive_unit_form(
+                    dosage_form_strength,
+                    unit,
+                ),
+                "ingredient_base": medicine.lower(),
+                "dosage_mg": dosage_mg,
+                "active_ingredient": medicine,
+                "ceiling_price": ceiling_price,
+                "generic_info": "",
+                "aliases": [],
+                "dosage_form_strength": dosage_form_strength,
+                "unit": unit,
+                "existing_so_no": (
+                    row.get("existing_so_no") or ""
+                ).strip(),
+                "existing_so_date": (
+                    row.get("existing_so_date") or ""
+                ).strip(),
+                "sl_no": int(row["sl_no"]),
+            }
+
+            # Include medicine + formulation + unit in the key.
+            #
+            # Unit is important because some NPPA medicines have
+            # otherwise identical medicine/formulation text but different
+            # units and ceiling prices.
+            key = _normalize(
+                f"{medicine} {dosage_form_strength} {unit}"
+            )
+
+            if key in data:
+                raise ValueError(
+                    f"Duplicate NPPA reference key detected: {key}"
+                )
+
+            data[key] = entry
+
+    if len(data) != 748:
+        raise ValueError(
+            f"Expected 748 NPPA formulations, but loaded {len(data)}."
+        )
+
+    return data
+
+
+NPPA_REFERENCE_DATA = _load_nppa_reference_data()
+
+
+# ---------------------------------------------------------------------------
+# Matching helpers
+# ---------------------------------------------------------------------------
 
 def find_exact_or_alias(query: str) -> Optional[Tuple[str, dict]]:
-    """Exact-key, then substring, then alias matching (unchanged from the original
-    single-file matcher). Returns (reference_key, entry) or None."""
-    norm_query = query.lower().strip()
+    """
+    Find an exact NPPA formulation or alias.
 
-    if norm_query in NPPA_REFERENCE_DATA:
-        return norm_query, NPPA_REFERENCE_DATA[norm_query]
+    Matching order:
+    1. Full generated NPPA key.
+    2. Medicine + dosage/formulation.
+    3. Medicine + strength, only if unambiguous.
+    4. Medicine alone, only if exactly one formulation exists.
+    5. Alias.
+    """
 
-    for primary_key, entry in NPPA_REFERENCE_DATA.items():
-        if primary_key in norm_query or norm_query in primary_key:
-            return primary_key, entry
+    normalized_query = _normalize(query)
+
+    if not normalized_query:
+        return None
+
+    # ---------------------------------------------------------------
+    # 1. Exact full-key match
+    # ---------------------------------------------------------------
+
+    if normalized_query in NPPA_REFERENCE_DATA:
+        return (
+            normalized_query,
+            NPPA_REFERENCE_DATA[normalized_query],
+        )
+
+    # ---------------------------------------------------------------
+    # 2. Exact medicine + formulation + strength match
+    #
+    # Example:
+    #   "amoxicillin Capsule 500mg"
+    # ---------------------------------------------------------------
+
+    formulation_matches = []
+
+    for key, entry in NPPA_REFERENCE_DATA.items():
+        medicine = _normalize(entry["active_ingredient"])
+        dosage = _normalize(
+            entry.get("dosage_form_strength", "")
+        )
+
+        if not dosage:
+            continue
+
+        combined = _normalize(
+            f"{medicine} {dosage}"
+        )
+
+        if normalized_query == combined:
+            formulation_matches.append((key, entry))
+
+    if len(formulation_matches) == 1:
+        return formulation_matches[0]
+
+    # If somehow multiple identical formulations exist, do not
+    # randomly select one.
+    if len(formulation_matches) > 1:
+        return None
+
+    # ---------------------------------------------------------------
+    # 3. Medicine + strength match
+    #
+    # Only return a result when exactly one formulation has that
+    # medicine and strength.
+    #
+    # Example:
+    #   "some medicine 50mg"
+    # ---------------------------------------------------------------
+
+    query_strength = _extract_dosage_mg(normalized_query)
+    query_medicine = strip_dosage_token(normalized_query)
+
+    if query_strength is not None and query_medicine:
+        strength_matches = []
+
+        for key, entry in NPPA_REFERENCE_DATA.items():
+            medicine = _normalize(
+                entry["active_ingredient"]
+            )
+
+            reference_strength = entry.get("dosage_mg")
+
+            if (
+                medicine == query_medicine
+                and reference_strength is not None
+                and abs(reference_strength - query_strength) < 1e-9
+            ):
+                strength_matches.append((key, entry))
+
+        if len(strength_matches) == 1:
+            return strength_matches[0]
+
+        # Multiple formulations with the same strength are ambiguous.
+        # Do not select one arbitrarily.
+        if len(strength_matches) > 1:
+            return None
+
+    # ---------------------------------------------------------------
+    # 4. Medicine-only match
+    #
+    # Only return a result if that medicine has exactly one NPPA
+    # formulation.
+    # ---------------------------------------------------------------
+
+    medicine_matches = [
+        (key, entry)
+        for key, entry in NPPA_REFERENCE_DATA.items()
+        if normalized_query
+        == _normalize(entry["active_ingredient"])
+    ]
+
+    if len(medicine_matches) == 1:
+        return medicine_matches[0]
+
+    # ---------------------------------------------------------------
+    # 5. Alias matching
+    # ---------------------------------------------------------------
+
+    for key, entry in NPPA_REFERENCE_DATA.items():
         for alias in entry.get("aliases", []):
-            if alias in norm_query or norm_query in alias:
-                return primary_key, entry
+            alias_normalized = _normalize(alias)
+
+            if (
+                normalized_query == alias_normalized
+                or alias_normalized in normalized_query
+            ):
+                return key, entry
 
     return None
 
 
-def find_ingredient_family(ingredient_base: str) -> List[Tuple[str, dict]]:
-    """All reference entries sharing the given bare ingredient name."""
-    target = ingredient_base.lower().strip()
+def find_ingredient_family(
+    ingredient_base: str,
+) -> List[Tuple[str, dict]]:
+    """
+    Return all NPPA formulations belonging to the same medicine.
+    """
+
+    target = _normalize(ingredient_base)
+
     return [
         (key, entry)
         for key, entry in NPPA_REFERENCE_DATA.items()
-        if entry["ingredient_base"] == target
+        if _normalize(entry["ingredient_base"]) == target
     ]
 
 
-def find_phonetic_match(query: str) -> Optional[Tuple[str, dict]]:
-    """Matches the bare (dosage-stripped) ingredient token in `query` against each
-    reference entry's ingredient name and aliases using Double Metaphone codes.
-
-    This is a lower-confidence match than `find_exact_or_alias` — it is meant to catch
-    spelling/OCR variants (e.g. "Amoxycillin" for "Amoxicillin"), not to guess at
-    unrelated brand names. Callers must disclose when a result came from this path.
+def find_phonetic_match(
+    query: str,
+) -> Optional[Tuple[str, dict]]:
     """
-    bare_query = strip_dosage_token(query).strip()
-    if not bare_query:
+    Find a conservative fuzzy/phonetic-style match.
+
+    A match is returned only when there is one clearly best candidate.
+    """
+
+    normalized_query = _normalize(query)
+
+    if not normalized_query:
         return None
 
-    # Phonetic codes are unreliable on very short strings (high collision rate), so
-    # require a minimum length before trusting a match.
-    query_tokens = [t for t in re.split(r"\s+", bare_query) if len(t) >= 4]
-    if not query_tokens:
-        return None
+    candidates = []
 
     for key, entry in NPPA_REFERENCE_DATA.items():
-        candidate_terms = [entry["ingredient_base"], key] + entry.get("aliases", [])
-        candidate_tokens = set()
-        for term in candidate_terms:
-            bare_term = strip_dosage_token(term)
-            candidate_tokens.update(t for t in re.split(r"\s+", bare_term) if len(t) >= 4)
+        medicine = _normalize(entry["active_ingredient"])
 
-        for q_tok in query_tokens:
-            for c_tok in candidate_tokens:
-                if phonetic_codes_match(q_tok, c_tok):
-                    return key, entry
+        similarity = SequenceMatcher(
+            None,
+            normalized_query,
+            medicine,
+        ).ratio()
 
-    return None
+        if similarity >= 0.88:
+            candidates.append(
+                (similarity, key, entry)
+            )
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda item: item[0],
+        reverse=True,
+    )
+
+    # Require a clear winner.
+    best = candidates[0]
+
+    if len(candidates) > 1:
+        second = candidates[1]
+
+        if best[0] - second[0] < 0.03:
+            return None
+
+    return best[1], best[2]
