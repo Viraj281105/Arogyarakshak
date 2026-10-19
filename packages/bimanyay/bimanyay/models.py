@@ -5,6 +5,8 @@ Pydantic Schemas for BimaNyay Insurance Denial and Grievance Engine.
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
+from kadi.explanation import Explanation
+
 from .clinical_triggers import ClinicalReviewTrigger
 
 
@@ -62,6 +64,9 @@ class GrievanceTimelineEvent(BaseModel):
     deadline_date: str
     status: str  # 'PENDING', 'ACTIVE', 'OVERDUE', 'COMPLETED'
     instructions: str
+    # "Why am I seeing this?" trail (ADR-015): the day count, its cited source and what is
+    # assumed. Additive; not persisted with the event row.
+    explanation: Optional[Explanation] = None
 
 
 class GrievanceTrackerResponse(BaseModel):

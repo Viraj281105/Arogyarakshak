@@ -14,6 +14,7 @@ import {
   ClinicalReviewCard,
   SafetyNotice,
   StatementView,
+  ExplainToggle,
 } from '../components';
 import { api, BillNyayAuditResponse, BillNyayAppealResponse, ApiError, PlausibilityResponse } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
@@ -336,6 +337,7 @@ export const BillNyayScreen: React.FC = () => {
                     {benchmarked ? item.benchmark_basis : item.not_benchmarked_reason}
                   </Text>
                 ) : null}
+                <ExplainToggle explanation={item.explanation} />
               </View>
             );
           })}

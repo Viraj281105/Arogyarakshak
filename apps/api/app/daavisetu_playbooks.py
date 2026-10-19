@@ -232,7 +232,11 @@ def case_evidence(entities: Sequence[EntityRecord], case_total: float) -> CaseEv
         if e.type == "document_text":
             text_parts.append(e.value or "")
             continue
-        grouped.setdefault(e.type, []).append({"id": e.id, "value": e.name})
+        record = {"id": e.id, "value": e.name}
+        source_file = (e.meta or {}).get("source_file") if isinstance(e.meta, dict) else None
+        if source_file:
+            record["source_file"] = str(source_file)
+        grouped.setdefault(e.type, []).append(record)
     return CaseEvidence(entities=grouped, document_text="\n".join(text_parts), case_total=case_total or 0.0)
 
 

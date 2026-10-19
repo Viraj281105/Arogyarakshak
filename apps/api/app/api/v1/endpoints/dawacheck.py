@@ -18,7 +18,13 @@ from app.clinical.transcription_service import open_tasks_by_entity
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DawaCheckGenericMapping, KadiCase, KadiEntity
-from kadi.clinical_review.medicine_trust import PendingTask, decide_medicine_trust, trust_summary
+from kadi.clinical_review.medicine_trust import (
+    PendingTask,
+    decide_medicine_trust,
+    name_provenance_class,
+    trust_summary,
+)
+from kadi.explanation import Explanation, ProvenanceClass
 # Import dawacheck packages
 from dawacheck.checker import (
     REFERENCE_SOURCE,
@@ -26,6 +32,7 @@ from dawacheck.checker import (
     benchmark_medicine,
     MedicineBenchmark,
 )
+from dawacheck.explain import explain_medicine
 from dawacheck.prescription_translator import (
     translate_prescription_shorthand,
     PrescriptionTranslation,
@@ -77,11 +84,19 @@ class CaseMedicineBenchmark(BaseModel):
     # The trust decision behind this row: state, patient-readable label, whether it was
     # benchmarkable, and (for OCR uncertainty) the reasons it was held back.
     trust: Dict[str, Any] = Field(default_factory=dict)
+    # "Why am I seeing this?" trail (ADR-015). Additive.
+    explanation: Optional[Explanation] = None
+
+
+class ExplainedBenchmark(MedicineBenchmark):
+    """`MedicineBenchmark` plus its explanation trail (manual check)."""
+
+    explanation: Optional[Explanation] = None
 
 
 # --- Route Implementations ----------------------------------------------------
 
-@router.post("/benchmark", response_model=MedicineBenchmark, status_code=status.HTTP_200_OK)
+@router.post("/benchmark", response_model=ExplainedBenchmark, status_code=status.HTTP_200_OK)
 async def check_medicine_pricing(req: BenchRequest):
     """Checks medicine MRP against NPPA Schedule-I ceiling price list."""
     benchmark = benchmark_medicine(
@@ -107,7 +122,18 @@ async def check_medicine_pricing(req: BenchRequest):
                 "data_source": REFERENCE_SOURCE,
             },
         )
-    return benchmark
+    return ExplainedBenchmark(
+        **benchmark.model_dump(),
+        explanation=explain_medicine(
+            brand_name=req.brand_name,
+            benchmark=benchmark,
+            name_provenance=ProvenanceClass.USER_ENTERED,
+            trust_code="USER_ENTERED",
+            trust_label="Entered by you for a manual check",
+            trust_detail="Nothing was read from a document; the name and price are exactly what you typed.",
+            entered_by_user=True,
+        ),
+    )
 
 
 @router.post(
@@ -226,6 +252,24 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
             else None,
         )
         trust = trust_summary(decision)
+        name_class = name_provenance_class(decision, meta)
+        source_file = meta.get("source_file")
+        cost = meta.get("cost")
+        if cost is None and entity.value:
+            try:
+                cost = float(entity.value)
+            except (TypeError, ValueError):
+                cost = None
+
+        def _explain(brand, benchmark=None, note=None, _cls=name_class, _src=source_file, _cost=cost,
+                     _trust=trust, _reasons=decision.reasons):
+            return explain_medicine(
+                brand_name=brand, benchmark=benchmark, name_provenance=_cls,
+                trust_code=_trust["state"], trust_label=_trust["label"], trust_detail=None,
+                not_compared_note=note, source_file=_src,
+                billed_amount=float(_cost) if _cost is not None else None, ocr_reasons=_reasons,
+            )
+
         if not decision.benchmarkable:
             results.append(
                 CaseMedicineBenchmark(
@@ -235,19 +279,13 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
                     transcription_task_id=decision.task_id,
                     transcription_status=decision.transcription_status,
                     trust=trust,
+                    explanation=_explain(entity.name, note=decision.note),
                 )
             )
             continue
 
         name_provenance = decision.name_provenance
         brand_name = decision.name
-
-        cost = meta.get("cost")
-        if cost is None and entity.value:
-            try:
-                cost = float(entity.value)
-            except (TypeError, ValueError):
-                cost = None
 
         if cost is None:
             results.append(
@@ -257,6 +295,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
                     note="No cost was recorded for this medicine entity; cannot benchmark.",
                     name_provenance=name_provenance,
                     trust=trust,
+                    explanation=_explain(brand_name, note="No cost was recorded for this medicine entity; cannot benchmark."),
                 )
             )
             continue
@@ -300,6 +339,10 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
                     ),
                     name_provenance=name_provenance,
                     trust=trust,
+                    explanation=_explain(
+                        brand_name,
+                        note="Not found in the curated reference price list; this does NOT mean the medicine is exempt from price control.",
+                    ),
                 )
             )
             continue
@@ -308,7 +351,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         results.append(
             CaseMedicineBenchmark(
                 entity_id=entity.id, brand_name=brand_name, benchmark=benchmark, name_provenance=name_provenance,
-                trust=trust,
+                trust=trust, explanation=_explain(brand_name, benchmark=benchmark),
             )
         )
 

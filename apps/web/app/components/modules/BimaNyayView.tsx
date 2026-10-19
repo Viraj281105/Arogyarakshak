@@ -6,6 +6,8 @@ import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 import { ClinicalStatement } from "../../lib/clinical";
 import { ClinicalStatementCard, ProvenanceBadge } from "../clinical/Attribution";
 import { ClinicalReviewPanel } from "../clinical/ClinicalReviewPanel";
+import { ExplainTrail } from "../ExplainTrail";
+import type { Explanation } from "../../lib/explanation";
 
 // ADR-011: whether the denial turns on clinical judgment. Never an outcome prediction.
 interface ClinicalReviewTrigger {
@@ -48,6 +50,8 @@ interface GrievanceTimelineEvent {
   deadline_date: string;
   status: string;
   instructions: string;
+  /** "Why am I seeing this?" trail (ADR-015). */
+  explanation?: Explanation | null;
 }
 
 interface GrievanceTrackerResponse {
@@ -450,6 +454,7 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId,
                         <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
                           {event.instructions} <strong>Deadline: {event.deadline_date}</strong>
                         </p>
+                        <ExplainTrail explanation={event.explanation} lang={currentLang} />
                       </div>
                     </div>
                   );

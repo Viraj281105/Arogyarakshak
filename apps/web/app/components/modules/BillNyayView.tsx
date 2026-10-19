@@ -8,6 +8,8 @@ import { ClinicalStatementCard, ProvenanceBadge } from "../clinical/Attribution"
 import { ClinicalReviewPanel } from "../clinical/ClinicalReviewPanel";
 import { StatePanel } from "../clinical/StatePanel";
 import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
+import { ExplainTrail } from "../ExplainTrail";
+import type { Explanation } from "../../lib/explanation";
 
 // --- Clinical plausibility (ADR-011): bounded, never a necessity determination ---
 interface PlausibilityResponse {
@@ -54,6 +56,8 @@ interface AuditResultItem {
   benchmark_basis?: string | null;
   /** Why a matched line was not compared (e.g. a per-day rate and no day count). */
   not_benchmarked_reason?: string | null;
+  /** "Why am I seeing this?" trail (ADR-015). */
+  explanation?: Explanation | null;
 }
 
 interface AuditResponse {
@@ -511,7 +515,8 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
                     {auditData.audit_items.map((row, idx) => {
                       const benchmarked = row.benchmarked && row.cghs_benchmark !== null;
                       return (
-                        <tr key={idx}>
+                        <React.Fragment key={idx}>
+                        <tr>
                           <td style={{ fontWeight: 600 }}>{row.item_name}</td>
                           <td>₹{row.charged.toLocaleString("en-IN")}</td>
                           <td style={{ color: benchmarked ? "var(--brand-cyan)" : "var(--text-secondary)" }}>
@@ -560,6 +565,14 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
                             </span>
                           </td>
                         </tr>
+                        {row.explanation && (
+                          <tr>
+                            <td colSpan={5} style={{ paddingTop: 0 }}>
+                              <ExplainTrail explanation={row.explanation} lang={currentLang} />
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>

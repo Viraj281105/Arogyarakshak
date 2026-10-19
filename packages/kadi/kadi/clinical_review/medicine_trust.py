@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Mapping, Optional
 
+from ..explanation import ProvenanceClass
 from .transcription import OCR_UNCERTAINTY_NEXT_STEP
 
 
@@ -177,3 +178,18 @@ def trust_summary(decision: MedicineTrustDecision) -> Dict[str, Any]:
         "benchmarkable": decision.benchmarkable,
         "reasons": list(decision.reasons),
     }
+
+
+def name_provenance_class(decision: MedicineTrustDecision, meta: Optional[Mapping[str, Any]]) -> ProvenanceClass:
+    """Explanation-trail provenance for a medicine name (ADR-015): HUMAN_REVIEWED when
+    independent readers settled it; LLM_NORMALISED only when the recorded OCR-uncertainty
+    reasons say the extractor's wording may differ from the OCR reading; otherwise
+    OCR_EXTRACTED. Whether an LLM rewrote a name is not recorded per entity, so it is never
+    claimed beyond those recorded reasons."""
+    if decision.state == MedicineTrustState.HUMAN_RESOLVED:
+        return ProvenanceClass.HUMAN_REVIEWED
+    uncertainty = (meta or {}).get("ocr_uncertainty") if isinstance(meta, Mapping) else None
+    reasons = uncertainty.get("reasons") if isinstance(uncertainty, Mapping) else None
+    if reasons and "POSSIBLE_MATCH" in reasons:
+        return ProvenanceClass.LLM_NORMALISED
+    return ProvenanceClass.OCR_EXTRACTED

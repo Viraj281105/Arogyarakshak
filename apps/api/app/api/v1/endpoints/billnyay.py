@@ -41,7 +41,9 @@ from billnyay.agents.consensus import (
 )
 from billnyay.agents.feedback_loop import draft_with_self_correction
 from billnyay.agents.icd_audit import audit_icd_procedure_consistency, ICDProcedureAuditItem
+from billnyay.explain import explain_audit_line
 from billnyay.rate_basis import benchmark_line
+from kadi.explanation import Explanation
 from billnyay.tools.pdf_compiler import compile_appeal_packet_bytes
 from billnyay.tools.pdf_integrity import compute_sha256, sign_document, verify_signature
 from billnyay.tools.bima_bharosa_crawler import check_registration_status_mock, RegistrationStatusResult
@@ -52,6 +54,10 @@ router = APIRouter()
 
 
 # --- Load CGHS Rate Schedule Data Source --------------------------------------
+# Version label of the loaded rate schedule (None for the hardcoded fallback).
+CGHS_VERSION: Optional[str] = None
+
+
 def _load_cghs_rates() -> Dict[str, Any]:
     candidates: List[str] = []
     # 1. Look up via installed/editable billnyay package
@@ -80,6 +86,8 @@ def _load_cghs_rates() -> Dict[str, Any]:
                     data = json.load(f)
                     rates = data.get("rates", {})
                     if rates:
+                        global CGHS_VERSION
+                        CGHS_VERSION = data.get("version")
                         logger.info(f"Loaded {len(rates)} CGHS benchmark rates from {path}")
                         return rates
             except Exception as e:
@@ -121,11 +129,8 @@ def _billing_unit_of(norm_name: str, rates_source: Dict[str, Any]) -> Optional[s
     return entry.get("billing_unit") if isinstance(entry, dict) else None
 
 
-def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
-    """Finds the CGHS benchmark for a billed item name.
-
-    Returns (benchmark_rate, is_bundled), or (None, False) when the item has no CGHS
-    counterpart. Callers must treat None as "not benchmarked" — never as "fair".
+def _match_cghs_key(norm_name: str, rates_source: Dict[str, Any]):
+    """The rates-table key a billed item name matches, as (key, exact), or (None, False).
 
     Among substring candidates the LONGEST key wins, so "icu day charges" is preferred
     over the shorter "icu". The previous implementation returned whichever key dict
@@ -133,19 +138,27 @@ def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
     """
     if not norm_name:
         return None, False
-
     if norm_name in rates_source:
-        return _rate_of(rates_source[norm_name])
+        return norm_name, True
 
     best_key = None
     for key in rates_source:
         if key in norm_name or norm_name in key:
             if best_key is None or len(key) > len(best_key):
                 best_key = key
+    return best_key, False
 
-    if best_key is None:
+
+def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
+    """Finds the CGHS benchmark for a billed item name.
+
+    Returns (benchmark_rate, is_bundled), or (None, False) when the item has no CGHS
+    counterpart. Callers must treat None as "not benchmarked" — never as "fair".
+    """
+    key, _ = _match_cghs_key(norm_name, rates_source)
+    if key is None:
         return None, False
-    return _rate_of(rates_source[best_key])
+    return _rate_of(rates_source[key])
 
 
 # --- Pydantic Schemas ---------------------------------------------------------
@@ -165,6 +178,9 @@ class AuditResultItem(BaseModel):
     # does not say how many days/visits/bottles it covers.
     benchmark_basis: Optional[str] = None
     not_benchmarked_reason: Optional[str] = None
+    # "Why am I seeing this?" trail (ADR-015): the evidence, the CGHS row and the
+    # reasons anything was not determined. Additive; built from the values above.
+    explanation: Optional[Explanation] = None
 
 
 class AuditResponse(BaseModel):
@@ -496,6 +512,18 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
         norm_name = item.name.lower().strip()
         charged = float(item.value) if item.value else 0.0
         total_charged += charged
+        matched_key, exact_match = _match_cghs_key(norm_name, rates_source)
+        item_meta = item.meta if isinstance(item.meta, dict) else {}
+
+        def _explain(status, benchmark_total, dev, basis, reason, _item=item, _key=matched_key,
+                     _exact=exact_match, _meta=item_meta, _charged=charged):
+            return explain_audit_line(
+                item_name=_item.name, charged=_charged, status=status,
+                source_file=_meta.get("source_file"), matched_key=_key,
+                matched_entry=rates_source.get(_key) if _key else None, exact_match=_exact,
+                rates_version=CGHS_VERSION, benchmark_total=benchmark_total,
+                deviation_percentage=dev, benchmark_basis=basis, not_benchmarked_reason=reason,
+            )
 
         matched_rate, is_bundled = _match_cghs_rate(norm_name, rates_source)
 
@@ -517,6 +545,7 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
                         status="not_benchmarked",
                         benchmark_basis=line.basis,
                         not_benchmarked_reason=line.reason,
+                        explanation=_explain("not_benchmarked", None, 0.0, line.basis, line.reason),
                     )
                 )
                 continue
@@ -536,6 +565,7 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
                     is_deviation=False,
                     benchmarked=False,
                     status="not_benchmarked",
+                    explanation=_explain("not_benchmarked", None, 0.0, None, None),
                 )
             )
             continue
@@ -568,6 +598,7 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
                 benchmarked=True,
                 status=item_status,
                 benchmark_basis=basis_text,
+                explanation=_explain(item_status, matched_rate, round(dev_perc, 2), basis_text, None),
             )
         )
 

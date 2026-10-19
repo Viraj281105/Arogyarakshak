@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### "Why am I seeing this?" explanation trail (2026-10-19, ADR-015)
+
+#### Added
+- **Deterministic explanation per finding** — `kadi.explanation.Explanation` (evidence + provenance class, exact rule/reference row, trust state, what could not be determined, derived `not_recorded`), built by the owning package next to each decision: `dawacheck.explain`, `billnyay.explain`, `daavisetu.readiness.explain_item`, `bimanyay.tracker`. No LLM call.
+- Additive `explanation` field on BillNyay `audit_items[]`, DawaCheck case medicines and manual `/benchmark`, DaaviSetu readiness `items[]` and BimaNyay `timeline_events[]`; same per-case authorization as the findings (ADR-009). Existing fields unchanged.
+- Web: collapsed, accessible `ExplainTrail` disclosure under each finding (en; hi/mr labels flagged `NEEDS NATIVE-SPEAKER QA`). Mobile: plain-text `ExplainToggle` on BillNyay lines, case medicines and BimaNyay deadlines.
+- `kadi.clinical_review.medicine_trust.name_provenance_class`; DaaviSetu readiness evidence now carries the source document name when recorded.
+- Tests: per-builder (incl. the "not recorded" paths), API (`test_explanations_api.py`), web and mobile.
+
+#### Changed
+- BillNyay: the CGHS match key is now resolved by `_match_cghs_key` (same longest-match rule as before; `_match_cghs_rate` delegates to it).
+
 ### Mobile Expo SDK pin (2026-10-15)
 
 #### Fixed

@@ -6,6 +6,9 @@ import { API_BASE, caseAuthHeaders, normalizeErrorDetail } from "../../hooks/use
 import { ReviewerProfile, CaseClinicalReview, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { AssignReviewer } from "./AssignReviewer";
 import { ReviewerAttribution } from "./Attribution";
+import { ExplainTrail } from "../ExplainTrail";
+import type { Explanation } from "../../lib/explanation";
+import type { Language } from "../../translations";
 
 interface ReadinessItem {
   item_id: string;
@@ -23,6 +26,8 @@ interface ReadinessItem {
   clinical_fact_question: string | null;
   clinical_decision: { decision: string; reviewer_name: string | null; reviewer_verification_label: string | null; coi_label: string | null } | null;
   origin: "BASELINE" | "INSTITUTION_PLAYBOOK";
+  /** "Why am I seeing this?" trail (ADR-015). */
+  explanation?: Explanation | null;
 }
 
 interface ReadinessResponse {
@@ -58,7 +63,7 @@ const STATUS_TEXT: Record<ReadinessItem["status"], string> = {
  * DaaviSetu preauth readiness: documentation completeness only. It never predicts approval
  * and never marks a clinical fact satisfied without a named reviewer's decision.
  */
-export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: string }> = ({ caseId, caseToken }) => {
+export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: string; lang?: Language }> = ({ caseId, caseToken, lang = "en" }) => {
   const [report, setReport] = useState<ReadinessResponse | null>(null);
   const [playbookId, setPlaybookId] = useState("");
   const [institutionToken, setInstitutionToken] = useState("");
@@ -177,6 +182,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
                     COI: {item.clinical_decision.coi_label})
                   </div>
                 )}
+                <ExplainTrail explanation={item.explanation} lang={lang} />
               </li>
             ))}
           </ul>
