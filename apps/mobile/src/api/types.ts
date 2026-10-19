@@ -1,3 +1,5 @@
+import type { Explanation } from '../services/explanation';
+
 /**
  * ArogyaRakshak API Request & Response Types
  * Aligned strictly with FastAPI schemas in apps/api/app/api/v1/endpoints/
@@ -105,6 +107,8 @@ export interface BillNyayAuditItem {
   benchmark_basis?: string | null;
   /** Why a matched line was not compared (e.g. a per-day rate and no day count). */
   not_benchmarked_reason?: string | null;
+  /** "Why am I seeing this?" trail (ADR-017). */
+  explanation?: Explanation | null;
 }
 
 export interface BillNyayAuditResponse {
@@ -238,6 +242,7 @@ export interface GrievanceTimelineEvent {
   deadline_date: string;
   status: string;
   instructions: string;
+  explanation?: Explanation | null;
 }
 
 export interface BimaNyayTimelineResponse {
@@ -324,6 +329,7 @@ export interface CaseMedicineBenchmark {
   transcription_task_id: string | null;
   transcription_status: string | null;
   trust: { state?: string; label?: string; benchmarkable?: boolean; reasons?: string[] };
+  explanation?: Explanation | null;
 }
 
 export interface TranslateInstructionsRequest {

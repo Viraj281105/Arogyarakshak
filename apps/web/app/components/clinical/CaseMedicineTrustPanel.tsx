@@ -6,6 +6,9 @@ import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
 import { describePriceCheck, PriceCheck } from "../../lib/dawacheck";
 import { ProvenanceBadge } from "./Attribution";
 import { StatePanel } from "./StatePanel";
+import { ExplainTrail } from "../ExplainTrail";
+import type { Explanation } from "../../lib/explanation";
+import type { Language } from "../../translations";
 
 export interface CaseMedicineRow {
   entity_id: string;
@@ -16,6 +19,8 @@ export interface CaseMedicineRow {
   transcription_task_id: string | null;
   transcription_status: string | null;
   trust: { state?: string; label?: string; benchmarkable?: boolean; reasons?: string[] };
+  /** "Why am I seeing this?" trail (ADR-017). */
+  explanation?: Explanation | null;
 }
 
 const BLOCKED_STATES = new Set(["AWAITING_HUMAN_READING", "READERS_DISAGREED", "READING_NOT_APPLIED", "OCR_UNCERTAIN"]);
@@ -32,7 +37,8 @@ export const CaseMedicineTrustPanel: React.FC<{
   caseToken?: string;
   refreshKey?: number;
   onChanged?: () => void;
-}> = ({ caseId, caseToken, refreshKey = 0, onChanged }) => {
+  lang?: Language;
+}> = ({ caseId, caseToken, refreshKey = 0, onChanged, lang = "en" }) => {
   const [reloadTick, setReloadTick] = useState(0);
   const requestKey = `${caseId}|${refreshKey}|${reloadTick}`;
   // The latest settled response and the request it answers; "loading" is derived from it,
@@ -151,6 +157,7 @@ export const CaseMedicineTrustPanel: React.FC<{
                     <span>{r.note ?? "Not price-checked."}</span>
                   )}
                 </div>
+                <ExplainTrail explanation={r.explanation} lang={lang} />
                 {isBlocked && FLAGGABLE_STATES.has(state) && (
                   <div style={{ marginTop: "0.5rem" }}>
                     <button

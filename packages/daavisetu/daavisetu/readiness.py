@@ -20,6 +20,16 @@ from typing import Dict, List, Literal, Optional, Sequence
 
 from pydantic import BaseModel, Field, field_validator
 
+from kadi.explanation import (
+    EvidenceItem,
+    Explanation,
+    ProvenanceClass,
+    RuleUsed,
+    TrustState,
+    Undetermined,
+    fact,
+)
+
 EvidenceKind = Literal["entity", "document_keywords", "case_total"]
 ItemStatus = Literal[
     "PRESENT",
@@ -179,7 +189,8 @@ BASELINE_ITEMS: List[ChecklistItem] = validate_items(
 class CaseEvidence(BaseModel):
     """What the case actually contains. Built by the API from Kadi entities."""
 
-    entities: Dict[str, List[Dict[str, str]]] = Field(default_factory=dict)  # type -> [{id, value}]
+    # type -> [{id, value, source_file?}]; source_file only when the entity recorded one.
+    entities: Dict[str, List[Dict[str, str]]] = Field(default_factory=dict)
     document_text: str = ""
     case_total: float = 0.0
 
@@ -210,6 +221,8 @@ class ReadinessItemResult(BaseModel):
     clinical_decision: Optional[FactDecisionRef] = None
     origin: Literal["BASELINE", "INSTITUTION_PLAYBOOK"] = "BASELINE"
     note: Optional[str] = None
+    # "Why am I seeing this?" trail (ADR-017). Additive.
+    explanation: Optional[Explanation] = None
 
 
 EVIDENCE_SCOPE_NOTE = (
@@ -265,6 +278,116 @@ def _presence(item: ChecklistItem, case: CaseEvidence):
     return None, []
 
 
+_STATUS_HEADLINE = {
+    "PRESENT": "was found in the case",
+    "MISSING": "was not found in the case",
+    "NEEDS_CLINICAL_CONFIRMATION": "was found, but a clinician must confirm the clinical fact",
+    "CONFIRMED_BY_REVIEWER": "was confirmed by a named reviewer",
+    "REJECTED_BY_REVIEWER": "was not confirmed by the reviewer",
+    "REVIEWER_COULD_NOT_DETERMINE": "could not be determined by the reviewer",
+}
+
+
+def explain_item(
+    item: ChecklistItem,
+    origin: str,
+    status: str,
+    strength: Optional[str],
+    evidence: Sequence[ItemEvidence],
+    decision: Optional[FactDecisionRef],
+    entity_sources: Optional[Dict[str, Optional[str]]] = None,
+) -> Explanation:
+    """Why this checklist item has this status — from the rule that ran and the evidence it
+    found. `entity_sources` maps an evidence reference to its source document name when the
+    case recorded one; a missing entry is reported "not recorded"."""
+    rule = item.evidence_rule
+    entity_sources = entity_sources or {}
+    rules: List[RuleUsed] = []
+    if rule.kind == "entity":
+        rules.append(RuleUsed(
+            kind="ENTITY_PRESENCE_RULE",
+            name=f"Present if at least one extracted '{rule.entity_type}' entity exists",
+            facts=[fact("Entity type searched", rule.entity_type), fact("Rule origin", origin.replace("_", " ").lower())],
+        ))
+    elif rule.kind == "case_total":
+        rules.append(RuleUsed(
+            kind="CASE_TOTAL_RULE",
+            name="Present if the case's extracted billing total is above zero",
+            facts=[fact("Rule origin", origin.replace("_", " ").lower())],
+        ))
+    else:
+        rules.append(RuleUsed(
+            kind="KEYWORD_RULE",
+            name="Present if any listed keyword appears in the stored document excerpts",
+            facts=[
+                fact("Keywords searched", ", ".join(rule.keywords)),
+                fact("Matched keywords", ", ".join(e.reference for e in evidence) or "none"),
+                fact("Where searched", EVIDENCE_SCOPE_NOTE),
+                fact("Rule origin", origin.replace("_", " ").lower()),
+            ],
+        ))
+
+    ev_items = [
+        EvidenceItem(
+            label=e.kind.replace("_", " "),
+            value=e.reference,
+            provenance={
+                "AI_DERIVED": ProvenanceClass.OCR_EXTRACTED,
+                "HUMAN_REVIEWED": ProvenanceClass.HUMAN_REVIEWED,
+            }.get(e.provenance, ProvenanceClass.NOT_RECORDED),
+            document=entity_sources.get(e.reference),
+            source_text=None,
+        )
+        for e in evidence
+    ]
+
+    undetermined: List[Undetermined] = []
+    if status == "MISSING":
+        undetermined.append(Undetermined(
+            code="NOT_FOUND_IN_SEARCHED_SCOPE",
+            reason="Nothing matching the rule was found in what was searched. " + EVIDENCE_SCOPE_NOTE,
+        ))
+    if item.clinical_fact:
+        if decision is None or decision.decision == "PENDING":
+            undetermined.append(Undetermined(
+                code="CLINICAL_FACT_UNCONFIRMED",
+                reason="Software never confirms a clinical fact; no named reviewer has decided this one yet.",
+            ))
+        else:
+            rules.append(RuleUsed(
+                kind="REVIEWER_DECISION",
+                name=f"Reviewer decision: {decision.decision}",
+                facts=[
+                    fact("Reviewer", decision.reviewer_name),
+                    fact("Verification", decision.reviewer_verification_label),
+                    fact("Conflict-of-interest label", decision.coi_label),
+                    fact("Decided at", decision.decided_at),
+                ],
+            ))
+    if strength == "KEYWORD_MATCH":
+        undetermined.append(Undetermined(
+            code="KEYWORD_ONLY_EVIDENCE",
+            reason="A keyword match shows the word appears, not that the document contains the documentation itself.",
+        ))
+    if strength == "REVIEWER_DECISION":
+        trust = TrustState(code="HUMAN_REVIEWED", label="Decided by a named reviewer")
+    elif strength is None:
+        trust = TrustState(code="NO_EVIDENCE", label="No evidence found")
+    elif strength == "KEYWORD_MATCH":
+        trust = TrustState(code="WEAK_EVIDENCE", label="Weaker evidence: keyword found in document excerpt")
+    else:
+        trust = TrustState(code="MACHINE_EXTRACTED", label="Machine-extracted evidence; contents not verified")
+
+    return Explanation(
+        finding_type="DAAVISETU_ITEM",
+        headline=f"“{item.label}” {_STATUS_HEADLINE.get(status, 'has this status')}.",
+        evidence=ev_items,
+        rules=rules,
+        trust=trust,
+        undetermined=undetermined,
+    )
+
+
 def evaluate_readiness(
     case: CaseEvidence,
     baseline_items: Sequence[ChecklistItem],
@@ -272,6 +395,13 @@ def evaluate_readiness(
     fact_decisions: Optional[Dict[str, FactDecisionRef]] = None,
 ) -> ReadinessReport:
     fact_decisions = fact_decisions or {}
+    # Source document of each extracted entity, when the case recorded one (explanations).
+    entity_sources = {
+        f["value"][:120]: f.get("source_file")
+        for found in case.entities.values()
+        for f in found
+        if f.get("source_file")
+    }
     results: List[ReadinessItemResult] = []
     combined = [(i, "BASELINE") for i in baseline_items] + [
         (i, "INSTITUTION_PLAYBOOK") for i in playbook_items
@@ -310,6 +440,7 @@ def evaluate_readiness(
                 clinical_decision=decision,
                 origin=origin,  # type: ignore[arg-type]
                 note=item.note,
+                explanation=explain_item(item, origin, status, strength, evidence, decision, entity_sources),
             )
         )
 

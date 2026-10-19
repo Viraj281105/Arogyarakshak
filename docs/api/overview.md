@@ -280,6 +280,41 @@ Demo routes return `403` unless `CLINICAL_DEMO_MODE=true` **and** `APP_ENV` is n
 | `GET` | `/api/v1/daavisetu/cases/{case_id}/claim/package` | ZIP now includes `preauth_readiness.txt` |
 | `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Benchmarks only medicines the trust gate allows (`clinical-review.md` §10.4). Each row carries `trust = {state, label, benchmarkable, reasons}`: `MACHINE_EXTRACTED` / `HUMAN_RESOLVED` are benchmarked; `AWAITING_HUMAN_READING`, `READERS_DISAGREED`, `READING_NOT_APPLIED` and `OCR_UNCERTAIN` (reasons `AMBIGUOUS`, `POSSIBLE_MATCH`, `OVER_CAP`, `UNGROUNDED`) are not, and `note` says why. Also `name_provenance`, `transcription_status` (`OPEN`, …, `NOT_APPLIED`, `OCR_UNCERTAIN`). Prices are compared per unit |
 
+### "Why am I seeing this?" explanations (ADR-017)
+
+Every finding carries an additive `explanation` object (no new route, so the finding's own
+authorization and consent rules apply unchanged; `null`/absent on clients that predate it):
+
+| Where | Finding |
+|---|---|
+| `POST /billnyay/cases/{case_id}/audit` → `audit_items[].explanation` | one audited bill line |
+| `GET /dawacheck/cases/{case_id}/benchmark` → `[].explanation`; `POST /dawacheck/benchmark` → `explanation` | one medicine comparison (or why it was held back) |
+| `POST /daavisetu/cases/{case_id}/readiness` → `items[].explanation` | one readiness item |
+| `POST /bimanyay/timeline` → `timeline_events[].explanation` | one statutory deadline |
+
+```jsonc
+{
+  "finding_type": "BILLNYAY_LINE",       // | DAWACHECK_MEDICINE | DAAVISETU_ITEM | BIMANYAY_DEADLINE
+  "headline": "“Consultation (1 visit)” was charged ₹500; the CGHS reference for this line is ₹350 (42.86% above).",
+  "evidence": [{ "label": "Bill line", "value": "…", "provenance": "OCR_EXTRACTED", "document": "bill.pdf", "source_text": null }],
+  "rules": [{ "kind": "REFERENCE_TABLE_ROW", "name": "…", "source": "CGHS rate schedule CGHS-2024-REVISED",
+              "facts": [{ "label": "Reference rate", "value": "₹350" }, { "label": "CGHS procedure code", "value": null }] }],
+  "trust": { "code": "MACHINE_READ_LINE", "label": "Machine-read bill line", "detail": "…" },
+  "undetermined": [{ "code": "REFERENCE_IS_BENCHMARK", "reason": "…" }],
+  "not_recorded": ["CGHS reference rate: …: CGHS procedure code"],  // derived from the null values
+  "generated_by": "deterministic rules over stored data; no AI model was used to write this explanation",
+  "disclaimer": "…"
+}
+```
+
+`provenance` ∈ `OCR_EXTRACTED`, `LLM_NORMALISED`, `HUMAN_REVIEWED`, `USER_ENTERED`,
+`REFERENCE_DATA`, `RULE_COMPUTED`, `NOT_RECORDED`. A `null` `value` or `document` means the
+system did not record it — clients must show "not recorded", never a blank or a guess.
+`rules[].kind` ∈ `REFERENCE_TABLE_ROW`, `PRICE_BASIS`, `KEYWORD_RULE`, `ENTITY_PRESENCE_RULE`,
+`CASE_TOTAL_RULE`, `REVIEWER_DECISION`, `STATUTORY_PERIOD`, `COMPUTATION`.
+
+---
+
 ## 3. Server-Sent Events (SSE) Streaming
 
 Clients listen to `GET /api/v1/kadi/cases/{case_id}/stream` during document processing.

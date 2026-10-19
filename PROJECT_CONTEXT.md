@@ -20,6 +20,7 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
+- **Latest (2026-10-19, explanation trail — ADR-017):** every finding (BillNyay line, DawaCheck medicine, DaaviSetu readiness item, BimaNyay deadline) now carries a deterministic, no-LLM `explanation` (evidence + provenance, exact rule/row, trust, what could not be determined, "not recorded"). **Backend 1043 passed, 6 skipped; web 106; mobile 126; web lint 0, tsc 0; mobile type-check 0; CI Ruff gate OK.** Browser-verified on SQLite demo mode (Scenario C and A, DaaviSetu readiness); BimaNyay UI and mobile not run in a browser/device.
 - **Latest (2026-09-30, Scenario E — Health-a-thon diabetes workflow):** demo Scenario E adds a paperwork-only diabetes admission path on existing machinery (upload → Kadi extraction → DaaviSetu readiness with a diabetes demo playbook → doctor confirmation of one clinical fact → missing-document list). Changes: `demo/documents/E_diabetes_admission_note.txt`, `DEMO_PLAYBOOK_DIABETES` in `apps/api/app/clinical/demo.py`, `SCENARIOS["E"]`, route accepts `E`, web tab mapping + playbook ID display, one new test. **Backend 1012 passed, 6 skipped; web 93, lint 0, tsc 0; guardrails 8/8.** Browser-verified on SQLite with rule-based extraction (not Postgres, not Groq, not mobile). The checklist wording is unsourced and needs clinical-lead sign-off.
 - **Previous (2026-09-27, release-candidate pass — committed on `viraj-dev` as b0cd0eb..576abd1, merged to `main` via PR #149):** price-basis correctness in DawaCheck **and** BillNyay (ADR-012), a Postgres-only FK bug fixed (DaaviSetu doctor confirmation) and FK enforcement added to the test DB, demo kit controls (status / reset / Load Scenario A–D, DEMO MODE banner, "What is simulated?"), case timeline, "add a document to this case", honesty fixes across web/mobile, README + `docs/JUDGE_DEMO.md`. Totals: **1011 passed, 6 skipped backend, 93 web, 115 mobile**; web lint 0 / build OK; mobile type-check 0; CI Ruff gate OK; guardrails 8/8. **Runtime-validated:** PostgreSQL 16 (local API against the compose Postgres) and the full docker-compose stack (postgres + api + web images) — `scripts/demo_runtime_smoke.py` 49/49 on both; browser (containerised web: demo reset, Scenario A/C, BillNyay basis, reviewer workspace sign-in). **Not validated:** Android device/emulator (none installed), real Groq (no key configured).
 - **Earlier (2026-09-27, demo-hardening pass — committed on `viraj-dev` (2eabd17..7a30f45)):** OCR trust pipeline hardened (single medicine trust gate; no uncertain reading dropped), plausibility honesty, four-eyes safety-rule retirement, explicit "Safety check unavailable", mobile processing lifecycle, deterministic demo kit (`demo/`). Current totals: **922 passed, 6 skipped backend, 88 web, 109 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI Ruff gate OK, CI guardrails 8/8. **Not validated:** mobile on a device/emulator (none available), Postgres (Docker engine did not start), real Groq path (no key configured).
@@ -160,14 +161,19 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Active Task (2026-10-19) — "Why am I seeing this?" explanation trail (ADR-017)
+- [x] `kadi.explanation.Explanation` + builders in `dawacheck/explain.py`, `billnyay/explain.py`, `daavisetu/readiness.py` (`explain_item`), `bimanyay/tracker.py`; additive `explanation` on the four finding types (no new endpoint — same ADR-009 authorization); web `ExplainTrail` + mobile `ExplainToggle`; ADR-017, API docs, CHANGELOG.
+- [x] Verified: backend pytest, CI Ruff gate, web lint/tsc/tests, mobile type-check/tests, and in the running demo (Scenario C DawaCheck — held-back and compared rows; Scenario A BillNyay and DaaviSetu readiness) on SQLite.
+- [ ] Not done / needs the user: native-speaker QA of the hi/mr explain labels; server-supplied explanation text is English only; BimaNyay UI and mobile were not browser/device-run (API + type-check only); no SchemeSetu explanation (it already has a reasoning trace).
+
 ### Active Task (2026-10-19) — read-aloud and simple language (web, PR branch `claude/read-aloud-plain-language-491609`)
 - [x] On-device `speechSynthesis` Listen/Stop on four summaries (BimaNyay deadlines + appeal, DaaviSetu document check, DawaCheck result) in en/hi/mr; Simple-language switch; ADR-016; 23 new tests.
 - [x] Verified: lint 0, `tsc` clean, web tests pass; browser (Edge-based pane, local en-US voices only): DawaCheck, BimaNyay appeal and deadline summaries render in en/hi/mr; hi/mr show the honest no-on-device-voice message with no buttons; en Listen starts (`speechSynthesis.speaking` true) and Stop cancels; console clean. The DaaviSetu document-check summary is unit-tested but was not exercised in the browser.
 - [ ] NOT verified: real audio (the embedded browser has zero voices). [ ] Native-speaker QA of `lib/listenCopy.ts` hi/mr. [ ] Mobile has no equivalent.
 
-
 ### Active Task (2026-10-19) — Claim Pack (branch `claude/claim-pack-0f7726`, PR to `main`)
 - [x] `GET /api/v1/kadi/cases/{id}/claim-pack` (ADR-015): cross-module in-memory ZIP + manifest; 9 pytest tests (apps/api 433 + packages 589 passed, 6 skipped; web 105; lint/tsc/ruff/guardrails clean; browser-verified on SQLite: plain `.zip` and `.zip.arenc` downloads, smoke 58/58). [x] Web `ClaimPackPanel` + `lib/claimPack.ts` (opt-in ADR-014 encryption), 4 web tests. [ ] Not done: mobile control; institution playbook in the checklist; Postgres run.
+
 ### Active Task (2026-10-19) — Phase-4 evaluation harnesses (#102–#115 area)
 - [x] BMA, PEA, billing-anomaly P/R/F1, CRMA (25 scenarios), OCR WER/CER utility, DawaCheck price-mapping accuracy. Code `apps/api/app/evaluation/`, SYNTHETIC datasets `data/evaluation/*.jsonl` (loader refuses non-synthetic files), runner `scripts/evaluate_phase4.py`, tests `apps/api/tests/test_evaluation_harness.py` (24, hand-computed expectations), report `docs/evaluation/phase4-harnesses.md` (measured results incl. bad ones).
 - [x] Small refactor in `billnyay` endpoint, behaviour unchanged: `_match_cghs_key` (used by `_match_cghs_rate`) and pure `audit_billing_lines` (used by `build_case_audit`).
@@ -353,7 +359,9 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-003 (Bring-Your-Own-Document Privacy):** Zero persistent storage of patient health documents. Raw files exist only in transient memory during extraction.
 - **ADR-004 (Groq Model Selection):** Hardcoded deprecation ban on `llama3-70b`. All calls dynamically load from `GROQ_MODEL` (default: `openai/gpt-oss-120b`).
 - **ADR-005 (DaaviSetu vs BimaNyay Division):** Clean lifecycle separation: DaaviSetu owns pre-claim application filing; BimaNyay owns post-denial repudiation disputes and IRDAI appeals.
+- **ADR-017 (Explanation trail):** every finding carries a deterministic `Explanation` (evidence + provenance class, exact rule/row, trust, undetermined, derived `not_recorded`), built by the owning package from the decision's own values, delivered additively on existing authorised responses; never an LLM, never an invented reason.
 - **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
+
 - **ADR-011 (Clinical Review & Safety Governance):** Kadi-owned shared layer. Reviewers/institutions hold header-only bearer credentials (no accounts); case holders delegate single reviews with per-request consent; mandatory COI before evidence; immutable, versioned, human-confirmed statements appended verbatim (never via LLM); verification never overstated (no registry integration → at most SELF_DECLARED; DEMO_VERIFIED only in demo mode); plausibility not necessity; readiness not approval; safety rules adopted from named protocols with independent approval; OCR transcription by pharmacists/transcriptionists with two blind readings for medication fields; provenance classes survive downstream.
 
 ---
@@ -438,13 +446,18 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
+### 2026-10-19 — Explanation trail (ADR-017, branch `claude/explain-trail-c37690`)
+- **Added**: `packages/kadi/kadi/explanation.py`; `dawacheck/explain.py`; `billnyay/explain.py`; `explain_item` in `daavisetu/readiness.py`; `_explain_deadline` in `bimanyay/tracker.py`; `name_provenance_class` in `medicine_trust.py`; web `components/ExplainTrail.tsx`, `lib/explanation.ts`, `lib/explainStrings.ts`; mobile `components/ExplainToggle.tsx`, `services/explanation.ts`; ADR-017; tests in each package, `apps/api/tests/test_explanations_api.py`, `apps/web/tests/explanation.test.ts`, `apps/mobile/tests/explanation.test.ts`.
+- **Changed (additive)**: `explanation` on BillNyay audit items, DawaCheck responses, readiness items, BimaNyay timeline events; `daavisetu_playbooks.case_evidence` carries `source_file`.
+- **Honest gaps the trail exposes (not fixed)**: no CGHS procedure code and no NPPA serial in the bundled tables; no per-line OCR confidence; keyword evidence has no document name; BimaNyay counts from the entered date, in calendar days, and falls back to today on an unreadable date.
+
 ### 2026-10-19 — Read-aloud and simple language (web)
 - **Added**: `app/lib/{speech,listenCopy,listenSummaries}.ts`, `app/hooks/useListen.ts`, `app/components/{ListenSummary,SimpleLanguageToggle}.tsx`, `tests/listen.test.ts`, ADR-016, `docs/development/accessibility-read-aloud.md`. Additive edits to `page.tsx` (toggle), `BimaNyayView`, `DawaCheckView`, `DaaviSetuView` and `PreauthReadinessPanel` (new optional `lang` prop).
 - **Privacy**: only voices with `localService === true`; no cloud fallback; no speech recognition; spoken text is built from structured fields + static strings, never server free text.
 
-
 ### 2026-10-19 — Claim Pack
 - **Added**: `apps/api/app/claim_pack.py`, `endpoints/claim_pack.py` (registered under `/kadi`), `tests/test_claim_pack.py`; `apps/web/app/lib/claimPack.ts`, `components/ClaimPackPanel.tsx` (mounted in `page.tsx` after the case timeline), `tests/claim_pack.test.ts`; ADR-015; API overview row; CHANGELOG.
+
 ### 2026-10-19 — Phase-4 evaluation harnesses (branch `claude/evaluation-harnesses-5d0704`)
 - **Added**: `apps/api/app/evaluation/` (metrics, bma, pea, anomaly, crma, ocr_wer, dawacheck_mapping, datasets, runner); `data/evaluation/*.jsonl` (6 synthetic datasets); `scripts/evaluate_phase4.py`; `apps/api/tests/test_evaluation_harness.py`; `docs/evaluation/phase4-harnesses.md`.
 - **Changed (no behaviour change)**: `apps/api/app/api/v1/endpoints/billnyay.py` — extracted `_match_cghs_key` and `audit_billing_lines`.
@@ -650,6 +663,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
+### Latest handoff (2026-10-19, explanation trail)
+- To add an explanation to a new finding: build `kadi.explanation.Explanation` in the owning package from the decision's own values, use `fact(label, value)` so a missing value stays `None`, and let `not_recorded` derive itself. Never fill a gap with a plausible string.
+- `PR #150` rewrites `dawacheck/reference_data.py`/`checker.py` and `#145` the Kadi line-items parser; this work avoided both (`dawacheck/explain.py` only reads `MedicineBenchmark` fields). If #150 adds an NPPA serial/notification to the reference rows, surface it in `explain_medicine` (it is currently reported "not recorded").
+- Importing `kadi.explanation` from a module package imports `kadi` (~0.4 s); module package tests need `pip install -e packages/kadi` (CI already does).
+
 ### Latest handoff (2026-10-19, read-aloud)
 - Never relax `selectLocalVoice` to accept `localService:false` and never add `SpeechRecognition` or a TTS package (ADR-016, network boundary). `speakWithVoice` throws on a non-local voice by design.
 - New summaries: add strings to `ListenCopy` for en/hi/mr (placeholder parity is tested), a builder in `listenSummaries.ts`, then `<ListenSummary>`; pass structured fields only.
@@ -658,9 +676,9 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ### Latest handoff (2026-10-15, independent-task pass)
 
-
 ### Latest handoff (2026-10-19, Claim Pack)
 - The pack is read-only: it recomputes the BillNyay audit and DawaCheck rows deterministically and rolls back DawaCheck's staged brand mappings; it never drafts an appeal. Add new sections in `claim_pack._sections` and keep the manifest honest (`included` + provenance). Checklist uses the generic baseline only. Mobile has no control yet.
+
 ### Latest handoff (2026-10-19, evaluation harnesses)
 - Run `python scripts/evaluate_phase4.py` (offline, no Groq). Never quote its numbers as real-world accuracy: datasets are synthetic, hand-written, hard-case-heavy. Add new rows rather than editing labels after seeing results; if a label must change, disclose it in `docs/evaluation/phase4-harnesses.md`.
 - Harness code deliberately lives in `apps/api/app/evaluation/` (not in the packages) so it can import billnyay/kadi/bimanyay/dawacheck together without new inter-package dependencies.

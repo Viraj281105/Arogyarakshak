@@ -7,6 +7,8 @@ import { TranscriptionPanel } from "../clinical/TranscriptionPanel";
 import { CaseMedicineTrustPanel } from "../clinical/CaseMedicineTrustPanel";
 import { describePriceCheck, PriceBasis, PriceCheck } from "../../lib/dawacheck";
 import { TONE_CLASS } from "../../lib/labels";
+import { ExplainTrail } from "../ExplainTrail";
+import type { Explanation } from "../../lib/explanation";
 import { ListenSummary } from "../ListenSummary";
 import { buildMedicineSummary } from "../../lib/listenSummaries";
 
@@ -17,6 +19,8 @@ interface MedicineBenchmarkResponse extends PriceCheck {
   generic_substitute_store_info: string;
   /** Provenance — the reference list is a curated subset of NPPA Schedule-I. */
   data_source: string;
+  /** "Why am I seeing this?" trail (ADR-017). */
+  explanation?: Explanation | null;
 }
 
 // What the amount the person paid buys. Required, so a strip price is never sent as a
@@ -111,7 +115,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
       {/* ADR-011: uncertain prescription readings go to human readers, never silently into a medication fact */}
       {caseId && (
         <>
-          <CaseMedicineTrustPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} />
+          <CaseMedicineTrustPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} lang={currentLang} />
           <TranscriptionPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} />
           <h3 style={{ marginBottom: "0.75rem" }}>Check any medicine by name</h3>
         </>
@@ -252,6 +256,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
               {price.reason}
             </div>
           )}
+          <ExplainTrail explanation={result.explanation} lang={currentLang} />
           {result.match_method === "fuzzy_phonetic" && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--status-warning)" }}>
               Matched by spelling similarity to “{result.active_ingredient}” — check this is the same medicine.

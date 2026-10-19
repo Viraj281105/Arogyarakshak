@@ -6,6 +6,8 @@ import { API_BASE, caseAuthHeaders, normalizeErrorDetail } from "../../hooks/use
 import { ReviewerProfile, CaseClinicalReview, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { AssignReviewer } from "./AssignReviewer";
 import { ReviewerAttribution } from "./Attribution";
+import { ExplainTrail } from "../ExplainTrail";
+import type { Explanation } from "../../lib/explanation";
 import type { Language } from "../../translations";
 import { ListenSummary } from "../ListenSummary";
 import { buildReadinessSummary } from "../../lib/listenSummaries";
@@ -26,6 +28,8 @@ interface ReadinessItem {
   clinical_fact_question: string | null;
   clinical_decision: { decision: string; reviewer_name: string | null; reviewer_verification_label: string | null; coi_label: string | null } | null;
   origin: "BASELINE" | "INSTITUTION_PLAYBOOK";
+  /** "Why am I seeing this?" trail (ADR-017). */
+  explanation?: Explanation | null;
 }
 
 interface ReadinessResponse {
@@ -181,6 +185,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
                     COI: {item.clinical_decision.coi_label})
                   </div>
                 )}
+                <ExplainTrail explanation={item.explanation} lang={lang} />
               </li>
             ))}
           </ul>

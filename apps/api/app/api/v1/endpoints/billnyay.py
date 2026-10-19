@@ -41,7 +41,9 @@ from billnyay.agents.consensus import (
 )
 from billnyay.agents.feedback_loop import draft_with_self_correction
 from billnyay.agents.icd_audit import audit_icd_procedure_consistency, ICDProcedureAuditItem
+from billnyay.explain import explain_audit_line
 from billnyay.rate_basis import benchmark_line
+from kadi.explanation import Explanation
 from billnyay.tools.pdf_compiler import compile_appeal_packet_bytes
 from billnyay.tools.pdf_integrity import compute_sha256, sign_document, verify_signature
 from billnyay.tools.bima_bharosa_crawler import check_registration_status_mock, RegistrationStatusResult
@@ -52,6 +54,10 @@ router = APIRouter()
 
 
 # --- Load CGHS Rate Schedule Data Source --------------------------------------
+# Version label of the loaded rate schedule (None for the hardcoded fallback).
+CGHS_VERSION: Optional[str] = None
+
+
 def _load_cghs_rates() -> Dict[str, Any]:
     candidates: List[str] = []
     # 1. Look up via installed/editable billnyay package
@@ -80,6 +86,8 @@ def _load_cghs_rates() -> Dict[str, Any]:
                     data = json.load(f)
                     rates = data.get("rates", {})
                     if rates:
+                        global CGHS_VERSION
+                        CGHS_VERSION = data.get("version")
                         logger.info(f"Loaded {len(rates)} CGHS benchmark rates from {path}")
                         return rates
             except Exception as e:
@@ -171,6 +179,9 @@ class AuditResultItem(BaseModel):
     # does not say how many days/visits/bottles it covers.
     benchmark_basis: Optional[str] = None
     not_benchmarked_reason: Optional[str] = None
+    # "Why am I seeing this?" trail (ADR-017): the evidence, the CGHS row and the
+    # reasons anything was not determined. Additive; built from the values above.
+    explanation: Optional[Explanation] = None
 
 
 class AuditResponse(BaseModel):
@@ -514,6 +525,20 @@ def audit_billing_lines(
         norm_name = item.name.lower().strip()
         charged = float(item.value) if item.value else 0.0
         total_charged += charged
+        matched_key = _match_cghs_key(norm_name, rates_source)
+        exact_match = matched_key is not None and matched_key == norm_name
+        item_meta = getattr(item, "meta", None)
+        item_meta = item_meta if isinstance(item_meta, dict) else {}
+
+        def _explain(status, benchmark_total, dev, basis, reason, _item=item, _key=matched_key,
+                     _exact=exact_match, _meta=item_meta, _charged=charged):
+            return explain_audit_line(
+                item_name=_item.name, charged=_charged, status=status,
+                source_file=_meta.get("source_file"), matched_key=_key,
+                matched_entry=rates_source.get(_key) if _key else None, exact_match=_exact,
+                rates_version=CGHS_VERSION, benchmark_total=benchmark_total,
+                deviation_percentage=dev, benchmark_basis=basis, not_benchmarked_reason=reason,
+            )
 
         matched_rate, is_bundled = _match_cghs_rate(norm_name, rates_source)
 
@@ -535,6 +560,7 @@ def audit_billing_lines(
                         status="not_benchmarked",
                         benchmark_basis=line.basis,
                         not_benchmarked_reason=line.reason,
+                        explanation=_explain("not_benchmarked", None, 0.0, line.basis, line.reason),
                     )
                 )
                 continue
@@ -554,6 +580,7 @@ def audit_billing_lines(
                     is_deviation=False,
                     benchmarked=False,
                     status="not_benchmarked",
+                    explanation=_explain("not_benchmarked", None, 0.0, None, None),
                 )
             )
             continue
@@ -586,6 +613,7 @@ def audit_billing_lines(
                 benchmarked=True,
                 status=item_status,
                 benchmark_basis=basis_text,
+                explanation=_explain(item_status, matched_rate, round(dev_perc, 2), basis_text, None),
             )
         )
 
