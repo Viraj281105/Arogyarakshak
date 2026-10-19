@@ -12,7 +12,7 @@ apps/web/
 apps/mobile/
 docs/
 data/
-apps/api/tests/
+# apps/api/tests/
 
 # General hygiene, in case any of the above is ever narrowed.
 **/node_modules/
