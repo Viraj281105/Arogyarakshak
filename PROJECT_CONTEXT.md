@@ -160,6 +160,8 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Active Task (2026-10-19) — Claim Pack (branch `claude/claim-pack-0f7726`, PR to `main`)
+- [x] `GET /api/v1/kadi/cases/{id}/claim-pack` (ADR-015): cross-module in-memory ZIP + manifest; 9 pytest tests (apps/api 433 + packages 589 passed, 6 skipped; web 105; lint/tsc/ruff/guardrails clean; browser-verified on SQLite: plain `.zip` and `.zip.arenc` downloads, smoke 58/58). [x] Web `ClaimPackPanel` + `lib/claimPack.ts` (opt-in ADR-014 encryption), 4 web tests. [ ] Not done: mobile control; institution playbook in the checklist; Postgres run.
 ### Active Task (2026-10-19) — Phase-4 evaluation harnesses (#102–#115 area)
 - [x] BMA, PEA, billing-anomaly P/R/F1, CRMA (25 scenarios), OCR WER/CER utility, DawaCheck price-mapping accuracy. Code `apps/api/app/evaluation/`, SYNTHETIC datasets `data/evaluation/*.jsonl` (loader refuses non-synthetic files), runner `scripts/evaluate_phase4.py`, tests `apps/api/tests/test_evaluation_harness.py` (24, hand-computed expectations), report `docs/evaluation/phase4-harnesses.md` (measured results incl. bad ones).
 - [x] Small refactor in `billnyay` endpoint, behaviour unchanged: `_match_cghs_key` (used by `_match_cghs_rate`) and pure `audit_billing_lines` (used by `build_case_audit`).
@@ -345,6 +347,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-003 (Bring-Your-Own-Document Privacy):** Zero persistent storage of patient health documents. Raw files exist only in transient memory during extraction.
 - **ADR-004 (Groq Model Selection):** Hardcoded deprecation ban on `llama3-70b`. All calls dynamically load from `GROQ_MODEL` (default: `openai/gpt-oss-120b`).
 - **ADR-005 (DaaviSetu vs BimaNyay Division):** Clean lifecycle separation: DaaviSetu owns pre-claim application filing; BimaNyay owns post-denial repudiation disputes and IRDAI appeals.
+- **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
 - **ADR-011 (Clinical Review & Safety Governance):** Kadi-owned shared layer. Reviewers/institutions hold header-only bearer credentials (no accounts); case holders delegate single reviews with per-request consent; mandatory COI before evidence; immutable, versioned, human-confirmed statements appended verbatim (never via LLM); verification never overstated (no registry integration → at most SELF_DECLARED; DEMO_VERIFIED only in demo mode); plausibility not necessity; readiness not approval; safety rules adopted from named protocols with independent approval; OCR transcription by pharmacists/transcriptionists with two blind readings for medication fields; provenance classes survive downstream.
 
 ---
@@ -429,6 +432,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
+### 2026-10-19 — Claim Pack
+- **Added**: `apps/api/app/claim_pack.py`, `endpoints/claim_pack.py` (registered under `/kadi`), `tests/test_claim_pack.py`; `apps/web/app/lib/claimPack.ts`, `components/ClaimPackPanel.tsx` (mounted in `page.tsx` after the case timeline), `tests/claim_pack.test.ts`; ADR-015; API overview row; CHANGELOG.
 ### 2026-10-19 — Phase-4 evaluation harnesses (branch `claude/evaluation-harnesses-5d0704`)
 - **Added**: `apps/api/app/evaluation/` (metrics, bma, pea, anomaly, crma, ocr_wer, dawacheck_mapping, datasets, runner); `data/evaluation/*.jsonl` (6 synthetic datasets); `scripts/evaluate_phase4.py`; `apps/api/tests/test_evaluation_harness.py`; `docs/evaluation/phase4-harnesses.md`.
 - **Changed (no behaviour change)**: `apps/api/app/api/v1/endpoints/billnyay.py` — extracted `_match_cghs_key` and `audit_billing_lines`.
@@ -634,6 +639,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
+### Latest handoff (2026-10-19, Claim Pack)
+- The pack is read-only: it recomputes the BillNyay audit and DawaCheck rows deterministically and rolls back DawaCheck's staged brand mappings; it never drafts an appeal. Add new sections in `claim_pack._sections` and keep the manifest honest (`included` + provenance). Checklist uses the generic baseline only. Mobile has no control yet.
 ### Latest handoff (2026-10-19, evaluation harnesses)
 - Run `python scripts/evaluate_phase4.py` (offline, no Groq). Never quote its numbers as real-world accuracy: datasets are synthetic, hand-written, hard-case-heavy. Add new rows rather than editing labels after seeing results; if a label must change, disclose it in `docs/evaluation/phase4-harnesses.md`.
 - Harness code deliberately lives in `apps/api/app/evaluation/` (not in the packages) so it can import billnyay/kadi/bimanyay/dawacheck together without new inter-package dependencies.

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Claim Pack (2026-10-19)
+
+#### Added
+- **Claim Pack (ADR-015)** — `GET /api/v1/kadi/cases/{case_id}/claim-pack`: one in-memory ZIP with a cover sheet, the DaaviSetu documentation checklist, the BimaNyay deadline timeline, the BillNyay audit and appeal draft (only if they exist), DawaCheck rows, the pre-auth form (only if submitted) and a manifest of what is and is not included with provenance classes. Missing parts say "Not available for this case". Web: `ClaimPackPanel` with the optional browser-side password protection from ADR-014. Mobile: not added.
 ### Phase-4 evaluation harnesses (2026-10-19)
 
 #### Added
