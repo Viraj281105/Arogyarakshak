@@ -1,0 +1,16 @@
+{"_meta": {"name": "ocr_wer_synthetic_v1", "synthetic": true, "provenance": "Hand-written reference lines and HAND-WRITTEN simulated OCR errors. No OCR engine produced these hypotheses; they are not scans or real OCR output. All text is invented.", "description": "Fixture for the WER/CER utility. error_kind names the kind of corruption injected into the reference."}}
+{"id": "OCR-001", "error_kind": "identical", "reference": "Consultation 500 Ward Stay 1500 Total 2000", "hypothesis": "Consultation 500 Ward Stay 1500 Total 2000"}
+{"id": "OCR-002", "error_kind": "char_substitution", "reference": "Patient Name: Ramesh Patil", "hypothesis": "Patient Name: Rarnesh Patil"}
+{"id": "OCR-003", "error_kind": "char_substitution", "reference": "ICU Charges 5400 per day", "hypothesis": "lCU Charges 54O0 per day"}
+{"id": "OCR-004", "error_kind": "char_substitution", "reference": "Tab Paracetamol 650mg 33", "hypothesis": "Tab Paracetarnol 65Omg 33"}
+{"id": "OCR-005", "error_kind": "dropped_chars", "reference": "Laparoscopic Appendectomy 28000", "hypothesis": "Laparoscpic Appendctomy 28000"}
+{"id": "OCR-006", "error_kind": "dropped_chars", "reference": "Ultrasound Abdomen 700", "hypothesis": "Ultrasound Abdomn 700"}
+{"id": "OCR-007", "error_kind": "merged_words", "reference": "Blood Test CBC 250", "hypothesis": "BloodTest CBC 250"}
+{"id": "OCR-008", "error_kind": "merged_words", "reference": "Room Rent Semi Private 3000", "hypothesis": "Room RentSemi Private3000"}
+{"id": "OCR-009", "error_kind": "split_words", "reference": "Consultation 500", "hypothesis": "Consul tation 500"}
+{"id": "OCR-010", "error_kind": "digit_error", "reference": "Total Amount 12350", "hypothesis": "Total Amount 12850"}
+{"id": "OCR-011", "error_kind": "digit_error", "reference": "Invoice No 88421 Date 15/01/2024", "hypothesis": "Invoice No 88421 Date 15/07/2024"}
+{"id": "OCR-012", "error_kind": "dropped_line", "reference": "Registration Fee 200 Pharmacy 1500 Dressing 120", "hypothesis": "Registration Fee 200 Dressing 120"}
+{"id": "OCR-013", "error_kind": "devanagari_matra", "reference": "आरोग्य हॉस्पिटल पुणे", "hypothesis": "आरोग्य हास्पिटल पुणे"}
+{"id": "OCR-014", "error_kind": "devanagari_matra", "reference": "रोगी का नाम सुनीता", "hypothesis": "रोगी का नाम सुनिता"}
+{"id": "OCR-015", "error_kind": "devanagari_dropped", "reference": "बिल की कुल राशि", "hypothesis": "बिल कि कुल राशी"}

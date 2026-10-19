@@ -1,0 +1,79 @@
+{"_meta": {"name": "bma_synthetic_v1", "synthetic": true, "provenance": "Hand-written by the project team for evaluation. Hospital line names are invented, modelled on common Indian bill wording. Gold labels were assigned by domain judgement BEFORE running the matcher. Not real hospital data.", "description": "Hospital bill line text -> acceptable CGHS rate key(s) in packages/billnyay/billnyay/data/cghs_rates.json. expected_keys=[] means the line has no counterpart in the 27-entry reference table."}}
+{"id": "BMA-001", "hospital_line": "Consultation", "category": "exact", "expected_keys": ["consultation"]}
+{"id": "BMA-002", "hospital_line": "ICU", "category": "exact", "expected_keys": ["icu", "icu day charges"]}
+{"id": "BMA-003", "hospital_line": "ICU Day Charges", "category": "exact", "expected_keys": ["icu", "icu day charges"]}
+{"id": "BMA-004", "hospital_line": "Ward Stay", "category": "exact", "expected_keys": ["ward stay"]}
+{"id": "BMA-005", "hospital_line": "Semi Private Ward", "category": "exact", "expected_keys": ["semi private ward"]}
+{"id": "BMA-006", "hospital_line": "Private Ward", "category": "exact", "expected_keys": ["private ward", "deluxe ward"]}
+{"id": "BMA-007", "hospital_line": "MRI", "category": "exact", "expected_keys": ["mri"]}
+{"id": "BMA-008", "hospital_line": "CT Scan", "category": "exact", "expected_keys": ["ct scan"]}
+{"id": "BMA-009", "hospital_line": "Ultrasound", "category": "exact", "expected_keys": ["ultrasound"]}
+{"id": "BMA-010", "hospital_line": "X-Ray", "category": "exact", "expected_keys": ["x-ray"]}
+{"id": "BMA-011", "hospital_line": "Dialysis", "category": "exact", "expected_keys": ["dialysis"]}
+{"id": "BMA-012", "hospital_line": "Cataract Surgery", "category": "exact", "expected_keys": ["cataract surgery"]}
+{"id": "BMA-013", "hospital_line": "CABG", "category": "exact", "expected_keys": ["cabg", "coronary artery bypass"]}
+{"id": "BMA-014", "hospital_line": "PPE Kit", "category": "exact", "expected_keys": ["ppe", "ppe kit"]}
+{"id": "BMA-015", "hospital_line": "Blood Test", "category": "exact", "expected_keys": ["blood test"]}
+{"id": "BMA-016", "hospital_line": "Specialist Consultation", "category": "exact", "expected_keys": ["specialist consultation"]}
+{"id": "BMA-017", "hospital_line": "ICU Charges - 3 days", "category": "decorated", "expected_keys": ["icu", "icu day charges"]}
+{"id": "BMA-018", "hospital_line": "Chest X-Ray PA view", "category": "decorated", "expected_keys": ["x-ray"]}
+{"id": "BMA-019", "hospital_line": "MRI Brain Plain", "category": "decorated", "expected_keys": ["mri"]}
+{"id": "BMA-020", "hospital_line": "CT Scan Abdomen with contrast", "category": "decorated", "expected_keys": ["ct scan"]}
+{"id": "BMA-021", "hospital_line": "Ultrasound Whole Abdomen", "category": "decorated", "expected_keys": ["ultrasound"]}
+{"id": "BMA-022", "hospital_line": "Blood Test - CBC", "category": "decorated", "expected_keys": ["blood test"]}
+{"id": "BMA-023", "hospital_line": "Total Knee Replacement (Right)", "category": "decorated", "expected_keys": ["total knee replacement"]}
+{"id": "BMA-024", "hospital_line": "Laparoscopic Appendectomy", "category": "decorated", "expected_keys": ["laparoscopic appendectomy", "laparoscopic surgery"]}
+{"id": "BMA-025", "hospital_line": "Laparoscopic Cholecystectomy", "category": "decorated", "expected_keys": ["laparoscopic surgery"]}
+{"id": "BMA-026", "hospital_line": "Coronary Angioplasty with 1 stent", "category": "decorated", "expected_keys": ["coronary angioplasty"]}
+{"id": "BMA-027", "hospital_line": "Dialysis - Session 4", "category": "decorated", "expected_keys": ["dialysis"]}
+{"id": "BMA-028", "hospital_line": "Doctor Consultation - Cardiology", "category": "decorated", "expected_keys": ["consultation", "specialist consultation"]}
+{"id": "BMA-029", "hospital_line": "PPE Kit charges", "category": "decorated", "expected_keys": ["ppe", "ppe kit"]}
+{"id": "BMA-030", "hospital_line": "Semi Private Ward - 2 days", "category": "decorated", "expected_keys": ["semi private ward"]}
+{"id": "BMA-031", "hospital_line": "Private Ward Charges x 4", "category": "decorated", "expected_keys": ["private ward", "deluxe ward"]}
+{"id": "BMA-032", "hospital_line": "Deluxe Ward Rent", "category": "decorated", "expected_keys": ["deluxe ward"]}
+{"id": "BMA-033", "hospital_line": "Cataract Surgery (Left eye) with IOL", "category": "decorated", "expected_keys": ["cataract surgery"]}
+{"id": "BMA-034", "hospital_line": "Paracetamol IV 100ml bottle", "category": "decorated", "expected_keys": ["paracetamol iv"]}
+{"id": "BMA-035", "hospital_line": "Infusion Pump Charges", "category": "decorated", "expected_keys": ["infusion pump", "syringe infusion pump"]}
+{"id": "BMA-036", "hospital_line": "Syringe Infusion Pump - 2 days", "category": "decorated", "expected_keys": ["syringe infusion pump", "infusion pump"]}
+{"id": "BMA-037", "hospital_line": "Nursing Charges", "category": "decorated", "expected_keys": ["nursing charges"]}
+{"id": "BMA-038", "hospital_line": "icu charges", "category": "variant", "expected_keys": ["icu", "icu day charges"]}
+{"id": "BMA-039", "hospital_line": "MRI SCAN BRAIN", "category": "variant", "expected_keys": ["mri"]}
+{"id": "BMA-040", "hospital_line": "ct-scan chest", "category": "variant_hard", "expected_keys": ["ct scan"]}
+{"id": "BMA-041", "hospital_line": "X Ray Chest", "category": "variant_hard", "expected_keys": ["x-ray"]}
+{"id": "BMA-042", "hospital_line": "Xray Knee", "category": "variant_hard", "expected_keys": ["x-ray"]}
+{"id": "BMA-043", "hospital_line": "USG Abdomen", "category": "variant_hard", "expected_keys": ["ultrasound"]}
+{"id": "BMA-044", "hospital_line": "Sonography Pelvis", "category": "variant_hard", "expected_keys": ["ultrasound"]}
+{"id": "BMA-045", "hospital_line": "Lap Appendicectomy", "category": "variant_hard", "expected_keys": ["laparoscopic appendectomy", "laparoscopic surgery"]}
+{"id": "BMA-046", "hospital_line": "Angioplasty (PTCA)", "category": "variant_hard", "expected_keys": ["coronary angioplasty"]}
+{"id": "BMA-047", "hospital_line": "Knee Replacement - Total", "category": "variant_hard", "expected_keys": ["total knee replacement"]}
+{"id": "BMA-048", "hospital_line": "Coronary Bypass Graft Surgery", "category": "variant_hard", "expected_keys": ["coronary artery bypass", "cabg"]}
+{"id": "BMA-049", "hospital_line": "General Ward Bed Charges", "category": "variant_hard", "expected_keys": ["ward stay"]}
+{"id": "BMA-050", "hospital_line": "Room Rent - General Ward", "category": "variant_hard", "expected_keys": ["ward stay"]}
+{"id": "BMA-051", "hospital_line": "Haemodialysis Session", "category": "variant", "expected_keys": ["dialysis"]}
+{"id": "BMA-052", "hospital_line": "Hemodialysis", "category": "variant", "expected_keys": ["dialysis"]}
+{"id": "BMA-053", "hospital_line": "Semi-Pvt Room", "category": "variant_hard", "expected_keys": ["semi private ward"]}
+{"id": "BMA-054", "hospital_line": "Intensive Care Unit Charges", "category": "variant_hard", "expected_keys": ["icu", "icu day charges"]}
+{"id": "BMA-055", "hospital_line": "OPD Consultation", "category": "variant", "expected_keys": ["consultation"]}
+{"id": "BMA-056", "hospital_line": "Complete Blood Count", "category": "variant_hard", "expected_keys": ["blood test"]}
+{"id": "BMA-057", "hospital_line": "Registration Fee", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-058", "hospital_line": "Pharmacy - Medicines", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-059", "hospital_line": "Biopsy Histopathology", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-060", "hospital_line": "ECG", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-061", "hospital_line": "Physiotherapy Session", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-062", "hospital_line": "Ambulance Charges", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-063", "hospital_line": "Attendant Meal Charges", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-064", "hospital_line": "Appendectomy (Open)", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-065", "hospital_line": "Hip Replacement", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-066", "hospital_line": "Endoscopy Upper GI", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-067", "hospital_line": "Blood Transfusion", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-068", "hospital_line": "Oxygen Charges", "category": "no_counterpart", "expected_keys": []}
+{"id": "BMA-069", "hospital_line": "Dialysis Catheter Insertion", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-070", "hospital_line": "Particular Care Charges", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-071", "hospital_line": "Meticulous Dressing Charges", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-072", "hospital_line": "Stay Ward Boy Tips", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-073", "hospital_line": "Consultation Report Copy Fee", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-074", "hospital_line": "MRI Contrast Agent", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-075", "hospital_line": "Ward Maintenance Fee", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-076", "hospital_line": "CT Angiography", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-077", "hospital_line": "Knee Brace", "category": "hard_negative", "expected_keys": []}
+{"id": "BMA-078", "hospital_line": "Cataract Surgery Follow-up Drops", "category": "hard_negative", "expected_keys": []}

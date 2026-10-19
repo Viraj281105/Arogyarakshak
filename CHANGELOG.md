@@ -19,7 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests: per-builder (incl. the "not recorded" paths), API (`test_explanations_api.py`), web and mobile.
 
 #### Changed
-- BillNyay: the CGHS match key is now resolved by `_match_cghs_key` (same longest-match rule as before; `_match_cghs_rate` delegates to it).
+- BillNyay audit: explanations reuse the existing `_match_cghs_key` (no matching change).
+
+### Phase-4 evaluation harnesses (2026-10-19)
+
+#### Added
+- **Evaluation harnesses** (`apps/api/app/evaluation/`, run with `scripts/evaluate_phase4.py`, offline, no Groq key): BMA (bill line → CGHS key), PEA (procedure extraction), billing-anomaly precision/recall/F1, CRMA (claim-rejection mapping), OCR WER/CER utility, DawaCheck price-mapping accuracy.
+- Six **SYNTHETIC**, hand-written labelled datasets in `data/evaluation/` (the loader rejects any file not flagged synthetic) and 24 tests with hand-computed expected values.
+- `docs/evaluation/phase4-harnesses.md` — measured results, including failures, and limitations. Numbers are development-set figures, not real-world accuracy.
+
+#### Changed
+- `billnyay` endpoint: extracted `_match_cghs_key` and the pure `audit_billing_lines` (no behaviour change) so the harness scores production logic.
 
 ### Mobile Expo SDK pin (2026-10-15)
 
