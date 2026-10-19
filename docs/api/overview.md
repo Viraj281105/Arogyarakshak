@@ -180,6 +180,7 @@ with `status` `FIRE` | `NO_CHANGE` | `INSUFFICIENT_EVIDENCE`, `schemes_applicabl
 | Method | Route | Description | Response Code |
 |---|---|---|---|
 | `POST` | `/api/v1/dawacheck/benchmark` | Checks a billed medicine price against NPPA ceiling prices | `200 OK` / `404 Not Found` / `422` |
+| `GET` | `/api/v1/kadi/cases/{case_id}/claim-pack` | Claim Pack ZIP (ADR-015). Needs `X-Case-Access-Token` and consent (403 otherwise; errors are `{detail, message}`). Read-only and in-memory: no LLM or network call, no row written, no original uploaded file. Files: `README.txt`, `01_documentation_checklist.txt`, `02_deadline_timeline.txt`, `03_bill_audit.txt`, `04_appeal_draft.txt`, `05_medicine_price_check.txt`, `preauth_form.pdf` (only if claim details were submitted), `manifest.txt`, `manifest.json`. A section with no data states "Not available for this case" and `included: false` in the manifest |
 | `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | The case's medicines: trust decision per medicine, then a per-unit price check (consent required) | `200 OK` |
 
 Backed by a small in-code ceiling-price table (7 formulations), not the full NPPA Schedule-I

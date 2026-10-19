@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     billnyay,
     bimanyay,
+    claim_pack,
     clinical_demo,
     clinical_review,
     clinical_safety,
@@ -28,6 +29,8 @@ api_router.include_router(clinical_review.router, prefix="/kadi", tags=["Kadi �
 api_router.include_router(clinical_safety.router, prefix="/kadi", tags=["Kadi — Clinical Safety Governance"])
 api_router.include_router(clinical_transcription.router, prefix="/kadi", tags=["Kadi — Human OCR Resolution"])
 api_router.include_router(clinical_demo.router, prefix="/kadi", tags=["Kadi — Clinical Demo Fixtures"])
+# ADR-015: the Claim Pack stitches several modules' results and is shared case infrastructure.
+api_router.include_router(claim_pack.router, prefix="/kadi", tags=["Kadi — Claim Pack"])
 api_router.include_router(billnyay.router, prefix="/billnyay", tags=["BillNyay (Bill Audit)"])
 api_router.include_router(schemesetu.router, prefix="/schemesetu", tags=["SchemeSetu (Eligibilities)"])
 api_router.include_router(dawacheck.router, prefix="/dawacheck", tags=["DawaCheck (Medicine Pricing)"])
