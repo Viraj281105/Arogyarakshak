@@ -1,5 +1,5 @@
 /**
- * Curated, static copy for the read-aloud / simple-language feature (ADR-015).
+ * Curated, static copy for the read-aloud / simple-language feature (ADR-016).
  *
  * No LLM and no runtime translation: every sentence a person hears is a fixed string below,
  * filled with structured values (counts, dates, amounts) from the result. Kept in a separate

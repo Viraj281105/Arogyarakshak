@@ -1,6 +1,6 @@
 # Read-aloud and simple language (web)
 
-Decision and rationale: [ADR-015](../architecture/decisions/ADR-015-on-device-read-aloud.md).
+Decision and rationale: [ADR-016](../architecture/decisions/ADR-016-on-device-read-aloud.md).
 
 ## What users see
 - A **Simple language** checkbox under the demo banner (per browser).

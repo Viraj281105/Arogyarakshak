@@ -1,5 +1,5 @@
 /**
- * On-device read-aloud helpers (ADR-015).
+ * On-device read-aloud helpers (ADR-016).
  *
  * Only the browser's built-in `speechSynthesis` is used, and only with voices that report
  * `localService === true`. A remote ("cloud") voice would send the text — which can contain

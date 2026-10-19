@@ -11,7 +11,7 @@ export type ListenPanelKind = "deadline" | "readiness" | "medicine" | "appeal";
 
 /**
  * Visible summary (standard or simple wording) with Listen / Stop buttons. What is read aloud is
- * exactly the text shown. Uses only the browser's on-device speech voices (ADR-015); when none
+ * exactly the text shown. Uses only the browser's on-device speech voices (ADR-016); when none
  * exists for the language the buttons are replaced by an honest message, never a cloud voice.
  * Never starts by itself.
  */

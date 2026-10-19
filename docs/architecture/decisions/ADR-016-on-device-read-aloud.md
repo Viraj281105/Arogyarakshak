@@ -1,4 +1,4 @@
-# ADR-015: On-device read-aloud and simple-language summaries
+# ADR-016: On-device read-aloud and simple-language summaries
 
 - **Status:** Accepted (2026-10-19)
 - **Context:** Many patients and caregivers read slowly, read mainly Hindi or Marathi, or have low

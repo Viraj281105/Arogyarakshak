@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Read-aloud and simple language (2026-10-19)
 
 #### Added
-- **On-device read-aloud (ADR-015).** "Listen" / "Stop" on four result summaries (BimaNyay deadlines and appeal, DaaviSetu document check, DawaCheck price result) in English, Hindi and Marathi. Uses only the browser's `speechSynthesis` with voices that report `localService === true`; where no on-device voice exists (common for Marathi) the buttons are replaced by an honest message instead of falling back to a cloud voice. No speech recognition, no third-party TTS, nothing leaves the device. Playback never starts by itself.
+- **On-device read-aloud (ADR-016).** "Listen" / "Stop" on four result summaries (BimaNyay deadlines and appeal, DaaviSetu document check, DawaCheck price result) in English, Hindi and Marathi. Uses only the browser's `speechSynthesis` with voices that report `localService === true`; where no on-device voice exists (common for Marathi) the buttons are replaced by an honest message instead of falling back to a cloud voice. No speech recognition, no third-party TTS, nothing leaves the device. Playback never starts by itself.
 - **Simple language** switch: short plain-sentence variant of the same summaries, from curated static strings (no LLM, no runtime translation). Hindi/Marathi strings are flagged `NEEDS NATIVE-SPEAKER QA`.
 - `apps/web/app/lib/{speech,listenCopy,listenSummaries}.ts`, `hooks/useListen.ts`, `components/{ListenSummary,SimpleLanguageToggle}.tsx`, `tests/listen.test.ts` (23 tests), `docs/development/accessibility-read-aloud.md`.
 - Not verified: actual audio output with a real local voice.
