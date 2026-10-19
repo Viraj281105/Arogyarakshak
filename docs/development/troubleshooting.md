@@ -173,6 +173,36 @@ This document catalogs known failure modes, error messages, and verified solutio
 - **Remedy**: check the new version's `trigger.match_any`; terms added later are checked
   only against entities and the 1,000-character excerpt of earlier uploads.
 
+### `lint-imports` reports a broken contract
+- **Cause**: a module imported something its layer may not (e.g. a service importing a route
+  module, or one domain package importing another). The output shows the import chain.
+- **Remedy**: move the shared code down a layer (`docs/architecture/module-boundaries.md`).
+  `test_architecture.py` failing instead means a new module is not listed in `.importlinter`.
+
+### `test_upgrade_to_head_matches_models_exactly` fails
+- **Cause**: `app/models.py` changed without an Alembic revision.
+- **Remedy**: `cd apps/api && alembic revision --autogenerate -m "..."`, review, commit
+  (`docs/operations/database-migrations.md`).
+
+### `test_live_schema_equals_the_reviewed_contract` fails
+- **Cause**: the API contract changed (a route, a model, or a framework upgrade).
+- **Remedy**: if intended, `PYTHONPATH=apps/api python scripts/export_openapi.py` and review
+  the diff (`docs/api/compatibility.md`). A test that mounts a temporary router must restore
+  `app.router.routes` and reset `app.openapi_schema` (FastAPI 0.13x+ wraps included routers).
+
+### The API exits at start-up with "Refusing to start under APP_ENV=production"
+- **Cause**: a development default is still set; the log names each one.
+- **Remedy**: set a ≥ 32-character `DOCUMENT_SIGNING_SECRET`, real database credentials, an
+  explicit `CORS_ORIGINS`, `SCHEMA_MANAGEMENT=migrate|none`, `CLINICAL_DEMO_MODE=false`.
+
+### `/health/ready` returns 503
+- See `docs/operations/runbook.md` — `database:false` is connectivity, `schema.ok:false` is
+  migrations.
+
+### After an API restart the progress screen says processing was interrupted
+- **Expected** (ADR-019): the document was being processed when the process stopped and was
+  never stored. Upload it again.
+
 ---
 
 ## 5. Frontend & Next.js Issues

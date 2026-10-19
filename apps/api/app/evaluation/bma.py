@@ -2,7 +2,7 @@
 BMA — Benchmark Mapping Accuracy.
 
 Does a hospital bill line resolve to the right CGHS reference rate key? Scored on the
-production matcher (``billnyay`` endpoint ``_match_cghs_key``), SYNTHETIC dataset
+production matcher (``app.services.billnyay_audit._match_cghs_key``), SYNTHETIC dataset
 ``data/evaluation/bma_synthetic.jsonl``.
 
 For every row: gold = acceptable keys (``[]`` = no counterpart exists), predicted = the

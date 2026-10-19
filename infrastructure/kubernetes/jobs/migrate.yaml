@@ -1,0 +1,46 @@
+# One-off schema migration (ADR-020). Run BEFORE rolling out a new API image, with the
+# SAME image tag as the API about to be deployed:
+#   kubectl -n arogyarakshak delete job api-migrate --ignore-not-found
+#   kubectl -n arogyarakshak apply -f infrastructure/kubernetes/jobs/migrate.yaml
+#   kubectl -n arogyarakshak wait --for=condition=complete job/api-migrate --timeout=5m
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-migrate
+  namespace: arogyarakshak
+  labels:
+    app.kubernetes.io/name: api-migrate
+    app.kubernetes.io/part-of: arogyarakshak
+spec:
+  backoffLimit: 0  # a failed migration needs a human, not a retry loop
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: arogyarakshak
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: arogyarakshak-api:replace-me
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: arogyarakshak-api, key: DATABASE_URL}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

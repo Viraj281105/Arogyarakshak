@@ -55,7 +55,7 @@ async def sweep_expired_cases(db: AsyncSession) -> int:
     """Purges every expired case via the same cascade the client-initiated DELETE route
     uses. Returns the number of cases purged. Commits per case, so one bad case cannot
     abort the whole sweep."""
-    from app.api.v1.endpoints.kadi import purge_case  # local import: avoids a circular import at module load
+    from app.services.case_purge import purge_case
 
     expired_ids = await find_expired_case_ids(db)
     purged = 0

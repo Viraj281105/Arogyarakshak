@@ -28,7 +28,7 @@ DATASETS = {
 
 
 def _bma(rows):
-    from app.api.v1.endpoints import billnyay as bn
+    from app.services import billnyay_audit as bn
 
     rates = bn.CGHS_RATES if bn.CGHS_RATES else bn._load_cghs_rates()
     return evaluate_bma(rows, lambda line: bn._match_cghs_key(line, rates))
@@ -41,7 +41,7 @@ def _pea(rows):
 
 
 def _anomaly(rows):
-    from app.api.v1.endpoints.billnyay import audit_billing_lines
+    from app.services.billnyay_audit import audit_billing_lines
 
     return evaluate_anomaly(rows, audit_billing_lines)
 

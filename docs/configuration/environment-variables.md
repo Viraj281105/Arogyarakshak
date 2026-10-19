@@ -23,7 +23,10 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `DOCUMENT_SIGNING_SECRET` | Production: **Yes** | `dev-insecure-signing-secret-change-in-production` | HMAC key for appeal-PDF integrity signatures (#66). Proves a PDF is byte-for-byte what this server generated; **not** a licensed digital signature certificate. Override with a long random value in any real deployment. |
 | `CLINICAL_GOVERNANCE_ADMIN_KEY` | No | `""` (disabled) | Operator secret (sent as `X-Governance-Admin-Key`) for seating safety-board members, recording verification attempts and seeding demo fixtures (ADR-011). **Empty disables those actions (503)** — it never means "open". Use a long random value. |
 | `CLINICAL_DEMO_MODE` | No | `false` | Enables the demo kit: `POST /api/v1/kadi/clinical-demo/seed`, `/reset`, `/scenarios/{A-E}`, the `DEMO_VERIFIED` reviewer status, the Scenario C OCR replay and the clients' DEMO MODE banner. Logged as a warning at startup. **Never enable in a real deployment** — refused with `APP_ENV=production`. |
-| `APP_ENV` | No | `development` | Deployment profile. `production` marks a real deployment: the API **refuses to start** if `CLINICAL_DEMO_MODE=true` as well, and demo routes stay disabled. |
+| `APP_ENV` | No | `development` | Deployment profile. `production` marks a real deployment: the API **refuses to start** while any development default remains — `CLINICAL_DEMO_MODE=true`, the default or a short (< 32 chars) `DOCUMENT_SIGNING_SECRET`, the default `arogyarakshak:arogyarakshak` database credentials, a wildcard `CORS_ORIGINS`, or `SCHEMA_MANAGEMENT=create_all` (`Settings.production_config_errors`). The interactive `/docs` and `/redoc` pages are also turned off. |
+| `SCHEMA_MANAGEMENT` | No | `migrate` | How the API treats the database schema at start-up (ADR-020). `migrate`: upgrade to the latest Alembic revision (a database made by the old `create_all` start-up is stamped at the baseline first). `none`: change nothing; run `alembic upgrade head` as a release step — `/health/ready` reports 503 while the database is behind. `create_all`: legacy, throwaway local databases only; refused in production. |
+| `LOG_FORMAT` | No | `text` | `text` for humans, `json` for one JSON object per line (timestamp, level, logger, message, service, environment, request_id). |
+| `LOG_LEVEL` | No | `INFO` | Root log level. |
 | `DEMO_DOCUMENTS_DIR` | No | *(auto)* | Where the demo scenario loaders read the synthetic documents. Empty = the repository's `demo/documents` (local runs) or `/app/demo/documents` (the API image copies them there). Inert outside demo mode. |
 | `OCR_LOW_CONFIDENCE_THRESHOLD` | No | `0.5` | EasyOCR segments below this confidence become human transcription tasks instead of trusted text (ADR-011). |
 | `SAFETY_RULE_REQUIRED_APPROVALS` | No | `1` | Independent safety-board approvals needed before a rule can be activated. The proposer's own approval never counts. |
@@ -32,6 +35,9 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 > requests are disabled automatically — a wildcard origin combined with credentials would let
 > any site issue authenticated requests. Set an explicit comma-separated origin list to enable
 > credentials.
+
+> Every response carries an `X-Request-ID` header (a well-formed incoming one is reused) that also
+> appears on every log line for that request.
 
 > Unhandled `500` responses return only `{"detail": ..., "error_id": ...}`. The exception text
 > is written to the API logs against that `error_id` and is never returned to the client.

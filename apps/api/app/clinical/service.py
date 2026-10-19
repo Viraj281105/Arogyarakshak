@@ -73,7 +73,7 @@ NOT_FOUND = "Clinical review not found."
 
 
 def _lifecycle_http(e: LifecycleError) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
 
 def _new_id(prefix: str) -> str:
@@ -101,7 +101,7 @@ async def create_review(
     require_case_consent(case)
     if share_with_reviewer_consent is not True:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "Sharing case evidence with a human reviewer needs the patient's explicit "
                 "agreement for this request: set share_with_reviewer_consent to true."
@@ -113,7 +113,7 @@ async def create_review(
     except LifecycleError as e:
         raise _lifecycle_http(e)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
     packet = build_evidence_packet(entities, scope, supplementary)
     if not packet:
@@ -208,7 +208,7 @@ async def assign_review(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reviewer not found.")
     if reviewer.category not in CLINICAL_JUDGMENT_CATEGORIES_VALUES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "This review asks for clinical judgment, which needs a reviewer registered as a "
                 "doctor. Pharmacists, transcriptionists and annotators can resolve transcription "
@@ -360,10 +360,10 @@ async def accept_review(
         coi = ConflictOfInterest(coi_category).value
         disclosure = clean_text(coi_disclosure, max_chars=MAX_DISCLOSURE_CHARS, field="coi_disclosure", required=False)
     except (ValueError, LifecycleError) as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
     if coi == ConflictOfInterest.OTHER.value and not disclosure:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="A conflict of interest of type OTHER needs a written disclosure.",
         )
     now = datetime.utcnow()
@@ -665,7 +665,7 @@ async def decide_fact(
             detail="This fact was already decided. Decisions are immutable; the case holder can request a new review.",
         )
     if decision not in (FactDecision.CONFIRMED.value, FactDecision.REJECTED.value, FactDecision.CANNOT_DETERMINE.value):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="decision must be CONFIRMED, REJECTED or CANNOT_DETERMINE.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="decision must be CONFIRMED, REJECTED or CANNOT_DETERMINE.")
     try:
         require_confirmation(confirmation, confirmation_text, FACT_DECISION_CONFIRMATION_TEXT)
         clean_note = clean_text(note, max_chars=1000, field="note", required=False)

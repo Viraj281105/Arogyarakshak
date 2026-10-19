@@ -10,6 +10,8 @@ normalised to "Pan 40" was compared as ₹60 per tablet against the ₹3.20 ceil
 """
 
 from app.api.v1.endpoints import kadi as kadi_endpoint
+
+from app.services import case_ingestion  # ingestion pipeline (ADR-018)
 from kadi.extraction import ExtractedEntities
 from tests.clinical_helpers import K, client
 
@@ -21,8 +23,8 @@ def _upload(monkeypatch, text, medicines):
     def fake_extract(_text, api_key=None, model=None):
         return ExtractedEntities(hospital_name="Synthetic Demo Pharmacy", medicines=[dict(m) for m in medicines])
 
-    monkeypatch.setattr(kadi_endpoint, "parse_document", fake_parse)
-    monkeypatch.setattr(kadi_endpoint, "extract_entities_from_text", fake_extract)
+    monkeypatch.setattr(case_ingestion, "parse_document", fake_parse)
+    monkeypatch.setattr(case_ingestion, "extract_entities_from_text", fake_extract)
     case_id = client.post(f"{K}/cases", json={"consent_opt_in": True}).json()["id"]
     res = client.post(f"{K}/cases/{case_id}/upload", files={"file": ("bill.pdf", text.encode())})
     assert res.status_code == 202, res.text

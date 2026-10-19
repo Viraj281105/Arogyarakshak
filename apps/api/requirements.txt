@@ -1,13 +1,15 @@
-fastapi==0.115.12
+fastapi==0.148.0
+# Pinned explicitly: FastAPI's range still admits Starlette releases with form-parsing DoS
+# advisories (PYSEC-2026-249, PYSEC-2026-1941) that affect the upload routes.
+starlette==1.9.0
 uvicorn[standard]==0.34.3
+# Synchronous driver used only by Alembic migrations (app.schema, ADR-020); the API itself uses asyncpg.
 psycopg2-binary==2.9.10
 pydantic-settings==2.9.1
 sqlalchemy==2.0.38
 asyncpg==0.30.0
-python-multipart==0.0.12
+alembic==1.14.0
+python-multipart==0.0.32
 aiosqlite==0.20.0
 httpx==0.27.0
 reportlab>=4.0.0
-
-
-

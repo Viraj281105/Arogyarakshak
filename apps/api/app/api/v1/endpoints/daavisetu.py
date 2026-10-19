@@ -28,6 +28,10 @@ from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DaaviSetuClaim, DaaviSetuInstitution, KadiCase, KadiEntity
+from app.services.daavisetu_claims import (  # noqa: F401 — re-exported for existing importers
+    _claim_data_from_record,
+    claim_data_from_record,
+)
 from daavisetu.readiness import BASELINE_ITEMS, render_readiness_text
 from kadi.clinical_review import ReviewTrigger, ReviewType, SourceModule
 # Import daavisetu packages
@@ -115,7 +119,7 @@ async def generate_pre_auth_form(
     ]
     if missing:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": (
                     "Cannot generate a pre-authorization form: these fields were neither "
@@ -186,18 +190,6 @@ async def _load_submitted_claim(case_id: str, db: AsyncSession) -> DaaviSetuClai
             ),
         )
     return claim_record
-
-
-def _claim_data_from_record(claim_record: DaaviSetuClaim) -> ClaimData:
-    return ClaimData(
-        policy_number=claim_record.policy_number,
-        patient_name=claim_record.patient_name,
-        hospital_name=claim_record.hospital_name,
-        diagnosis=claim_record.diagnosis,
-        estimated_cost=claim_record.estimated_cost,
-        treatment_plan=claim_record.treatment_plan,
-        sum_insured=claim_record.sum_insured,
-    )
 
 
 @router.get("/cases/{case_id}/claim/pdf")
@@ -287,7 +279,7 @@ async def _read_template_upload(template: UploadFile) -> bytes:
     template_bytes = await template.read(settings.max_upload_bytes + 1)
     if len(template_bytes) > settings.max_upload_bytes:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"Template exceeds the {settings.max_upload_bytes // (1024 * 1024)} MB limit.",
         )
     return template_bytes
@@ -304,7 +296,7 @@ async def inspect_claim_template(template: UploadFile = File(...)):
         return list_form_fields(template_bytes)
     except MalformedPdfError as e:
         # SEC-12: a corrupted/non-PDF upload is a client error, not a server crash.
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
 
 @router.post("/cases/{case_id}/claim/fill-template")
@@ -336,7 +328,7 @@ async def fill_claim_template(
         filled_bytes = fill_pdf_form(template_bytes, field_values)
     except MalformedPdfError as e:
         # SEC-12: a corrupted/non-PDF upload is a client error, not a server crash.
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
     return Response(
         content=filled_bytes,

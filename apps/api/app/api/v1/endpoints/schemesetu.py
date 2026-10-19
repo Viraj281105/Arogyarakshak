@@ -15,7 +15,12 @@ from app.auto_triggers import run_triggers_in_background, upsert_insight
 from app.case_auth import require_case_access
 from app.consent import require_case_consent
 from app.database import get_db
-from app.models import KadiCase, KadiEntity, KadiModuleInsight, SchemeSetuCaseProfile
+from app.models import KadiCase, KadiModuleInsight, SchemeSetuCaseProfile
+from app.services.schemesetu_eligibility import (  # noqa: F401 — re-exported for existing importers
+    CaseMedicalNeedMissing,
+    build_case_eligibility,
+    case_medical_need,
+)
 # Import schemesetu packages
 from schemesetu.agent import check_eligibility, EligibilityRequest, SchemeResult
 from schemesetu.triggers import IncomeProfile, IncomeTriggerDecision, evaluate_income_trigger
@@ -102,7 +107,7 @@ async def check_case_scheme_eligibility(
         )
     except CaseMedicalNeedMissing:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": (
                     "medical_need was not supplied and no diagnosis or procedure was "
@@ -111,43 +116,6 @@ async def check_case_scheme_eligibility(
                 ),
             },
         )
-
-
-class CaseMedicalNeedMissing(Exception):
-    """No medical need was supplied and the case has no diagnosis/procedure entities."""
-
-
-async def case_medical_need(case_id: str, db: AsyncSession) -> Optional[str]:
-    entities_result = await db.execute(
-        select(KadiEntity)
-        .join(KadiCase.entities)
-        .where(KadiCase.id == case_id, KadiEntity.type.in_(["diagnosis", "procedure"]))
-    )
-    # De-duplicated, order-preserving: a case can carry the same procedure name from more
-    # than one source document.
-    names = list(dict.fromkeys(e.name for e in entities_result.scalars().all() if e.name))
-    return "; ".join(names) if names else None
-
-
-async def build_case_eligibility(
-    case_id: str,
-    *,
-    income: float,
-    location_state: str,
-    category: str,
-    medical_need: Optional[str],
-    db: AsyncSession,
-) -> List[SchemeResult]:
-    """Shared by the route above and Kadi's auto-triggers (#32, #92). Callers enforce
-    consent first."""
-    medical_need = medical_need or await case_medical_need(case_id, db)
-    if not medical_need:
-        raise CaseMedicalNeedMissing()
-    return check_eligibility(
-        EligibilityRequest(
-            income=income, location_state=location_state, category=category, medical_need=medical_need
-        )
-    )
 
 
 # --- Consent-bounded income profile & recommendation trigger (#92) ------------
@@ -314,7 +282,7 @@ async def eligibility_trend(intake: TrendEligibilityRequest):
             medical_need=intake.medical_need,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
 
 class TransitionEligibilityRequest(BaseModel):

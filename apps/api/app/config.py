@@ -8,8 +8,13 @@ GROQ_MODEL defaults to "openai/gpt-oss-120b".  Never use deprecated model
 names (llama3-70b, llama-3.3-70b-versatile) — see AGENTS.md.
 """
 
+from typing import List, Literal
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+INSECURE_SIGNING_SECRET = "dev-insecure-signing-secret-change-in-production"
 
 
 class Settings(BaseSettings):
@@ -29,7 +34,7 @@ class Settings(BaseSettings):
     # licensed digital signature certificate (DSC) under the IT Act, 2000. The
     # insecure default is fine for dev/test; production deployments must override
     # this via the DOCUMENT_SIGNING_SECRET env var.
-    document_signing_secret: str = "dev-insecure-signing-secret-change-in-production"
+    document_signing_secret: str = INSECURE_SIGNING_SECRET
 
     # --- Upload limits --------------------------------------------------------
     # Documents are read fully into RAM for transient parsing, so an unbounded upload is
@@ -97,7 +102,40 @@ class Settings(BaseSettings):
     # (the API image copies them there; they are inert unless demo mode is on).
     demo_documents_dir: str = ""
 
+    # --- Schema management (ADR-020) ----------------------------------------------
+    # migrate: upgrade to the latest Alembic revision at start-up (default; single API
+    # process only). none: an operator runs `alembic upgrade head` as a release step.
+    # create_all: legacy, throwaway local databases only; refused in production.
+    schema_management: Literal["migrate", "none", "create_all"] = "migrate"
+
+    # --- Observability -------------------------------------------------------------
+    # text: human-readable (local). json: one JSON object per line for a log collector.
+    log_format: Literal["text", "json"] = "text"
+    log_level: str = "INFO"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.strip().lower() == "production"
+
+    def production_config_errors(self) -> List[str]:
+        """Settings that are tolerable on a laptop but must never reach a real deployment.
+        Under APP_ENV=production the API refuses to start while any remain (app.main).
+        Messages name the variable only, never its value."""
+        errors: List[str] = []
+        if self.document_signing_secret == INSECURE_SIGNING_SECRET or len(self.document_signing_secret) < 32:
+            errors.append("DOCUMENT_SIGNING_SECRET is the development default or shorter than 32 characters.")
+        if "arogyarakshak:arogyarakshak@" in self.database_url:
+            errors.append("DATABASE_URL uses the default development credentials.")
+        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        if not origins or "*" in origins:
+            errors.append("CORS_ORIGINS is a wildcard; list the web client's origin(s) explicitly.")
+        if self.schema_management == "create_all":
+            errors.append("SCHEMA_MANAGEMENT=create_all never migrates existing tables; use migrate or none.")
+        if self.clinical_demo_mode:
+            errors.append("CLINICAL_DEMO_MODE must be off.")
+        return errors
 
     @model_validator(mode="after")
     def _demo_mode_never_in_production(self) -> "Settings":

@@ -12,10 +12,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: no job writes to the repository, checks or pull requests.
 permissions:
   contents: read
-  checks: write
-  pull-requests: write
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
@@ -92,15 +91,36 @@ jobs:
           # generated PDFs back to verify content. It is not an app runtime dependency
           # (apps/api/requirements.txt), so it belongs with the other test tooling here.
           pip install pytest pytest-asyncio pytest-cov aiosqlite httpx ruff reportlab PyMuPDF==1.24.1
+          # Architecture contracts (.importlinter, ADR-018) and the manifest policy tests.
+          pip install import-linter==2.1 PyYAML
 
       - name: Python Code Syntax & Lint Check (Ruff)
         run: |
           echo "Running fast lint check on FastAPI backend and domain packages..."
           python -m ruff check apps/api packages --select=E9,F63,F7,F82 --target-version=py311
 
+      - name: Architecture Contracts (import-linter)
+        env:
+          PYTHONPATH: apps/api
+        run: lint-imports
+
+      - name: Database Migrations Apply to PostgreSQL and Match the Models
+        env:
+          DATABASE_URL: postgresql://arogyarakshak:arogyarakshak@localhost:5432/arogyarakshak
+          PGPASSWORD: arogyarakshak
+        working-directory: apps/api
+        run: |
+          # A real upgrade on PostgreSQL 16, then Alembic's own drift check (ADR-020).
+          alembic upgrade head
+          alembic check
+          alembic current
+          # Separate empty database for the round-trip test in test_migrations.py.
+          psql -h localhost -U arogyarakshak -d arogyarakshak -c "CREATE DATABASE migration_test"
+
       - name: Run Full Test Suite with Coverage
         env:
           DATABASE_URL: postgresql://arogyarakshak:arogyarakshak@localhost:5432/arogyarakshak
+          MIGRATION_TEST_DATABASE_URL: postgresql://arogyarakshak:arogyarakshak@localhost:5432/migration_test
           GROQ_MODEL: openai/gpt-oss-120b
           GROQ_API_KEY: mock_test_key_for_ci
           PYTHONPATH: apps/api
@@ -212,7 +232,13 @@ jobs:
       - name: Validate Docker Compose Configuration
         run: |
           docker compose config --quiet
-          echo "✓ docker-compose.yml configuration is valid."
+          CLINICAL_GOVERNANCE_ADMIN_KEY=ci-placeholder docker compose -f docker-compose.yml -f docker-compose.demo.yml config --quiet
+          echo "✓ docker-compose.yml and the demo override are valid."
+
+      - name: Render Kubernetes Manifests (kustomize)
+        run: |
+          kubectl kustomize infrastructure/kubernetes/overlays/example > /dev/null
+          echo "✓ infrastructure/kubernetes renders. Policy checks run in the backend test suite."
 
       - name: Build Backend Container Image (Dry Run)
         uses: docker/build-push-action@v6
@@ -222,13 +248,9 @@ jobs:
           push: false
           tags: arogyarakshak-api:ci-test
           cache-from: type=gha
-          # mode=max caches every intermediate stage, which only pays off for
-          # multi-stage Dockerfiles. Both apps/api/Dockerfile and apps/web/Dockerfile
-          # are single-stage, so mode=max just spends extra time/cache-storage
-          # exporting layer history with nothing to show for it; mode=min (the
-          # default for single-stage builds) caches the same final-image layers
-          # for faster future builds without that overhead.
-          cache-to: type=gha,mode=min
+          # Both Dockerfiles are multi-stage now; mode=max also caches the build stage,
+          # which is where the slow dependency installs happen.
+          cache-to: type=gha,mode=max
 
       - name: Build Web Container Image (Dry Run)
         uses: docker/build-push-action@v6
@@ -238,13 +260,7 @@ jobs:
           push: false
           tags: arogyarakshak-web:ci-test
           cache-from: type=gha
-          # mode=max caches every intermediate stage, which only pays off for
-          # multi-stage Dockerfiles. Both apps/api/Dockerfile and apps/web/Dockerfile
-          # are single-stage, so mode=max just spends extra time/cache-storage
-          # exporting layer history with nothing to show for it; mode=min (the
-          # default for single-stage builds) caches the same final-image layers
-          # for faster future builds without that overhead.
-          cache-to: type=gha,mode=min
+          cache-to: type=gha,mode=max
 
   # ──────────────────────────────────────────────────────────────────────────
   # 6. UNIFIED CI BRANCH PROTECTION GATE

@@ -20,7 +20,8 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
-- **Latest (2026-10-19, explanation trail — ADR-017):** every finding (BillNyay line, DawaCheck medicine, DaaviSetu readiness item, BimaNyay deadline) now carries a deterministic, no-LLM `explanation` (evidence + provenance, exact rule/row, trust, what could not be determined, "not recorded"). **Backend 1043 passed, 6 skipped; web 106; mobile 126; web lint 0, tsc 0; mobile type-check 0; CI Ruff gate OK.** Browser-verified on SQLite demo mode (Scenario C and A, DaaviSetu readiness); BimaNyay UI and mobile not run in a browser/device.
+- **Latest (2026-10-19, engineering foundation pass — ADR-018…021, branch `arch/engineering-foundation`, uncommitted at time of writing):** application service layer + import-linter contracts, Alembic migrations, persisted document-job state with restart reconciliation, production-profile refusal, request ids / JSON logs / hardening headers / liveness vs readiness, FastAPI 0.148 + Starlette 1.9 + python-multipart 0.0.32 + Next.js 16.4.2 (pip-audit and web `npm audit` now clean), multi-stage images, kustomize base, CI security workflow. **Backend 1119 passed, 7 skipped; web 133, lint 0, tsc 0, build OK; mobile 126, tsc 0; contracts 5/5; guardrails 8/8.** Live run on SQLite (fresh DB migrated at start-up, upload → audit in the browser). **Not verified:** container builds (no Docker engine), cluster deployment (none), Alembic on PostgreSQL (CI only), backup restore. Full report: `docs/architecture/engineering-foundation-2026-10.md`.
+- **Previous (2026-10-19, explanation trail — ADR-017):** every finding (BillNyay line, DawaCheck medicine, DaaviSetu readiness item, BimaNyay deadline) now carries a deterministic, no-LLM `explanation` (evidence + provenance, exact rule/row, trust, what could not be determined, "not recorded"). **Backend 1043 passed, 6 skipped; web 106; mobile 126; web lint 0, tsc 0; mobile type-check 0; CI Ruff gate OK.** Browser-verified on SQLite demo mode (Scenario C and A, DaaviSetu readiness); BimaNyay UI and mobile not run in a browser/device.
 - **Latest (2026-09-30, Scenario E — Health-a-thon diabetes workflow):** demo Scenario E adds a paperwork-only diabetes admission path on existing machinery (upload → Kadi extraction → DaaviSetu readiness with a diabetes demo playbook → doctor confirmation of one clinical fact → missing-document list). Changes: `demo/documents/E_diabetes_admission_note.txt`, `DEMO_PLAYBOOK_DIABETES` in `apps/api/app/clinical/demo.py`, `SCENARIOS["E"]`, route accepts `E`, web tab mapping + playbook ID display, one new test. **Backend 1012 passed, 6 skipped; web 93, lint 0, tsc 0; guardrails 8/8.** Browser-verified on SQLite with rule-based extraction (not Postgres, not Groq, not mobile). The checklist wording is unsourced and needs clinical-lead sign-off.
 - **Previous (2026-09-27, release-candidate pass — committed on `viraj-dev` as b0cd0eb..576abd1, merged to `main` via PR #149):** price-basis correctness in DawaCheck **and** BillNyay (ADR-012), a Postgres-only FK bug fixed (DaaviSetu doctor confirmation) and FK enforcement added to the test DB, demo kit controls (status / reset / Load Scenario A–D, DEMO MODE banner, "What is simulated?"), case timeline, "add a document to this case", honesty fixes across web/mobile, README + `docs/JUDGE_DEMO.md`. Totals: **1011 passed, 6 skipped backend, 93 web, 115 mobile**; web lint 0 / build OK; mobile type-check 0; CI Ruff gate OK; guardrails 8/8. **Runtime-validated:** PostgreSQL 16 (local API against the compose Postgres) and the full docker-compose stack (postgres + api + web images) — `scripts/demo_runtime_smoke.py` 49/49 on both; browser (containerised web: demo reset, Scenario A/C, BillNyay basis, reviewer workspace sign-in). **Not validated:** Android device/emulator (none installed), real Groq (no key configured).
 - **Earlier (2026-09-27, demo-hardening pass — committed on `viraj-dev` (2eabd17..7a30f45)):** OCR trust pipeline hardened (single medicine trust gate; no uncertain reading dropped), plausibility honesty, four-eyes safety-rule retirement, explicit "Safety check unavailable", mobile processing lifecycle, deterministic demo kit (`demo/`). Current totals: **922 passed, 6 skipped backend, 88 web, 109 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI Ruff gate OK, CI guardrails 8/8. **Not validated:** mobile on a device/emulator (none available), Postgres (Docker engine did not start), real Groq path (no key configured).
@@ -160,6 +161,16 @@ arogyarakshak/
 ---
 
 ## 8. Current Work
+
+### Active Task (2026-10-19) — engineering foundation pass (branch `arch/engineering-foundation`)
+- [x] `apps/api/app/services/` + `.importlinter` (5 contracts) + `test_architecture.py` (ADR-018).
+- [x] Alembic (`apps/api/alembic.ini`, `migrations/`, `app/schema.py`, `SCHEMA_MANAGEMENT`), `test_migrations.py` (ADR-020).
+- [x] `kadi_document_jobs` + start-up reconciliation + SSE interrupted state (ADR-019).
+- [x] Production profile refusal, hardening headers, request ids, JSON logs, `/health/live` + `/health/ready`, log redaction (route templates, no validation input, no file names, uvicorn access log off).
+- [x] Dependency upgrades (FastAPI/Starlette/python-multipart/Next.js) with full re-test; OpenAPI snapshot contract.
+- [x] Multi-stage images, `infrastructure/kubernetes/` + `tests/infrastructure/`, CI gates + `security.yml` (ADR-021).
+- [x] Latency harness fixed (it had been passing with 0 samples).
+- [ ] Not done / needs the user: run CI on GitHub (first run of `security.yml`, Alembic on PostgreSQL, image builds); build/run the images once Docker works locally; backup-restore drill; decide on committing/PR.
 
 ### Active Task (2026-10-19) — "Why am I seeing this?" explanation trail (ADR-017)
 - [x] `kadi.explanation.Explanation` + builders in `dawacheck/explain.py`, `billnyay/explain.py`, `daavisetu/readiness.py` (`explain_item`), `bimanyay/tracker.py`; additive `explanation` on the four finding types (no new endpoint — same ADR-009 authorization); web `ExplainTrail` + mobile `ExplainToggle`; ADR-017, API docs, CHANGELOG.
@@ -359,6 +370,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-003 (Bring-Your-Own-Document Privacy):** Zero persistent storage of patient health documents. Raw files exist only in transient memory during extraction.
 - **ADR-004 (Groq Model Selection):** Hardcoded deprecation ban on `llama3-70b`. All calls dynamically load from `GROQ_MODEL` (default: `openai/gpt-oss-120b`).
 - **ADR-005 (DaaviSetu vs BimaNyay Division):** Clean lifecycle separation: DaaviSetu owns pre-claim application filing; BimaNyay owns post-denial repudiation disputes and IRDAI appeals.
+- **ADR-018 (Application service layer & import contracts):** shared use cases live in `apps/api/app/services`; route modules are thin and never imported by anything below the HTTP layer; domain packages framework-free and mutually independent — all enforced by `lint-imports` in CI.
+- **ADR-019 (Processing reliability without a broker):** BYOD forbids storing documents, so no durable queue; instead `kadi_document_jobs` records state, start-up marks in-flight jobs `interrupted`, the client is told to re-upload. The API must run as exactly one process/replica.
+- **ADR-020 (Alembic):** migrations are the schema source of truth; `SCHEMA_MANAGEMENT=migrate|none|create_all`; legacy `create_all` databases are stamped at `0001_baseline`, never recreated.
+- **ADR-021 (Modular monolith & deployment topology):** no service extraction (OCR worker blocked by ADR-003); single-replica kustomize path, no HPA/PDB/Helm; nothing deployed.
 - **ADR-017 (Explanation trail):** every finding carries a deterministic `Explanation` (evidence + provenance class, exact rule/row, trust, undetermined, derived `not_recorded`), built by the owning package from the decision's own values, delivered additively on existing authorised responses; never an LLM, never an invented reason.
 - **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
 
@@ -382,7 +397,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **Current totals (2026-09-30, Scenario E):** backend `pytest` **1012 passed, 6 skipped** (`apps/api` 424 + `packages` 588); web `npm test` **93**, lint 0, `tsc --noEmit` 0; `scripts/ci_guardrails.py` 8/8. Mobile was not touched and not re-run (115 at the previous pass). Run with the Python 3.11 interpreter (see §11, item 1).
+- **Current totals (2026-10-19, engineering foundation pass):** backend `pytest` **1119 passed, 7 skipped** (`pytest.ini` now also collects `tests/`; the 7th skip is the PostgreSQL variant of `test_migrations.py`, run in CI via `MIGRATION_TEST_DATABASE_URL`); `lint-imports` 5/5; web 133, lint 0, tsc 0, build OK; mobile 126, tsc 0; guardrails 8/8; CI Ruff gate OK. New suites: `apps/api/tests/test_architecture.py`, `test_migrations.py`, `test_document_jobs.py`, `test_platform_foundation.py`, `test_openapi_contract.py`, `tests/infrastructure/test_kubernetes_manifests.py`.
+- **Previous totals (2026-09-30, Scenario E):** backend `pytest` **1012 passed, 6 skipped** (`apps/api` 424 + `packages` 588); web `npm test` **93**, lint 0, `tsc --noEmit` 0; `scripts/ci_guardrails.py` 8/8. Mobile was not touched and not re-run (115 at the previous pass). Run with the Python 3.11 interpreter (see §11, item 1).
 - **Previous totals (2026-09-27, release-candidate pass):** backend `pytest` **1011 passed, 6 skipped** (SQLite with foreign keys enforced); web `npm test` **93**, lint 0, build OK; mobile `npm test` **115**, type-check 0; CI Ruff gate OK; guardrails 8/8; `scripts/demo_runtime_smoke.py` **49/49** on PostgreSQL 16 and on the docker-compose stack. New suites: `packages/dawacheck/tests/test_price_basis.py`, `packages/billnyay/tests/test_rate_basis.py`, `packages/kadi/tests/test_case_timeline.py`, `apps/api/tests/test_dawacheck_price_basis_pipeline.py`, `test_demo_control.py`, `test_case_timeline_api.py`, `test_review_transitions.py`, `apps/web/tests/dawacheck_price_basis.test.ts`, `apps/mobile/tests/price_check.test.ts`.
 - **Earlier totals (2026-09-27, demo-hardening pass):** backend `pytest` **922 passed, 6 skipped**; web `npm test` **88**, lint 0, build OK; mobile `npm test` **109**, type-check 0; CI Ruff gate OK; `scripts/ci_guardrails.py` 8/8. New suites: `packages/kadi/tests/test_ocr_trust_gate.py`, `apps/api/tests/test_ocr_trust_pipeline.py`, `test_appeal_pdf_lifecycle.py`, `test_safety_unavailable.py`, `test_demo_documents.py`, `test_demo_scenario_c.py`, `apps/web/tests/demo_hardening.test.ts`, `apps/mobile/tests/case_processing.test.ts`. Not run: Postgres, device/emulator, real Groq.
 - **Earlier totals (2026-09-23, after ADR-011):** backend `pytest` **835 passed, 6 skipped** (was 686); web `npm test` **74** (was 58), `npm run lint` 0 errors, `npm run build` OK; mobile `npm test` **87** (was 77), `npm run type-check` 0 errors; `scripts/ci_guardrails.py` 8/8.
@@ -441,10 +457,23 @@ Phase 5: Submission & Demo Polish (FUTURE)
 | **Academic & Research Portfolio** | [`docs/academic/README.md`](docs/academic/README.md) |
 | **Phase-4 Evaluation Harnesses (synthetic)** | [`docs/evaluation/phase4-harnesses.md`](docs/evaluation/phase4-harnesses.md) |
 | **Task Backlog** | [`docs/ArogyaRakshak_Task_Backlog.md`](docs/ArogyaRakshak_Task_Backlog.md) |
+| **Engineering foundation report (2026-10)** | [`docs/architecture/engineering-foundation-2026-10.md`](docs/architecture/engineering-foundation-2026-10.md) |
+| **Module boundaries / where code goes** | [`docs/architecture/module-boundaries.md`](docs/architecture/module-boundaries.md) |
+| **Service catalog** | [`docs/architecture/service-catalog.md`](docs/architecture/service-catalog.md) |
+| **Database migrations** | [`docs/operations/database-migrations.md`](docs/operations/database-migrations.md) |
+| **Operational runbook (incl. backup/restore draft)** | [`docs/operations/runbook.md`](docs/operations/runbook.md) |
+| **Kubernetes path** | [`docs/operations/kubernetes.md`](docs/operations/kubernetes.md) |
+| **Supply-chain security policy** | [`docs/security/supply-chain.md`](docs/security/supply-chain.md) |
+| **API contract & compatibility** | [`docs/api/compatibility.md`](docs/api/compatibility.md), [`docs/api/openapi.json`](docs/api/openapi.json) |
 
 ---
 
 ## 17. Recent Changes
+
+### 2026-10-19 — Engineering foundation pass (ADR-018…021, branch `arch/engineering-foundation`)
+- **Added**: `apps/api/app/services/` (billnyay_audit, dawacheck_benchmarks, schemesetu_eligibility, daavisetu_claims, case_ingestion, case_purge, document_jobs); `app/schema.py`, `app/observability.py`; `apps/api/alembic.ini`, `migrations/` (0001_baseline, 0002_document_jobs); `KadiDocumentJob` model; `/health/live`, `/health/ready`; `.importlinter`; `scripts/export_openapi.py`, `docs/api/openapi.json`; `infrastructure/kubernetes/`; `.github/workflows/security.yml`; `apps/web/.dockerignore`; ADR-018…021 and the docs listed in §16.
+- **Changed**: route modules re-export moved names; `app.background` no longer imports `app.main`; start-up schema step replaces `create_all`; production profile refuses insecure defaults; error logs use route templates and omit validation input; uploaded file names no longer logged; uvicorn access log off; FastAPI 0.148.0 / Starlette 1.9.0 / python-multipart 0.0.32 / alembic 1.14.0 (`apps/api/requirements.txt`), Next.js 16.4.2; deprecated `HTTP_422_UNPROCESSABLE_ENTITY` / `HTTP_413_REQUEST_ENTITY_TOO_LARGE` constants renamed; both Dockerfiles multi-stage; compose web bound to 127.0.0.1 and uses the `build` target; CI permissions reduced to `contents: read`, plus lint-imports, Alembic on PostgreSQL, kustomize render.
+- **Fixed**: `scripts/evaluate_latency.py` (401 on every upload, reported PASS with 0 samples); a test that leaked a probe route into the app under FastAPI ≥ 0.13x; web image copying host `node_modules`.
 
 ### 2026-10-19 — Explanation trail (ADR-017, branch `claude/explain-trail-c37690`)
 - **Added**: `packages/kadi/kadi/explanation.py`; `dawacheck/explain.py`; `billnyay/explain.py`; `explain_item` in `daavisetu/readiness.py`; `_explain_deadline` in `bimanyay/tracker.py`; `name_provenance_class` in `medicine_trust.py`; web `components/ExplainTrail.tsx`, `lib/explanation.ts`, `lib/explainStrings.ts`; mobile `components/ExplainToggle.tsx`, `services/explanation.ts`; ADR-017; tests in each package, `apps/api/tests/test_explanations_api.py`, `apps/web/tests/explanation.test.ts`, `apps/mobile/tests/explanation.test.ts`.
@@ -662,6 +691,15 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 18. Agent Handoff Notes
+
+### Latest handoff (2026-10-19, engineering foundation pass)
+- Where code goes: `docs/architecture/module-boundaries.md`. `lint-imports` + `test_architecture.py` will fail a new module that is not in `.importlinter` or that imports a route module.
+- Model change ⇒ Alembic revision (`cd apps/api && alembic revision --autogenerate -m ...`, review it). `test_migrations.py` fails otherwise.
+- Never run more than one API process (ADR-019): no `--workers`, replicas or HPA.
+- Tests that patch the ingestion pipeline patch `app.services.case_ingestion`, not the kadi route module. A test that mounts a temporary router must restore `app.router.routes` and reset `app.openapi_schema` and `app.observability._templates`.
+- Contract change ⇒ `PYTHONPATH=apps/api python scripts/export_openapi.py` and review the diff.
+- Running two pytest processes at once in the repo root corrupts both (shared `test_temp.db`).
+- First GitHub run of `security.yml`: gitleaks scans full history and may surface old findings to triage; `alembic check` on PostgreSQL may report dialect type differences SQLite hides.
 
 ### Latest handoff (2026-10-19, explanation trail)
 - To add an explanation to a new finding: build `kadi.explanation.Explanation` in the owning package from the decision's own values, use `fact(label, value)` so a missing value stays `None`, and let `not_recorded` derive itself. Never fill a gap with a plausible string.

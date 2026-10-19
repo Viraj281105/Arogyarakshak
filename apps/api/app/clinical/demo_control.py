@@ -231,7 +231,8 @@ async def reset_demo(db: AsyncSession) -> Dict[str, Any]:
     _require_allowed()
     # Local import: the purge cascade lives with the case routes (shared with DELETE and
     # the retention sweep); importing at module load would be circular.
-    from app.api.v1.endpoints.kadi import processing_status, purge_case
+    from app.services.case_ingestion import processing_status
+    from app.services.case_purge import purge_case
 
     async with _demo_lock:
         case_ids = await _demo_case_ids(db)
@@ -266,7 +267,7 @@ async def load_scenario(db: AsyncSession, scenario_id: str) -> Dict[str, Any]:
     real upload pipeline (the same `process_document_background` a patient upload uses),
     returning once processing has finished."""
     _require_allowed()
-    from app.api.v1.endpoints.kadi import create_case_record, ingest_document_now
+    from app.services.case_ingestion import create_case_record, ingest_document_now
 
     spec = SCENARIOS.get(scenario_id.upper())
     if spec is None:

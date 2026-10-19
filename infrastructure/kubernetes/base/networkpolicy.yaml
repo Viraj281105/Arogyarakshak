@@ -1,0 +1,26 @@
+# Ingress isolation: only the ingress controller may reach the pods. Requires a CNI that
+# enforces NetworkPolicy (Calico, Cilium, ...); on one that does not, these objects are
+# silently ignored. Egress (PostgreSQL, Groq on 443, DNS) is left open because the
+# database location is deployment-specific — tighten it in the environment overlay.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: In, values: ["api", "web"]}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx

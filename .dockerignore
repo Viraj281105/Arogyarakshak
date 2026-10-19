@@ -21,3 +21,12 @@ apps/api/tests/
 .venv/
 .pytest_cache/
 *.log
+
+# Never send local secrets, agent worktrees or scratch databases to the daemon.
+.env
+.env.*
+!.env.example
+.claude/
+*.db
+.coverage
+.ruff_cache/

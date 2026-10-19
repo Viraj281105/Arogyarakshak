@@ -38,7 +38,7 @@ _RULE_KEY = re.compile(r"^[a-z0-9][a-z0-9_\-]{2,60}$")
 OPEN_RULE_STATES = (RuleStatus.DRAFT.value, RuleStatus.UNDER_REVIEW.value, RuleStatus.APPROVED.value)
 
 
-def _http(e: Exception, code: int = status.HTTP_422_UNPROCESSABLE_ENTITY) -> HTTPException:
+def _http(e: Exception, code: int = status.HTTP_422_UNPROCESSABLE_CONTENT) -> HTTPException:
     return HTTPException(status_code=code, detail=str(e))
 
 

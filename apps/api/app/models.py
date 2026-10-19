@@ -18,6 +18,7 @@ from sqlalchemy import (
     JSON,
     LargeBinary,
     UniqueConstraint,
+    CheckConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -101,6 +102,38 @@ class KadiCaseDocument(Base):
     extension = Column(String, nullable=True)
     source = Column(String, nullable=False, default="upload")  # upload | abdm_fhir
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class KadiDocumentJob(Base):
+    """Processing state of one uploaded document (ADR-019).
+
+    The live progress stream (``app.services.case_ingestion.processing_status``) is
+    in-memory, so a restart used to leave a case looking idle, as if nothing had been
+    uploaded. This row survives: on start-up, rows still ``queued``/``processing`` are
+    marked ``interrupted`` so the client is told to upload again. Only the digest is kept
+    — never the file, its text or its name (ADR-003) — so an interrupted job cannot be
+    retried server-side; the patient re-uploads.
+    """
+
+    __tablename__ = "kadi_document_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('queued', 'processing', 'completed', 'duplicate', 'failed', 'interrupted')",
+            name="ck_kadi_document_jobs_state",
+        ),
+    )
+
+    id = Column(String, primary_key=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    sha256 = Column(String(64), nullable=False)
+    state = Column(String, nullable=False)
+    # Version of the ingestion pipeline that handled the document, for provenance.
+    pipeline_version = Column(String, nullable=False)
+    # Correlates with the server log line for a failure; never the exception text.
+    error_id = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
 
 
 class KadiResolutionDecision(Base):

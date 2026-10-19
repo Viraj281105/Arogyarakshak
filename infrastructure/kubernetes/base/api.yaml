@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/name: api
+spec:
+  # EXACTLY ONE replica (ADR-019, ADR-021). The live progress stream, the rate limiter
+  # and the start-up "mark interrupted jobs" step are all per-process. A second replica
+  # would split SSE streams from their uploads, multiply the rate limit and mark the
+  # other replica's in-flight jobs as interrupted. Recreate (not RollingUpdate) keeps it
+  # at one during a rollout. Do not add an HPA until that state is moved out of process.
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api
+    spec:
+      serviceAccountName: arogyarakshak
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: arogyarakshak-api:replace-me
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: arogyarakshak-api-config
+          env:
+            # Secret values never live in this repository. Create the Secret out of band
+            # (docs/operations/kubernetes.md).
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: arogyarakshak-api, key: DATABASE_URL}
+            - name: DOCUMENT_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef: {name: arogyarakshak-api, key: DOCUMENT_SIGNING_SECRET}
+            - name: CORS_ORIGINS
+              valueFrom:
+                secretKeyRef: {name: arogyarakshak-api, key: CORS_ORIGINS}
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef: {name: arogyarakshak-api, key: GROQ_API_KEY, optional: true}
+            - name: CLINICAL_GOVERNANCE_ADMIN_KEY
+              valueFrom:
+                secretKeyRef: {name: arogyarakshak-api, key: CLINICAL_GOVERNANCE_ADMIN_KEY, optional: true}
+          # Unmeasured assumptions — see docs/operations/kubernetes.md#resources. EasyOCR
+          # and torch dominate memory.
+          resources:
+            requests: {cpu: 500m, memory: 1536Mi, ephemeral-storage: 1Gi}
+            limits: {cpu: "2", memory: 3Gi, ephemeral-storage: 4Gi}
+          startupProbe:
+            httpGet: {path: /health/live, port: http}
+            periodSeconds: 5
+            failureThreshold: 36  # up to 3 minutes for imports and model load
+          livenessProbe:
+            httpGet: {path: /health/live, port: http}
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 4
+          readinessProbe:
+            httpGet: {path: /health/ready, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # EasyOCR (~/.EasyOCR) and Hugging Face (HF_HOME) model downloads. Model
+            # weights only — documents are never written to disk (ADR-003).
+            - {name: home, mountPath: /home/app}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: home
+          emptyDir: {sizeLimit: 3Gi}
+        - name: tmp
+          emptyDir: {sizeLimit: 512Mi, medium: Memory}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/name: api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

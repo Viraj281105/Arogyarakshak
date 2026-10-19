@@ -59,7 +59,7 @@ flowchart LR
     API -. optional .-> G["Groq LLM<br/>(GROQ_MODEL)"]
 ```
 
-Domain packages are pure Python and DB-agnostic; persistence lives in `apps/api`. Details: [overview](docs/architecture/overview.md), [components](docs/architecture/components.md), [ADRs](docs/architecture/decisions/).
+Domain packages are pure Python and DB-agnostic; persistence lives in `apps/api`, with shared use cases in `apps/api/app/services` and thin route modules. These boundaries are enforced in CI by import-linter contracts ([module boundaries](docs/architecture/module-boundaries.md), ADR-018). One API process, one database, no service extraction yet ([ADR-021](docs/architecture/decisions/ADR-021-modular-monolith-and-deployment-topology.md), [service catalog](docs/architecture/service-catalog.md)). Schema changes are Alembic migrations ([ADR-020](docs/architecture/decisions/ADR-020-alembic-schema-migrations.md)). Details: [overview](docs/architecture/overview.md), [components](docs/architecture/components.md), [ADRs](docs/architecture/decisions/), [runbook](docs/operations/runbook.md).
 
 ## 5. Modules
 
@@ -127,7 +127,8 @@ Local (no Docker for the API): Python 3.11, `pip install -r apps/api/requirement
 ## 11. Testing
 
 ```bash
-python -m pytest                          # backend: packages + API (SQLite with foreign keys enforced)
+python -m pytest                          # backend: packages + API + infrastructure policy (SQLite, FKs enforced)
+PYTHONPATH=apps/api lint-imports          # architecture contracts (ADR-018)
 cd apps/web && npm test && npm run lint && npm run build
 cd apps/mobile && npm test && npm run type-check
 python scripts/ci_guardrails.py           # BYOD, model ban, table prefixes, secrets, port binding
@@ -152,7 +153,7 @@ Scripts: [demo/scenarios/](demo/scenarios/). Each is also an automated test.
 - Reference data are **curated subsets** (7 NPPA formulations, a CGHS subset, a 6-code plausibility table) — absence from them proves nothing.
 - A **confidently misread** OCR word is not detectable; only low-confidence readings are routed to humans.
 - Conservative name matching can hold back legitimate abbreviations (safe, but more human work).
-- Processing status is **in memory per API process** (lost on restart; the case data are not).
+- Live processing progress is **in memory per API process**. A restart mid-processing is now recorded and the user is told to re-upload (ADR-019), but the document itself is never stored, so it cannot be retried server-side. The API must therefore run as **one process**.
 - **Hindi/Marathi** copy needs native-speaker review.
 - No real registry verification of reviewers; no user accounts; keyword safety rules miss paraphrase and negation.
 
@@ -163,7 +164,7 @@ Scripts: [demo/scenarios/](demo/scenarios/). Each is also an automated test.
 | **IMPLEMENTED** | Kadi pipeline, trust gate, human transcription consensus, DawaCheck price basis, BillNyay audit/plausibility/appeal/signed PDF, clinical review & safety governance, DaaviSetu readiness, BimaNyay appeals/SLA, SchemeSetu, case timeline, per-case tokens, retention sweep, demo kit |
 | **DEMO-ONLY** | Synthetic documents, demo personas and "Demo verification only", demo safety rules/playbook, Scenario C OCR replay, demo reset / scenario loaders |
 | **PLANNED (not implemented)** | Real registry verification, FAISS/pgvector search (`kadi/vector_store.py` is an unwired scaffold), IndicXlit (blocked, #29), outcome probabilities (no dataset, #90), Jan Aushadhi store map |
-| **NOT RUNTIME-VERIFIED** | Mobile app on a device/emulator (statically tested only), real Groq inference (no key available during verification) |
+| **NOT RUNTIME-VERIFIED** | Mobile app on a device/emulator (statically tested only), real Groq inference (no key available during verification), the 2026-10-19 multi-stage container images and the Kubernetes manifests (rendered and policy-tested, never built locally or applied to a cluster), Alembic on PostgreSQL (CI only), backup restore |
 
 ---
 

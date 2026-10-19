@@ -1,0 +1,113 @@
+name: Security Scans
+
+# Severity policy (docs/security/supply-chain.md):
+#   blocking     — committed secrets; any known vulnerability in API Python dependencies;
+#                  high/critical advisories in the web app's production dependencies.
+#   report-only  — mobile dependencies (known advisories accepted until the Expo SDK
+#                  upgrade) and container image findings (base-image CVEs often have no
+#                  fix yet); review the uploaded reports, fix or record an exception.
+
+on:
+  pull_request:
+    branches: [main, viraj-dev]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 3 * * 1"  # weekly, so new advisories surface without a code change
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: "Secret scan (gitleaks)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  python-dependencies:
+    name: "API Python dependencies (pip-audit)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pip-audit==2.7.3
+      - name: Audit apps/api/requirements.txt
+        run: pip-audit -r apps/api/requirements.txt --progress-spinner off --desc on
+
+  web-dependencies:
+    name: "Web production dependencies (npm audit)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm audit --omit=dev --audit-level=high
+
+  mobile-dependencies:
+    name: "Mobile dependencies (report only)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm audit --omit=dev || true
+
+  api-image:
+    name: "API image scan + SBOM (report only)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          push: false
+          tags: arogyarakshak-api:scan
+          cache-from: type=gha
+      - name: Vulnerability report (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: arogyarakshak-api:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
+          output: trivy-api.txt
+      - name: Software bill of materials (CycloneDX)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: arogyarakshak-api:scan
+          format: cyclonedx
+          output: sbom-api.cdx.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-image-security
+          path: |
+            trivy-api.txt
+            sbom-api.cdx.json
+          retention-days: 30

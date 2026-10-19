@@ -1,7 +1,7 @@
 """
 Case-scoped clinical records are erased with their case (ADR-010, ADR-011).
 
-Called from app.api.v1.endpoints.kadi.purge_case, which both the client DELETE route and
+Called from app.services.case_purge.purge_case, which both the client DELETE route and
 the retention sweep use. Explicit deletes (not only ON DELETE CASCADE) keep behaviour
 identical under SQLite in tests and Postgres in production.
 

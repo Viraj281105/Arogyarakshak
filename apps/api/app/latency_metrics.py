@@ -3,7 +3,7 @@ End-to-End Processing Time Monitoring (#116).
 
 Measures wall-clock time from "upload received" to the pipeline's terminal event
 (`completed` or `failed`) for the document -> OCR -> extraction -> entity-resolution ->
-database-write flow in `app/api/v1/endpoints/kadi.py::process_document_background`, and
+database-write flow in `app/services/case_ingestion.py::process_document_background`, and
 checks it against the project's stated target of under 10 seconds.
 
 Same architectural pattern as `processing_status` (kadi.py) and the rate limiter

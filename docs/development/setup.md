@@ -79,8 +79,15 @@ pip install -c apps/api/constraints-cpu.txt -e packages/bimanyay
 pip install -c apps/api/constraints-cpu.txt -e packages/schemesetu
 pip install -c apps/api/constraints-cpu.txt -e packages/dawacheck
 
-# 4. Install test harness
-pip install pytest pytest-asyncio aiosqlite httpx
+# 4. Install test harness and architecture tooling
+pip install pytest pytest-asyncio aiosqlite httpx import-linter==2.1 PyYAML
+```
+
+The database schema is managed by Alembic (ADR-020). With the default
+`SCHEMA_MANAGEMENT=migrate` the API upgrades the database at start-up; to do it by hand:
+
+```bash
+cd apps/api && alembic upgrade head && cd ../..
 ```
 
 ---
@@ -147,8 +154,11 @@ curl http://localhost:8000/health
 
 Run test suites:
 ```bash
-# Backend & domain package tests (32 tests)
-python -m pytest packages/ apps/api/tests/
+# Backend, package and infrastructure-policy tests (counts in PROJECT_CONTEXT.md)
+python -m pytest
+
+# Architecture contracts (ADR-018)
+PYTHONPATH=apps/api lint-imports
 
 # Mobile client invariant & contract tests (10 tests)
 cd apps/mobile
