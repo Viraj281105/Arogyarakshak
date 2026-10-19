@@ -160,6 +160,9 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Active Task (2026-10-19) — Claim Pack (branch `claude/claim-pack-0f7726`, PR to `main`)
+- [x] `GET /api/v1/kadi/cases/{id}/claim-pack` (ADR-015): cross-module in-memory ZIP + manifest; 9 pytest tests (apps/api 433 + packages 589 passed, 6 skipped; web 105; lint/tsc/ruff/guardrails clean; browser-verified on SQLite: plain `.zip` and `.zip.arenc` downloads, smoke 58/58). [x] Web `ClaimPackPanel` + `lib/claimPack.ts` (opt-in ADR-014 encryption), 4 web tests. [ ] Not done: mobile control; institution playbook in the checklist; Postgres run.
+
 ### Active Task (2026-10-15) — independent-task pass
 - [x] Scenario E added to the demo smoke script (58/58, SQLite). [x] #40 decided: local demo via Docker Compose (ADR-013, `docker-compose.demo.yml`, `docs/development/deployment.md`) — validated with `docker compose config` only; the Docker daemon was not running. [x] #101: client-side encryption for DaaviSetu downloads (ADR-014), browser-verified. [x] Appeal PDF provenance footer. [x] Mobile SLA reminder planner (no push delivery).
 - [x] #90 needed no new code: `billnyay/outcome/` + `POST /billnyay/outcome-estimate` already refuse a probability without a cited, non-synthetic dataset. It is blocked on the data, not on code.
@@ -340,6 +343,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-003 (Bring-Your-Own-Document Privacy):** Zero persistent storage of patient health documents. Raw files exist only in transient memory during extraction.
 - **ADR-004 (Groq Model Selection):** Hardcoded deprecation ban on `llama3-70b`. All calls dynamically load from `GROQ_MODEL` (default: `openai/gpt-oss-120b`).
 - **ADR-005 (DaaviSetu vs BimaNyay Division):** Clean lifecycle separation: DaaviSetu owns pre-claim application filing; BimaNyay owns post-denial repudiation disputes and IRDAI appeals.
+- **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
 - **ADR-011 (Clinical Review & Safety Governance):** Kadi-owned shared layer. Reviewers/institutions hold header-only bearer credentials (no accounts); case holders delegate single reviews with per-request consent; mandatory COI before evidence; immutable, versioned, human-confirmed statements appended verbatim (never via LLM); verification never overstated (no registry integration → at most SELF_DECLARED; DEMO_VERIFIED only in demo mode); plausibility not necessity; readiness not approval; safety rules adopted from named protocols with independent approval; OCR transcription by pharmacists/transcriptionists with two blind readings for medication fields; provenance classes survive downstream.
 
 ---
@@ -422,6 +426,9 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-10-19 — Claim Pack
+- **Added**: `apps/api/app/claim_pack.py`, `endpoints/claim_pack.py` (registered under `/kadi`), `tests/test_claim_pack.py`; `apps/web/app/lib/claimPack.ts`, `components/ClaimPackPanel.tsx` (mounted in `page.tsx` after the case timeline), `tests/claim_pack.test.ts`; ADR-015; API overview row; CHANGELOG.
 
 ### 2026-10-15 — Independent-task pass (uncommitted on `viraj-dev` at time of writing)
 - **Added**: `apps/web/app/lib/packageCrypto.ts` + `tests/package_crypto.test.ts` (8) and the opt-in protect/unlock controls in `DaaviSetuView.tsx`; `apps/mobile/src/services/slaReminders.ts` + tests (8); `docker-compose.demo.yml`; ADR-013, ADR-014; `docs/development/deployment.md`, `mobile-sla-reminders.md`; PDF footer in `billnyay/tools/pdf_compiler.py` + test; Scenario E in the smoke script; `DOCUMENT_SIGNING_SECRET` documented.
@@ -622,7 +629,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
-### Latest handoff (2026-10-15, independent-task pass)
+### Latest handoff (2026-10-19, Claim Pack)
+- The pack is read-only: it recomputes the BillNyay audit and DawaCheck rows deterministically and rolls back DawaCheck's staged brand mappings; it never drafts an appeal. Add new sections in `claim_pack._sections` and keep the manifest honest (`included` + provenance). Checklist uses the generic baseline only. Mobile has no control yet.
+
+### Earlier handoff (2026-10-15, independent-task pass)
 - Client encryption lives only in the web DaaviSetu view; BillNyay's signed appeal PDF is deliberately excluded (ADR-014). Mobile has no equivalent.
 - The `/billnyay/.../appeal/verify` hash/HMAC feature already existed; do not rebuild it. A file's own hash cannot be printed inside it, so the PDF footer only describes it.
 - The smoke script needs `--admin-key`; on SQLite use `DATABASE_URL=sqlite+aiosqlite:///./x.db` and delete the file afterwards.

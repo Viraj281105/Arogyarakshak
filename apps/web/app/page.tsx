@@ -8,6 +8,7 @@ import { DOCUMENT_ACCEPT, DocumentUploader } from "./components/DocumentUploader
 import { DemoBanner, useDemoStatus } from "./components/demo/DemoBanner";
 import { DemoControls } from "./components/demo/DemoControls";
 import { CaseTimeline } from "./components/CaseTimeline";
+import { ClaimPackPanel } from "./components/ClaimPackPanel";
 import type { DemoScenario, DemoScenarioResult } from "./lib/demo";
 import { AgentStreamVisualizer, PipelineStep } from "./components/AgentStreamVisualizer";
 import { EntityResolutionReview } from "./components/EntityResolutionReview";
@@ -416,6 +417,9 @@ export default function Home() {
         {caseId && (
           <CaseTimeline caseId={caseId} caseToken={caseToken} refreshKey={caseVersion} processing={isProcessing} failure={errorMessage} />
         )}
+
+        {/* ADR-015: one downloadable pack for the person helping with the paperwork */}
+        {pipelineStep === 4 && !isProcessing && caseId && (<ClaimPackPanel key={`pack-${caseId}`} caseId={caseId} caseToken={caseToken} />)}
 
         {/* ADR-011: red-flag escalations from active, board-approved safety rules */}
         {pipelineStep === 4 && !isProcessing && caseId && (
