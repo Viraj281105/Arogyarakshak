@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 - **Claim Pack (ADR-015)** — `GET /api/v1/kadi/cases/{case_id}/claim-pack`: one in-memory ZIP with a cover sheet, the DaaviSetu documentation checklist, the BimaNyay deadline timeline, the BillNyay audit and appeal draft (only if they exist), DawaCheck rows, the pre-auth form (only if submitted) and a manifest of what is and is not included with provenance classes. Missing parts say "Not available for this case". Web: `ClaimPackPanel` with the optional browser-side password protection from ADR-014. Mobile: not added.
+### Phase-4 evaluation harnesses (2026-10-19)
+
+#### Added
+- **Evaluation harnesses** (`apps/api/app/evaluation/`, run with `scripts/evaluate_phase4.py`, offline, no Groq key): BMA (bill line → CGHS key), PEA (procedure extraction), billing-anomaly precision/recall/F1, CRMA (claim-rejection mapping), OCR WER/CER utility, DawaCheck price-mapping accuracy.
+- Six **SYNTHETIC**, hand-written labelled datasets in `data/evaluation/` (the loader rejects any file not flagged synthetic) and 24 tests with hand-computed expected values.
+- `docs/evaluation/phase4-harnesses.md` — measured results, including failures, and limitations. Numbers are development-set figures, not real-world accuracy.
+
+#### Changed
+- `billnyay` endpoint: extracted `_match_cghs_key` and the pure `audit_billing_lines` (no behaviour change) so the harness scores production logic.
 
 ### Mobile Expo SDK pin (2026-10-15)
 

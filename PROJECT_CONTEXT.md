@@ -24,7 +24,7 @@
 - **Previous (2026-09-27, release-candidate pass — committed on `viraj-dev` as b0cd0eb..576abd1, merged to `main` via PR #149):** price-basis correctness in DawaCheck **and** BillNyay (ADR-012), a Postgres-only FK bug fixed (DaaviSetu doctor confirmation) and FK enforcement added to the test DB, demo kit controls (status / reset / Load Scenario A–D, DEMO MODE banner, "What is simulated?"), case timeline, "add a document to this case", honesty fixes across web/mobile, README + `docs/JUDGE_DEMO.md`. Totals: **1011 passed, 6 skipped backend, 93 web, 115 mobile**; web lint 0 / build OK; mobile type-check 0; CI Ruff gate OK; guardrails 8/8. **Runtime-validated:** PostgreSQL 16 (local API against the compose Postgres) and the full docker-compose stack (postgres + api + web images) — `scripts/demo_runtime_smoke.py` 49/49 on both; browser (containerised web: demo reset, Scenario A/C, BillNyay basis, reviewer workspace sign-in). **Not validated:** Android device/emulator (none installed), real Groq (no key configured).
 - **Earlier (2026-09-27, demo-hardening pass — committed on `viraj-dev` (2eabd17..7a30f45)):** OCR trust pipeline hardened (single medicine trust gate; no uncertain reading dropped), plausibility honesty, four-eyes safety-rule retirement, explicit "Safety check unavailable", mobile processing lifecycle, deterministic demo kit (`demo/`). Current totals: **922 passed, 6 skipped backend, 88 web, 109 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI Ruff gate OK, CI guardrails 8/8. **Not validated:** mobile on a device/emulator (none available), Postgres (Docker engine did not start), real Groq path (no key configured).
 - **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
-- **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
+- **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness now covers entity resolution, latency and (2026-10-19, synthetic data only) BMA, PEA, billing-anomaly P/R/F1, CRMA, an OCR WER/CER utility and DawaCheck price mapping — see `docs/evaluation/phase4-harnesses.md`. Those numbers are development-set figures on hand-written data, not real-world accuracy; CFMA and real-document OCR WER/CER remain unmeasured.
 - **Active Blockers:** None for currently assigned work.
 
 ---
@@ -162,6 +162,10 @@ arogyarakshak/
 
 ### Active Task (2026-10-19) — Claim Pack (branch `claude/claim-pack-0f7726`, PR to `main`)
 - [x] `GET /api/v1/kadi/cases/{id}/claim-pack` (ADR-015): cross-module in-memory ZIP + manifest; 9 pytest tests (apps/api 433 + packages 589 passed, 6 skipped; web 105; lint/tsc/ruff/guardrails clean; browser-verified on SQLite: plain `.zip` and `.zip.arenc` downloads, smoke 58/58). [x] Web `ClaimPackPanel` + `lib/claimPack.ts` (opt-in ADR-014 encryption), 4 web tests. [ ] Not done: mobile control; institution playbook in the checklist; Postgres run.
+### Active Task (2026-10-19) — Phase-4 evaluation harnesses (#102–#115 area)
+- [x] BMA, PEA, billing-anomaly P/R/F1, CRMA (25 scenarios), OCR WER/CER utility, DawaCheck price-mapping accuracy. Code `apps/api/app/evaluation/`, SYNTHETIC datasets `data/evaluation/*.jsonl` (loader refuses non-synthetic files), runner `scripts/evaluate_phase4.py`, tests `apps/api/tests/test_evaluation_harness.py` (24, hand-computed expectations), report `docs/evaluation/phase4-harnesses.md` (measured results incl. bad ones).
+- [x] Small refactor in `billnyay` endpoint, behaviour unchanged: `_match_cghs_key` (used by `_match_cghs_rate`) and pure `audit_billing_lines` (used by `build_case_audit`).
+- [ ] Not done: CFMA, real-scan OCR WER/CER (the OCR fixture hypotheses are simulated), LLM-path extraction accuracy. Defects the harness found are listed in the report's follow-ups and NOT fixed (BillNyay substring matcher, Kadi hyphen-separator lines, BimaNyay ignoring reason text, DawaCheck combination products).
 
 ### Active Task (2026-10-15) — independent-task pass
 - [x] Scenario E added to the demo smoke script (58/58, SQLite). [x] #40 decided: local demo via Docker Compose (ADR-013, `docker-compose.demo.yml`, `docs/development/deployment.md`) — validated with `docker compose config` only; the Docker daemon was not running. [x] #101: client-side encryption for DaaviSetu downloads (ADR-014), browser-verified. [x] Appeal PDF provenance footer. [x] Mobile SLA reminder planner (no push delivery).
@@ -421,6 +425,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 | **Clinical Review & Safety Governance** | [`docs/architecture/clinical-review.md`](docs/architecture/clinical-review.md) |
 | **Agile Planning & Sprints** | [`docs/planning/weekly-sprint-playbook.md`](docs/planning/weekly-sprint-playbook.md) |
 | **Academic & Research Portfolio** | [`docs/academic/README.md`](docs/academic/README.md) |
+| **Phase-4 Evaluation Harnesses (synthetic)** | [`docs/evaluation/phase4-harnesses.md`](docs/evaluation/phase4-harnesses.md) |
 | **Task Backlog** | [`docs/ArogyaRakshak_Task_Backlog.md`](docs/ArogyaRakshak_Task_Backlog.md) |
 
 ---
@@ -429,6 +434,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ### 2026-10-19 — Claim Pack
 - **Added**: `apps/api/app/claim_pack.py`, `endpoints/claim_pack.py` (registered under `/kadi`), `tests/test_claim_pack.py`; `apps/web/app/lib/claimPack.ts`, `components/ClaimPackPanel.tsx` (mounted in `page.tsx` after the case timeline), `tests/claim_pack.test.ts`; ADR-015; API overview row; CHANGELOG.
+### 2026-10-19 — Phase-4 evaluation harnesses (branch `claude/evaluation-harnesses-5d0704`)
+- **Added**: `apps/api/app/evaluation/` (metrics, bma, pea, anomaly, crma, ocr_wer, dawacheck_mapping, datasets, runner); `data/evaluation/*.jsonl` (6 synthetic datasets); `scripts/evaluate_phase4.py`; `apps/api/tests/test_evaluation_harness.py`; `docs/evaluation/phase4-harnesses.md`.
+- **Changed (no behaviour change)**: `apps/api/app/api/v1/endpoints/billnyay.py` — extracted `_match_cghs_key` and `audit_billing_lines`.
+- **Measured (synthetic)**: BMA 0.705 accuracy; PEA procedure F1 0.942; anomaly line F1 0.810 (all 6 FNs are abstentions); CRMA 0.560; DawaCheck mapping accuracy 0.865; OCR utility corpus WER 0.381 / CER 0.089 on simulated errors. Found: `ppe`⊂"appendectomy" and `icu`⊂"particular" substring mis-maps; BimaNyay decides from category only; DawaCheck maps combination products to a single drug.
+- **Gold-label correction disclosed**: PEA-009 (`Dolo 650: 33` is a real medicine line) fixed after the first run; no other label changed.
 
 ### 2026-10-15 — Independent-task pass (uncommitted on `viraj-dev` at time of writing)
 - **Added**: `apps/web/app/lib/packageCrypto.ts` + `tests/package_crypto.test.ts` (8) and the opt-in protect/unlock controls in `DaaviSetuView.tsx`; `apps/mobile/src/services/slaReminders.ts` + tests (8); `docker-compose.demo.yml`; ADR-013, ADR-014; `docs/development/deployment.md`, `mobile-sla-reminders.md`; PDF footer in `billnyay/tools/pdf_compiler.py` + test; Scenario E in the smoke script; `DOCUMENT_SIGNING_SECRET` documented.
@@ -631,6 +641,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ### Latest handoff (2026-10-19, Claim Pack)
 - The pack is read-only: it recomputes the BillNyay audit and DawaCheck rows deterministically and rolls back DawaCheck's staged brand mappings; it never drafts an appeal. Add new sections in `claim_pack._sections` and keep the manifest honest (`included` + provenance). Checklist uses the generic baseline only. Mobile has no control yet.
+### Latest handoff (2026-10-19, evaluation harnesses)
+- Run `python scripts/evaluate_phase4.py` (offline, no Groq). Never quote its numbers as real-world accuracy: datasets are synthetic, hand-written, hard-case-heavy. Add new rows rather than editing labels after seeing results; if a label must change, disclose it in `docs/evaluation/phase4-harnesses.md`.
+- Harness code deliberately lives in `apps/api/app/evaluation/` (not in the packages) so it can import billnyay/kadi/bimanyay/dawacheck together without new inter-package dependencies.
+- The report lists four unfixed defects as follow-ups. The DawaCheck one touches `reference_data.py`/`checker.py`, which open PRs #145/#150 also edit — merge those first.
 
 ### Earlier handoff (2026-10-15, independent-task pass)
 - Client encryption lives only in the web DaaviSetu view; BillNyay's signed appeal PDF is deliberately excluded (ADR-014). Mobile has no equivalent.
