@@ -131,21 +131,27 @@ def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
     over the shorter "icu". The previous implementation returned whichever key dict
     iteration happened to reach first.
     """
-    if not norm_name:
+    key = _match_cghs_key(norm_name, rates_source)
+    if key is None:
         return None, False
+    return _rate_of(rates_source[key])
 
+
+def _match_cghs_key(norm_name: str, rates_source: Dict[str, Any]) -> Optional[str]:
+    """The CGHS rate key a billed item name resolves to (exact, else longest substring
+    in either direction), or None. Exposed so the evaluation harness (BMA) can score the
+    mapping itself rather than only the resulting rate."""
+    if not norm_name:
+        return None
     if norm_name in rates_source:
-        return _rate_of(rates_source[norm_name])
+        return norm_name
 
     best_key = None
     for key in rates_source:
         if key in norm_name or norm_name in key:
             if best_key is None or len(key) > len(best_key):
                 best_key = key
-
-    if best_key is None:
-        return None, False
-    return _rate_of(rates_source[best_key])
+    return best_key
 
 
 # --- Pydantic Schemas ---------------------------------------------------------
@@ -481,6 +487,17 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
     )
     billing_items = entities_result.scalars().all()
 
+    return audit_billing_lines(case_id, billing_items)
+
+
+def audit_billing_lines(
+    case_id: str, billing_items: List[Any], rates_source: Optional[Dict[str, Any]] = None
+) -> AuditResponse:
+    """Pure CGHS audit of billing lines (objects with ``.name`` and ``.value``).
+
+    Split out of ``build_case_audit`` so the evaluation harness exercises exactly the
+    production decision logic without a database.
+    """
     audit_items = []
     total_charged = 0.0
     total_benchmark = 0.0
@@ -490,7 +507,8 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
     unmatched_count = 0
     unmatched_amount = 0.0
 
-    rates_source = CGHS_RATES if CGHS_RATES else _load_cghs_rates()
+    if rates_source is None:
+        rates_source = CGHS_RATES if CGHS_RATES else _load_cghs_rates()
 
     for item in billing_items:
         norm_name = item.name.lower().strip()
