@@ -527,7 +527,8 @@ def audit_billing_lines(
         total_charged += charged
         matched_key = _match_cghs_key(norm_name, rates_source)
         exact_match = matched_key is not None and matched_key == norm_name
-        item_meta = item.meta if isinstance(item.meta, dict) else {}
+        item_meta = getattr(item, "meta", None)
+        item_meta = item_meta if isinstance(item_meta, dict) else {}
 
         def _explain(status, benchmark_total, dev, basis, reason, _item=item, _key=matched_key,
                      _exact=exact_match, _meta=item_meta, _charged=charged):
