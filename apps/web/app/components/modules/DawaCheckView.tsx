@@ -9,6 +9,8 @@ import { describePriceCheck, PriceBasis, PriceCheck } from "../../lib/dawacheck"
 import { TONE_CLASS } from "../../lib/labels";
 import { ExplainTrail } from "../ExplainTrail";
 import type { Explanation } from "../../lib/explanation";
+import { ListenSummary } from "../ListenSummary";
+import { buildMedicineSummary } from "../../lib/listenSummaries";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
 interface MedicineBenchmarkResponse extends PriceCheck {
@@ -234,6 +236,21 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
               </tbody>
             </table>
           </div>
+          <ListenSummary
+            lang={currentLang}
+            panel="medicine"
+            summary={buildMedicineSummary(
+              {
+                brandName: result.brand_name,
+                activeIngredient: result.active_ingredient,
+                verdict: price.verdict,
+                billedUnitPrice: result.billed_unit_price,
+                ceilingUnitPrice: result.nppa_ceiling_price,
+                genericAvailable: result.generic_substitute_available,
+              },
+              currentLang
+            )}
+          />
           {price.reason && (
             <div role="status" style={{ marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--status-warning)" }}>
               {price.reason}

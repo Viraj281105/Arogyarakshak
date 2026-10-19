@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
+import { ListenSummary } from "../ListenSummary";
+import { buildAppealSummary, buildDeadlineSummary } from "../../lib/listenSummaries";
 import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 import { ClinicalStatement } from "../../lib/clinical";
 import { ClinicalStatementCard, ProvenanceBadge } from "../clinical/Attribution";
@@ -369,6 +371,20 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId,
             </div>
           </div>
 
+          <ListenSummary
+            lang={currentLang}
+            panel="appeal"
+            summary={buildAppealSummary(
+              {
+                isWrongfulDenial: result.is_wrongful_denial,
+                violationCount: result.regulatory_violations.length,
+                reversalScore: result.reversal_probability_score,
+                heuristic: result.probability_basis === "HEURISTIC_PRIOR_NOT_HISTORICAL",
+              },
+              currentLang
+            )}
+          />
+
           {/* Appeals Tab Selector */}
           <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "0.5rem", marginBottom: "1rem", overflowX: "auto" }}>
             <button
@@ -432,6 +448,9 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId,
           {/* Real Statutory SLA Tracker */}
           <div>
             <h3>⏳ {t.timelineTitle}</h3>
+            {timeline && timeline.timeline_events.length > 0 && (
+              <ListenSummary lang={currentLang} panel="deadline" summary={buildDeadlineSummary(timeline.timeline_events, currentLang)} />
+            )}
             {timeline && timeline.timeline_events.length > 0 ? (
               <div className="timeline-list">
                 {timeline.timeline_events.map((event, idx) => {

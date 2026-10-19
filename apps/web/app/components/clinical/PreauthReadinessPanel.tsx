@@ -9,6 +9,8 @@ import { ReviewerAttribution } from "./Attribution";
 import { ExplainTrail } from "../ExplainTrail";
 import type { Explanation } from "../../lib/explanation";
 import type { Language } from "../../translations";
+import { ListenSummary } from "../ListenSummary";
+import { buildReadinessSummary } from "../../lib/listenSummaries";
 
 interface ReadinessItem {
   item_id: string;
@@ -164,6 +166,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
 
       {report && (
         <div style={{ marginTop: "1rem" }}>
+          <ListenSummary lang={lang} panel="readiness" summary={buildReadinessSummary(report.items, lang)} />
           <div className="stat-label">Guidance used: {report.guidance_label}</div>
           <ul style={{ listStyle: "none", padding: 0, margin: "0.5rem 0" }}>
             {report.items.map((item) => (
