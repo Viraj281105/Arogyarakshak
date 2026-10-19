@@ -21,13 +21,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from dawacheck.price_basis import annotate_medicine_price_facts
 from fastapi.concurrency import run_in_threadpool
 from kadi.clinical_review.transcription import OcrSegment, select_uncertain_segments
 from kadi.extraction import extract_entities_from_text
-from kadi.line_items import ground_medicine_source_lines
 from kadi.ocr.ocr_parser import parse_document
-from kadi.redaction import redact_pii
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -41,7 +38,6 @@ from app.clinical.demo_ocr import demo_ocr_replay
 from app.clinical.transcription_service import create_tasks_from_ocr
 from app.config import settings
 from app.kadi_resolution import (
-    MentionInput,
     resolve_and_attach,
 )
 from app.latency_metrics import tracker as latency_tracker
@@ -50,6 +46,7 @@ from app.models import (
     KadiCaseDocument,
 )
 from app.services import document_jobs
+from app.services.ingestion_mentions import build_mentions
 
 logger = logging.getLogger("arogyarakshak.api.kadi")
 
@@ -172,6 +169,10 @@ async def _run_pipeline(
     extension = os.path.splitext(filename or "")[1].lower() or "(none)"
     logger.info("Background task starting: OCR parsing for case=%s, type=%s", case_id, extension)
     digest = digest or hashlib.sha256(file_bytes).hexdigest()
+    # When the document was taken in. Stamped on its digest row explicitly: a flush-time
+    # default would depend on the ORM's insert order relative to the transcription audit
+    # events written in the same commit, and the case timeline sorts by these times.
+    received_at = datetime.utcnow()
     try:
         # Step 1: OCR parsing.
         # SEC-01: parse_document is synchronous, CPU-heavy work (PyMuPDF page parsing,
@@ -246,82 +247,7 @@ async def _run_pipeline(
                 _record_case_latency(case_id, "completed")
                 return
 
-            mentions: List[MentionInput] = []
-            total_cost = 0.0
-
-            # 1. Billing line items from OCR. Never merged by entity resolution: two
-            # identical bill lines are separate charges (possible double billing).
-            for item in line_items:
-                mentions.append(
-                    MentionInput(
-                        entity_type="billing_item",
-                        name=item["item"],
-                        value=str(item["charged"]),
-                        meta={"charged": item["charged"], "source_file": filename},
-                    )
-                )
-                total_cost += item["charged"]
-
-            # 2. Structured clinical entities from extraction agent
-            extraction_meta = {"source_file": filename, "source": "kadi_extraction"}
-            if extracted.hospital_name:
-                mentions.append(
-                    MentionInput("hospital", extracted.hospital_name, extracted.hospital_name, dict(extraction_meta))
-                )
-
-            # The patient's name is deliberately NOT persisted. It is a direct identifier,
-            # ADR-003 limits stored records to de-identified clinical metadata, and no
-            # module reads it: DaaviSetu takes patient_name from its own request payload.
-            # It stays available in-memory to the extraction result for this request only.
-
-            if extracted.diagnosis:
-                mentions.append(
-                    MentionInput("diagnosis", extracted.diagnosis, extracted.diagnosis, dict(extraction_meta))
-                )
-
-            # Entity resolution (app.kadi_resolution) blocks by type: a procedure is only
-            # ever compared with procedures. The old exact-name check compared against
-            # every queued entity, so OCR's same-named billing_item line silently
-            # suppressed the procedure entity BillNyay's ICD audit (#64) needs.
-            for proc in extracted.procedures:
-                proc_name = proc.get("name")
-                if proc_name:
-                    mentions.append(
-                        MentionInput("procedure", proc_name, str(proc.get("amount", 0.0)), {**proc, **extraction_meta})
-                    )
-
-            # What the document says about each medicine's quantity or pack ("strip of 15",
-            # "Qty 10", a "Rate per tablet" column) is read now, while the text is still in
-            # memory, so DawaCheck can later compare like with like — or refuse to. Only the
-            # derived facts and a short matched snippet are stored, never the line itself.
-            ground_medicine_source_lines(text, extracted.medicines)
-            annotate_medicine_price_facts(extracted.medicines, text)
-            for med in extracted.medicines:
-                med_name = med.get("name")
-                if med_name:
-                    mentions.append(
-                        MentionInput("medicine", med_name, str(med.get("cost", 0.0)), {**med, **extraction_meta})
-                    )
-
-            # Document excerpt, with direct identifiers stripped. BillNyay's appeal
-            # pipeline reads this to recover denial codes, insurer reasons and policy
-            # clauses, so it cannot be dropped — but it must not retain the patient's
-            # name, contact details or government IDs.
-            excerpt_meta: Dict[str, Any] = {"source_file": filename, "redacted": True}
-            # P0-4: an LLM-returned extraction is never trusted merely for being valid
-            # JSON — surface any integrity warnings (possible prompt-injection phrasing,
-            # or an LLM total_amount that could not be reconciled against a deterministic
-            # reading of the same text) on the persisted record rather than dropping them.
-            if extracted.extraction_warnings:
-                excerpt_meta["extraction_warnings"] = extracted.extraction_warnings
-            mentions.append(
-                MentionInput(
-                    "document_text",
-                    "Document Text Excerpt",
-                    redact_pii(text)[:1000],
-                    excerpt_meta,
-                )
-            )
+            mentions, total_cost = build_mentions(line_items, extracted, text, filename)
 
             summary = await resolve_and_attach(session, case, mentions, source="upload")
             processing_status[case_id].append({
@@ -333,49 +259,9 @@ async def _run_pipeline(
                 ),
             })
 
-            # ADR-011: OCR readings the engine itself was unsure of become human
-            # transcription tasks rather than silently trusted facts. Only redacted text
-            # and a location hint are kept — never the image.
-            segments = [
-                OcrSegment(s.get("text", ""), float(s.get("confidence", 1.0)), s.get("bbox"))
-                for s in parsed.get("ocr_segments", [])
-            ]
-            uncertain = select_uncertain_segments(segments, threshold=settings.ocr_low_confidence_threshold)
-            # Readings that cannot be linked to exactly one medicine are not dropped: the
-            # medicines they may concern are held back from benchmarking (ocr_uncertainty).
-            transcription_tasks = await create_tasks_from_ocr(
-                session,
-                case_id,
-                uncertain,
-                [e for e in case.entities if e.type == "medicine"],
-                document_medicine_ids=[e.id for e in summary.touched() if e.type == "medicine"],
-                confident_texts=[s.text for s in segments if s.confidence >= settings.ocr_low_confidence_threshold],
-            )
-            # ADR-011: check the WHOLE document against active safety rules while it is
-            # still in memory; only rule ids and matched terms are persisted.
-            await scan_document_for_safety(session, case_id, text)
-            held_back = sum(
-                1 for e in case.entities
-                if e.type == "medicine" and isinstance(e.meta, dict)
-                and (e.meta.get("ocr_uncertainty") or {}).get("status") == "UNRESOLVED"
-            )
-            if transcription_tasks or held_back:
-                parts = []
-                if transcription_tasks:
-                    parts.append(
-                        f"{len(transcription_tasks)} unclear handwriting/print reading(s) need a human reader "
-                        "before they are trusted."
-                    )
-                if held_back:
-                    parts.append(
-                        f"{held_back} medicine(s) could not be matched to an unclear reading with certainty "
-                        "and will not be price-checked until a human reads the entry."
-                    )
-                processing_status[case_id].append({
-                    "status": "transcription_flags",
-                    "progress": 87,
-                    "log": " ".join(parts),
-                })
+            flags_log = await _route_uncertain_readings(session, case, case_id, parsed, text, summary)
+            if flags_log:
+                processing_status[case_id].append({"status": "transcription_flags", "progress": 87, "log": flags_log})
 
             if total_cost > 0:
                 case.total_charged += total_cost
@@ -390,6 +276,7 @@ async def _run_pipeline(
                     sha256=digest,
                     extension=os.path.splitext(filename or "")[1].lower() or None,
                     source="upload",
+                    created_at=received_at,
                 )
             )
             session.add(case)
@@ -428,6 +315,52 @@ async def _run_pipeline(
             "error_id": error_id,
         })
         _record_case_latency(case_id, "failed")
+
+
+async def _route_uncertain_readings(session, case: KadiCase, case_id: str, parsed: Dict[str, Any], text: str, summary) -> Optional[str]:
+    """ADR-011 at upload: unsure OCR readings become human transcription tasks, medicines
+    they cannot be tied to are held back, and the whole text is checked against active
+    safety rules while still in memory. Returns the progress-log line, or None."""
+    # ADR-011: OCR readings the engine itself was unsure of become human
+    # transcription tasks rather than silently trusted facts. Only redacted text
+    # and a location hint are kept — never the image.
+    segments = [
+        OcrSegment(s.get("text", ""), float(s.get("confidence", 1.0)), s.get("bbox"))
+        for s in parsed.get("ocr_segments", [])
+    ]
+    uncertain = select_uncertain_segments(segments, threshold=settings.ocr_low_confidence_threshold)
+    # Readings that cannot be linked to exactly one medicine are not dropped: the
+    # medicines they may concern are held back from benchmarking (ocr_uncertainty).
+    transcription_tasks = await create_tasks_from_ocr(
+        session,
+        case_id,
+        uncertain,
+        [e for e in case.entities if e.type == "medicine"],
+        document_medicine_ids=[e.id for e in summary.touched() if e.type == "medicine"],
+        confident_texts=[s.text for s in segments if s.confidence >= settings.ocr_low_confidence_threshold],
+    )
+    # ADR-011: check the WHOLE document against active safety rules while it is
+    # still in memory; only rule ids and matched terms are persisted.
+    await scan_document_for_safety(session, case_id, text)
+    held_back = sum(
+        1 for e in case.entities
+        if e.type == "medicine" and isinstance(e.meta, dict)
+        and (e.meta.get("ocr_uncertainty") or {}).get("status") == "UNRESOLVED"
+    )
+    if transcription_tasks or held_back:
+        parts = []
+        if transcription_tasks:
+            parts.append(
+                f"{len(transcription_tasks)} unclear handwriting/print reading(s) need a human reader "
+                "before they are trusted."
+            )
+        if held_back:
+            parts.append(
+                f"{held_back} medicine(s) could not be matched to an unclear reading with certainty "
+                "and will not be price-checked until a human reads the entry."
+            )
+        return " ".join(parts)
+    return None
 
 
 async def create_case_record(db: AsyncSession, consent_opt_in: bool) -> "tuple[KadiCase, str]":

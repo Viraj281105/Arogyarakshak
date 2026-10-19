@@ -39,7 +39,9 @@ def test_every_app_module_below_http_is_covered():
 
 
 def test_every_route_module_is_in_the_independence_contract():
+    # A route group is a module (billnyay.py) or a package of route modules (kadi/).
     routes = {f"app.api.v1.endpoints.{p.stem}" for p in ENDPOINTS.glob("*.py") if p.stem != "__init__"}
+    routes |= {f"app.api.v1.endpoints.{p.name}" for p in ENDPOINTS.iterdir() if (p / "__init__.py").exists()}
     covered = _listed("importlinter:contract:routes-independent", "modules")
     assert routes == covered, (
         f"Route modules and the 'routes-independent' contract differ: missing {sorted(routes - covered)}, "

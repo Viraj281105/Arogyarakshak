@@ -2,7 +2,7 @@
 
 **Project Name:** "ArogyaRakshak (आरोग्यरक्षक)"  
 **Stack:** FastAPI + Next.js (App Router) + PostgreSQL + Groq API  
-*(pgvector / FAISS similarity search is planned; `kadi/vector_store.py` is an unwired scaffold.)*  
+*(pgvector / FAISS similarity search is planned — not implemented; the unwired `kadi/vector_store.py` scaffold was removed 2026-10-19 as dead code — no FAISS/pgvector code exists.)*  
 **Environment:** Monorepo (`apps/`, `packages/`, `data/`, `docs/`)  
 
 ---
@@ -75,7 +75,7 @@ arogyarakshak/
 │   │   │   ├── config.py        # Pydantic Settings (GROQ_MODEL, DATABASE_URL)
 │   │   │   ├── database.py      # Async SQLAlchemy engine & session factory
 │   │   │   ├── main.py          # FastAPI application entrypoint & error handlers
-│   │   │   └── models.py        # SQLAlchemy ORM models (kadi_cases, kadi_entities, etc.)
+│   │   │   └── models/          # SQLAlchemy ORM models, one module per owning domain (kadi, clinical_review, billnyay, ...)
 │   │   ├── migrations/          # Alembic revisions (ADR-020); alembic.ini alongside
 │   │   ├── Dockerfile           # Backend container definition (multi-stage, non-root)
 │   │   ├── requirements.txt     # Backend runtime dependencies
@@ -168,7 +168,7 @@ PYTHONPATH=apps/api lint-imports
 - Return standard HTTP error payloads: `{"detail": "...", "message": "..."}` matching `apps/api/app/main.py`.
 
 ### 4.3 Database Migrations & Models
-- All database tables must live in `apps/api/app/models.py` subclassing SQLAlchemy `Base`.
+- All database tables must live in `apps/api/app/models/<owning module>.py` (re-exported from `app.models`) subclassing SQLAlchemy `Base`.
 - Never run manual `ALTER TABLE` queries ad hoc. Any schema change must be codified in models **and** shipped as an Alembic revision (`cd apps/api && alembic revision --autogenerate -m "..."`, then review it). `apps/api/tests/test_migrations.py` fails when they disagree (ADR-020).
 - Code placement: domain rules in `packages/<module>`, shared use cases in `apps/api/app/services`, HTTP concerns in route modules. See `docs/architecture/module-boundaries.md`; `lint-imports` enforces it.
 - The API runs as exactly one process/replica (ADR-019). Do not add `--workers`, replicas or an HPA.

@@ -24,7 +24,7 @@ Kadi (कड़ी — "link in a chain") is the connective infrastructure that 
 - **ABDM Record Import** (`kadi/fhir_import.py`, #54): parses a client-supplied FHIR R4 bundle into case context through entity resolution. There is no live ABDM gateway pull (sandbox registration is pending) and no NRCeS profile validation.
 - **Auto-Triggering** (`kadi/triggers.py`, `apps/api/app/auto_triggers.py`, #32): consent-bounded, read-only module checks run when a case has enough context; DaaviSetu claims are never auto-run.
 - **Consent Boundary**: Enforces patient opt-in (`consent_opt_in`) before sharing extracted context across modules. Federated / zero-knowledge consent verification across nodes is a design only (ADR-007).
-- **In-Memory Vector Search** *(planned)*: `kadi/vector_store.py` is a scaffold for FAISS/pgvector indexes. It contains no FAISS and is not wired into any endpoint.
+- **In-Memory Vector Search** *(planned)*: no code exists. The unwired `kadi/vector_store.py` scaffold (no FAISS inside, imported by nothing) was removed 2026-10-19 as dead code.
 - **Direct-Identifier Redaction**: `kadi/redaction.py` strips names, contact details and government IDs from any text retained after extraction (ADR-003).
 
 ---

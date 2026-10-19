@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { viewSource } from './viewSource';
 import { clinicalPaths, isCurrentOpinion, reviewerHeaders, PROVENANCE_LABELS } from '../app/lib/clinical';
 
 const read = (...p: string[]) => readFileSync(join(process.cwd(), ...p), 'utf-8');
@@ -9,10 +10,15 @@ const read = (...p: string[]) => readFileSync(join(process.cwd(), ...p), 'utf-8'
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const clinicalDir = join(process.cwd(), 'app', 'components', 'clinical');
 const clinicalSources = readdirSync(clinicalDir).map((f) => read('app', 'components', 'clinical', f));
-const workspace = read('app', 'clinical-review', 'page.tsx');
+// The reviewer workspace is a page plus its section components; check all of them.
+const readTree = (dir: string): string =>
+  readdirSync(dir, { withFileTypes: true })
+    .map((d) => (d.isDirectory() ? readTree(join(dir, d.name)) : readFileSync(join(dir, d.name), 'utf-8')))
+    .join('\n');
+const workspace = readTree(join(process.cwd(), 'app', 'clinical-review'));
 const libSrc = read('app', 'lib', 'clinical.ts');
-const billNyay = read('app', 'components', 'modules', 'BillNyayView.tsx');
-const bimaNyay = read('app', 'components', 'modules', 'BimaNyayView.tsx');
+const billNyay = viewSource('BillNyayView');
+const bimaNyay = viewSource('BimaNyayView');
 const daaviSetu = read('app', 'components', 'modules', 'DaaviSetuView.tsx');
 const dawaCheck = read('app', 'components', 'modules', 'DawaCheckView.tsx');
 const page = read('app', 'page.tsx');

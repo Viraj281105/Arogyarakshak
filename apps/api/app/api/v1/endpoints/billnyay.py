@@ -1,30 +1,34 @@
 """
 BillNyay API Endpoints.
 
-Handles hospital bill auditing, appeal drafting (5-agent pipeline), and grievance package generation.
+Hospital bill auditing, appeal drafting (5-agent pipeline), appeal PDF download/verify and
+grievance package generation. Handlers authorise, enforce consent and translate errors;
+the work lives in ``app.services.billnyay_audit`` (CGHS audit),
+``app.services.billnyay_appeal`` (appeal/grievance orchestration) and
+``app.services.billnyay_llm`` (LLM client + offline fallback).
 """
 
 import logging
-import uuid
-from typing import Any, Dict, List, Literal
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-import json
-import urllib.request
 from app.case_auth import require_case_access
 from app.clinical.context import assess_case_plausibility
-from app.clinical.events import on_statements_changed
-from app.clinical.serializers import annex_dict, statement_view
 from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
-from app.models import BillNyayAppeal, KadiCase, KadiEntity
-from billnyay.agents.icd_audit import ICDProcedureAuditItem
+from app.models import BillNyayAppeal, KadiCase
+from app.services import billnyay_appeal as appeal_service
+from app.services.billnyay_appeal import (  # noqa: F401 — re-exported for existing importers
+    UNSPECIFIED_FIELD,
+    AppealResponse,
+    GrievanceResponse,
+    refresh_appeal_annex,
+)
 from app.services.billnyay_audit import (  # noqa: F401 — re-exported for existing importers
     CGHS_RATES,
     CGHS_VERSION,
@@ -39,305 +43,28 @@ from app.services.billnyay_audit import (  # noqa: F401 — re-exported for exis
     build_case_audit,
     build_case_icd_audit,
 )
-from kadi.clinical_review.annex import NO_HUMAN_STATEMENT_NOTICE, render_annex
-# Import billnyay modules
-from billnyay.agents.auditor import run_auditor_agent, StructuredDenial
-from billnyay.agents.judge import run_judge_agent, JudgeScorecard
-from billnyay.agents.barrister import run_barrister_agent
-from billnyay.agents.clinician import run_clinician_agent
-from billnyay.agents.regulatory import run_regulatory_agent
-from billnyay.agents.consensus import (
-    ConsensusResult,
-    compute_weighted_consensus,
-    vote_from_auditor,
-    vote_from_clinician,
-    vote_from_regulatory,
-)
-from billnyay.agents.feedback_loop import draft_with_self_correction
-from billnyay.tools.pdf_compiler import compile_appeal_packet_bytes
-from billnyay.tools.pdf_integrity import compute_sha256, sign_document, verify_signature
-from billnyay.tools.bima_bharosa_crawler import check_registration_status_mock, RegistrationStatusResult
+from app.services.billnyay_llm import GroqClient, GroqClientFallback  # noqa: F401 — re-exported
+from billnyay.agents.icd_audit import ICDProcedureAuditItem
 from billnyay.outcome import OutcomeEstimate, OutcomeQuery, estimate_outcome, load_registered_dataset
+from billnyay.tools.bima_bharosa_crawler import RegistrationStatusResult, check_registration_status_mock
+from billnyay.tools.pdf_integrity import compute_sha256, verify_signature
 
 logger = logging.getLogger("arogyarakshak.api.billnyay")
 router = APIRouter()
 
 
-# --- Pydantic Schemas ---------------------------------------------------------
-# Rendered into the appeal letter wherever a fact could not be extracted. Deliberately
-# reads as unknown rather than resembling a real reference.
-UNSPECIFIED_FIELD = "Not specified in the supplied documents"
+async def _appeal_or_409(db: AsyncSession, case_id: str) -> BillNyayAppeal:
+    record = await appeal_service.load_appeal(db, case_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No appeal has been drafted for this case yet. "
+                f"POST /api/v1/billnyay/cases/{case_id}/appeal first."
+            ),
+        )
+    return record
 
-
-class AppealResponse(BaseModel):
-    case_id: str
-    appeal_letter: str
-    scorecard: Dict[str, Any]
-    status: str
-    # False when the Auditor could not extract denial facts from the uploaded document.
-    # The letter is then built on placeholders and the user must fill in the real denial
-    # code, insurer reason and policy clause before sending it.
-    denial_facts_extracted: bool = True
-    # False when GROQ_API_KEY is unset: the letter is a static statutory template rather
-    # than an LLM draft grounded in this case. Callers must be able to tell the two apart.
-    llm_backed: bool
-    # #65 — cooperative pre-drafting vote across Auditor/Clinician/Regulatory, surfaced
-    # alongside (not instead of) the Judge's own scoring of the finished letter.
-    consensus: Dict[str, Any]
-    # #68 — how many times the Barrister re-drafted after a needs_revision verdict.
-    revision_count: int = 0
-    revision_history: List[Dict[str, Any]] = []
-    # #66 — integrity of the compiled, persisted PDF. See .../appeal/pdf and
-    # .../appeal/verify.
-    document_sha256: str
-    pdf_download_url: str
-    # #39 — the language the letter was actually drafted in (en/hi/mr), confirming the
-    # request's ?language= was honoured rather than silently ignored.
-    language: str = "en"
-    # ADR-011 — attributed human clinical statements appended verbatim (never passed
-    # through the LLM). When none exists the annex says so explicitly.
-    human_clinical_statement_attached: bool = False
-    clinical_statements: List[Dict[str, Any]] = []
-    # Verbatim annex included in the PDF; empty when no statement exists.
-    clinical_annex: str = ""
-    # Patient-facing only (never put in the insurer-facing PDF): says plainly that no
-    # clinician's opinion is attached when that is the case.
-    clinical_statement_notice: str = ""
-
-
-class GrievanceResponse(BaseModel):
-    case_id: str
-    complaint_text: str
-    bima_bharosa_fields: Dict[str, str] = {}
-    deep_link: str
-    # False when the Auditor could not extract real denial facts from the uploaded
-    # document (no GROQ_API_KEY, or the call fell back). The complaint is then built on
-    # UNSPECIFIED_FIELD placeholders instead of a fabricated denial code/reason —
-    # mirrors AppealResponse.denial_facts_extracted for the same reason.
-    denial_facts_extracted: bool = True
-
-
-# --- Groq LLM Client & Fallback -----------------------------------------------
-class GroqClient:
-    """Configured Groq Cloud inference client using settings.groq_model."""
-    def __init__(self, api_key: str, model: str):
-        self.api_key = api_key
-        self.model = model
-        # Set when a live call fails and this instance silently served a canned
-        # fallback response instead. Callers must check this before claiming any
-        # fact drawn from that response was actually extracted from the document.
-        self.used_fallback = False
-
-    def generate(self, prompt: str, system: str = "", **kwargs) -> str:
-        # Only request a JSON response format when the calling agent actually wants
-        # JSON. The Barrister Agent emits prose; forcing json_object on it would make
-        # Groq return a JSON envelope instead of an appeal letter.
-        json_mode = kwargs.get("json_mode", True)
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system or "You are an expert healthcare auditor."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": kwargs.get("temperature", 0.0),
-            "max_tokens": kwargs.get("max_tokens", 1024),
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
-        try:
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/chat/completions",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}"
-                },
-                method="POST"
-            )
-            with urllib.request.urlopen(req, timeout=12) as response:
-                res = json.loads(response.read().decode("utf-8"))
-                return res["choices"][0]["message"]["content"]
-        except Exception as e:
-            logger.warning(f"[GroqClient] Cloud inference call failed: {e}. Falling back.")
-            self.used_fallback = True
-            return GroqClientFallback().generate(prompt, system=system, **kwargs)
-
-
-_FALLBACK_DENIAL_JSON = (
-    "{\n"
-    '  "denial_code": "DEN-999",\n'
-    '  "insurer_reason_snippet": "Audit deviation detected.",\n'
-    '  "policy_clause_text": "Section 4.1 Room limit exclusions.",\n'
-    '  "procedure_denied": "General ward treatment",\n'
-    '  "confidence_score": 0.95,\n'
-    '  "raw_evidence_chunks": []\n'
-    "}"
-)
-
-_FALLBACK_CLINICAL_JSON = json.dumps(
-    {
-        "root": [
-            {
-                "article_title": "Clinical Standard of Care for Inpatient Hospitalisation",
-                "summary_of_finding": (
-                    "Established clinical guidelines support inpatient admission where an active "
-                    "line of treatment and continuous monitoring are documented. General clinical "
-                    "reasoning — not a cited source."
-                ),
-                # P1-7: was a hardcoded fake PMID presented as a real citation in every
-                # offline-mode appeal letter. This system has no PubMed/NCBI lookup, so
-                # an invented identifier here is exactly the kind of fabricated,
-                # checkable-looking fact the no-fabrication principle forbids. Null,
-                # always — clinician.py's _strip_unverifiable_citations() also strips
-                # this defensively even if a future edit reintroduces a value here.
-                "pubmed_id": None,
-            },
-            {
-                "article_title": "Medical Necessity Determination in Acute Care Admissions",
-                "summary_of_finding": (
-                    "Treating-physician documentation of an active line of treatment is the accepted "
-                    "determinant of medical necessity for inpatient care. General clinical reasoning "
-                    "— not a cited source."
-                ),
-                "pubmed_id": None,
-            },
-        ]
-    }
-)
-
-_FALLBACK_APPEAL_LETTER = """SUBJECT: Formal Notice of Representation and Appeal Against Claim Rejection / Billing Deviation
-
-To the Grievance Redressal Officer,
-
-RECITALS
-This representation is submitted under the IRDAI (Protection of Policyholders' Interests) Regulations
-against the rejection / reduction communicated in respect of the captioned claim. The insured disputes
-the rejection and seeks reversal within the statutory turnaround time.
-
-SECTION I - CLINICAL JUSTIFICATION AND MEDICAL NECESSITY
-The hospitalisation involved an active line of treatment with continuous clinical monitoring. Established
-standards of care recognise such admission as medically necessary. The treating physician's records, where
-available, should be attached to evidence the necessity of the procedures and consumables billed.
-
-SECTION II - STATUTORY AND IRDAI REGULATORY PROVISIONS
-Rejection premised on vague or non-specific exclusion clauses is impermissible under the IRDAI circular on
-Standardisation of Exclusion Clauses. Arbitrary reduction of claimed medical expenses, or unexplained
-delay in settlement, additionally constitutes an unfair trade practice under the Consumer Protection Act,
-2019. No repudiation is valid without the concurrence of the Claims Review Committee.
-
-SECTION III - FORMAL DEMAND AND TIMELINE FOR REVERSAL
-The insured demands reconsideration and reversal of the rejection / deduction within thirty (30) days as
-mandated by IRDAI. Failing which, the insured reserves the right to escalate to the IRDAI Bima Bharosa
-portal and thereafter to the jurisdictional Insurance Ombudsman.
-
-Yours faithfully,
-The Insured
-"""
-
-# Hindi/Marathi offline fallback letters (#39): with GROQ_API_KEY unset — the documented
-# default deployment state — the LLM path never runs, so without these a user who chose
-# Hindi/Marathi in the UI still received the English fallback above regardless of their
-# language selection. Same canned-template caveat as the English version: not read from
-# the user's document, only a structurally valid placeholder.
-_FALLBACK_APPEAL_LETTER_HI = """विषय: दावा अस्वीकृति / बिलिंग विचलन के विरुद्ध औपचारिक प्रतिनिधित्व एवं अपील की सूचना
-
-शिकायत निवारण अधिकारी के नाम,
-
-प्रस्तावना
-यह प्रतिनिधित्व IRDAI (पॉलिसीधारक हितों का संरक्षण) विनियमों के अंतर्गत, उल्लिखित दावे के संबंध में सूचित
-अस्वीकृति/कटौती के विरुद्ध प्रस्तुत किया जा रहा है। पॉलिसीधारक इस अस्वीकृति पर आपत्ति दर्ज करता है और
-सांविधिक समयावधि के भीतर इसकी वापसी की माँग करता है।
-
-खंड I - चिकित्सीय औचित्य एवं चिकित्सा आवश्यकता
-अस्पताल में भर्ती होने के दौरान निरंतर चिकित्सीय निगरानी के साथ एक सक्रिय उपचार प्रक्रिया अपनाई गई।
-स्थापित देखभाल मानक ऐसे भर्ती को चिकित्सकीय रूप से आवश्यक मानते हैं। बिल की गई प्रक्रियाओं एवं
-उपभोग्य सामग्रियों की आवश्यकता दर्शाने हेतु, उपलब्ध होने पर, उपचार करने वाले चिकित्सक के अभिलेख संलग्न किए जाने चाहिए।
-
-खंड II - सांविधिक एवं IRDAI विनियामक प्रावधान
-अस्पष्ट या गैर-विशिष्ट अपवर्जन खंडों के आधार पर अस्वीकृति, अपवर्जन खंडों के मानकीकरण संबंधी IRDAI
-परिपत्र के तहत अनुमन्य नहीं है। दावा की गई चिकित्सा व्ययों में मनमानी कमी, या निपटान में अस्पष्टीकृत विलंब,
-उपभोक्ता संरक्षण अधिनियम, 2019 के अंतर्गत एक अनुचित व्यापार व्यवहार भी है। दावा समीक्षा समिति की सहमति
-के बिना कोई भी अस्वीकृति वैध नहीं है।
-
-खंड III - औपचारिक माँग एवं प्रत्यावर्तन हेतु समयसीमा
-पॉलिसीधारक IRDAI द्वारा अनिवार्य तीस (30) दिनों के भीतर अस्वीकृति/कटौती पर पुनर्विचार एवं इसे वापस लेने
-की माँग करता है। ऐसा न होने पर, पॉलिसीधारक IRDAI बीमा भरोसा पोर्टल एवं तत्पश्चात संबंधित बीमा लोकपाल
-के समक्ष मामला ले जाने का अधिकार सुरक्षित रखता है।
-
-भवदीय,
-पॉलिसीधारक
-"""
-
-_FALLBACK_APPEAL_LETTER_MR = """विषय: दावा नकार / बिलिंग तफावतीविरुद्ध औपचारिक निवेदन आणि अपील सूचना
-
-तक्रार निवारण अधिकारी यांना,
-
-प्रस्तावना
-हे निवेदन IRDAI (पॉलिसीधारक हितसंरक्षण) विनियमांतर्गत, संबंधित दाव्याबाबत कळवलेल्या नकार/कपातीविरुद्ध
-सादर केले जात आहे. पॉलिसीधारक या नकाराबाबत आक्षेप नोंदवत असून वैधानिक मुदतीत तो मागे घेण्याची मागणी
-करत आहे.
-
-विभाग I - वैद्यकीय औचित्य आणि वैद्यकीय गरज
-रुग्णालयात दाखल असताना सातत्यपूर्ण वैद्यकीय देखरेखीसह सक्रिय उपचार प्रक्रिया राबवण्यात आली. प्रस्थापित
-काळजी मानके अशा दाखलतेला वैद्यकीयदृष्ट्या आवश्यक मानतात. बिल केलेल्या प्रक्रिया व उपभोग्य
-वस्तूंची गरज दर्शवण्यासाठी, उपलब्ध असल्यास, उपचार करणाऱ्या डॉक्टरांच्या नोंदी जोडाव्यात.
-
-विभाग II - वैधानिक आणि IRDAI नियामक तरतुदी
-अस्पष्ट किंवा विशिष्ट नसलेल्या वगळणी कलमांच्या आधारे नकार देणे, वगळणी कलमांच्या प्रमाणीकरणाबाबतच्या
-IRDAI परिपत्रकांतर्गत अनुज्ञेय नाही. दावा केलेल्या वैद्यकीय खर्चात अनियंत्रित कपात, किंवा निपटाऱ्यात
-अस्पष्ट विलंब, ग्राहक संरक्षण कायदा, 2019 अंतर्गत अनुचित व्यापार पद्धत ठरते. दावा पुनरावलोकन समितीच्या
-संमतीशिवाय कोणताही नकार वैध नाही.
-
-विभाग III - औपचारिक मागणी आणि परतफेडीसाठी कालमर्यादा
-पॉलिसीधारक IRDAI ने अनिवार्य केलेल्या तीस (30) दिवसांच्या आत नकार/कपातीचा पुनर्विचार करून तो मागे
-घेण्याची मागणी करत आहे. असे न झाल्यास, पॉलिसीधारक हे प्रकरण IRDAI विमा भरोसा पोर्टलकडे आणि त्यानंतर
-संबंधित विमा लोकपालाकडे नेण्याचा अधिकार राखून ठेवतो.
-
-आपला विश्वासू,
-पॉलिसीधारक
-"""
-
-_FALLBACK_APPEAL_LETTERS = {
-    "en": _FALLBACK_APPEAL_LETTER,
-    "hi": _FALLBACK_APPEAL_LETTER_HI,
-    "mr": _FALLBACK_APPEAL_LETTER_MR,
-}
-
-
-class GroqClientFallback:
-    """Deterministic offline stand-in used when GROQ_API_KEY is not configured.
-
-    Each agent in the pipeline expects a different response shape. Returning the
-    Auditor's JSON to every caller (the previous behaviour) made the Barrister emit a
-    JSON blob as its "appeal letter", so the fallback is dispatched per agent using the
-    system instruction each agent sends.
-
-    Every response here (including `_FALLBACK_DENIAL_JSON`) is a canned template, not
-    anything read from the user's document. `used_fallback` lets callers tell the two
-    apart instead of trusting that a parseable response means real extraction happened.
-    """
-
-    used_fallback = True
-
-    def generate(self, prompt: str, system: str = "", **kwargs) -> str:
-        sys_text = (system or "").lower()
-        json_mode = kwargs.get("json_mode", True)
-
-        if "clinician agent" in sys_text:
-            logger.warning("[GroqClientFallback] Returning fallback clinical evidence.")
-            return _FALLBACK_CLINICAL_JSON
-
-        if "barrister agent" in sys_text or not json_mode:
-            language = (kwargs.get("language") or "en").lower()
-            letter = _FALLBACK_APPEAL_LETTERS.get(language, _FALLBACK_APPEAL_LETTER)
-            logger.warning("[GroqClientFallback] Returning fallback appeal letter (language=%s).", language)
-            return letter
-
-        logger.warning("[GroqClientFallback] Returning fallback denial JSON block.")
-        return _FALLBACK_DENIAL_JSON
-
-
-# --- Route Implementations ----------------------------------------------------
 
 @router.post("/cases/{case_id}/audit", response_model=AuditResponse)
 async def audit_bill(
@@ -364,163 +91,13 @@ async def draft_appeal(
             detail=f"Unsupported language '{language}'. Use en, hi, or mr.",
         )
     require_case_consent(case)
-
-    # 2. Get billing and clinical texts
-    entities_result = await db.execute(
-        select(KadiEntity).join(KadiCase.entities)
-        .where(KadiCase.id == case_id)
-        .where(KadiEntity.type == "document_text")
-    )
-    texts = [e.value for e in entities_result.scalars().all() if e.value]
-    combined_text = "\n".join(texts) if texts else "Hospital Bill dispute."
-
-    # 3. Agent 1 — Auditor: extract structured denial facts.
-    if settings.groq_api_key:
-        client = GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
-    else:
-        client = GroqClientFallback()
-
-    # SEC-01: every agent below calls client.generate(), which is a synchronous
-    # urllib.request.urlopen(...) call to Groq (or, on the offline fallback path, a
-    # synchronous-but-instant canned return) — run off the event loop via
-    # run_in_threadpool so one in-flight appeal draft (up to 5 sequential LLM calls)
-    # cannot stall /health or any other request for the whole pipeline's duration.
-    denial = await run_in_threadpool(run_auditor_agent, client=client, denial_text=combined_text)
-    # A canned fallback response always parses into a valid StructuredDenial, so
-    # "denial is not None" alone can't distinguish real extraction from a template
-    # (e.g. DEN-999 / confidence 0.95) served because no live LLM call happened.
-    denial_facts_extracted = denial is not None and not client.used_fallback
-    if denial is None:
-        # The Auditor could not extract denial facts. Downstream agents are typed against
-        # this model, so a neutral placeholder is supplied — but it must read as "unknown",
-        # never as a plausible-looking denial code. A letter quoting "DEN-DEFAULT" as the
-        # insurer's reference would be sent to a real insurer as though it were genuine.
-        denial = StructuredDenial(
-            denial_code=UNSPECIFIED_FIELD,
-            insurer_reason_snippet=UNSPECIFIED_FIELD,
-            policy_clause_text=UNSPECIFIED_FIELD,
-            procedure_denied=UNSPECIFIED_FIELD,
-            confidence_score=0.0,
-            raw_evidence_chunks=[],
-        )
-
-    # 4. Agent 2 — Clinician: synthesise medical-necessity evidence.
-    clinical_evidence = await run_in_threadpool(run_clinician_agent, client=client, denial_details=denial)
-
-    # 5. Agent 3 — Regulatory: retrieve applicable statutory provisions. (Deterministic,
-    # no network call, but kept on the threadpool for consistency with the rest of the
-    # pipeline and so it never becomes a blocking call unnoticed if that changes later.)
-    regulatory_evidence = await run_in_threadpool(
-        run_regulatory_agent, denial_data=denial.model_dump(), client=client
-    )
-
-    # 5b. Multi-agent consensus (#65): a transparency/triage vote across the three
-    # upstream agents, surfaced alongside — not instead of — the Judge's scoring of
-    # the finished letter.
-    votes = [
-        vote_from_auditor(denial, denial_facts_extracted),
-        vote_from_clinician(clinical_evidence),
-        vote_from_regulatory(regulatory_evidence),
-    ]
-    consensus: ConsensusResult = compute_weighted_consensus(votes)
-
-    # 6-7. Agents 4 & 5 — Barrister drafts, Judge scores, with self-correcting
-    # revision (#68) when the Judge reports needs_revision. Can make several sequential
-    # LLM calls (draft + revisions) — the single most important call to keep off the
-    # event loop in this pipeline.
-    drafting_result = await run_in_threadpool(
-        draft_with_self_correction,
-        client,
-        denial_details=denial,
-        clinical_evidence=clinical_evidence,
-        regulatory_evidence=regulatory_evidence,
-        language=language,
-    )
-    if drafting_result is None:
-        logger.error("[BillNyay] Barrister Agent returned no appeal letter for case %s", case_id)
+    try:
+        return await appeal_service.draft_case_appeal(db, case_id, language)
+    except appeal_service.AppealDraftingFailed:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Appeal drafting failed: the drafting agent returned no letter.",
         )
-    appeal_letter = drafting_result.appeal_letter
-    scorecard = drafting_result.scorecard
-
-    # ADR-011: finalized human statements for this case, rendered verbatim by
-    # deterministic code. The LLM-drafted letter above never contains them.
-    statements, clinical_annex = await _clinical_annex_for(db, case_id)
-
-    # 8. Compile, sign, and persist the PDF (#66) — the exact bytes served by
-    # .../appeal/pdf and checked by .../appeal/verify, so a later re-draft cannot
-    # silently invalidate what was already downloaded.
-    pdf_bytes = await run_in_threadpool(
-        compile_appeal_packet_bytes, appeal_letter, case_meta={"case_id": case_id}, clinical_annex=clinical_annex or None
-    )
-    document_sha256 = compute_sha256(pdf_bytes)
-    hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
-
-    existing_appeal = await db.execute(
-        select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id)
-    )
-    appeal_record = existing_appeal.scalar_one_or_none()
-    if appeal_record is None:
-        appeal_record = BillNyayAppeal(id=f"APPEAL-{uuid.uuid4().hex[:10]}", case_id=case_id)
-        db.add(appeal_record)
-    appeal_record.appeal_letter = appeal_letter
-    appeal_record.pdf_bytes = pdf_bytes
-    appeal_record.sha256_hash = document_sha256
-    appeal_record.hmac_signature = hmac_signature
-    await db.commit()
-
-    return AppealResponse(
-        case_id=case_id,
-        appeal_letter=appeal_letter,
-        scorecard=scorecard.model_dump(),
-        status=scorecard.status,
-        llm_backed=bool(settings.groq_api_key),
-        denial_facts_extracted=denial_facts_extracted,
-        consensus=consensus.model_dump(mode="json"),
-        revision_count=drafting_result.revision_count,
-        revision_history=[r.model_dump() for r in drafting_result.revision_history],
-        document_sha256=document_sha256,
-        pdf_download_url=f"/api/v1/billnyay/cases/{case_id}/appeal/pdf",
-        language=language,
-        human_clinical_statement_attached=bool(statements),
-        clinical_statements=[statement_view(s) for s in statements],
-        clinical_annex=clinical_annex,
-        clinical_statement_notice="" if statements else NO_HUMAN_STATEMENT_NOTICE,
-    )
-
-
-async def _clinical_annex_for(db: AsyncSession, case_id: str):
-    """(current statements, annex text). The annex is empty when no statement exists:
-    the insurer-facing PDF then simply carries no annex, while the patient is told
-    separately (``clinical_statement_notice``) that no clinician opinion is attached."""
-    statements = await current_statements_for_case(db, case_id, ["billnyay"])
-    annex = render_annex([annex_dict(s) for s in statements]) if statements else ""
-    return statements, annex
-
-
-@on_statements_changed
-async def refresh_appeal_annex(db: AsyncSession, case_id: str, source_module: str) -> None:
-    """ADR-011: when a BillNyay statement is finalized, superseded, withdrawn or its review
-    cancelled, re-render the stored appeal PDF with the current annex and re-sign it.
-    The letter text is unchanged (no LLM call). A copy downloaded earlier will now fail
-    GET .../appeal/verify, which is the intended signal that it is out of date."""
-    if source_module != "billnyay":
-        return
-    record = (
-        await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
-    ).scalar_one_or_none()
-    if record is None:
-        return
-    _, annex = await _clinical_annex_for(db, case_id)
-    pdf_bytes = await run_in_threadpool(
-        compile_appeal_packet_bytes, record.appeal_letter, case_meta={"case_id": case_id}, clinical_annex=annex or None
-    )
-    record.pdf_bytes = pdf_bytes
-    record.sha256_hash = compute_sha256(pdf_bytes)
-    record.hmac_signature = sign_document(pdf_bytes, settings.document_signing_secret)
-    logger.info("[BillNyay] Re-rendered appeal PDF annex for case %s after a statement change.", case_id)
 
 
 @router.get("/cases/{case_id}/clinical-plausibility")
@@ -563,20 +140,9 @@ async def download_appeal_pdf(
     for this case (#66). Renders strictly from the stored bytes — never regenerated
     on the fly — so what is downloaded always matches what was hashed and signed."""
     require_case_consent(case)
-
-    result = await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
-    appeal_record = result.scalar_one_or_none()
-    if appeal_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "No appeal has been drafted for this case yet. "
-                f"POST /api/v1/billnyay/cases/{case_id}/appeal first."
-            ),
-        )
-
+    record = await _appeal_or_409(db, case_id)
     return Response(
-        content=appeal_record.pdf_bytes,
+        content=record.pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=appeal_{case_id}.pdf"},
     )
@@ -595,29 +161,12 @@ async def verify_appeal_pdf(
     billnyay.tools.pdf_integrity for what this can and cannot vouch for.
     """
     require_case_consent(case)
-
-    result = await db.execute(select(BillNyayAppeal).where(BillNyayAppeal.case_id == case_id))
-    appeal_record = result.scalar_one_or_none()
-    if appeal_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "No appeal has been drafted for this case yet. "
-                f"POST /api/v1/billnyay/cases/{case_id}/appeal first."
-            ),
-        )
-
-    recomputed_hash = compute_sha256(appeal_record.pdf_bytes)
-    hash_matches_stored = recomputed_hash == appeal_record.sha256_hash
-    signature_valid = verify_signature(
-        appeal_record.pdf_bytes, appeal_record.hmac_signature, settings.document_signing_secret
-    )
-
+    record = await _appeal_or_409(db, case_id)
     return {
         "case_id": case_id,
-        "sha256_hash": appeal_record.sha256_hash,
-        "hash_matches_stored_bytes": hash_matches_stored,
-        "signature_valid": signature_valid,
+        "sha256_hash": record.sha256_hash,
+        "hash_matches_stored_bytes": compute_sha256(record.pdf_bytes) == record.sha256_hash,
+        "signature_valid": verify_signature(record.pdf_bytes, record.hmac_signature, settings.document_signing_secret),
         "note": (
             "This confirms the stored PDF is byte-for-byte what ArogyaRakshak generated "
             "and signed. It is not a licensed digital signature certificate (DSC) under "
@@ -676,68 +225,9 @@ async def draft_grievance(
 ):
     """Auto-drafts an IRDAI Bima Bharosa portal complaint package (#51).
 
-    Previously this built a fixed generic sentence ("room categories benchmarking
-    deviations") and cited an unverified "Rule 14" for every case, regardless of what
-    was actually in the uploaded document — exactly the kind of case-independent
-    templating the no-fabrication principle rules out for a document filed with a
-    regulator. This now reuses the same Auditor Agent extraction draft_appeal runs, so
-    the complaint reflects this case's actual denial code/reason/procedure — or
-    honestly reports them as not extracted, via `denial_facts_extracted`.
+    Reuses the Auditor Agent extraction the appeal runs, so the complaint reflects this
+    case's actual denial code/reason/procedure — or honestly reports them as not
+    extracted, via `denial_facts_extracted` (no case-independent templating).
     """
     case = require_case_consent(case)
-
-    entities_result = await db.execute(
-        select(KadiEntity).join(KadiCase.entities)
-        .where(KadiCase.id == case_id)
-        .where(KadiEntity.type == "document_text")
-    )
-    texts = [e.value for e in entities_result.scalars().all() if e.value]
-    combined_text = "\n".join(texts) if texts else ""
-
-    if settings.groq_api_key:
-        client = GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
-    else:
-        client = GroqClientFallback()
-
-    denial = (
-        await run_in_threadpool(run_auditor_agent, client=client, denial_text=combined_text)
-        if combined_text
-        else None
-    )
-    denial_facts_extracted = denial is not None and not client.used_fallback
-    if denial is None:
-        denial = StructuredDenial(
-            denial_code=UNSPECIFIED_FIELD,
-            insurer_reason_snippet=UNSPECIFIED_FIELD,
-            policy_clause_text=UNSPECIFIED_FIELD,
-            procedure_denied=UNSPECIFIED_FIELD,
-            confidence_score=0.0,
-            raw_evidence_chunks=[],
-        )
-
-    complaint_text = (
-        "Grievance Complaint filed under IRDAI Bima Bharosa Portal.\n"
-        f"Case Reference: {case_id}\n"
-        f"Denial/Reference Code: {denial.denial_code}\n"
-        f"Procedure/Service Disputed: {denial.procedure_denied}\n"
-        f"Insurer's Stated Reason: {denial.insurer_reason_snippet}\n"
-        f"Disputed Amount: Rs. {case.total_charged:.2f}\n"
-        "The policyholder disputes the above rejection/deduction and seeks reversal "
-        "under the IRDAI (Protection of Policyholders' Interests) Regulations."
-    )
-
-    # Required fields structure for manual copying
-    bb_fields = {
-        "Complaint Type": "Claim Rejection / Unfair Deduction",
-        "Insurer Category": "Health Insurance Company",
-        "Disputed Amount": f"{case.total_charged:.2f}",
-        "Policyholder Consent": "Yes",
-    }
-
-    return {
-        "case_id": case_id,
-        "complaint_text": complaint_text,
-        "denial_facts_extracted": denial_facts_extracted,
-        "bima_bharosa_fields": bb_fields,
-        "deep_link": "https://bimabharosa.irdai.gov.in/RegisterNewGrievance",
-    }
+    return await appeal_service.draft_case_grievance(db, case)

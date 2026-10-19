@@ -8,13 +8,13 @@ Decision: ADR-020. Code: `apps/api/alembic.ini`, `apps/api/migrations/`, `apps/a
 alembic upgrade head            # apply all pending revisions (uses DATABASE_URL via app.config)
 alembic current                 # revision the database is at
 alembic history                 # all revisions
-alembic check                   # fails if app/models.py has changes with no revision
+alembic check                   # fails if app/models/ has changes with no revision
 alembic -x url=sqlite:///scratch.db upgrade head   # one-off target
 ```
 
 ## Changing the schema
 
-1. Edit `app/models.py`.
+1. Edit `app/models/`.
 2. `alembic revision --autogenerate -m "short description"` and **read the generated file**:
    autogenerate misses renames (it emits drop + add — data loss), server defaults and some
    constraint changes.

@@ -1,4 +1,5 @@
 import { describe, it } from 'node:test';
+import { viewSource } from './viewSource';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,7 +44,7 @@ describe('Provenance / verification stay visually distinct', () => {
 
 describe('Demo-hardening UI contracts', () => {
   it('module views get the case only after processing completes; a stalled stream offers Refresh status', () => {
-    const page = code(read('app', 'page.tsx'));
+    const page = code(read('app', 'page.tsx') + read('app', 'hooks', 'useCaseSession.ts'));
     assert.ok(/caseReady = !!caseId && pipelineStep === 4 && !isProcessing/.test(page));
     assert.ok(/caseId=\{readyCaseId\}/.test(page));
     assert.ok(/retryLabel="Refresh status"/.test(page));
@@ -69,13 +70,13 @@ describe('Demo-hardening UI contracts', () => {
   });
 
   it('the automated "Judge" score is never presented as an approval', () => {
-    const billNyay = code(read('app', 'components', 'modules', 'BillNyayView.tsx'));
+    const billNyay = code(viewSource('BillNyayView'));
     assert.ok(!/Judge-Approved/.test(billNyay));
     assert.ok(/Passed automated quality check/.test(billNyay));
   });
 
   it('safety rule retirement is four-eyes in the workspace', () => {
-    const ws = read('app', 'clinical-review', 'page.tsx');
+    const ws = read('app', 'clinical-review', 'components', 'SafetyTab.tsx');
     assert.ok(/Request retirement/.test(ws) && /Confirm retirement/.test(ws));
   });
 });

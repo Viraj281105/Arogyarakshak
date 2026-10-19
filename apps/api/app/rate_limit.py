@@ -29,7 +29,7 @@ actual code, not assumed from the report):
 
 import time
 from collections import OrderedDict
-from typing import Optional, Tuple
+from typing import Tuple
 
 from starlette.requests import Request
 

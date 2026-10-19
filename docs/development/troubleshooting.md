@@ -180,7 +180,7 @@ This document catalogs known failure modes, error messages, and verified solutio
   `test_architecture.py` failing instead means a new module is not listed in `.importlinter`.
 
 ### `test_upgrade_to_head_matches_models_exactly` fails
-- **Cause**: `app/models.py` changed without an Alembic revision.
+- **Cause**: `app/models/` changed without an Alembic revision.
 - **Remedy**: `cd apps/api && alembic revision --autogenerate -m "..."`, review, commit
   (`docs/operations/database-migrations.md`).
 

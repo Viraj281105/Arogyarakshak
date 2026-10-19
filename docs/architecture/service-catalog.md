@@ -10,7 +10,7 @@ What actually runs. Decisions: ADR-013 (local demo target), ADR-019, ADR-021 (no
 | Contract | REST under `/api/v1`, OpenAPI in `docs/api/openapi.json` (contract-tested), SSE at `/api/v1/kadi/cases/{id}/stream` |
 | Dependencies | PostgreSQL 16 (required); Groq API (optional — offline fallbacks when `GROQ_API_KEY` is empty); Hugging Face Hub only if `KADI_SEMANTIC_MATCHING=true` |
 | Configuration | `app/config.py`; reference in `docs/configuration/environment-variables.md`; `APP_ENV=production` refuses development defaults |
-| Data ownership | Every table in `app/models.py` (single owner). Schema via Alembic (ADR-020) |
+| Data ownership | Every table in `app/models/` (one module per owning domain; single owner: the API). Schema via Alembic (ADR-020) |
 | Health | `/health/live` (process up, no DB), `/health/ready` (DB reachable and schema at head → 200, else 503), `/health` (legacy; reports Groq configuration) |
 | Deployment | One process, one replica (ADR-019). Image `apps/api/Dockerfile` (multi-stage, non-root uid 10001). Compose service `api`; Kubernetes `infrastructure/kubernetes/base/api.yaml` |
 | Failure behaviour | DB down → readiness 503, liveness 200 (no restart loop). Groq down/absent → heuristic extraction and templated letters, `groq_configured:false`. Crash mid-processing → job `interrupted`, client told to re-upload. Unhandled error → 500 with `error_id`, no internals |

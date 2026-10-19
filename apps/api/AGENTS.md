@@ -22,7 +22,7 @@ This directory contains the central REST API gateway and database connection lif
      async def example_route(db: AsyncSession = Depends(get_db)):
          ...
      ```
-   - All persistent tables must be defined in `app/models.py`, with a matching Alembic revision in `migrations/versions/` (ADR-020).
+   - All persistent tables must be defined in `app/models/<owning module>.py` (re-exported by `app/models/__init__.py`), with a matching Alembic revision in `migrations/versions/` (ADR-020).
 
 3. **Server-Sent Events (SSE) Streaming**:
    - Long-running document audits must stream status updates using `StreamingResponse` with media type `text/event-stream`.

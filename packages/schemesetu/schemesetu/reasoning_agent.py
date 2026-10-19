@@ -5,9 +5,8 @@ Produces an explainable, step-by-step reasoning trace for a PMJAY/MJPJAY eligibi
 determination, walking a structured criteria index instead of returning an opaque verdict.
 
 Architectural note: this is NOT retrieval-augmented generation over a vector index.
-ArogyaRakshak's vector-search scaffold (`packages/kadi/kadi/vector_store.py`) is
-unwired — no embeddings are computed and no similarity search runs anywhere in this
-codebase (see `docs/architecture/components.md`, marked "planned — not implemented").
+ArogyaRakshak has no vector search — no embeddings are computed and no similarity
+search runs anywhere in this codebase (see `docs/architecture/components.md`, marked "planned — not implemented").
 The "index" here is a small, explicit Python structure covering the same PMJAY/MJPJAY
 criteria `schemesetu.agent.check_eligibility` already applies — a lookup table, not a
 learned representation — so this agent can be explainable without pretending a

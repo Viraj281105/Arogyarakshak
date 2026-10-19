@@ -1,12 +1,13 @@
 import { describe, it } from 'node:test';
+import { apiTypesSource, screenSource } from './sourceTree';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const billNyayScreenSrc = readFileSync(join(process.cwd(), 'src', 'screens', 'BillNyayScreen.tsx'), 'utf-8');
+const billNyayScreenSrc = screenSource('BillNyayScreen', 'billnyay');
 const daaviSetuScreenSrc = readFileSync(join(process.cwd(), 'src', 'screens', 'DaaviSetuScreen.tsx'), 'utf-8');
 const endpointsSrc = readFileSync(join(process.cwd(), 'src', 'api', 'endpoints.ts'), 'utf-8');
-const typesSrc = readFileSync(join(process.cwd(), 'src', 'api', 'types.ts'), 'utf-8');
+const typesSrc = apiTypesSource();
 const stringsSrc = readFileSync(join(process.cwd(), 'src', 'translations', 'strings.ts'), 'utf-8');
 
 // Regression coverage for the mobile gap survey's items #1/#2 (BillNyay appeal

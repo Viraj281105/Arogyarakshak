@@ -58,7 +58,7 @@ flowchart TD
 ## 4. Architecture Snapshot
 
 - **Backend Gateway (`apps/api`)**: FastAPI async application running under Uvicorn. Implements versioned `/api/v1` routing, async database engine (`asyncpg`), and real-time Server-Sent Events (SSE) status streams.
-- **Database & Search**: PostgreSQL 16 (pgvector image; no vector columns or similarity queries are used). `kadi/vector_store.py` is an unwired FAISS/pgvector scaffold — no FAISS index exists. Entity-resolution candidates are blocked by case and entity type instead (ADR-006).
+- **Database & Search**: PostgreSQL 16 (pgvector image; no vector columns or similarity queries are used). No FAISS/pgvector code exists (the unwired `kadi/vector_store.py` scaffold was removed 2026-10-19 as dead code). Entity-resolution candidates are blocked by case and entity type instead (ADR-006).
 - **LLM Reasoning**: Groq API cloud client (Target model: `openai/gpt-oss-120b`). Deprecated models (`llama3-70b`) are strictly barred.
 - **Frontend Clients**:
   - `apps/web`: Next.js 16 App Router, React 19, TypeScript, Vanilla CSS design tokens (Mobile-first, 320px–1280px+, WCAG 2.1 AA).
@@ -137,7 +137,7 @@ arogyarakshak/
 | Feature | Status | Location | Documentation | Automated Tests |
 |---|---|---|---|---|
 | **Kadi Entity Extraction** | Complete | `packages/kadi/kadi/extraction.py` | `packages/kadi/README.md` | Yes (`test_api.py`) |
-| **Kadi Vector Store** | Scaffold (not wired) | `packages/kadi/kadi/vector_store.py` | `docs/architecture/components.md` | No — contains no FAISS and is imported by no endpoint |
+| **Kadi Vector Store** | Not implemented (scaffold removed 2026-10-19) | — | `docs/architecture/components.md` | — |
 | **Kadi OCR Engine** | Complete | `packages/kadi/kadi/ocr/ocr_parser.py` | `packages/kadi/README.md` | Yes (`test_ocr.py`) |
 | **BillNyay 5-Agent Pipeline** | Complete (all 5 agents wired) | `packages/billnyay/billnyay/agents/`| `packages/billnyay/README.md` | Yes (`test_agents.py`, `test_api.py`) |
 | **DaaviSetu Pre-Auth Generator** | Complete | `packages/daavisetu/daavisetu/generator.py` | `packages/daavisetu/README.md` | Yes (`test_daavisetu.py`) |

@@ -163,7 +163,7 @@ Scripts: [demo/scenarios/](demo/scenarios/). Each is also an automated test.
 |---|---|
 | **IMPLEMENTED** | Kadi pipeline, trust gate, human transcription consensus, DawaCheck price basis, BillNyay audit/plausibility/appeal/signed PDF, clinical review & safety governance, DaaviSetu readiness, BimaNyay appeals/SLA, SchemeSetu, case timeline, per-case tokens, retention sweep, demo kit |
 | **DEMO-ONLY** | Synthetic documents, demo personas and "Demo verification only", demo safety rules/playbook, Scenario C OCR replay, demo reset / scenario loaders |
-| **PLANNED (not implemented)** | Real registry verification, FAISS/pgvector search (`kadi/vector_store.py` is an unwired scaffold), IndicXlit (blocked, #29), outcome probabilities (no dataset, #90), Jan Aushadhi store map |
+| **PLANNED (not implemented)** | Real registry verification, FAISS/pgvector search (no code; the unwired scaffold was removed), IndicXlit (blocked, #29), outcome probabilities (no dataset, #90), Jan Aushadhi store map |
 | **NOT RUNTIME-VERIFIED** | Mobile app on a device/emulator (statically tested only), real Groq inference (no key available during verification), the 2026-10-19 multi-stage container images and the Kubernetes manifests (rendered and policy-tested, never built locally or applied to a cluster), Alembic on PostgreSQL (CI only), backup restore |
 
 ---

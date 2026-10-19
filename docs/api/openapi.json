@@ -4668,7 +4668,7 @@
     },
     "/api/v1/billnyay/cases/{case_id}/grievance": {
       "post": {
-        "description": "Auto-drafts an IRDAI Bima Bharosa portal complaint package (#51).\n\nPreviously this built a fixed generic sentence (\"room categories benchmarking\ndeviations\") and cited an unverified \"Rule 14\" for every case, regardless of what\nwas actually in the uploaded document — exactly the kind of case-independent\ntemplating the no-fabrication principle rules out for a document filed with a\nregulator. This now reuses the same Auditor Agent extraction draft_appeal runs, so\nthe complaint reflects this case's actual denial code/reason/procedure — or\nhonestly reports them as not extracted, via `denial_facts_extracted`.",
+        "description": "Auto-drafts an IRDAI Bima Bharosa portal complaint package (#51).\n\nReuses the Auditor Agent extraction the appeal runs, so the complaint reflects this\ncase's actual denial code/reason/procedure — or honestly reports them as not\nextracted, via `denial_facts_extracted` (no case-independent templating).",
         "operationId": "draft_grievance_api_v1_billnyay_cases__case_id__grievance_post",
         "parameters": [
           {

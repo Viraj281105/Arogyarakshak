@@ -78,7 +78,7 @@ def test_upgrade_to_head_matches_models_exactly(tmp_path, which):
         assert upgrade_to_head(url) == head_revision()
         diff = _diff_against_models(url)
         assert diff == [], (
-            "app/models.py and the migrations disagree. Generate a revision: "
+            "app/models/ and the migrations disagree. Generate a revision: "
             f"cd apps/api && alembic revision --autogenerate -m '...'.\n{diff}"
         )
     finally:

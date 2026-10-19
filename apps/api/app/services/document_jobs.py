@@ -106,17 +106,3 @@ async def latest_job(db: AsyncSession, case_id: str) -> Optional[KadiDocumentJob
         .limit(1)
     )
     return result.scalar_one_or_none()
-
-
-def job_view(job: Optional[KadiDocumentJob]) -> Optional[dict]:
-    """Client-facing summary: ids, state and times only."""
-    if job is None:
-        return None
-    return {
-        "job_id": job.id,
-        "state": job.state,
-        "pipeline_version": job.pipeline_version,
-        "error_id": job.error_id,
-        "created_at": job.created_at.isoformat() if job.created_at else None,
-        "finished_at": job.finished_at.isoformat() if job.finished_at else None,
-    }

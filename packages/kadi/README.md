@@ -15,8 +15,7 @@
   - Devanagari and Latin script text extraction.
   - Returns `ocr_segments` with EasyOCR's per-segment confidence (images only) so uncertain readings can go to human transcription (ADR-011).
 - **Clinical review layer (`kadi/clinical_review/`, ADR-011)**: DB-agnostic rules for human clinical review — provenance classes, reviewer verification labels (never "verified" without a real registry check), statement lifecycle and confirmation, frozen evidence packets, safety-rule validation and evaluation, blind two-reader OCR transcription consensus, and the verbatim appeal annex. Persistence lives in `apps/api/app/clinical/`. See `docs/architecture/clinical-review.md`.
-- **Vector Store & Indexing (`kadi/vector_store.py`)**:
-  - In-memory FAISS similarity indexes for sub-second entity matching and fast blocking. *(planned — not implemented)*
+- **Vector Store & Indexing**: FAISS similarity indexes for entity blocking. *(planned — not implemented; the unwired scaffold was removed 2026-10-19)*
 - **Entity Resolution (`kadi/resolution/`, ADR-006)**:
   - Surface string similarity: Levenshtein, fuzzy token overlap, and conflict guards for strength, dosage form, laterality, variant letters and opposite prefixes (#28)
   - Cross-script phonetic matching: rule-based Devanagari romanization + Indic phonetic keys (#89). **IndicXlit** (`ai4bharat-transliteration`) is not used — fairseq has no Python 3.11 wheels (#29)
@@ -34,7 +33,6 @@
 packages/kadi/
 ├── kadi/
 │   ├── extraction.py        # Extraction engine (LLM-grounded + heuristic normalization)
-│   ├── vector_store.py      # Vector index scaffold (no FAISS yet; unwired)
 │   ├── redaction.py         # Direct-identifier removal before persistence
 │   ├── line_items.py        # Shared billing line-item parsing
 │   ├── resolution/          # Entity resolution: similarity, transliteration, phonetic, semantic, resolver, calibration, evaluation

@@ -2,11 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { viewSource } from './viewSource';
 
-const billNyayViewSrc = readFileSync(
-  join(process.cwd(), 'app', 'components', 'modules', 'BillNyayView.tsx'),
-  'utf-8'
-);
+const billNyayViewSrc = viewSource('BillNyayView');
 const daaviSetuViewSrc = readFileSync(
   join(process.cwd(), 'app', 'components', 'modules', 'DaaviSetuView.tsx'),
   'utf-8'
