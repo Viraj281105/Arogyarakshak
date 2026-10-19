@@ -160,6 +160,12 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Active Task (2026-10-19) — read-aloud and simple language (web, PR branch `claude/read-aloud-plain-language-491609`)
+- [x] On-device `speechSynthesis` Listen/Stop on four summaries (BimaNyay deadlines + appeal, DaaviSetu document check, DawaCheck result) in en/hi/mr; Simple-language switch; ADR-016; 23 new tests.
+- [x] Verified: lint 0, `tsc` clean, web tests pass; browser (Edge-based pane, local en-US voices only): DawaCheck, BimaNyay appeal and deadline summaries render in en/hi/mr; hi/mr show the honest no-on-device-voice message with no buttons; en Listen starts (`speechSynthesis.speaking` true) and Stop cancels; console clean. The DaaviSetu document-check summary is unit-tested but was not exercised in the browser.
+- [ ] NOT verified: real audio (the embedded browser has zero voices). [ ] Native-speaker QA of `lib/listenCopy.ts` hi/mr. [ ] Mobile has no equivalent.
+
+
 ### Active Task (2026-10-19) — Claim Pack (branch `claude/claim-pack-0f7726`, PR to `main`)
 - [x] `GET /api/v1/kadi/cases/{id}/claim-pack` (ADR-015): cross-module in-memory ZIP + manifest; 9 pytest tests (apps/api 433 + packages 589 passed, 6 skipped; web 105; lint/tsc/ruff/guardrails clean; browser-verified on SQLite: plain `.zip` and `.zip.arenc` downloads, smoke 58/58). [x] Web `ClaimPackPanel` + `lib/claimPack.ts` (opt-in ADR-014 encryption), 4 web tests. [ ] Not done: mobile control; institution playbook in the checklist; Postgres run.
 ### Active Task (2026-10-19) — Phase-4 evaluation harnesses (#102–#115 area)
@@ -432,6 +438,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
+### 2026-10-19 — Read-aloud and simple language (web)
+- **Added**: `app/lib/{speech,listenCopy,listenSummaries}.ts`, `app/hooks/useListen.ts`, `app/components/{ListenSummary,SimpleLanguageToggle}.tsx`, `tests/listen.test.ts`, ADR-016, `docs/development/accessibility-read-aloud.md`. Additive edits to `page.tsx` (toggle), `BimaNyayView`, `DawaCheckView`, `DaaviSetuView` and `PreauthReadinessPanel` (new optional `lang` prop).
+- **Privacy**: only voices with `localService === true`; no cloud fallback; no speech recognition; spoken text is built from structured fields + static strings, never server free text.
+
+
 ### 2026-10-19 — Claim Pack
 - **Added**: `apps/api/app/claim_pack.py`, `endpoints/claim_pack.py` (registered under `/kadi`), `tests/test_claim_pack.py`; `apps/web/app/lib/claimPack.ts`, `components/ClaimPackPanel.tsx` (mounted in `page.tsx` after the case timeline), `tests/claim_pack.test.ts`; ADR-015; API overview row; CHANGELOG.
 ### 2026-10-19 — Phase-4 evaluation harnesses (branch `claude/evaluation-harnesses-5d0704`)
@@ -638,6 +649,15 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 18. Agent Handoff Notes
+
+### Latest handoff (2026-10-19, read-aloud)
+- Never relax `selectLocalVoice` to accept `localService:false` and never add `SpeechRecognition` or a TTS package (ADR-016, network boundary). `speakWithVoice` throws on a non-local voice by design.
+- New summaries: add strings to `ListenCopy` for en/hi/mr (placeholder parity is tested), a builder in `listenSummaries.ts`, then `<ListenSummary>`; pass structured fields only.
+- Marathi usually has no local voice on Windows/Chrome, so the buttons are hidden there by design. Audio output itself was never heard by an agent; test with a real voice.
+- Gotcha when editing files via bash heredocs in this environment: backslash sequences in regex strings were mangled (`` lost); write such files with the editor tools.
+
+### Latest handoff (2026-10-15, independent-task pass)
+
 
 ### Latest handoff (2026-10-19, Claim Pack)
 - The pack is read-only: it recomputes the BillNyay audit and DawaCheck rows deterministically and rolls back DawaCheck's staged brand mappings; it never drafts an appeal. Add new sections in `claim_pack._sections` and keep the manifest honest (`included` + provenance). Checklist uses the generic baseline only. Mobile has no control yet.

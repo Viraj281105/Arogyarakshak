@@ -159,7 +159,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
       </div>
 
       {/* ADR-011: documentation completeness + clinician fact confirmation (no approval claims) */}
-      {caseId && <PreauthReadinessPanel caseId={caseId} caseToken={caseToken} />}
+      {caseId && <PreauthReadinessPanel caseId={caseId} caseToken={caseToken} lang={currentLang} />}
 
       {/* Input Form */}
       <div
