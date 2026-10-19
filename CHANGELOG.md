@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `apps/web/app/lib/{speech,listenCopy,listenSummaries}.ts`, `hooks/useListen.ts`, `components/{ListenSummary,SimpleLanguageToggle}.tsx`, `tests/listen.test.ts` (23 tests), `docs/development/accessibility-read-aloud.md`.
 - Not verified: actual audio output with a real local voice.
 
+### Phase-4 evaluation harnesses (2026-10-19)
+
+#### Added
+- **Evaluation harnesses** (`apps/api/app/evaluation/`, run with `scripts/evaluate_phase4.py`, offline, no Groq key): BMA (bill line → CGHS key), PEA (procedure extraction), billing-anomaly precision/recall/F1, CRMA (claim-rejection mapping), OCR WER/CER utility, DawaCheck price-mapping accuracy.
+- Six **SYNTHETIC**, hand-written labelled datasets in `data/evaluation/` (the loader rejects any file not flagged synthetic) and 24 tests with hand-computed expected values.
+- `docs/evaluation/phase4-harnesses.md` — measured results, including failures, and limitations. Numbers are development-set figures, not real-world accuracy.
+
+#### Changed
+- `billnyay` endpoint: extracted `_match_cghs_key` and the pure `audit_billing_lines` (no behaviour change) so the harness scores production logic.
+
 ### Mobile Expo SDK pin (2026-10-15)
 
 #### Fixed
