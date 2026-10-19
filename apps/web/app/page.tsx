@@ -8,6 +8,7 @@ import { DOCUMENT_ACCEPT, DocumentUploader } from "./components/DocumentUploader
 import { DemoBanner, useDemoStatus } from "./components/demo/DemoBanner";
 import { DemoControls } from "./components/demo/DemoControls";
 import { CaseTimeline } from "./components/CaseTimeline";
+import { SimpleLanguageToggle } from "./components/SimpleLanguageToggle";
 import type { DemoScenario, DemoScenarioResult } from "./lib/demo";
 import { AgentStreamVisualizer, PipelineStep } from "./components/AgentStreamVisualizer";
 import { EntityResolutionReview } from "./components/EntityResolutionReview";
@@ -350,6 +351,7 @@ export default function Home() {
 
       <main className="container" style={{ flex: 1 }}>
         <DemoBanner status={demoStatus} />
+        <SimpleLanguageToggle lang={currentLang} />
         {/* Hero Section */}
         <section className="hero-section">
           <h1>
