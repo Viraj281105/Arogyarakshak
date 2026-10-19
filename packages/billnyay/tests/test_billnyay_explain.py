@@ -1,4 +1,4 @@
-"""BillNyay explanation for an audited line (ADR-015)."""
+"""BillNyay explanation for an audited line (ADR-017)."""
 
 from billnyay.explain import explain_audit_line
 

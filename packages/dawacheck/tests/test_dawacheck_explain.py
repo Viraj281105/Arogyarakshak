@@ -1,4 +1,4 @@
-"""DawaCheck explanation: built from the benchmark's own fields (ADR-015)."""
+"""DawaCheck explanation: built from the benchmark's own fields (ADR-017)."""
 
 from dawacheck.checker import benchmark_medicine
 from dawacheck.explain import explain_medicine

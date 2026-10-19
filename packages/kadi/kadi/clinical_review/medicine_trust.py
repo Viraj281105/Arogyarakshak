@@ -181,7 +181,7 @@ def trust_summary(decision: MedicineTrustDecision) -> Dict[str, Any]:
 
 
 def name_provenance_class(decision: MedicineTrustDecision, meta: Optional[Mapping[str, Any]]) -> ProvenanceClass:
-    """Explanation-trail provenance for a medicine name (ADR-015): HUMAN_REVIEWED when
+    """Explanation-trail provenance for a medicine name (ADR-017): HUMAN_REVIEWED when
     independent readers settled it; LLM_NORMALISED only when the recorded OCR-uncertainty
     reasons say the extractor's wording may differ from the OCR reading; otherwise
     OCR_EXTRACTED. Whether an LLM rewrote a name is not recorded per entity, so it is never

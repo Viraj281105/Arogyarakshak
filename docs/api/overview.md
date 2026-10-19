@@ -279,7 +279,7 @@ Demo routes return `403` unless `CLINICAL_DEMO_MODE=true` **and** `APP_ENV` is n
 | `GET` | `/api/v1/daavisetu/cases/{case_id}/claim/package` | ZIP now includes `preauth_readiness.txt` |
 | `GET` | `/api/v1/dawacheck/cases/{case_id}/benchmark` | Benchmarks only medicines the trust gate allows (`clinical-review.md` §10.4). Each row carries `trust = {state, label, benchmarkable, reasons}`: `MACHINE_EXTRACTED` / `HUMAN_RESOLVED` are benchmarked; `AWAITING_HUMAN_READING`, `READERS_DISAGREED`, `READING_NOT_APPLIED` and `OCR_UNCERTAIN` (reasons `AMBIGUOUS`, `POSSIBLE_MATCH`, `OVER_CAP`, `UNGROUNDED`) are not, and `note` says why. Also `name_provenance`, `transcription_status` (`OPEN`, …, `NOT_APPLIED`, `OCR_UNCERTAIN`). Prices are compared per unit |
 
-### "Why am I seeing this?" explanations (ADR-015)
+### "Why am I seeing this?" explanations (ADR-017)
 
 Every finding carries an additive `explanation` object (no new route, so the finding's own
 authorization and consent rules apply unchanged; `null`/absent on clients that predate it):

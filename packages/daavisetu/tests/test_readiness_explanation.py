@@ -1,4 +1,4 @@
-"""DaaviSetu readiness explanation (ADR-015)."""
+"""DaaviSetu readiness explanation (ADR-017)."""
 
 from daavisetu.readiness import BASELINE_ITEMS, CaseEvidence, FactDecisionRef, evaluate_readiness
 

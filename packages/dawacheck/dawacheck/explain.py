@@ -1,5 +1,5 @@
 """
-DawaCheck — "Why am I seeing this?" explanation for a medicine finding (ADR-015).
+DawaCheck — "Why am I seeing this?" explanation for a medicine finding (ADR-017).
 
 Built from the values the benchmark already holds (``MedicineBenchmark``) plus the
 provenance the caller passes in. Deterministic; no model call; never infers a reason that

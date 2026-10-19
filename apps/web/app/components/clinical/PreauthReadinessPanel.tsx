@@ -26,7 +26,7 @@ interface ReadinessItem {
   clinical_fact_question: string | null;
   clinical_decision: { decision: string; reviewer_name: string | null; reviewer_verification_label: string | null; coi_label: string | null } | null;
   origin: "BASELINE" | "INSTITUTION_PLAYBOOK";
-  /** "Why am I seeing this?" trail (ADR-015). */
+  /** "Why am I seeing this?" trail (ADR-017). */
   explanation?: Explanation | null;
 }
 

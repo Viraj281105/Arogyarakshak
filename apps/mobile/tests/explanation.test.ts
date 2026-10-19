@@ -27,7 +27,7 @@ const exp: Explanation = {
   disclaimer: 'Not advice.',
 };
 
-describe('explanationToText (ADR-015)', () => {
+describe('explanationToText (ADR-017)', () => {
   const text = explanationToText(exp);
   it('says "not recorded" for unrecorded facts and missing documents', () => {
     assert.match(text, /CGHS procedure code: not recorded/);

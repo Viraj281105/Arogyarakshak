@@ -1,4 +1,4 @@
-"""The shared explanation model: 'not recorded' is derived, never guessed (ADR-015)."""
+"""The shared explanation model: 'not recorded' is derived, never guessed (ADR-017)."""
 
 from kadi.clinical_review.medicine_trust import decide_medicine_trust, name_provenance_class
 from kadi.explanation import (

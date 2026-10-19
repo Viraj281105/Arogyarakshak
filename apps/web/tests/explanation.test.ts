@@ -30,7 +30,7 @@ const base: Explanation = {
   disclaimer: 'd',
 };
 
-describe('explanation view (ADR-015)', () => {
+describe('explanation view (ADR-017)', () => {
   it('shows unrecorded values as "not recorded", never blank or invented', () => {
     const v = describeExplanation(base, 'en');
     assert.strictEqual(v.evidence[1].value, 'not recorded');

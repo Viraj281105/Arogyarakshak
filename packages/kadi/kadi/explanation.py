@@ -1,5 +1,5 @@
 """
-Explanation trail — the shared, deterministic "Why am I seeing this?" record (ADR-015).
+Explanation trail — the shared, deterministic "Why am I seeing this?" record (ADR-017).
 
 Every finding a user sees (a BillNyay line, a DawaCheck medicine comparison, a DaaviSetu
 readiness item, a BimaNyay deadline) is produced by deterministic code from data the

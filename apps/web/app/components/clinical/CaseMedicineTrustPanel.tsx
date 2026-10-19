@@ -19,7 +19,7 @@ export interface CaseMedicineRow {
   transcription_task_id: string | null;
   transcription_status: string | null;
   trust: { state?: string; label?: string; benchmarkable?: boolean; reasons?: string[] };
-  /** "Why am I seeing this?" trail (ADR-015). */
+  /** "Why am I seeing this?" trail (ADR-017). */
   explanation?: Explanation | null;
 }
 

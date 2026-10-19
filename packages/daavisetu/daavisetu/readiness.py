@@ -221,7 +221,7 @@ class ReadinessItemResult(BaseModel):
     clinical_decision: Optional[FactDecisionRef] = None
     origin: Literal["BASELINE", "INSTITUTION_PLAYBOOK"] = "BASELINE"
     note: Optional[str] = None
-    # "Why am I seeing this?" trail (ADR-015). Additive.
+    # "Why am I seeing this?" trail (ADR-017). Additive.
     explanation: Optional[Explanation] = None
 
 

@@ -64,7 +64,7 @@ class GrievanceTimelineEvent(BaseModel):
     deadline_date: str
     status: str  # 'PENDING', 'ACTIVE', 'OVERDUE', 'COMPLETED'
     instructions: str
-    # "Why am I seeing this?" trail (ADR-015): the day count, its cited source and what is
+    # "Why am I seeing this?" trail (ADR-017): the day count, its cited source and what is
     # assumed. Additive; not persisted with the event row.
     explanation: Optional[Explanation] = None
 

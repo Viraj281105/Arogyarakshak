@@ -17,7 +17,7 @@ interface MedicineBenchmarkResponse extends PriceCheck {
   generic_substitute_store_info: string;
   /** Provenance — the reference list is a curated subset of NPPA Schedule-I. */
   data_source: string;
-  /** "Why am I seeing this?" trail (ADR-015). */
+  /** "Why am I seeing this?" trail (ADR-017). */
   explanation?: Explanation | null;
 }
 

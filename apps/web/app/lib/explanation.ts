@@ -1,7 +1,7 @@
 import type { Language } from "../translations";
 import { EXPLAIN_STRINGS } from "./explainStrings";
 
-/** Mirrors `kadi.explanation.Explanation` (ADR-015). Every field is produced by
+/** Mirrors `kadi.explanation.Explanation` (ADR-017). Every field is produced by
  * deterministic server code from stored data; a missing value is `null`, never a guess. */
 export interface Fact {
   label: string;

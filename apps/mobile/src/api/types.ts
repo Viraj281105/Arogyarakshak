@@ -107,7 +107,7 @@ export interface BillNyayAuditItem {
   benchmark_basis?: string | null;
   /** Why a matched line was not compared (e.g. a per-day rate and no day count). */
   not_benchmarked_reason?: string | null;
-  /** "Why am I seeing this?" trail (ADR-015). */
+  /** "Why am I seeing this?" trail (ADR-017). */
   explanation?: Explanation | null;
 }
 

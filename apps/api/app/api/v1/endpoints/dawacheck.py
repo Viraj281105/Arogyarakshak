@@ -84,7 +84,7 @@ class CaseMedicineBenchmark(BaseModel):
     # The trust decision behind this row: state, patient-readable label, whether it was
     # benchmarkable, and (for OCR uncertainty) the reasons it was held back.
     trust: Dict[str, Any] = Field(default_factory=dict)
-    # "Why am I seeing this?" trail (ADR-015). Additive.
+    # "Why am I seeing this?" trail (ADR-017). Additive.
     explanation: Optional[Explanation] = None
 
 

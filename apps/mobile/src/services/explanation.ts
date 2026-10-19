@@ -1,5 +1,5 @@
 /**
- * "Why am I seeing this?" (ADR-015) — plain-text rendering of the server's explanation.
+ * "Why am I seeing this?" (ADR-017) — plain-text rendering of the server's explanation.
  * Mirrors kadi.explanation.render_plain_text: only what the server recorded is shown, and
  * an unrecorded value reads "not recorded". English-first; hi/mr copy for the fixed labels
  * is NEEDS NATIVE-SPEAKER QA and not yet added on mobile.

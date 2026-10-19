@@ -1,4 +1,4 @@
-"""BimaNyay deadline explanation (ADR-015)."""
+"""BimaNyay deadline explanation (ADR-017)."""
 
 from datetime import date, timedelta
 

@@ -179,7 +179,7 @@ class AuditResultItem(BaseModel):
     # does not say how many days/visits/bottles it covers.
     benchmark_basis: Optional[str] = None
     not_benchmarked_reason: Optional[str] = None
-    # "Why am I seeing this?" trail (ADR-015): the evidence, the CGHS row and the
+    # "Why am I seeing this?" trail (ADR-017): the evidence, the CGHS row and the
     # reasons anything was not determined. Additive; built from the values above.
     explanation: Optional[Explanation] = None
 

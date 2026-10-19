@@ -1,4 +1,4 @@
-# ADR-015: A deterministic "Why am I seeing this?" explanation trail
+# ADR-017: A deterministic "Why am I seeing this?" explanation trail
 
 ## Status
 Accepted (2026-10-19)

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### "Why am I seeing this?" explanation trail (2026-10-19, ADR-015)
+### "Why am I seeing this?" explanation trail (2026-10-19, ADR-017)
 
 #### Added
 - **Deterministic explanation per finding** — `kadi.explanation.Explanation` (evidence + provenance class, exact rule/reference row, trust state, what could not be determined, derived `not_recorded`), built by the owning package next to each decision: `dawacheck.explain`, `billnyay.explain`, `daavisetu.readiness.explain_item`, `bimanyay.tracker`. No LLM call.

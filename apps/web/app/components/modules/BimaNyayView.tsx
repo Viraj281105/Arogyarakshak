@@ -50,7 +50,7 @@ interface GrievanceTimelineEvent {
   deadline_date: string;
   status: string;
   instructions: string;
-  /** "Why am I seeing this?" trail (ADR-015). */
+  /** "Why am I seeing this?" trail (ADR-017). */
   explanation?: Explanation | null;
 }
 

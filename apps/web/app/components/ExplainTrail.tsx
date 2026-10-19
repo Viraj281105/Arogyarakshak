@@ -6,7 +6,7 @@ import { EXPLAIN_STRINGS } from "../lib/explainStrings";
 import { describeExplanation, Explanation } from "../lib/explanation";
 
 /**
- * "Why am I seeing this?" — a collapsed disclosure under a finding (ADR-015).
+ * "Why am I seeing this?" — a collapsed disclosure under a finding (ADR-017).
  *
  * Renders only what the server recorded: source evidence with its provenance class, the
  * exact rule or reference row used, the trust state, and what could not be determined.

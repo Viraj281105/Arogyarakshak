@@ -1,4 +1,4 @@
-"""'Why am I seeing this?' explanations on existing responses (ADR-015).
+"""'Why am I seeing this?' explanations on existing responses (ADR-017).
 
 The explanation is produced next to each decision by the owning package, from stored data
 only, and travels on the SAME authorised endpoint — so it needs no new access path.
