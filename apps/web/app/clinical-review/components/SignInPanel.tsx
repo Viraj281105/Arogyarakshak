@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { ReviewerProfile, clinicalPaths, clinicalRequest } from "../../lib/clinical";
-import { Guard, panel } from "../types";
+import { Guard } from "../types";
 
 const EMPTY_REGISTRATION = {
   name: "",
@@ -40,22 +40,37 @@ export function SignInPanel({
     });
 
   return (
-    <div className="grid-2">
-      <section style={panel} aria-labelledby="use-credential">
+    <div className="rv-signin">
+      <section className="case-panel bn-card" aria-labelledby="use-credential">
         <h3 id="use-credential">Use your reviewer credential</h3>
+        <p className="bn-fine">
+          Paste the credential you were given when you registered. It is kept in this tab&apos;s memory only — reloading the
+          page means pasting it again.
+        </p>
         <input
           className="input-field"
           type="password"
+          autoComplete="off"
           aria-label="Reviewer credential"
           value={tokenInput}
           onChange={(e) => setTokenInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && tokenInput.trim()) void openWithCredential(tokenInput.trim());
+          }}
         />
-        <button type="button" className="btn btn-primary" style={{ marginTop: "0.75rem" }} disabled={!tokenInput} onClick={() => openWithCredential(tokenInput.trim())}>
-          Open workspace
-        </button>
+        <div>
+          <button type="button" className="btn btn-primary" disabled={!tokenInput} onClick={() => openWithCredential(tokenInput.trim())}>
+            Open workspace
+          </button>
+        </div>
       </section>
-      <section style={panel} aria-labelledby="register-reviewer">
+      <section className="case-panel bn-card" aria-labelledby="register-reviewer">
         <h3 id="register-reviewer">Register as a reviewer</h3>
+        <p className="bn-fine">
+          Your registration number is shown to patients as self-declared: ArogyaRakshak is not connected to any council
+          registry. You receive a credential once, at the end.
+        </p>
+        <div className="ds-grid">
         {(
           [
             ["name", "Full name"],
@@ -67,25 +82,30 @@ export function SignInPanel({
             ["standing_disclosures", "Standing disclosures (insurer/hospital ties)"],
           ] as const
         ).map(([key, label]) => (
-          <div key={key} style={{ marginBottom: "0.5rem" }}>
+          <div key={key} className="ds-field">
             <label className="input-label" htmlFor={`reg-${key}`}>
               {label}
             </label>
             <input id={`reg-${key}`} className="input-field" value={reg[key]} onChange={(e) => setReg({ ...reg, [key]: e.target.value })} />
           </div>
         ))}
-        <label className="input-label" htmlFor="reg-category">
-          Category
-        </label>
-        <select id="reg-category" className="select-field" value={reg.category} onChange={(e) => setReg({ ...reg, category: e.target.value })}>
-          <option value="DOCTOR">Doctor</option>
-          <option value="PHARMACIST">Pharmacist</option>
-          <option value="MEDICAL_TRANSCRIPTIONIST">Medical transcriptionist</option>
-          <option value="TRAINED_ANNOTATOR">Trained annotator</option>
-        </select>
-        <button type="button" className="btn btn-secondary" style={{ marginTop: "0.75rem" }} disabled={reg.name.trim().length < 2} onClick={register}>
-          Register
-        </button>
+        <div className="ds-field">
+          <label className="input-label" htmlFor="reg-category">
+            Category
+          </label>
+          <select id="reg-category" className="select-field" value={reg.category} onChange={(e) => setReg({ ...reg, category: e.target.value })}>
+            <option value="DOCTOR">Doctor</option>
+            <option value="PHARMACIST">Pharmacist</option>
+            <option value="MEDICAL_TRANSCRIPTIONIST">Medical transcriptionist</option>
+            <option value="TRAINED_ANNOTATOR">Trained annotator</option>
+          </select>
+        </div>
+        </div>
+        <div>
+          <button type="button" className="btn btn-secondary" disabled={reg.name.trim().length < 2} onClick={register}>
+            Register and get a credential
+          </button>
+        </div>
       </section>
     </div>
   );

@@ -1,6 +1,6 @@
 /**
  * ArogyaRakshak Mobile Theme Color Tokens
- * Mirrors the production palette from apps/web/app/globals.css
+ * Mirrors the sovereign editorial palette from apps/web/app/globals.css
  */
 
 export interface ColorPalette {
@@ -13,6 +13,9 @@ export interface ColorPalette {
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
+  brandForest: string;
+  brandBrass: string;
+  brandSage: string;
   brandCyan: string;
   brandTeal: string;
   brandEmerald: string;
@@ -23,39 +26,45 @@ export interface ColorPalette {
 }
 
 export const darkColors: ColorPalette = {
-  bgBase: '#0a0e17',
-  bgSurface: '#111827',
-  bgSurfaceElevated: '#1e293b',
-  borderSubtle: 'rgba(255, 255, 255, 0.08)',
-  borderMedium: 'rgba(255, 255, 255, 0.15)',
-  borderFocus: '#06b6d4',
-  textPrimary: '#f8fafc',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  brandCyan: '#06b6d4',
-  brandTeal: '#14b8a6',
-  brandEmerald: '#10b981',
-  statusWarning: '#f59e0b',
-  statusDanger: '#ef4444',
-  statusSuccess: '#10b981',
-  statusInfo: '#3b82f6',
+  bgBase: '#151B18',
+  bgSurface: '#1D2520',
+  bgSurfaceElevated: '#252F28',
+  borderSubtle: '#354139',
+  borderMedium: '#425247',
+  borderFocus: '#A7BBA6',
+  textPrimary: '#F0F1EB',
+  textSecondary: '#B0B8B0',
+  textMuted: '#7A857C',
+  brandForest: '#244C3A',
+  brandBrass: '#C2AD7D',
+  brandSage: '#A7BBA6',
+  brandCyan: '#7097B0',
+  brandTeal: '#4E8777',
+  brandEmerald: '#52B788',
+  statusWarning: '#E5A84B',
+  statusDanger: '#E07A5F',
+  statusSuccess: '#52B788',
+  statusInfo: '#7097B0',
 };
 
 export const lightColors: ColorPalette = {
-  bgBase: '#f8fafc',
-  bgSurface: '#ffffff',
-  bgSurfaceElevated: '#f1f5f9',
-  borderSubtle: 'rgba(0, 0, 0, 0.08)',
-  borderMedium: 'rgba(0, 0, 0, 0.16)',
-  borderFocus: '#0891b2',
-  textPrimary: '#0f172a',
-  textSecondary: '#475569',
-  textMuted: '#64748b',
-  brandCyan: '#0891b2',
-  brandTeal: '#0d9488',
-  brandEmerald: '#059669',
-  statusWarning: '#d97706',
-  statusDanger: '#dc2626',
-  statusSuccess: '#059669',
-  statusInfo: '#2563eb',
+  bgBase: '#F7F6F2',
+  bgSurface: '#FFFFFF',
+  bgSurfaceElevated: '#E9EEE7',
+  borderSubtle: '#E2E5DF',
+  borderMedium: '#D1D6CD',
+  borderFocus: '#244C3A',
+  textPrimary: '#252A27',
+  textSecondary: '#69716B',
+  textMuted: '#8C948E',
+  brandForest: '#244C3A',
+  brandBrass: '#A58A57',
+  brandSage: '#5C7563',
+  brandCyan: '#4A6B82',
+  brandTeal: '#3B6B5E',
+  brandEmerald: '#2D6A4F',
+  statusWarning: '#C47D2B',
+  statusDanger: '#B85D43',
+  statusSuccess: '#2D6A4F',
+  statusInfo: '#4A6B82',
 };

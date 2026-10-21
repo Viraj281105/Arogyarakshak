@@ -32,7 +32,7 @@ API layer (`app/services`, `app/auto_triggers`, `app/claim_pack`).
 | A rule, calculation, reference-data lookup, prompt or agent | `packages/<module>/` (+ unit tests there) |
 | OCR, extraction, redaction, entity resolution, explanations, case graph | `packages/kadi/` |
 | A use case that loads rows, calls a package and shapes the result, needed by more than one caller | `apps/api/app/services/` |
-| A new route | `apps/api/app/api/v1/endpoints/<module>.py`, calling a package or a service |
+| A new route | `apps/api/app/api/v1/endpoints/<module>.py` (or package `endpoints/<module>/` composing sub-routers), calling a package or a service |
 | A table or column | `apps/api/app/models/<owning module>.py` (export it from `app/models/__init__.py`) **and** an Alembic revision (`docs/operations/database-migrations.md`) |
 | A setting | `apps/api/app/config.py` (`Settings`) + `docs/configuration/environment-variables.md` + `.env.example` |
 | A new top-level `app` module | add it to the `no-route-imports-below-http` contract (the architecture test tells you) |

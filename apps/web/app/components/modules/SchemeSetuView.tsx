@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi, caseAuthHeaders } from "../../hooks/useApi";
+import { StatePanel } from "../clinical/StatePanel";
 
 // --- API Response Type (matching backend SchemeResult schema) ---
 interface SchemeSource {
@@ -41,6 +42,38 @@ interface SchemeSetuViewProps {
   caseToken?: string;
 }
 
+// The engine normalises state names itself (schemesetu.dialect_normalizer); only
+// Maharashtra changes the result today (MJPJAY), PM-JAY applies everywhere.
+const STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
+  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+];
+
+// What is checked, from schemesetu/thresholds.py (sources retrieved 2026-09-13).
+const SCHEMES_CHECKED = [
+  {
+    name: "AB PM-JAY (Ayushman Bharat)",
+    where: "All states",
+    basis:
+      "Families listed under SECC-2011 or a state-verified database, ASHA / Anganwadi families, and everyone aged 70 or above. No income ceiling.",
+    decided: "Cannot be decided here — none of these facts is asked for, so the result is always “verification needed”.",
+    source: "PIB, written reply in the Lok Sabha, 28 Mar 2025",
+  },
+  {
+    name: "MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)",
+    where: "Maharashtra",
+    basis: "All families in Maharashtra since the integrated scheme of 1 July 2024, with ₹5 lakh cover per family per year.",
+    decided: "Decided by your stated state of residence, which is not checked against documents.",
+    source: "Government of Maharashtra district portals restating the GR of 28 July 2023",
+  },
+];
+
+/** "state_of_residence" -> "State of residence"; prose entries pass through. */
+const humanize = (s: string) => (/^[a-z_]+$/.test(s) ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ") : s);
+
 export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, caseId, caseToken }) => {
   const t = translations[currentLang].modules.schemesetu;
   const api = useApi<SchemeResult[]>();
@@ -48,23 +81,26 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
   // edit them, producing determinations about a fabricated person.
   const [income, setIncome] = useState("");
   const [state, setState] = useState("");
-  const [category, setCategory] = useState("General");
+  const [category, setCategory] = useState("");
   const [medicalNeed, setMedicalNeed] = useState("");
   const [hasChecked, setHasChecked] = useState(false);
   // Opt-in, unchecked by default: income is stored against a case only when the patient asks.
   const [saveToCase, setSaveToCase] = useState(false);
   const profileApi = useApi<IncomeProfileSaveResult>();
 
+  const incomeVal = parseFloat(income);
+  const canCheck = !Number.isNaN(incomeVal) && incomeVal >= 0 && !!state.trim();
+
   const handleCheck = async () => {
-    const incomeVal = parseFloat(income);
-    if (isNaN(incomeVal) || !state.trim() || !medicalNeed.trim()) return;
+    if (!canCheck) return;
     setHasChecked(true);
     await api.execute("/api/v1/schemesetu/eligibility", {
       body: {
         income: incomeVal,
         location_state: state,
-        category,
-        medical_need: medicalNeed,
+        // Neither decides eligibility; a category is sent only when the person chose one.
+        ...(category ? { category } : {}),
+        medical_need: medicalNeed.trim(),
       },
     });
     if (caseId && saveToCase) {
@@ -77,63 +113,52 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
   };
 
   const results = api.data;
-  const showExample = !hasChecked;
 
   return (
-    <div className="card">
-      <div style={{ marginBottom: "1.5rem" }}>
+    <div className="module-panel">
+      <header className="module-head">
+        <p className="lp-kicker">SchemeSetu · government health schemes</p>
         <h2>{t.title}</h2>
         <p>{t.desc}</p>
-      </div>
+      </header>
 
-      {/* Intake Form */}
-      <div
-        style={{
-          background: "var(--bg-surface-elevated)",
-          padding: "1.25rem",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border-subtle)",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <div className="grid-2" style={{ marginBottom: "1rem" }}>
-          <div>
-            <label className="input-label">{t.annualIncome}</label>
-            <input
-              type="number"
-              className="input-field"
-              value={income}
-              onChange={(e) => setIncome(e.target.value)}
-            />
+      <section className="case-panel bn-card" aria-labelledby="ss-form-title">
+        <h3 id="ss-form-title">Your details</h3>
+        <p className="bn-fine">
+          Only your state changes the result today. Income is recorded but never decides eligibility, because neither scheme
+          sets an official income ceiling. Category and medical need are optional and not used to decide.
+        </p>
+        <div className="ds-grid">
+          <div className="ds-field">
+            <label className="input-label" htmlFor="ss-income">
+              {t.annualIncome}
+              <span className="ds-required">required</span>
+            </label>
+            <input id="ss-income" type="number" inputMode="decimal" min={0} className="input-field" value={income} onChange={(e) => setIncome(e.target.value)} />
           </div>
-          <div>
-            <label className="input-label">{t.state}</label>
-            <select
-              className="select-field"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-            >
-              <option value="Maharashtra">Maharashtra</option>
-              <option value="Delhi">Delhi</option>
-              <option value="Karnataka">Karnataka</option>
-              <option value="Uttar Pradesh">Uttar Pradesh</option>
-              <option value="Gujarat">Gujarat</option>
-              <option value="Tamil Nadu">Tamil Nadu</option>
-              <option value="Rajasthan">Rajasthan</option>
-              <option value="West Bengal">West Bengal</option>
-              <option value="Kerala">Kerala</option>
+          <div className="ds-field">
+            <label className="input-label" htmlFor="ss-state">
+              {t.state}
+              <span className="ds-required">required</span>
+            </label>
+            <select id="ss-state" className="select-field" value={state} onChange={(e) => setState(e.target.value)}>
+              <option value="" disabled>
+                Choose your state or union territory
+              </option>
+              {STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           </div>
-        </div>
-
-        <div className="grid-2" style={{ marginBottom: "1.25rem" }}>
-          <div>
-            <label className="input-label">{t.socialCategory}</label>
-            <select
-              className="select-field"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
+          <div className="ds-field">
+            <label className="input-label" htmlFor="ss-category">
+              {t.socialCategory}
+              <span className="ds-optional">optional · not used to decide</span>
+            </label>
+            <select id="ss-category" className="select-field" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">Prefer not to say</option>
               <option value="General">General</option>
               <option value="OBC">OBC</option>
               <option value="SC">SC</option>
@@ -141,255 +166,162 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
               <option value="EWS">EWS</option>
             </select>
           </div>
-          <div>
-            <label className="input-label">{t.medicalNeed}</label>
-            <input
-              type="text"
-              className="input-field"
-              value={medicalNeed}
-              onChange={(e) => setMedicalNeed(e.target.value)}
-            />
+          <div className="ds-field">
+            <label className="input-label" htmlFor="ss-need">
+              {t.medicalNeed}
+              <span className="ds-optional">optional · not used to decide</span>
+            </label>
+            <input id="ss-need" type="text" className="input-field" value={medicalNeed} onChange={(e) => setMedicalNeed(e.target.value)} />
           </div>
         </div>
 
         {caseId && (
-          <label style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontSize: "0.85rem", marginBottom: "1rem" }}>
-            <input type="checkbox" checked={saveToCase} onChange={(e) => setSaveToCase(e.target.checked)} />
+          <label className="consent-wrapper ds-protect">
+            <input type="checkbox" className="consent-checkbox" checked={saveToCase} onChange={(e) => setSaveToCase(e.target.checked)} />
             <span>{t.saveToCaseLabel}</span>
           </label>
         )}
 
-        <button
-          type="button"
-          className="btn btn-primary"
-          style={{ width: "100%" }}
-          onClick={handleCheck}
-          disabled={api.loading || !income.trim() || !state.trim() || !medicalNeed.trim()}
-        >
-          {api.loading ? "Checking eligibility..." : `🔍 ${t.checkBtn}`}
-        </button>
-      </div>
+        <div className="ds-form-actions">
+          <button type="button" className="btn btn-primary" onClick={handleCheck} disabled={api.loading || !canCheck}>
+            {api.loading ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Checking eligibility…
+              </>
+            ) : (
+              t.checkBtn
+            )}
+          </button>
+          {!canCheck && <span className="ds-hint">Enter your annual income and choose your state.</span>}
+        </div>
 
-      {profileApi.data && (
-        <div
-          role="status"
-          style={{
-            padding: "0.75rem 1rem",
-            marginBottom: "1rem",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md)",
-            fontSize: "0.85rem",
-          }}
-        >
-          {profileApi.data.background_eligibility === "queued"
-            ? t.savedTriggered
-            : profileApi.data.background_eligibility === "not_ready"
-            ? t.savedNotReady
-            : t.savedNoChange}
-        </div>
-      )}
-      {profileApi.error && (
-        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "1rem" }}>
-          ⚠️ {typeof profileApi.error === "string" ? profileApi.error : "Could not save the income profile."}
-        </div>
-      )}
-
-      {/* Error State */}
-      {api.error && (
-        <div
-          style={{
-            padding: "1rem",
-            marginBottom: "1.5rem",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid var(--status-danger)",
-            borderRadius: "var(--radius-md)",
-            color: "#fca5a5",
-            fontSize: "0.9rem",
-          }}
-        >
-          ⚠️ {api.error}
-        </div>
-      )}
+        {api.error && (
+          <StatePanel kind="error" onRetry={handleCheck}>
+            Could not check eligibility: {api.error}
+          </StatePanel>
+        )}
+        {profileApi.data && (
+          <StatePanel kind="success">
+            {profileApi.data.background_eligibility === "queued"
+              ? t.savedTriggered
+              : profileApi.data.background_eligibility === "not_ready"
+                ? t.savedNotReady
+                : t.savedNoChange}
+          </StatePanel>
+        )}
+        {profileApi.error && <StatePanel kind="error">Could not save the income profile: {profileApi.error}</StatePanel>}
+      </section>
 
       {/* Real Results */}
       {results && results.length > 0 && (
-        <div>
-          <h3 style={{ marginBottom: "1rem" }}>{t.eligibleSchemes}</h3>
-          <div className="grid-2">
-            {results.map((scheme, idx) => {
-              const isEligible = scheme.estimated_eligibility === "eligible";
-              // "ambiguous" means the engine could not decide — never render it as "Not Eligible".
-              const isAmbiguous = scheme.estimated_eligibility === "ambiguous";
-              const borderColor = isEligible
-                ? "rgba(16, 185, 129, 0.3)"
-                : isAmbiguous
-                ? "rgba(245, 158, 11, 0.3)"
-                : "rgba(239, 68, 68, 0.2)";
-              const badgeClass = isEligible ? "badge-success" : isAmbiguous ? "badge-warning" : "badge-danger";
-              const badgeText = isEligible
-                ? t.provisionallyEligible
-                : isAmbiguous
-                ? t.verificationNeeded
-                : t.notEligible;
+        <section aria-labelledby="ss-results-title" className="ss-results">
+          <h3 id="ss-results-title" className="bn-lines-head">
+            {t.eligibleSchemes}
+          </h3>
+          {results.map((scheme, idx) => {
+            const isEligible = scheme.estimated_eligibility === "eligible";
+            // "ambiguous" means the engine could not decide — never render it as "Not Eligible".
+            const isAmbiguous = scheme.estimated_eligibility === "ambiguous";
+            const tone = isEligible ? "is-eligible" : isAmbiguous ? "is-ambiguous" : "is-ineligible";
+            const badgeClass = isEligible ? "badge-success" : isAmbiguous ? "badge-warning" : "badge-danger";
+            const badgeText = isEligible ? t.provisionallyEligible : isAmbiguous ? t.verificationNeeded : t.notEligible;
 
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    background: "var(--bg-base)",
-                    padding: "1.25rem",
-                    borderRadius: "var(--radius-md)",
-                    border: `1px solid ${borderColor}`,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                    <strong style={{ color: isEligible ? "var(--brand-emerald)" : "var(--text-secondary)", fontSize: "1.05rem" }}>
-                      {scheme.scheme_name}
-                    </strong>
+            return (
+              <article key={idx} className={`case-panel bn-card ss-scheme ${tone}`}>
+                <div className="case-panel-head">
+                  <h4 className="ss-scheme-name">{scheme.scheme_name}</h4>
+                  <span className="bn-badges">
                     <span className={`badge ${badgeClass}`}>{badgeText}</span>
-                  </div>
-                  <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", color: "var(--text-secondary)" }}>
-                    {scheme.reason}
-                  </p>
-
-                  {(isEligible || isAmbiguous) && scheme.claim_guide_steps.length > 0 && (
-                    <div style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
-                      <strong style={{ color: "var(--text-primary)" }}>{isEligible ? t.howToClaim : t.howToVerify}</strong>
-                      <ol style={{ paddingLeft: "1.25rem", marginTop: "0.25rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                        {scheme.claim_guide_steps.map((step, sIdx) => (
-                          <li key={sIdx}>{step}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-
-                  {scheme.is_provisional && (
-                    <div
-                      style={{
-                        marginTop: "0.75rem",
-                        paddingTop: "0.75rem",
-                        borderTop: "1px solid var(--border-subtle)",
-                        fontSize: "0.75rem",
-                        color: "var(--status-warning)",
-                      }}
-                    >
-                      ⓘ {t.provisionalNotice}
-                      {scheme.criteria_not_evaluated.length > 0 && (
-                        <div style={{ marginTop: "0.35rem", color: "var(--text-secondary)" }}>
-                          <strong>{t.criteriaNotEvaluated}:</strong> {scheme.criteria_not_evaluated.join(", ")}
-                        </div>
-                      )}
-                      {scheme.criteria_evaluated.length > 0 && (
-                        <div style={{ marginTop: "0.25rem", color: "var(--text-secondary)" }}>
-                          <strong>{t.criteriaEvaluated}:</strong> {scheme.criteria_evaluated.join(", ")}
-                        </div>
-                      )}
-                      {scheme.non_determinative_factors.length > 0 && (
-                        <div style={{ marginTop: "0.25rem", color: "var(--text-secondary)" }}>
-                          <strong>{t.nonDeterminative}:</strong> {scheme.non_determinative_factors.join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {scheme.sources.length > 0 && (
-                    <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                      <strong>{t.officialSources}:</strong>
-                      <ul style={{ paddingLeft: "1.25rem", marginTop: "0.25rem", lineHeight: 1.5 }}>
-                        {scheme.sources.map((source) => (
-                          <li key={source.url}>
-                            <a href={source.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-cyan)" }}>
-                              {source.document}
-                            </a>
-                            {` — ${source.publisher}${source.date ? ` (${source.date})` : ""}`}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    <span className="badge badge-demo" title="How the rule behind this result is sourced">
+                      {scheme.criteria_provenance === "OFFICIAL_SOURCE_CITED" ? "Official source cited" : "Official restatement cited"}
+                    </span>
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                <p className="bn-summary">{scheme.reason}</p>
+
+                <div className="ss-basis" aria-label="What this result is based on">
+                  <div className="ss-basis-col is-decided">
+                    <span className="ss-basis-head">{t.criteriaEvaluated}</span>
+                    {scheme.criteria_evaluated.length > 0 ? (
+                      <ul>{scheme.criteria_evaluated.map((c) => <li key={c}>{humanize(c)}</li>)}</ul>
+                    ) : (
+                      <p>Nothing — no deciding fact is collected here.</p>
+                    )}
+                  </div>
+                  <div className="ss-basis-col is-recorded">
+                    <span className="ss-basis-head">{t.nonDeterminative}</span>
+                    {scheme.non_determinative_factors.length > 0 ? (
+                      <ul>{scheme.non_determinative_factors.map((c) => <li key={c}>{humanize(c)}</li>)}</ul>
+                    ) : (
+                      <p>—</p>
+                    )}
+                  </div>
+                  <div className="ss-basis-col is-unchecked">
+                    <span className="ss-basis-head">{t.criteriaNotEvaluated}</span>
+                    <ul>{scheme.criteria_not_evaluated.map((c) => <li key={c}>{humanize(c)}</li>)}</ul>
+                  </div>
+                </div>
+
+                {scheme.is_provisional && <p className="bn-notice is-warning">{t.provisionalNotice}</p>}
+
+                {(isEligible || isAmbiguous) && scheme.claim_guide_steps.length > 0 && (
+                  <div className="ss-steps">
+                    <strong>{isEligible ? t.howToClaim : t.howToVerify}</strong>
+                    <ol>
+                      {scheme.claim_guide_steps.map((step, sIdx) => (
+                        <li key={sIdx}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {scheme.sources.length > 0 && (
+                  <div className="ss-sources">
+                    <strong>{t.officialSources}</strong>
+                    <ul>
+                      {scheme.sources.map((source) => (
+                        <li key={source.url}>
+                          <a href={source.url} target="_blank" rel="noopener noreferrer">
+                            {source.document}
+                          </a>
+                          <span>{` — ${source.publisher}${source.date ? ` (${source.date})` : ""}`}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </section>
       )}
 
       {/* Empty Results */}
       {results && results.length === 0 && (
-        <div
-          style={{
-            padding: "1rem",
-            textAlign: "center",
-            color: "var(--text-secondary)",
-            fontSize: "0.9rem",
-          }}
-        >
-          No government health scheme matches found for the given criteria.
-        </div>
+        <StatePanel kind="empty">No government health scheme matches found for the given criteria.</StatePanel>
       )}
 
-      {/* Example (before first check) */}
-      {showExample && (
-        <>
-          <div
-            style={{
-              padding: "0.5rem 0.75rem",
-              marginBottom: "1rem",
-              background: "rgba(245, 158, 11, 0.08)",
-              borderRadius: "var(--radius-sm, 4px)",
-              fontSize: "0.8rem",
-              color: "var(--status-warning)",
-              fontWeight: 600,
-            }}
-          >
-            ⓘ About the schemes checked — fill in your details above for a provisional assessment
+      {/* Before the first check: what is checked, from the cited records — not a result. */}
+      {!hasChecked && (
+        <section className="ss-explainer" aria-labelledby="ss-explainer-title">
+          <h3 id="ss-explainer-title" className="bn-lines-head">
+            What SchemeSetu checks
+          </h3>
+          <div className="ss-explainer-grid">
+            {SCHEMES_CHECKED.map((s) => (
+              <article key={s.name} className="case-panel bn-card">
+                <div className="case-panel-head">
+                  <h4 className="ss-scheme-name">{s.name}</h4>
+                  <span className="badge badge-demo">{s.where}</span>
+                </div>
+                <p className="bn-fine">{s.basis}</p>
+                <p className="ss-decided">{s.decided}</p>
+                <p className="bn-fine">Source: {s.source}</p>
+              </article>
+            ))}
           </div>
-
-          <h3 style={{ marginBottom: "1rem" }}>{t.eligibleSchemes}</h3>
-          <div className="grid-2" style={{ opacity: 0.7 }}>
-            <div
-              style={{
-                background: "var(--bg-base)",
-                padding: "1.25rem",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid rgba(6, 182, 212, 0.3)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <strong style={{ color: "var(--brand-cyan)", fontSize: "1.05rem" }}>Ayushman Bharat PM-JAY</strong>
-                <span className="badge badge-warning">{t.verificationNeeded}</span>
-              </div>
-              <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-                National flagship cashless secondary and tertiary hospitalization cover.
-              </p>
-              <div style={{ fontSize: "0.85rem" }}>
-                <span style={{ color: "var(--text-secondary)" }}>{t.maxCoverage}:</span>{" "}
-                <strong>₹5,00,000 / family / year</strong>
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: "var(--bg-base)",
-                padding: "1.25rem",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid rgba(16, 185, 129, 0.3)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <strong style={{ color: "var(--brand-emerald)", fontSize: "1.05rem" }}>{t.mjpjayCard}</strong>
-                <span className="badge badge-success">State Scheme</span>
-              </div>
-              <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-                Universal coverage for Maharashtra residents covering 1,356 medical/surgical procedures.
-              </p>
-              <div style={{ fontSize: "0.85rem" }}>
-                <span style={{ color: "var(--text-secondary)" }}>{t.maxCoverage}:</span>{" "}
-                <strong>₹5,00,000 / family / year</strong>
-              </div>
-            </div>
-          </div>
-        </>
+        </section>
       )}
     </div>
   );

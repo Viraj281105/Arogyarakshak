@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ReviewerProfile, SAFETY_FLOOR_DISCLAIMER, clinicalPaths } from "../../lib/clinical";
 import { StatePanel } from "../../components/clinical/StatePanel";
 import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
-import { Guard, ReviewerCall, RuleView, panel } from "../types";
+import { Guard, ReviewerCall, RuleView } from "../types";
 
 const EMPTY_RULE_FORM = {
   rule_key: "",
@@ -77,7 +77,7 @@ export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCal
     });
 
   return (
-    <section style={panel}>
+    <section className="case-panel bn-card">
       <h3>Clinical safety governance</h3>
       <p style={{ fontSize: "0.85rem" }}>{SAFETY_FLOOR_DISCLAIMER}</p>
       {rules.length === 0 && <StatePanel kind="empty">No rules to show.</StatePanel>}

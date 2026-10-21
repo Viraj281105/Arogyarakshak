@@ -9,6 +9,197 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Not-found and error pages, page 10 of the per-page design pass (2026-10-21)
+
+#### Added
+- `app/not-found.tsx`: a designed 404 (real 404 status, `noindex`, the saved theme) with links home, to the upload and to the reviewer workspace, and an honest note that a case in progress cannot be reopened from a new page load (its access key lives only in the original tab's memory).
+- `app/error.tsx`: route error boundary using Next 16's `retry` prop; shows only the server digest as a log reference, never the error message.
+- `app/global-error.tsx`: replaces the root layout when it fails; brings its own document, `globals.css` and the pre-paint theme script.
+- `components/StatusPage.tsx`: shared layout with the landing page's paper-bill illustration ("No matching row — so nothing is guessed").
+- `tests/status_pages.test.ts`.
+
+### Demo banner and controls, page 9 of the per-page design pass (2026-10-21)
+
+#### Fixed
+- The DEMO MODE banner was `position: sticky; top: 0` under a sticky header; on phones it slid beneath the header and covered page content. It now scrolls with the page, and a small "Demo" pill (`DemoPill`) stays in the header of `/` and `/clinical-review`, linking back to the banner (tucked under the emblem below 560 px).
+- Safety escalation card: the "Urgent" label ran into the rule title in the text ("URGENTPossible…"); a real space now separates them.
+
+#### Changed
+- `DemoBanner`: the server's banner text shown verbatim; "What is simulated?" groups the server's list into Simulated and Real.
+- `DemoControls`: operator key as a labelled field ("kept in memory only"), scenario cards with the server's title and module, reset as a destructive outline button, one-time credentials as persona cards (tokens are copy-only, never displayed), a hint while no key is entered. Request, confirmation and one-at-a-time logic unchanged.
+
+### Clinical reviewer workspace redesign, page 8 of the per-page design pass (2026-10-21)
+
+#### Changed
+- `/clinical-review`: sticky header (back link, signed-in reviewer, SVG theme toggle), display-type hero, two-column sign-in (credential | registration with a self-declared notice), a profile card with the reviewer ID and verification limits, and descriptive section tabs.
+- The "Medical Adjudication Portal" badge is gone — reviewers write attributed statements; nothing on this page adjudicates a claim.
+- The one-time credential panel gains a copy button and says no retrievable copy is kept.
+- Assigned reviews: queue | open review split view (queue sticky on desktop), a placeholder until a review is chosen, the audit trail as a timeline.
+- `types.ts` `panel` inline-style object removed in favour of the shared `case-panel` class; the unused aurora / dot-matrix background CSS removed.
+
+### DawaCheck tab redesign, page 7 of the per-page design pass (2026-10-21)
+
+#### Fixed (unverified or overstated claims)
+- Removed the "DPCO 2013 Provision" box that stated charging above the ceiling "is an offence under the Essential Commodities Act" and that pharmacies "must mandatorily display generic bio-equivalents". The project's `law_library.json` marks DPCO Para 14(1) as unverified and no source for the display rule exists in the repo. It is replaced by a "Legal basis" note saying the Order's text has not been verified.
+- EN copy: "Verifies pharmacy bill prices against … Schedule-I ceilings" → compares per-unit price against a curated subset; "Compliant with NPPA Cap" / "Overcharged vs Statutory Cap" / "Billed MRP" reworded; the generic-alternative line now says it comes from DawaCheck's reference data.
+
+#### Added
+- `modules/dawacheck/PriceBar`: paid-per-unit price against the NPPA ceiling marker on one scale, used by the manual check and by each medicine from the case; it draws a paid bar only when the server made the comparison.
+- The manual result now shows where the price basis came from (`basisNote`), which only the case panel showed before.
+- `tests/dawacheck_view.test.ts`.
+
+#### Changed
+- `DawaCheckView`: labelled fields instead of placeholder-only inputs, `StatePanel` errors with retry, result card coloured by verdict, shorthand translator as a token → meaning list.
+- `clinical/CaseMedicineTrustPanel` and `clinical/TranscriptionPanel`: shared panel shell and token styling; logic, wording and requests unchanged.
+
+### SchemeSetu tab redesign, page 6 of the per-page design pass (2026-10-21)
+
+#### Fixed
+- The state `<select>` started at `""` with no empty option, so it displayed "Maharashtra" while the check button stayed disabled. It now opens on "Choose your state or union territory" and lists all 28 states and 8 UTs (the engine normalises names itself).
+- The pre-check "example" cards claimed MJPJAY covers "1,356 medical/surgical procedures" (no source in the repo) and showed a green "State Scheme" badge. Replaced by a "What SchemeSetu checks" explainer stating only what `schemesetu/thresholds.py` cites, with its source.
+- Medical need was required although the engine lists it as an unused input; category defaulted to "General" and was sent as the person's answer. Both are now optional and marked "not used to decide"; category is sent only when chosen.
+- EN copy: "Intelligent eligibility assessment across … State healthcare programs" (only MJPJAY is covered) and "Eligible Government Health Schemes" (heading results that are mostly "verification needed") reworded.
+
+#### Changed
+- Each result shows its decision basis in three columns — decided by / recorded but not deciding / not checked — plus whether its rule cites an official source or an official restatement; sources are links; errors and the opt-in save use `StatePanel`.
+
+#### Added
+- `tests/schemesetu_view.test.ts`.
+
+### BimaNyay tab redesign, page 5 of the per-page design pass (2026-10-21)
+
+#### Fixed (overstated presentation)
+- The rule score (a fixed constant per denial category in `bimanyay/clause_auditor.py`, 0.50–0.95) was the headline "Reversal Likelihood Probability: 95%". It is now "Rule-based starting estimate: 95 / 100" with a hatched (not solid) bar and the heuristic disclosure always shown. Regression test: `tests/bimanyay_view.test.ts`.
+- Deadlines are computed from the day you press the button (`date_initiated` = today); the tracker now says so ("Counted from today…, assuming you send the step-1 appeal today. Calendar days; holidays are not applied.") and shows "in N days" per deadline.
+- EN labels: "Insurance Denial & Grievance Engine" → "Insurance Denial Appeals"; "Wrongful Repudiation Ground Detected" → "Grounds to contest found"; "Statutory & Regulatory Violations" → "Rules this denial may conflict with"; "ACTIVE"/"PENDING" → "Start here"/"Later step".
+
+#### Added
+- Each rule conflict now shows its `legal_remedy` (returned by the API but never displayed).
+- The form shows the denied share of the claim from the two amounts you entered, and warns if the denied amount exceeds the claim.
+- Whether the dispute is linked to your case is stated on the form.
+
+#### Changed
+- `BimaNyayView`: grouped form (policy / money / denial) with required marks and an "N fields still empty" hint; errors via `StatePanel` with retry.
+- `bimanyay/AppealDrafts`: real `tablist` for the three escalation steps with a line on when to use each; letter on paper; copy reports failure.
+- `bimanyay/SlaTimeline`, `DisputeSummary`, `ClinicalSection`: token styling, timeline markers, statement-load errors surfaced.
+
+### DaaviSetu tab redesign, page 4 of the per-page design pass (2026-10-21)
+
+#### Fixed (wrong or overstated labels)
+- "Download Form VI / Pre-Auth PDF" -> "Download pre-authorisation PDF": Form VI is the Insurance Ombudsman complaint form; the PDF is a pre-authorisation request laid out after IRDAI Annexure-B (`daavisetu/generator.py`).
+- Green "IRDAI Standard Annexure-B" badge -> neutral "Annexure-B layout"; "Network Provider" -> "Hospital"; "Clinical Protocol" -> "Treatment plan"; EN module description no longer claims "conforming to standardized IRDAI claim formats".
+- The no-case placeholder that mirrored typed fields under a "Generated Pre-Auth Package" heading is replaced by an empty state.
+- Structured API refusals (`{message, missing_fields}`) were shown as raw JSON; `normalizeErrorDetail` now renders the message and the missing fields (test added).
+
+#### Added
+- Optional "Estimated cost" field: the API already accepted `estimated_cost`, and without it a document with no bill total ended in a 422 the user could not fix from the UI.
+
+#### Changed
+- `DaaviSetuView`: three-step flow (readiness → fill the form → review & download) with required/optional field marks, a disabled-state hint, `StatePanel` errors with retry, a definition-list summary, and copy feedback. Download, encryption and unlock logic unchanged.
+- `clinical/PreauthReadinessPanel`: found / needs a doctor / not found meter and legend, per-item status marks; wording and requests unchanged.
+
+### BillNyay tab redesign, page 3 of the per-page design pass (2026-10-21)
+
+#### Changed
+- `BillNyayView`: module header, three action tiles (CGHS audit, appeal draft, plausibility) shown only with a case, an empty state that links to the upload, and results ordered audit → appeal → plausibility → clinical review. Audit errors now use `StatePanel` with a retry.
+- `billnyay/AuditResults`: the "Forensic Benchmark Coverage" bar (it divided by the whole bill, unmatched lines included, and labelled the result "% Inflation Flagged") is replaced by a composition chart built from each line's status (within / above / usually included elsewhere / not benchmarked) — a line billed below its reference no longer hides another billed above one. The table became a line list with a bar, reference marker, basis and status per line, which also works at 375 px.
+- `billnyay/AppealLetterCard`: letter shown as a paper document; disclosures as notices; copy button now confirms and reports clipboard failures.
+- `billnyay/PlausibilityCard` and the shared `clinical/ClinicalReviewPanel` shell: token styling, facts as a definition list; no wording or logic changed.
+
+#### Added
+- `tests/billnyay_audit_view.test.ts` for the composition (`composeAudit`).
+
+### Case workspace redesign, page 2 of the per-page design pass (2026-10-21)
+
+#### Changed
+- `/`: everything that appears once a document is uploaded now lives in one "Your case" workspace (`#case-desk`): title that reflects the real state (reading / read / stopped), the file name, and the add-document and delete-case actions in its header; processing, safety, duplicate questions and the Claim Pack in the main column; the case history beside them.
+- `AgentStreamVisualizer`: stage rail driven only by the status stream; the active stage shows an indeterminate bar instead of a made-up 65% width.
+- `CaseTimeline`: vertical history with actor markers (software / human reviewer / you) and `<time>` elements; same states (loading, empty, failure, retry).
+- `SafetyEscalationBanner`, `EntityResolutionReview`, `ClaimPackPanel`: token-based styling for every state (hardcoded `#ef4444`/`#fca5a5` removed); errors use `StatePanel`. The Claim Pack lists the sections `claim_pack.py` can actually write.
+- Client log messages no longer say "multi-agent SSE status stream" or "Kadi layer".
+
+#### Removed
+- The unused `.stream-bar` / `.stream-step` styles.
+
+### Landing page redesign, page 1 of the per-page design pass (2026-10-21)
+
+#### Removed (fabricated or unbacked claims from the 2026-10-20 pass)
+- `ForensicStoryteller.tsx` (deleted): an invented clinician and MCI registration number, "WASM SHA256" / "100% Client-Side Engine" (documents are uploaded to the API), invented scenario figures and circular clause numbers, and a "Form VI Legal Petition" button that only printed a success message.
+- Hero stat grid ("₹14.8 Cr+ reclaimed", "0.00 Bytes retained", "1,840+ NPPA tariffs" — the NPPA reference holds 7 formulations) and the "Client-Side AES-256 Enclave" compliance banner.
+- Uploader badges "Max 60MB" (the API limit is 10 MB) and "Devanagari / English OCR" (EasyOCR runs English only); footer badge "DPDP Act 2023 Compliant".
+
+#### Added
+- `apps/web/app/components/landing/`: hero with an animated SVG bill illustration, a four-step case journey with a scroll-driven connector, a worked example (made-up bill, real CGHS rows, statuses by the same rule as `services/billnyay_audit.py`), module cards that open the real tab, and a reference-coverage chart.
+- `app/lib/referenceSnapshot.ts` + `tests/reference_snapshot.test.ts`: every reference count shown on the page is checked against `billnyay/data/*.json` and `dawacheck/reference_data.py`.
+- `app/hooks/useScrollMotion.ts`: scroll reveal and scroll progress; content stays visible without JS and under reduced motion.
+- Real drag-and-drop on the dropzone (the copy already said "drag & drop" but there was no drop handler).
+
+#### Changed
+- Light theme is now the default unless the OS prefers dark; `useTheme` reads the pre-paint `data-theme` attribute through `useSyncExternalStore`, removing a hydration mismatch on the toggle icon.
+- Light `--text-muted` darkened to `#6F7771` (was 3.1:1 on white); new tokens `--font-display` (Fraunces), `--accent-gold`, `--tint-*`, `--chart-*`, `--paper-*`.
+- Header shows the real tagline, SVG theme icons, and stays one row at 375 px.
+
+### Design Refinement: Sovereign Editorial & System-Wide Light Mode Overhaul (2026-10-20)
+
+#### Added
+- Stitch MCP Design System refinement: updated `assets/14841168233921936765` in project `projects/10088274222863233022` to *ArogyaRakshak Sovereign Editorial & Human Trust* and generated flagship editorial screen `88d1182e3aee4c08a06e1b5762442414`.
+- Sovereign Editorial Light & Dark Palettes: Warm ivory canvas (`#F7F6F2`), primary surface (`#FFFFFF`), soft sage wash (`#E9EEE7`), deep forest green (`#244C3A`), graphite text (`#252A27`), secondary text (`#69716B`), muted architectural border (`#E2E5DF`), restrained brass (`#A58A57`), and terracotta status danger (`#B85D43`) in light mode; and deep forest-black (`#151B18`), elevated moss-slate (`#1D2520`), secondary forest shadow (`#252F28`), soft sage accent (`#A7BBA6`), clean linen text (`#F0F1EB`), mineral secondary text (`#B0B8B0`), subtle border (`#354139`), and muted brass (`#C2AD7D`) in dark mode.
+- Synchronous blocking `<script>` in `apps/web/app/layout.tsx` to restore `arogyarakshak_theme` from `localStorage` before layout paint, preventing FOUC and keeping themes consistent across all routes.
+- Theme switching toggle and `useTheme()` synchronization in `/clinical-review` workspace header (`apps/web/app/clinical-review/page.tsx`).
+- High-contrast `.nested-surface-box` class for child cards and citations across all modules in both light and dark themes.
+
+#### Changed
+- `apps/web/app/globals.css`: Eliminated neon emerald halos, cyber cyan/indigo gradients, and glowing card borders; replaced futuristic ambient orbs with warm organic forest illumination; refined buttons, tabs, tables, inputs, and modals with true light-mode tokens.
+- `apps/web/app/components/Header.tsx`: Replaced fixed green SVG emblem with dynamic `currentColor` rendering (restrained brass in dark mode, crisp clean white in light mode within deep forest badge).
+- `apps/web/app/components/DocumentUploader.tsx`: Removed glowing cyan dropzone ring; updated to deep forest and soft sage styling.
+- `apps/web/app/components/AgentStreamVisualizer.tsx`: Converted dark hardcoded terminal window to semantic `var(--bg-terminal)` and replaced neon progress bars with forest green and brass.
+- `apps/web/app/components/ForensicStoryteller.tsx`: Converted hardcoded dark backgrounds (`rgba(3, 7, 18, 0.7)`) to semantic tokens, resolving black-on-black contrast bugs in light mode.
+- `apps/web/app/components/modules/billnyay/AuditResults.tsx`: Converted progress bars to semantic emerald/terracotta tokens and eliminated dark glass leaks.
+- `apps/mobile/src/theme/colors.ts` & `apps/mobile/src/screens/HomeScreen.tsx`: Replaced neon colors with Sovereign Editorial tokens (`brandForest`, `brandBrass`, `brandSage`, `statusDanger`).
+
+### Sovereign UI/UX Transformation & Cinematic Scroll Storytelling (2026-10-20)
+
+#### Added
+- Stitch MCP design system `ArogyaRakshak Sovereign Health Glass` (`assets/14841168233921936765`) and screen `906bc2f99ad24ea595765a574f7df11e` (*ArogyaRakshak — Sovereign Healthcare Intelligence Landing & Storytelling Experience*).
+- `apps/web/app/components/ForensicStoryteller.tsx`: 4-Phase Cinematic Forensic Lifecycle narrative (*Raw Chaos* → *Translucent Lens* → *Benchmark Sync* → *Statutory Remedy*).
+- Master Interactive Adjudication Console with multi-scenario switching (Scenarios A, B, C), live line-item discrepancy waterfall, statutory citation box, and recoverable clawback total banners.
+- Statutory Foundations & Telemetry Bento Grid: Section 45 Incontestability Rule, MCI/FRCS Clinical Governance Council, IRDAI 2024 1-Hour Cashless Decision Rule, and DawaCheck 85% Jan Aushadhi generic arbitrage.
+- Desktop pointer-responsive dynamic specular lighting (`--pointer-x`, `--pointer-y`) on `.interactive-specular` and `.glass-specular` surfaces.
+- Visual Discrepancy Waterfall & Benchmark Gauge in `apps/web/app/components/modules/billnyay/AuditResults.tsx`.
+- 4-Stage forensic narrative summary chips and statutory precedent tags in `apps/mobile/src/screens/HomeScreen.tsx`.
+- Production-grade multi-layer auroral ambient canvas (`.living-bg-container`) and Devanagari ambient watermark (`आरोग्यम् परमं भाग्यम्`).
+
+#### Changed
+- `apps/web/app/page.tsx`: Elevated hero section with editorial typography, statutory enclave badge, verified stat micro-grid, and smooth intake scroll link.
+- `apps/web/app/components/Header.tsx`: glowing emerald shield emblem, live pulse indicator, quick reviewer console chip, and trilingual language switcher.
+- `apps/web/app/components/DocumentUploader.tsx`: radar pulse scanner card, supported format tags (PDF, Devanagari OCR, Max 60MB), and specular border styling.
+- `apps/web/app/components/AgentStreamVisualizer.tsx`: glowing terminal log pane, stage micro-badges, and live progress bar.
+- `apps/web/app/components/ModuleTabs.tsx`: statutory authority pills (`CGHS`, `Pre-Auth`, `IRDAI`, `PMJAY`, `NPPA`) and glass tab pills.
+- `apps/mobile/src/theme/colors.ts` & `Card.tsx`: dark Stitch obsidian palette (`#030712`), elevated card borders, and layered elevation shadows.
+
+### Codebase restructuring and module modularization (2026-10-19)
+
+#### Added
+- Modular route packages composing sub-routers: `apps/api/app/api/v1/endpoints/kadi/` (`abdm`, `cases`, `insights`, `loaders`, `resolution`, `schemas`), `clinical_review/` (`registry`, `reviewer`, `case_holder`, `schemas`), and `daavisetu/` (`claims`, `readiness`).
+- `apps/api/app/services/billnyay_llm.py` (Groq client adapter and deterministic fallback letters) and `services/billnyay_appeal.py` (appeal/grievance orchestration, signed-PDF generation, and appeal record lookup).
+- `apps/api/app/models/` package organizing ORM models by owning domain (`kadi`, `clinical_review`, `billnyay`, `bimanyay`, `daavisetu`, `dawacheck`, `schemesetu`, `safety`, `transcription`), all re-exported by `__init__.py`.
+- Modularized Web components: `apps/web/app/clinical-review/components/` (workspace tabs and panels), `components/modules/billnyay/`, `components/modules/bimanyay/`, `components/ModuleTabs.tsx`, and `hooks/useCaseSession.ts`.
+- Modularized Mobile components: `apps/mobile/src/screens/camera/` (`styles`, `useScanUpload`, `ScanOverlays`, `PermissionGate`), `screens/billnyay/`, and domain types package in `src/api/types/`.
+- Single API base constant across web client: `apps/web/app/lib/apiBase.ts`.
+- Restructuring audit report: `docs/architecture/restructuring-2026-10.md`.
+
+#### Changed
+- `apps/api/app/clinical/service.py`: streamlined into a thin facade over focused internal services (`case_reviews`, `reviewer_reviews`, `statements`, `facts`, `review_common`).
+- Thin HTTP routes: `apps/api/app/api/v1/endpoints/billnyay.py` reduced from 743 to 233 lines by delegating business logic to `app.services`.
+- Large production files: all routing, model, and screen files > 500 lines broken down into cohesive units; only 7 files remain > 500 lines (static translation dictionaries, CSS styles, and cohesive domain engines).
+
+#### Removed
+- Dead code: removed unwired `packages/kadi/kadi/vector_store.py` (`KadiVectorStore`), unused `apps/mobile/src/hooks/index.ts` barrel, uncalled `document_jobs.job_view`, and unused `httpx` runtime dependency in `apps/api/requirements.txt`.
+- Purged 19 unused imports and variables across production modules.
+
+#### Fixed
+- Fixed SQLite test fixture isolation in `apps/api/tests/conftest.py` ensuring database file persistence across sessions and preventing premature deletion during async request teardown (commit `3e154d7`).
+
 ### Engineering foundation pass (2026-10-19, ADR-018 – ADR-021)
 
 #### Added

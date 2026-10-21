@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { clinicalPaths } from "../../lib/clinical";
 import { StatePanel } from "../../components/clinical/StatePanel";
 import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
-import { Guard, ReviewerCall, TranscriptionView, panel } from "../types";
+import { Guard, ReviewerCall, TranscriptionView } from "../types";
 
 type ReadingInput = { value: string; unreadable: boolean; confidence: string };
 
@@ -33,7 +33,7 @@ export function TranscriptionTab({ guard, call }: { guard: Guard; call: Reviewer
     }, "Reading submitted. Other readers cannot see it.");
 
   return (
-    <section style={panel}>
+    <section className="case-panel bn-card">
       <h3>Transcription tasks</h3>
       <p style={{ fontSize: "0.85rem" }}>
         You are reading as a transcription reviewer. For possible-medication fields you cannot see the software&apos;s guess or

@@ -1,4 +1,3 @@
-import type React from "react";
 import type { ClinicalStatement, FactDecision } from "../lib/clinical";
 
 // The reviewer never holds the patient's case id (the server omits it).
@@ -81,14 +80,6 @@ export const TRIGGER_LABEL: Record<string, string> = {
   DENIAL_CATEGORY: "The insurer's denial turns on clinical judgment",
   SAFETY_RULE: "A clinical safety rule fired",
   READINESS_CLINICAL_FACT: "The pre-authorization relies on clinical facts only a doctor can confirm",
-};
-
-export const panel: React.CSSProperties = {
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-md)",
-  padding: "1.25rem",
-  marginBottom: "1.25rem",
-  background: "var(--bg-surface)",
 };
 
 export interface StatementEditorState {

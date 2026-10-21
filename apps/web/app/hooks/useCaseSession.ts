@@ -168,7 +168,7 @@ export function useCaseSession({ consentRequiredMessage }: { consentRequiredMess
     setIsProcessing(true);
     setPipelineStep(1);
     setErrorMessage(null);
-    setLiveLog("Initializing case session with Kadi layer...");
+    setLiveLog("Creating your case…");
 
     try {
       // 1. Create patient case session in Kadi
@@ -187,7 +187,7 @@ export function useCaseSession({ consentRequiredMessage }: { consentRequiredMess
       const newCaseToken: string = caseData.access_token;
       setCaseId(newCaseId);
       setCaseToken(newCaseToken);
-      setLiveLog("Case created. Uploading document for transient OCR...");
+      setLiveLog("Case created. Uploading your document…");
 
       // 2. Upload document to /kadi/cases/{case_id}/upload
       const formData = new FormData();
@@ -204,7 +204,7 @@ export function useCaseSession({ consentRequiredMessage }: { consentRequiredMess
       }
 
       // 3. Connect real-time Server-Sent Events (SSE) stream.
-      setLiveLog("Document received. Listening to live multi-agent SSE status stream...");
+      setLiveLog("Document received. Waiting for the server to report progress…");
       connectStream(newCaseId, newCaseToken);
     } catch (err) {
       // Previously fell back to a fake "simulated audit" here — animating the pipeline
@@ -259,7 +259,7 @@ export function useCaseSession({ consentRequiredMessage }: { consentRequiredMess
     setActiveFileName(file.name);
     setIsProcessing(true);
     setPipelineStep(1);
-    setLiveLog("Adding a document to this case...");
+    setLiveLog("Adding a document to this case…");
     try {
       const formData = new FormData();
       formData.append("file", file);

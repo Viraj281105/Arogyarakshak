@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { AuditEvent, ClinicalStatement, EvidenceItem, FactDecision, clinicalPaths } from "../../lib/clinical";
 import { StatePanel } from "../../components/clinical/StatePanel";
 import { TONE_CLASS, formatTimestamp, humanizeEnum } from "../../lib/labels";
-import { AssignedReview, FactInput, Guard, MODULE_LABEL, ReviewerCall, ReviewerDetail, StatementEditorState, panel } from "../types";
+import { AssignedReview, FactInput, Guard, MODULE_LABEL, ReviewerCall, ReviewerDetail, StatementEditorState } from "../types";
 import { EvidencePanel } from "./EvidencePanel";
 import { FactConfirmations } from "./FactConfirmations";
 import { ReviewSummary } from "./ReviewSummary";
@@ -119,38 +119,51 @@ export function ReviewsTab({
   const canWork = detail && (detail.status === "IN_REVIEW" || detail.status === "COMPLETED");
 
   return (
-    <>
-      <section style={panel}>
-        <h3>Assigned to you</h3>
+    <div className="rv-split">
+      <section className="case-panel bn-card rv-queue" aria-labelledby="rv-queue-title">
+        <div className="case-panel-head">
+          <h3 id="rv-queue-title">Assigned to you</h3>
+          <button type="button" className="btn btn-ghost btn-compact" onClick={refreshQueue}>
+            Refresh
+          </button>
+        </div>
         {queue.length === 0 && (
           <StatePanel kind="empty">
             No reviews are assigned to you yet. A patient assigns you by the reviewer ID shown above; press refresh after they do.
           </StatePanel>
         )}
-        <button type="button" className="btn btn-secondary btn-compact" onClick={refreshQueue}>
-          Refresh queue
-        </button>
-        {queue.map((r) => (
-          <div
-            key={r.review_id}
-            style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", padding: "0.6rem 0", borderTop: "1px solid var(--border-subtle)" }}
-          >
-            <span style={{ minWidth: 0 }}>
-              <strong>{r.review_type === "FACT_CONFIRMATION" ? "Confirm clinical facts" : "Clinical statement"}</strong> ·{" "}
-              {MODULE_LABEL[r.source_module] ?? humanizeEnum(r.source_module)}
-              <br />
-              <span className={TONE_CLASS.neutral}>{humanizeEnum(r.status)}</span>{" "}
-              {r.created_at && <span style={{ fontSize: "0.75rem", opacity: 0.8 }}>requested {formatTimestamp(r.created_at)}</span>}
-            </span>
-            <button type="button" className="btn btn-secondary btn-compact" onClick={() => openReview(r.review_id)}>
-              Open
-            </button>
-          </div>
-        ))}
+        <ul className="rv-queue-list">
+          {queue.map((r) => (
+            <li key={r.review_id}>
+              <button
+                type="button"
+                className={`rv-queue-item ${detail?.review_id === r.review_id ? "is-open" : ""}`}
+                aria-current={detail?.review_id === r.review_id ? "true" : undefined}
+                onClick={() => openReview(r.review_id)}
+              >
+                <strong>{r.review_type === "FACT_CONFIRMATION" ? "Confirm clinical facts" : "Clinical statement"}</strong>
+                <span className="rv-queue-module">{MODULE_LABEL[r.source_module] ?? humanizeEnum(r.source_module)}</span>
+                <span className="rv-queue-meta">
+                  <span className={TONE_CLASS.neutral}>{humanizeEnum(r.status)}</span>
+                  {r.created_at && <span>requested {formatTimestamp(r.created_at)}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </section>
 
+      {!detail && queue.length > 0 && (
+        <div className="module-empty rv-placeholder">
+          <div>
+            <strong>Choose a review to open it</strong>
+            <p>Its question, the evidence the patient shared with you and your statement appear here.</p>
+          </div>
+        </div>
+      )}
+
       {detail && (
-        <section style={panel} aria-labelledby="review-detail">
+        <section className="case-panel bn-card rv-detail" aria-labelledby="review-detail">
           <ReviewSummary detail={detail} coi={coi} setCoi={setCoi} onAccept={accept} onDecline={decline} />
 
           {canWork && (
@@ -201,20 +214,27 @@ export function ReviewsTab({
             </>
           )}
 
-          <button type="button" className="btn" style={{ marginTop: "1rem", border: "1px solid var(--border-subtle)" }} onClick={showAudit}>
-            Show audit trail
-          </button>
+          <div>
+            <button type="button" className="btn btn-ghost btn-compact" onClick={showAudit}>
+              {audit ? "Refresh audit trail" : "Show audit trail"}
+            </button>
+          </div>
           {audit && (
-            <ol className="timeline-list" style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
+            <ol className="timeline rv-audit">
               {audit.map((e) => (
-                <li key={e.id} className="timeline-item">
-                  {formatTimestamp(e.created_at)} — {humanizeEnum(e.event_type)} ({humanizeEnum(e.actor_type)})
+                <li key={e.id} className="timeline-event">
+                  <span className="timeline-dot" aria-hidden="true" />
+                  <div className="timeline-meta">
+                    <time dateTime={e.created_at}>{formatTimestamp(e.created_at)}</time>
+                    <span>{humanizeEnum(e.actor_type)}</span>
+                  </div>
+                  <strong className="timeline-label">{humanizeEnum(e.event_type)}</strong>
                 </li>
               ))}
             </ol>
           )}
         </section>
       )}
-    </>
+    </div>
   );
 }

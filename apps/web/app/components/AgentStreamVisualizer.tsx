@@ -13,14 +13,14 @@ interface AgentStreamVisualizerProps {
   liveLog?: string;
 }
 
-export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
-  currentLang,
-  currentStep,
-  activeFileName,
-  caseId,
-  liveLog,
-}) => {
+/**
+ * Where the document is in processing, driven only by the server's status stream
+ * (useCaseSession). The active stage shows an indeterminate bar: the stream reports which
+ * stage is running, not how far through it is, so no percentage is shown.
+ */
+export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({ currentLang, currentStep, liveLog }) => {
   const t = translations[currentLang];
+  const complete = currentStep >= 4;
 
   const steps = [
     { id: 1, label: t.stream.stepOcr },
@@ -30,61 +30,46 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
   ];
 
   return (
-    <div className="stream-bar" role="region" aria-live="polite" aria-label="Pipeline Progress">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span className="step-indicator active" />
-          <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--brand-cyan)" }}>
-            {t.stream.statusHeading}
-          </span>
-          {activeFileName && (
-            <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              [{activeFileName}]
-            </span>
-          )}
-          {caseId && (
-            <span style={{ fontSize: "0.75rem", color: "var(--brand-teal)", background: "rgba(20, 184, 166, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
-              Case open
-            </span>
-          )}
-        </div>
-        <span style={{ fontSize: "0.8rem", color: "var(--brand-emerald)" }}>
-          {currentStep >= 4 ? "✓ Extraction complete" : `Pipeline Stage ${currentStep} of 4`}
+    <section className="case-panel tracker" aria-label="Document processing progress">
+      <div className="case-panel-head">
+        <h3>{t.stream.statusHeading}</h3>
+        <span className={`tracker-count ${complete ? "is-complete" : ""}`} aria-live="polite">
+          {complete ? "Complete" : `Stage ${currentStep} of 4`}
         </span>
       </div>
 
-      {liveLog && (
-        <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.4rem", fontStyle: "italic" }}>
-          📡 {liveLog}
-        </div>
-      )}
-
-
-      <div className="stream-steps">
+      <ol className="tracker-rail">
         {steps.map((s) => {
-          const isDone = currentStep > s.id || currentStep === 4;
-          const isActive = currentStep === s.id;
+          const done = currentStep > s.id || complete;
+          const active = !complete && currentStep === s.id;
+          const state = done ? "is-done" : active ? "is-active" : "is-pending";
           return (
-            <div key={s.id} className="stream-step">
-              <span
-                className={`step-indicator ${isDone ? "done" : isActive ? "active" : ""}`}
-              />
-              <span
-                style={{
-                  fontWeight: isActive || isDone ? 600 : 400,
-                  color: isDone
-                    ? "var(--brand-emerald)"
-                    : isActive
-                    ? "var(--text-primary)"
-                    : "var(--text-muted)",
-                }}
-              >
-                {s.label}
+            <li key={s.id} className={`tracker-step ${state}`} aria-current={active ? "step" : undefined}>
+              <span className="tracker-node" aria-hidden="true">
+                {done ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" className="lp-icon">
+                    <path d="M5 12.5l4.2 4.2L19 7" />
+                  </svg>
+                ) : (
+                  <span>{s.id}</span>
+                )}
               </span>
-            </div>
+              <span className="tracker-label">
+                {s.label}
+                <span className="sr-only">{done ? " — done" : active ? " — in progress" : " — waiting"}</span>
+              </span>
+              <span className="tracker-bar" aria-hidden="true" />
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ol>
+
+      {liveLog && (
+        <p className="tracker-log" aria-live="polite">
+          <span className="tracker-log-label">Latest from the server</span>
+          <span className="tracker-log-text">{liveLog}</span>
+        </p>
+      )}
+    </section>
   );
 };
