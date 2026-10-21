@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 from app.api.v1.endpoints import kadi as kadi_endpoint
+
+from app.services import case_ingestion  # ingestion pipeline (ADR-018)
 from app.config import settings
 from tests.clinical_helpers import K, client, register, rh
 
@@ -58,7 +60,7 @@ def test_timeline_reports_a_processing_failure_with_recovery(monkeypatch):
     def broken_parse(file_bytes, filename):
         return {"extraction_ok": False, "extraction_error": "The document could not be read."}
 
-    monkeypatch.setattr(kadi_endpoint, "parse_document", broken_parse)
+    monkeypatch.setattr(case_ingestion, "parse_document", broken_parse)
     case_id = client.post(f"{K}/cases", json={"consent_opt_in": True}).json()["id"]
     client.post(f"{K}/cases/{case_id}/upload", files={"file": ("x.png", b"\x89PNG-not-really")})
     body = _timeline(case_id)

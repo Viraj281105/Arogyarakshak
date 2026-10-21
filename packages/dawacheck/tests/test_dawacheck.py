@@ -1,4 +1,3 @@
-import pytest
 from dawacheck.checker import benchmark_medicine
 
 

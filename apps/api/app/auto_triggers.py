@@ -29,6 +29,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.background import get_background_session
 from app.models import KadiCase, KadiEntity, KadiModuleInsight, SchemeSetuCaseProfile
+from app.services.billnyay_audit import build_case_audit, build_case_icd_audit
+from app.services.dawacheck_benchmarks import build_case_medicine_benchmarks
+from app.services.schemesetu_eligibility import build_case_eligibility
 from kadi.triggers import (
     ContextSnapshot,
     ModuleReadiness,
@@ -61,8 +64,6 @@ async def readiness_for_case(session: AsyncSession, case: KadiCase) -> List[Modu
 
 
 async def _run_billnyay_audit(session: AsyncSession, case: KadiCase) -> Dict[str, Any]:
-    from app.api.v1.endpoints.billnyay import build_case_audit
-
     audit = await build_case_audit(case.id, session)
     return {
         "total_charged": audit.total_charged,
@@ -75,8 +76,6 @@ async def _run_billnyay_audit(session: AsyncSession, case: KadiCase) -> Dict[str
 
 
 async def _run_billnyay_icd_audit(session: AsyncSession, case: KadiCase) -> Dict[str, Any]:
-    from app.api.v1.endpoints.billnyay import build_case_icd_audit
-
     audit = await build_case_icd_audit(case.id, session)
     return {
         "status": audit.status,
@@ -87,8 +86,6 @@ async def _run_billnyay_icd_audit(session: AsyncSession, case: KadiCase) -> Dict
 
 
 async def _run_dawacheck_benchmark(session: AsyncSession, case: KadiCase) -> Dict[str, Any]:
-    from app.api.v1.endpoints.dawacheck import build_case_medicine_benchmarks
-
     results = await build_case_medicine_benchmarks(case.id, session)
     # A medicine matched to a reference but whose billed amount has no comparable per-unit
     # basis is not "benchmarked": no verdict was reached for it.
@@ -107,8 +104,6 @@ async def _run_dawacheck_benchmark(session: AsyncSession, case: KadiCase) -> Dic
 
 
 async def _run_schemesetu_eligibility(session: AsyncSession, case: KadiCase) -> Dict[str, Any]:
-    from app.api.v1.endpoints.schemesetu import build_case_eligibility
-
     profile = await session.get(SchemeSetuCaseProfile, case.id)
     results = await build_case_eligibility(
         case.id,

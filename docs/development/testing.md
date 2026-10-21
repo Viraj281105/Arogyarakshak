@@ -34,9 +34,19 @@ tests/
 
 Current counts are recorded in `PROJECT_CONTEXT.md` §15 (1,000+ backend tests as of 2026-09-27).
 ```bash
-# Run all package unit tests & API integration tests
-python -m pytest packages/ apps/api/tests/
+# Everything pytest.ini lists: packages/, apps/api/tests/ and tests/ (infrastructure policy)
+python -m pytest
+
+# Architecture contracts — fails on a forbidden import (ADR-018)
+PYTHONPATH=apps/api lint-imports
 ```
+
+Foundation tests added 2026-10-19: `test_architecture.py` (contracts cover every module),
+`test_migrations.py` (Alembic == models; set `MIGRATION_TEST_DATABASE_URL` to an empty
+PostgreSQL database to run it there too), `test_openapi_contract.py` (live schema ==
+`docs/api/openapi.json`), `test_document_jobs.py` (ADR-019), `test_platform_foundation.py`
+(probes, request ids, headers, production profile) and `tests/infrastructure/` (Kubernetes
+manifest policy).
 
 ### 2.2 Run Mobile Client Tests
 ```bash

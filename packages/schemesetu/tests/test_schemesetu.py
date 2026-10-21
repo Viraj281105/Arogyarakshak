@@ -1,4 +1,3 @@
-import pytest
 from schemesetu.agent import check_eligibility, EligibilityRequest
 
 

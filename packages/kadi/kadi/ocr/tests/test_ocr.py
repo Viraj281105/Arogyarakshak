@@ -1,4 +1,3 @@
-import pytest
 from kadi.ocr.ocr_parser import parse_document
 
 

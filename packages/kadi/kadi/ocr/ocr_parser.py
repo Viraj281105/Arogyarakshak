@@ -116,12 +116,14 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
     treating the document as successfully processed.
     """
     lowered = (filename or "").lower()
+    # Log the file type only: an uploaded file name can identify the patient (ADR-003).
+    file_type = lowered.rsplit(".", 1)[-1] if "." in lowered else "(none)"
 
     if lowered.endswith(TEXT_EXTENSIONS):
         try:
             text = file_bytes.decode("utf-8", errors="ignore")
         except Exception as e:
-            logger.warning("Text decoding failed for %s: %s", filename, e)
+            logger.warning("Text decoding failed for a .%s file: %s", file_type, e)
             return _result("", filename, False, "Could not decode the text document.")
         if not text.strip():
             return _result("", filename, False, "The document contained no readable text.")
@@ -130,7 +132,7 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
     if lowered.endswith(IMAGE_EXTENSIONS):
         dimension_error = _check_image_dimensions(file_bytes)
         if dimension_error:
-            logger.warning("Rejected image %s before decode: %s", filename, dimension_error)
+            logger.warning("Rejected a .%s image before decode: %s", file_type, dimension_error)
             return _result("", filename, False, dimension_error)
 
         try:
@@ -154,7 +156,7 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
                 if len(res) >= 3
             ]
         except Exception as e:
-            logger.warning("EasyOCR image parsing failed for %s: %s", filename, e)
+            logger.warning("EasyOCR image parsing failed for a .%s file: %s", file_type, e)
             return _result("", filename, False, "Optical character recognition failed.")
         if not text.strip():
             return _result(
@@ -170,7 +172,7 @@ def parse_document(file_bytes: bytes, filename: str = "document.pdf") -> Dict[st
         for page in doc:
             text += page.get_text() + "\n"
     except Exception as e:
-        logger.warning("PyMuPDF parsing failed for %s: %s", filename, e)
+        logger.warning("PyMuPDF parsing failed for a .%s file: %s", file_type, e)
         return _result("", filename, False, "The PDF could not be read.")
 
     if not text.strip():

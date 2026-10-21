@@ -1,0 +1,29 @@
+# ArogyaRakshak — Kubernetes base (ADR-021). Render with:
+#   kubectl kustomize infrastructure/kubernetes/overlays/example
+# Not deployed anywhere by this repository. PostgreSQL is NOT part of this base: point
+# DATABASE_URL (Secret) at a managed or separately operated PostgreSQL 16.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: arogyarakshak
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: arogyarakshak
+    includeSelectors: false
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - api.yaml
+  - web.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: arogyarakshak-api-config
+    literals:
+      - APP_ENV=production
+      - GROQ_MODEL=openai/gpt-oss-120b
+      # Migrations run as a separate Job (jobs/migrate.yaml) before a rollout.
+      - SCHEMA_MANAGEMENT=none
+      - LOG_FORMAT=json
+      - CLINICAL_DEMO_MODE=false
+      - KADI_SEMANTIC_MATCHING=false
+      # The ingress controller is the one trusted hop in front of the API.
+      - TRUSTED_PROXY_COUNT=1

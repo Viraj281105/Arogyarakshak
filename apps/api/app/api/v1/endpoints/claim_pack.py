@@ -14,9 +14,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import daavisetu_playbooks as playbooks
-from app.api.v1.endpoints.billnyay import build_case_audit
-from app.api.v1.endpoints.daavisetu import _claim_data_from_record
-from app.api.v1.endpoints.dawacheck import build_case_medicine_benchmarks
 from app.case_auth import require_case_access
 from app.claim_pack import ClaimPackInput, build_claim_pack_zip
 from app.clinical import service as clinical_service
@@ -31,6 +28,9 @@ from app.models import (
     KadiCase,
     KadiEntity,
 )
+from app.services.billnyay_audit import build_case_audit
+from app.services.daavisetu_claims import claim_data_from_record
+from app.services.dawacheck_benchmarks import build_case_medicine_benchmarks
 from daavisetu.generator import generate_preauth_pdf
 from daavisetu.readiness import render_readiness_text
 
@@ -131,7 +131,7 @@ async def download_claim_pack(
         await db.execute(select(DaaviSetuClaim).where(DaaviSetuClaim.case_id == case_id))
     ).scalar_one_or_none()
     preauth_pdf = (
-        generate_preauth_pdf(claim_id=claim.id, claim_input=_claim_data_from_record(claim)) if claim else None
+        generate_preauth_pdf(claim_id=claim.id, claim_input=claim_data_from_record(claim)) if claim else None
     )
 
     zip_bytes = build_claim_pack_zip(

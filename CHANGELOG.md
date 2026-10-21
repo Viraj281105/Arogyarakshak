@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Engineering foundation pass (2026-10-19, ADR-018 – ADR-021)
+
+#### Added
+- `apps/api/app/services/` application layer and `.importlinter` architecture contracts, run in CI (`lint-imports`) and backed by `test_architecture.py` (ADR-018).
+- Alembic migrations (`apps/api/alembic.ini`, `migrations/`), `SCHEMA_MANAGEMENT=migrate|none|create_all`, automatic adoption of databases created by the old `create_all` start-up (ADR-020).
+- `kadi_document_jobs`: persisted document processing state; jobs in flight at a restart become `interrupted` and the progress stream tells the user to re-upload (ADR-019).
+- `/health/live` and `/health/ready`; `X-Request-ID` on every response; `LOG_FORMAT=json`; hardening headers (`nosniff`, `DENY`, `no-referrer`, `no-store`, CORP).
+- OpenAPI contract snapshot (`docs/api/openapi.json`, `scripts/export_openapi.py`, `test_openapi_contract.py`).
+- `infrastructure/kubernetes/` (kustomize, single-replica API, hardened pods) with policy tests in `tests/infrastructure/` (ADR-021). Not deployed anywhere.
+- `.github/workflows/security.yml`: gitleaks, pip-audit, npm audit, Trivy image report and CycloneDX SBOM.
+
+#### Changed
+- `APP_ENV=production` now refuses to start with the default/short signing secret, default database credentials, wildcard CORS, `create_all` or demo mode; `/docs` and `/redoc` are off in production.
+- FastAPI 0.115.12 → 0.148.0, Starlette → 1.9.0 (pinned), python-multipart 0.0.12 → 0.0.32, Next.js 16.3.4 → 16.4.2; known advisories on the API and web production dependencies cleared.
+- API and web images are multi-stage; uvicorn access log disabled in favour of route-template access logs; compose web bound to 127.0.0.1.
+- CI: least-privilege permissions; Alembic upgrade + `alembic check` and a migration round trip on PostgreSQL 16; kustomize render.
+
+#### Fixed
+- Logs no longer contain case ids from URLs, submitted validation values or uploaded file names.
+- `scripts/evaluate_latency.py` had been reporting PASS with zero samples (every upload was a 401).
+- Web image build copied the host's `node_modules` over the Linux install (missing `.dockerignore`).
+
 ### "Why am I seeing this?" explanation trail (2026-10-19, ADR-017)
 
 #### Added

@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy import event
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 
 from app.main import app as fastapi_app
 from app.database import Base, get_db
@@ -15,7 +15,7 @@ DATABASE_URL = "sqlite+aiosqlite:///test_temp.db"
 engine = create_async_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+    poolclass=NullPool,
 )
 
 
@@ -35,6 +35,23 @@ TestingSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
+
+@pytest.fixture(autouse=True, scope="session")
+def cleanup_test_database_session():
+    """Ensure test_temp.db is cleaned up before and after the entire test session."""
+    import os
+    if os.path.exists("test_temp.db"):
+        try:
+            os.remove("test_temp.db")
+        except Exception:
+            pass
+    yield
+    if os.path.exists("test_temp.db"):
+        try:
+            os.remove("test_temp.db")
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -61,7 +78,6 @@ def reset_latency_tracker():
 def setup_database():
     """Fixture to create all tables before each test and drop them after."""
     import asyncio
-    import app.models
     from app.database import Base as db_base
 
     async def create_tables():
@@ -76,12 +92,6 @@ def setup_database():
     yield
     asyncio.run(drop_tables())
     asyncio.run(engine.dispose())
-    try:
-        import os
-        if os.path.exists("test_temp.db"):
-            os.remove("test_temp.db")
-    except Exception:
-        pass
 
 
 async def override_get_db():

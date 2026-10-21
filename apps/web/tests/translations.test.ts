@@ -1,7 +1,6 @@
 import { test, describe } from 'node:test';
+import { viewSource } from './viewSource';
 import assert from 'node:assert';
-import fs from 'node:fs';
-import path from 'node:path';
 import { translations, Language } from '../app/translations';
 
 describe('Web Trilingual Localization Integrity', () => {
@@ -238,7 +237,6 @@ describe('Phase 4 — no hardcoded English literals in trilingual views', () => 
   });
 
   test('component source no longer contains the hardcoded English literals found by the audit', () => {
-    const webAppDir = path.join(__dirname, '..', 'app', 'components', 'modules');
     const bannedLiterals: Record<string, string[]> = {
       'BillNyayView.tsx': ['<th>Audit Status</th>'],
       'DawaCheckView.tsx': ['<th>Compliance Status</th>'],
@@ -253,7 +251,7 @@ describe('Phase 4 — no hardcoded English literals in trilingual views', () => 
       ],
     };
     Object.entries(bannedLiterals).forEach(([file, literals]) => {
-      const source = fs.readFileSync(path.join(webAppDir, file), 'utf-8');
+      const source = viewSource(file.replace(/\.tsx$/, ''));
       literals.forEach((literal) => {
         assert.ok(!source.includes(literal), `${file} still hardcodes English literal: ${literal}`);
       });

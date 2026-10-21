@@ -1,4 +1,5 @@
 import { test, describe } from 'node:test';
+import { viewSource } from './viewSource';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -71,7 +72,7 @@ describe('Web Domain Contracts and Routing Boundaries', () => {
 
 describe('Web Consent Request Behaviour', () => {
   const source = readFileSync(
-    join(process.cwd(), 'app', 'page.tsx'),
+    join(process.cwd(), 'app', 'hooks', 'useCaseSession.ts'),
     'utf-8'
   );
   const uploader = readFileSync(
@@ -82,11 +83,11 @@ describe('Web Consent Request Behaviour', () => {
   test('case creation must send the user consent value, never a hardcoded true', () => {
     assert.ok(
       !/consent_opt_in:\s*true/.test(source),
-      'page.tsx must not hardcode consent_opt_in: true'
+      'case creation (useCaseSession) must not hardcode consent_opt_in: true'
     );
     assert.ok(
       /consent_opt_in:\s*consentGiven/.test(source),
-      'page.tsx must send the actual consent value'
+      'case creation (useCaseSession) must send the actual consent value'
     );
   });
 
@@ -136,7 +137,7 @@ describe('Web Forms Must Not Pre-Fill Fabricated Data', () => {
 
   views.forEach((view) => {
     test(`${view} must not seed form state with sample identity or clinical data`, () => {
-      const src = readFileSync(join(moduleDir, `${view}.tsx`), 'utf-8');
+      const src = viewSource(view);
       const seeded = src
         .split('\n')
         .filter((line) => line.includes('useState(') && !line.trim().startsWith('//'));

@@ -1,4 +1,3 @@
-import pytest
 from daavisetu.generator import (
     check_policy_limit,
     generate_claim_package,

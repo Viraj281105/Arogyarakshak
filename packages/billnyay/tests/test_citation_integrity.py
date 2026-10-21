@@ -12,7 +12,6 @@ These tests prove no pubmed_id — LLM-claimed or hardcoded — can reach a fina
 ClinicalEvidence object or an appeal letter, under any code path.
 """
 
-import re
 
 from billnyay.agents.auditor import StructuredDenial
 from billnyay.agents.barrister import format_clinical_evidence, run_barrister_agent

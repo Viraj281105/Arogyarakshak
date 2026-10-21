@@ -1,7 +1,7 @@
 """Per-client-IP request rate limiting.
 
 In-memory fixed-window counter, consistent with the existing single-process
-`processing_status` store in `app/api/v1/endpoints/kadi.py`: bounded, evicted, and
+`processing_status` store in `app/services/case_ingestion.py`: bounded, evicted, and
 explicitly documented as not shared across workers. A multi-worker or multi-instance
 deployment would need this backed by Redis or the database instead (see the CI
 guardrails / ADR notes on `processing_status` for the same caveat) — recorded as a
@@ -29,7 +29,7 @@ actual code, not assumed from the report):
 
 import time
 from collections import OrderedDict
-from typing import Optional, Tuple
+from typing import Tuple
 
 from starlette.requests import Request
 

@@ -1350,6 +1350,7 @@ def test_unhandled_errors_do_not_leak_internal_detail():
     async def boom():
         raise RuntimeError("SECRET_INTERNAL_DETAIL_should_not_be_returned")
 
+    routes_before = list(fastapi_app.router.routes)
     fastapi_app.include_router(probe)
     try:
         local = TestClient(fastapi_app, raise_server_exceptions=False)
@@ -1362,9 +1363,14 @@ def test_unhandled_errors_do_not_leak_internal_detail():
         # An operator-traceable id replaces the leaked message.
         assert len(body["error_id"]) == 12
     finally:
-        fastapi_app.router.routes = [
-            r for r in fastapi_app.router.routes if getattr(r, "path", "") != "/__boom__"
-        ]
+        # Restore the exact route list: FastAPI >= 0.13x wraps an included router (it has
+        # no `.path`), so filtering by path no longer removed the probe. Drop the schema
+        # and route-template caches built while the probe was mounted.
+        from app import observability
+
+        fastapi_app.router.routes = routes_before
+        fastapi_app.openapi_schema = None
+        observability._templates = None
 
 
 def test_cors_does_not_pair_wildcard_origin_with_credentials():
@@ -1723,6 +1729,7 @@ def test_extraction_warnings_reach_the_persisted_entity_and_completion_log(monke
     reach somewhere visible — the document_text entity's meta and the SSE completion
     log — not sit unused on a Pydantic model nobody reads."""
     from app.api.v1.endpoints import kadi as kadi_module
+    from app.services import case_ingestion  # ingestion pipeline (ADR-018)
     from kadi.extraction import ExtractedEntities
 
     flagged = ExtractedEntities(
@@ -1730,7 +1737,7 @@ def test_extraction_warnings_reach_the_persisted_entity_and_completion_log(monke
         total_amount=500.0,
         extraction_warnings=["Source document text contained phrasing resembling a prompt-injection attempt: test"],
     )
-    monkeypatch.setattr(kadi_module, "extract_entities_from_text", lambda *a, **kw: flagged)
+    monkeypatch.setattr(case_ingestion, "extract_entities_from_text", lambda *a, **kw: flagged)
 
     case_id = _case_with_document(b"Consultation: 500\nTotal Amount: 500\n")
 
@@ -1746,10 +1753,11 @@ def test_extraction_warnings_reach_the_persisted_entity_and_completion_log(monke
 
 def test_clean_extraction_leaves_no_warning_trace(monkeypatch):
     from app.api.v1.endpoints import kadi as kadi_module
+    from app.services import case_ingestion  # ingestion pipeline (ADR-018)
     from kadi.extraction import ExtractedEntities
 
     clean = ExtractedEntities(hospital_name="Test Hospital", total_amount=500.0)
-    monkeypatch.setattr(kadi_module, "extract_entities_from_text", lambda *a, **kw: clean)
+    monkeypatch.setattr(case_ingestion, "extract_entities_from_text", lambda *a, **kw: clean)
 
     case_id = _case_with_document(b"Consultation: 500\nTotal Amount: 500\n")
 

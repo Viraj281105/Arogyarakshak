@@ -13,19 +13,23 @@
 
 services:
   api:
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
     environment:
       CLINICAL_DEMO_MODE: "true"
       APP_ENV: development
       CLINICAL_GOVERNANCE_ADMIN_KEY: ${CLINICAL_GOVERNANCE_ADMIN_KEY:?set CLINICAL_GOVERNANCE_ADMIN_KEY to a long random demo key}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3).status == 200 else 1)"]
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 40s
 
   web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: runtime
     command: ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]
     ports: !override
       - "127.0.0.1:3000:3000"

@@ -1,0 +1,10 @@
+# Build context for apps/web/Dockerfile. Without this, `COPY . .` sent the host's
+# node_modules (Windows/macOS native binaries) and .next into the image, overwriting
+# what `npm ci` had just installed for Linux.
+node_modules/
+.next/
+*.tsbuildinfo
+tests/
+.env
+.env.*
+npm-debug.log*

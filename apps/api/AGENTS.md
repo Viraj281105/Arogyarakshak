@@ -8,6 +8,7 @@ This directory contains the central REST API gateway and database connection lif
    - All REST endpoints are mounted under `/api/v1` via `app/api/v1/api.py`.
    - Each module gets its own endpoint file in `app/api/v1/endpoints/<module>.py`.
    - Never add business logic directly inside endpoint handlers. Call into the domain logic functions in `packages/<module>`.
+   - Use cases needed by more than one entry point (routes, auto-triggers, Claim Pack, retention sweep, demo kit, evaluation) live in `app/services/` (ADR-018). Nothing outside `app/api` may import a route module, and route modules never import each other — `lint-imports` enforces this.
 
 2. **Database & Async Sessions**:
    - The API uses asynchronous SQLAlchemy (`asyncpg` driver).
@@ -21,7 +22,7 @@ This directory contains the central REST API gateway and database connection lif
      async def example_route(db: AsyncSession = Depends(get_db)):
          ...
      ```
-   - All persistent tables must be defined in `app/models.py`.
+   - All persistent tables must be defined in `app/models/<owning module>.py` (re-exported by `app/models/__init__.py`), with a matching Alembic revision in `migrations/versions/` (ADR-020).
 
 3. **Server-Sent Events (SSE) Streaming**:
    - Long-running document audits must stream status updates using `StreamingResponse` with media type `text/event-stream`.

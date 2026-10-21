@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi, API_BASE, caseAuthHeaders } from "../../hooks/useApi";
 import { PreauthReadinessPanel } from "../clinical/PreauthReadinessPanel";
+import { saveBlob } from "../../lib/download";
 import {
   ENCRYPTED_EXTENSION,
   PackageCryptoError,
@@ -55,16 +56,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
   const [unlockPassword, setUnlockPassword] = useState("");
   const [unlockMessage, setUnlockMessage] = useState<string | null>(null);
 
-  const saveBytes = (bytes: BlobPart, filename: string, type: string) => {
-    const url = URL.createObjectURL(new Blob([bytes], { type }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  const saveBytes = (bytes: BlobPart, filename: string, type: string) => saveBlob(new Blob([bytes], { type }), filename);
 
   const protectionProblem = protect
     ? passwordProblem(protectPassword) ?? (protectPassword !== protectConfirm ? "The two passwords do not match." : null)

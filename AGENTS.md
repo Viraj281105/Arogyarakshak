@@ -2,7 +2,7 @@
 
 **Project Name:** "ArogyaRakshak (आरोग्यरक्षक)"  
 **Stack:** FastAPI + Next.js (App Router) + PostgreSQL + Groq API  
-*(pgvector / FAISS similarity search is planned; `kadi/vector_store.py` is an unwired scaffold.)*  
+*(pgvector / FAISS similarity search is planned — not implemented; the unwired `kadi/vector_store.py` scaffold was removed 2026-10-19 as dead code — no FAISS/pgvector code exists.)*  
 **Environment:** Monorepo (`apps/`, `packages/`, `data/`, `docs/`)  
 
 ---
@@ -70,12 +70,14 @@ arogyarakshak/
 ├── apps/
 │   ├── api/                     # FastAPI backend application
 │   │   ├── app/
-│   │   │   ├── api/v1/          # Versioned REST endpoints (kadi, billnyay, schemesetu, etc.)
+│   │   │   ├── api/v1/          # Versioned REST endpoints (kadi, billnyay, schemesetu, etc.) — thin HTTP layer
+│   │   │   ├── services/        # Use cases shared by >1 entry point (ADR-018); never imports app.api
 │   │   │   ├── config.py        # Pydantic Settings (GROQ_MODEL, DATABASE_URL)
 │   │   │   ├── database.py      # Async SQLAlchemy engine & session factory
 │   │   │   ├── main.py          # FastAPI application entrypoint & error handlers
-│   │   │   └── models.py        # SQLAlchemy ORM models (kadi_cases, kadi_entities, etc.)
-│   │   ├── Dockerfile           # Backend container definition
+│   │   │   └── models/          # SQLAlchemy ORM models, one module per owning domain (kadi, clinical_review, billnyay, ...)
+│   │   ├── migrations/          # Alembic revisions (ADR-020); alembic.ini alongside
+│   │   ├── Dockerfile           # Backend container definition (multi-stage, non-root)
 │   │   ├── requirements.txt     # Backend runtime dependencies
 │   │   └── tests/               # pytest test suite for API endpoints
 │   ├── web/                     # Next.js frontend application (App Router)
@@ -92,6 +94,9 @@ arogyarakshak/
 │   └── dawacheck/               # NPPA Schedule-I medicine pricing & generic mapping
 ├── data/                        # Ingestion scripts & raw public government data (CGHS, NPPA, PMJAY)
 ├── docs/                        # Complete technical documentation, backlog, and ADRs
+├── infrastructure/kubernetes/   # Kustomize base + example overlay (ADR-021); validated, not deployed
+├── tests/infrastructure/        # Policy tests for the Kubernetes manifests
+├── .importlinter                # Architecture contracts (ADR-018), run as `lint-imports`
 ├── .github/                     # Workflows (ci.yml), templates, CODEOWNERS
 └── docker-compose.yml           # PostgreSQL 16 + pgvector, API, and Web service definitions
 ```
@@ -145,6 +150,9 @@ python -m pytest packages/
 # Run frontend lint
 cd apps/web
 npm run lint
+
+# Architecture contracts (from the repo root)
+PYTHONPATH=apps/api lint-imports
 ```
 
 ---
@@ -160,8 +168,10 @@ npm run lint
 - Return standard HTTP error payloads: `{"detail": "...", "message": "..."}` matching `apps/api/app/main.py`.
 
 ### 4.3 Database Migrations & Models
-- All database tables must live in `apps/api/app/models.py` subclassing SQLAlchemy `Base`.
-- Never run manual `ALTER TABLE` queries ad hoc. Any schema change must be codified in models.
+- All database tables must live in `apps/api/app/models/<owning module>.py` (re-exported from `app.models`) subclassing SQLAlchemy `Base`.
+- Never run manual `ALTER TABLE` queries ad hoc. Any schema change must be codified in models **and** shipped as an Alembic revision (`cd apps/api && alembic revision --autogenerate -m "..."`, then review it). `apps/api/tests/test_migrations.py` fails when they disagree (ADR-020).
+- Code placement: domain rules in `packages/<module>`, shared use cases in `apps/api/app/services`, HTTP concerns in route modules. See `docs/architecture/module-boundaries.md`; `lint-imports` enforces it.
+- The API runs as exactly one process/replica (ADR-019). Do not add `--workers`, replicas or an HPA.
 
 ---
 

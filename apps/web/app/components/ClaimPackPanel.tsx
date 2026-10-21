@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { API_BASE } from "../hooks/useApi";
 import { ClaimPackError, fetchClaimPack } from "../lib/claimPack";
 import { ENCRYPTED_EXTENSION, passwordProblem } from "../lib/packageCrypto";
+import { saveBlob } from "../lib/download";
 
 /**
  * Claim Pack (ADR-015): one ZIP for the person helping with the paperwork. Optional
@@ -27,14 +28,7 @@ export const ClaimPackPanel: React.FC<{ caseId: string; caseToken?: string }> = 
     setBusy(true);
     try {
       const file = await fetchClaimPack(API_BASE, caseId, caseToken, { password: protect ? password : undefined });
-      const url = URL.createObjectURL(new Blob([file.bytes as BlobPart], { type: file.mimeType }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = file.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      saveBlob(new Blob([file.bytes as BlobPart], { type: file.mimeType }), file.filename);
     } catch (e) {
       setError(e instanceof ClaimPackError ? e.message : "Could not build the Claim Pack. Is the backend reachable?");
     } finally {

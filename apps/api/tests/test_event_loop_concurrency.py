@@ -18,6 +18,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 import app.api.v1.endpoints.kadi as kadi_module
+
+from app.services import case_ingestion  # ingestion pipeline (ADR-018)
 from app.main import app
 
 _started = threading.Event()
@@ -41,7 +43,7 @@ def _blocking_parse_document(file_bytes, filename):
 async def test_health_stays_responsive_while_document_processing_blocks(monkeypatch):
     _started.clear()
     _release.clear()
-    monkeypatch.setattr(kadi_module, "parse_document", _blocking_parse_document)
+    monkeypatch.setattr(case_ingestion, "parse_document", _blocking_parse_document)
     monkeypatch.setattr(kadi_module.settings, "groq_api_key", "")  # force offline extraction fallback
 
     transport = ASGITransport(app=app)

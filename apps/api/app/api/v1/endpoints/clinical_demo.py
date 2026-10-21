@@ -62,7 +62,7 @@ async def reset_clinical_demo(
     _require_demo()
     if body.confirm != RESET_CONFIRMATION:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Type '{RESET_CONFIRMATION}' to confirm the demo reset.",
         )
     try:

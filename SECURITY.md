@@ -45,5 +45,8 @@ We will acknowledge receipt of your vulnerability report within 48 hours and pro
 ## Secrets & Credential Management
 
 - **Zero Hardcoded Secrets**: Never commit real API keys, Groq tokens, database passwords, or JWT secrets to this repository.
-- **Git Pre-commit & Scanners**: Maintainers run automated secret detection (`gitleaks` / GitHub Secret Scanning).
+- **Secret scanning**: gitleaks runs in CI on every pull request (full history) and weekly; `scripts/ci_guardrails.py` also blocks Groq-style keys.
 - **Environment Isolation**: All configuration is passed strictly via `.env` files (which are ignored in `.gitignore`) or Docker environment variables.
+- **Production profile**: with `APP_ENV=production` the API refuses to start while a development default remains (signing secret, database credentials, wildcard CORS, `create_all`, demo mode). Error messages name the variable, never the value.
+- **Automated scans**: `.github/workflows/security.yml` runs gitleaks, pip-audit, npm audit and a Trivy image report on pull requests and weekly; policy and exceptions in [docs/security/supply-chain.md](docs/security/supply-chain.md).
+- **Logs**: access and error lines carry the request id, the route template (not the raw URL), status and timing. Application messages may name a case id (a random identifier) for correlation. Logs never contain document contents, uploaded file names, access tokens or submitted form values.
