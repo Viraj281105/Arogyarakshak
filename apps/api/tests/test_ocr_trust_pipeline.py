@@ -13,6 +13,8 @@ was benchmarked as an ordinary AI_DERIVED extraction.
 import pytest
 
 from app.api.v1.endpoints import kadi as kadi_endpoint
+
+from app.services import case_ingestion  # ingestion pipeline (ADR-018)
 from kadi.extraction import ExtractedEntities
 from tests.clinical_helpers import K, client, register, rh
 
@@ -36,8 +38,8 @@ def _stub_pipeline(monkeypatch, *, segments, medicines, diagnosis=None):
             procedures=[],
         )
 
-    monkeypatch.setattr(kadi_endpoint, "parse_document", fake_parse)
-    monkeypatch.setattr(kadi_endpoint, "extract_entities_from_text", fake_extract)
+    monkeypatch.setattr(case_ingestion, "parse_document", fake_parse)
+    monkeypatch.setattr(case_ingestion, "extract_entities_from_text", fake_extract)
 
 
 def _upload(monkeypatch, *, segments, medicines):

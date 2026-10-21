@@ -1,0 +1,15 @@
+# Example environment overlay. Copy it per environment and set real image digests, host
+# names and the ingress class. Secrets are created out of band and never committed — see
+# docs/operations/kubernetes.md#secrets.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: arogyarakshak
+resources:
+  - ../../base
+  - ingress.yaml
+images:
+  # A real overlay pins by digest: newName: registry.example/arogyarakshak-api, digest: sha256:...
+  - name: arogyarakshak-api
+    newTag: example
+  - name: arogyarakshak-web
+    newTag: example

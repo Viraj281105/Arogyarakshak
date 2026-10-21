@@ -312,7 +312,8 @@ describe('Mobile Screens Must Not Pre-Fill Fabricated Data', () => {
     // but nothing ever deleted the locally-cached photo takePictureAsync() writes to
     // the device — a real local-storage privacy gap (and a UI claim that didn't match
     // what the code did) independent of the server-side BYOD zero-retention claim.
-    const src = readFileSync(join(screenDir, 'CameraScanScreen.tsx'), 'utf-8');
+    // Upload and cleanup live in screens/camera/useScanUpload.ts.
+    const src = readFileSync(join(screenDir, 'camera', 'useScanUpload.ts'), 'utf-8');
     assert.ok(/FileSystem\.deleteAsync/.test(src), 'must call FileSystem.deleteAsync to clean up the cached photo');
     // Must run regardless of upload success/failure — i.e. inside a finally block.
     const finallyBlock = src.slice(src.indexOf('} finally {'), src.indexOf('};', src.indexOf('} finally {')));

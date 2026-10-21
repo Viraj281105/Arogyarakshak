@@ -28,7 +28,7 @@ Kadi (कड़ी — "link in a chain") is the shared intelligence and context
    - Changes to weights, thresholds or guards must be re-evaluated with `scripts/evaluate_entity_resolution.py` (synthetic fixture: zero false merges is a regression floor).
 
 4. **Vector Store & In-Memory Indices**:
-   - `kadi/vector_store.py` is a scaffold for future FAISS/pgvector indexes. It contains no FAISS today and is imported by no endpoint.
+   - FAISS/pgvector indexes are planned, not implemented. The unwired `kadi/vector_store.py` scaffold was removed (2026-10-19); add a new module only together with a real caller.
 
 5. **Validation**:
    - Run tests from package root:

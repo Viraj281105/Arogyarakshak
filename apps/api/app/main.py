@@ -10,20 +10,69 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.background import register_dependency_overrides
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.case_retention import run_retention_sweep_loop
 from app.config import settings
-from app.database import engine, Base
+from app.database import AsyncSessionLocal, engine, Base, get_db
 from app.api.v1.api import api_router
+from app.observability import RequestContextMiddleware, configure_logging, route_template, warm_route_templates
 from app.rate_limit import limiter, resolve_client_ip
+from app import schema
+from app.services import document_jobs
 
 logger = logging.getLogger("arogyarakshak.api")
-logging.basicConfig(level=logging.INFO)
+configure_logging(settings.log_format, settings.log_level, settings.app_env)
+
+# Paths that must answer even when a client is rate limited (orchestrator probes).
+PROBE_PATHS = {"/health", "/health/live", "/health/ready"}
+
+# Outcome of the start-up schema step, reported by /health/ready.
+schema_state = {"ok": False, "revision": None, "detail": "not checked yet"}
+
+
+def enforce_production_profile() -> None:
+    """APP_ENV=production refuses to start with development defaults (see
+    Settings.production_config_errors). Raising here stops uvicorn before it serves."""
+    if not settings.is_production:
+        return
+    errors = settings.production_config_errors()
+    for message in errors:
+        logger.critical("Refusing to start under APP_ENV=production: %s", message)
+    if errors:
+        raise RuntimeError(f"{len(errors)} production configuration error(s); see the log above.")
+
+
+async def apply_schema() -> None:
+    """ADR-020: migrations are the schema's source of truth; see app.schema for modes."""
+    mode = settings.schema_management
+    try:
+        if mode == "migrate":
+            revision = await asyncio.to_thread(schema.upgrade_to_head, settings.database_url)
+            schema_state.update(ok=True, revision=revision, detail="migrated to head")
+        elif mode == "none":
+            revision = await asyncio.to_thread(schema.current_revision, settings.database_url)
+            head = schema.head_revision()
+            ok = revision == head
+            schema_state.update(ok=ok, revision=revision, detail="at head" if ok else f"behind code (head {head})")
+            if not ok:
+                logger.error("Database schema is at %s but the code expects %s. Run `alembic upgrade head`.", revision, head)
+        else:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            schema_state.update(ok=True, revision=None, detail="create_all (legacy, unversioned)")
+        logger.info("Database schema: %s (%s).", schema_state["detail"], mode)
+    except Exception as e:
+        schema_state.update(ok=False, revision=None, detail="schema step failed")
+        logger.error("Database schema step (%s) failed: %s", mode, e)
 
 
 def redact_database_url(url: str) -> str:
@@ -47,6 +96,7 @@ def uses_default_database_credentials(url: str) -> bool:
 async def lifespan(app: FastAPI):
     """Application lifespan — runs database creation and logs startup configuration."""
     logger.info("ArogyaRakshak API starting up...")
+    enforce_production_profile()
     logger.info("GROQ_MODEL = %s", settings.groq_model)
     # The URL embeds the database password; log it masked.
     logger.info("DATABASE_URL = %s", redact_database_url(settings.database_url))
@@ -94,13 +144,18 @@ async def lifespan(app: FastAPI):
             "full functionality."
         )
 
-    # Establish connection and create schemas on startup if they do not exist
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database schemas verified.")
-    except Exception as e:
-        logger.error("Failed to verify/create database schemas: %s", e)
+    await apply_schema()
+
+    # ADR-019: this is the only API process (single replica), so any job still queued or
+    # processing belonged to a process that died. Report it as interrupted.
+    if schema_state["ok"]:
+        try:
+            async with AsyncSessionLocal() as session:
+                marked = await document_jobs.mark_interrupted_jobs(session)
+            if marked:
+                logger.warning("Marked %d in-flight document job(s) as interrupted after restart.", marked)
+        except Exception as e:
+            logger.error("Could not reconcile interrupted document jobs: %s", e)
 
     # SEC-03: server-side case retention sweep — purges expired cases on its own
     # schedule, independent of any client ever presenting its access token again. See
@@ -109,6 +164,9 @@ async def lifespan(app: FastAPI):
         "Case retention: TTL=%d day(s), sweep interval=%ds",
         settings.case_ttl_days, settings.case_purge_interval_seconds,
     )
+    # Compile the access-log route templates now rather than on the first request.
+    warm_route_templates(app)
+
     retention_stop_event = asyncio.Event()
     retention_task = asyncio.create_task(run_retention_sweep_loop(retention_stop_event))
 
@@ -128,7 +186,14 @@ app = FastAPI(
     description="Patient-facing bill audit, scheme eligibility & medicine pricing platform.",
     version="1.0.0",
     lifespan=lifespan,
+    # The interactive docs load assets from a CDN and advertise every route; not on a
+    # production deployment. The OpenAPI contract stays in docs/api/openapi.json.
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
 )
+
+# Background sessions honour test dependency overrides without importing this module.
+register_dependency_overrides(lambda: app.dependency_overrides)
 
 # --- CORS Middleware ----------------------------------------------------------
 # A wildcard origin combined with allow_credentials lets any site issue credentialed
@@ -175,13 +240,13 @@ app.add_middleware(
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    if request.url.path == "/health":
+    if request.url.path in PROBE_PATHS:
         return await call_next(request)
 
     client_key = resolve_client_ip(request)
     allowed, retry_after = limiter.check(client_key)
     if not allowed:
-        logger.warning("Rate limit exceeded for client %s on %s", client_key, request.url.path)
+        logger.warning("Rate limit exceeded for client %s on %s", client_key, route_template(request))
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
@@ -193,14 +258,25 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+# Outermost: every response (including CORS preflights and 429s) gets a request id and
+# the hardening headers, and every request one access-log line (app/observability.py).
+app.add_middleware(RequestContextMiddleware)
+
+
 # --- Global Exception Handlers ------------------------------------------------
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Catches and formats Pydantic validation errors."""
-    logger.error("Validation error on %s: %s", request.url, exc.errors())
+    # Location/type/message only: Pydantic's `input` would copy submitted values (names,
+    # incomes, free text) into the log. The client still gets the full errors.
+    logger.error(
+        "Validation error on %s: %s",
+        route_template(request),
+        [{k: e.get(k) for k in ("loc", "type", "msg")} for e in exc.errors()],
+    )
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": exc.errors(), "message": "Request validation failed"},
     )
 
@@ -213,7 +289,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     `message` is only populated for string details — stringifying a dict produced a Python
     repr in the response body.
     """
-    logger.warning("HTTP %d error on %s: %s", exc.status_code, request.url, exc.detail)
+    logger.warning("HTTP %d error on %s: %s", exc.status_code, route_template(request), exc.detail)
     content = {"detail": exc.detail}
     if isinstance(exc.detail, str):
         content["message"] = exc.detail
@@ -230,7 +306,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     """
     error_id = uuid.uuid4().hex[:12]
     logger.error(
-        "Unhandled exception [%s] on %s: %s", error_id, request.url, exc, exc_info=True
+        "Unhandled exception [%s] on %s: %s", error_id, route_template(request), exc, exc_info=True
     )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -259,3 +335,30 @@ async def health():
         "groq_configured": bool(settings.groq_api_key),
         "groq_model": settings.groq_model,
     }
+
+
+@app.get("/health/live")
+async def health_live():
+    """Liveness: the process is up and serving. Never touches the database, so a
+    database outage does not get the container restarted in a loop."""
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+async def health_ready(db: AsyncSession = Depends(get_db)):
+    """Readiness: the database answers and its schema matches this code. 503 otherwise,
+    so an orchestrator stops routing traffic here. Reports booleans and the revision
+    only — no hostnames, credentials or error text."""
+    database_ok = False
+    try:
+        await db.execute(text("SELECT 1"))
+        database_ok = True
+    except Exception as e:
+        logger.warning("Readiness: database check failed: %s", type(e).__name__)
+    ready = database_ok and bool(schema_state["ok"])
+    body = {
+        "status": "ready" if ready else "not_ready",
+        "database": database_ok,
+        "schema": {"ok": bool(schema_state["ok"]), "revision": schema_state["revision"]},
+    }
+    return JSONResponse(status_code=200 if ready else 503, content=body)

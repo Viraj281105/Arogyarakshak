@@ -8,6 +8,7 @@ import { api } from '../api/endpoints';
 import { ApiError, CaseMedicineBenchmark } from '../api/types';
 import { createRequestGuard } from '../services/caseProcessing';
 import { humanizeEnum } from '../services/labels';
+import { ExplainToggle } from './ExplainToggle';
 import { describePriceCheck } from '../services/priceCheck';
 
 const BLOCKED = new Set(['AWAITING_HUMAN_READING', 'READERS_DISAGREED', 'READING_NOT_APPLIED', 'OCR_UNCERTAIN']);
@@ -107,6 +108,7 @@ export const CaseMedicinesCard: React.FC<{
             ) : (
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{r.note ?? 'Not price-checked.'}</Text>
             )}
+            <ExplainToggle explanation={r.explanation} />
             {blocked && FLAGGABLE.has(state) && (
               <Button
                 title={busy === r.entity_id ? 'Requesting…' : 'Ask for a human reading of this entry'}

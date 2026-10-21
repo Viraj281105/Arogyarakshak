@@ -5,9 +5,8 @@ Generates a formal, IRDAI-compliant legal appeal letter in markdown/text format
 synthesizing facts from Auditor, Clinician, and Regulatory agents.
 """
 
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from .auditor import StructuredDenial
 from .clinician import EvidenceList

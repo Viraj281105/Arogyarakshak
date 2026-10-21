@@ -69,7 +69,7 @@ flowchart TD
 | **ASGI Server** | **Uvicorn** | `0.34.x` | Production-grade ASGI server with uvloop event loop. |
 | **ORM & Driver** | **SQLAlchemy + asyncpg** | `2.0.x` / `0.30.x` | Fully asynchronous relational database management. |
 | **Database** | **PostgreSQL** (pgvector image) | `pg16` | Relational persistence. The pgvector extension ships in the image but is unused — no vector columns or similarity queries exist. |
-| **Vector Index** *(planned)* | **FAISS / pgvector** | — | Similarity matching for candidate blocking. Scaffold only — `kadi/vector_store.py` is not wired into any endpoint. |
+| **Vector Index** *(planned)* | **FAISS / pgvector** | — | Similarity matching for candidate blocking. Not implemented; the unwired scaffold was removed (2026-10-19). |
 | **LLM Inference** | **Groq API** | Default: `openai/gpt-oss-120b` | High-throughput cloud inference engine. Deprecated Llama models are prohibited. |
 | **Cross-Script Matching** | **Rule-based romanization + Indic phonetic keys** | — | Implemented in `kadi/resolution` (#89). IndicXlit (AI4Bharat) is not used: its fairseq dependency has no Python 3.11 wheels (#29). |
 | **Cross-Lingual Embeddings** *(optional)* | **IndicSBERT (L3Cube)** | `sentence-transformers<5` | Optional entity-resolution signal, off unless `KADI_SEMANTIC_MATCHING=true`; the model downloads on first use (ADR-006). |

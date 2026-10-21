@@ -1,0 +1,25 @@
+# TLS-terminating ingress. The browser calls the API directly, so both hosts are public;
+# nothing else is. Body size covers MAX_UPLOAD_BYTES (10 MB) plus multipart overhead.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: arogyarakshak
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "12m"
+    # Server-Sent Events (upload progress) must not be buffered.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [arogyarakshak.example, api.arogyarakshak.example]
+      secretName: arogyarakshak-tls
+  rules:
+    - host: arogyarakshak.example
+      http:
+        paths:
+          - {path: /, pathType: Prefix, backend: {service: {name: web, port: {name: http}}}}
+    - host: api.arogyarakshak.example
+      http:
+        paths:
+          - {path: /, pathType: Prefix, backend: {service: {name: api, port: {name: http}}}}

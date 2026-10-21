@@ -39,7 +39,6 @@ def double_metaphone(word: str) -> Tuple[str, str]:
     s = original
     length = len(s)
     first = 0
-    last = length - 1
 
     primary: list = []
     secondary: list = []

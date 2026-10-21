@@ -136,7 +136,7 @@ describe('Screens use the lifecycle (source contract)', () => {
   const read = (f: string) => readFileSync(join(__dirname, '..', 'src', f), 'utf-8');
 
   it('the scan records the active case so DaaviSetu/DawaCheck/BimaNyay receive it', () => {
-    assert.ok(/setActiveCaseId\(result\.caseId\)/.test(read('screens/CameraScanScreen.tsx')));
+    assert.ok(/setActiveCaseId\(result\.caseId\)/.test(read('screens/camera/useScanUpload.ts')));
     for (const f of ['BillNyayScreen', 'DaaviSetuScreen', 'BimaNyayScreen', 'DawaCheckScreen']) {
       const src = read(`screens/${f}.tsx`);
       assert.ok(/resolveCaseId\(route\.params\?\.caseId, activeCaseId\)/.test(src), `${f} must fall back to the active case`);

@@ -8,15 +8,14 @@ the formal appeal letter, audit findings, clinical evidence, and regulatory supp
 import io
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, Optional
 from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
 
 PURPLE = colors.HexColor("#1e3a8a")
 DARK = colors.HexColor("#0f172a")

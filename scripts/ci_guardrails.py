@@ -126,11 +126,13 @@ def check_package_hygiene() -> list[str]:
 def check_database_table_prefixes() -> list[str]:
     """Verify all database models adhere to module prefix conventions."""
     errors = []
-    models_file = ROOT_DIR / "apps" / "api" / "app" / "models.py"
-    if not models_file.exists():
-        return ["Database Models: 'apps/api/app/models.py' not found!"]
+    # One module per owning domain under apps/api/app/models/ (was a single models.py).
+    models_dir = ROOT_DIR / "apps" / "api" / "app" / "models"
+    model_files = sorted(models_dir.glob("*.py"))
+    if not model_files:
+        return ["Database Models: no model modules found in 'apps/api/app/models/'!"]
 
-    content = models_file.read_text(encoding="utf-8")
+    content = "\n".join(f.read_text(encoding="utf-8") for f in model_files)
     # Find all __tablename__ = "..."
     matches = re.findall(r'__tablename__\s*=\s*["\']([^"\']+)["\']', content)
     for table_name in matches:

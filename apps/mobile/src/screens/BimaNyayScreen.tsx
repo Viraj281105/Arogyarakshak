@@ -12,7 +12,7 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import { BottomTabParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
-import { Card, Button, Badge, ClinicalReviewCard, ProcessingStatusCard } from '../components';
+import { Card, Button, Badge, ClinicalReviewCard, ProcessingStatusCard, ExplainToggle } from '../components';
 import { api, BimaNyayAnalysisResponse, BimaNyayTimelineResponse, ApiError } from '../api';
 import { getCaseAccessToken } from '../api/caseAuth';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
@@ -307,6 +307,7 @@ export const BimaNyayScreen: React.FC = () => {
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
                 {event.instructions} Deadline: {event.deadline_date}
               </Text>
+              <ExplainToggle explanation={event.explanation} />
             </View>
           ))}
         </Card>

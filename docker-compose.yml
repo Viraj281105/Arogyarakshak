@@ -4,7 +4,7 @@
 # Services:
 #   postgres  — PostgreSQL 16 with pgvector extension
 #   api       — FastAPI backend (depends on postgres)
-#   web       — Next.js 15 frontend dev server
+#   web       — Next.js 16 frontend dev server
 #
 # There is no vector or graph database service: FAISS is an unwired scaffold, and the
 # Kadi case graph (#86) is computed from Postgres rows on request.
@@ -42,7 +42,7 @@ services:
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     # Local dev only: hot reload. The image's default CMD runs without --reload.
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
     # Bound to localhost only (SEC-13, same reasoning as postgres above): `web` reaches
     # `api` over the internal Docker network by service name, not through this host port
     # mapping. Exposing 8000 on 0.0.0.0 put the API directly on the network with no
@@ -63,6 +63,10 @@ services:
       # ADR-011 clinical review. Empty governance key = governance actions disabled.
       CLINICAL_GOVERNANCE_ADMIN_KEY: ${CLINICAL_GOVERNANCE_ADMIN_KEY:-}
       CLINICAL_DEMO_MODE: ${CLINICAL_DEMO_MODE:-false}
+      # ADR-020: upgrade the schema at start-up (single API process). Use `none` and run
+      # `docker compose run --rm api alembic upgrade head` to migrate as a separate step.
+      SCHEMA_MANAGEMENT: ${SCHEMA_MANAGEMENT:-migrate}
+      LOG_FORMAT: ${LOG_FORMAT:-text}
       # production refuses to start together with demo mode (app.config).
       APP_ENV: ${APP_ENV:-development}
       OCR_LOW_CONFIDENCE_THRESHOLD: ${OCR_LOW_CONFIDENCE_THRESHOLD:-0.5}
@@ -80,12 +84,16 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      # Local dev: the `build` stage has the source and dev dependencies `next dev` needs.
+      # docker-compose.demo.yml switches to the slim `runtime` stage.
+      target: build
     restart: unless-stopped
     # Local dev only: hot reload. The image's default CMD runs a production build
     # (`next build` + `next start`) — see apps/web/Dockerfile.
     command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+    # Localhost only, like postgres and api: the dev server is not for the network.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
 volumes:
   pgdata:

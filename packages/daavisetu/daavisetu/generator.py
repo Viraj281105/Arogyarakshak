@@ -5,7 +5,7 @@ Fills common insurance claim forms using parsed Kadi case context.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("DaaviSetu.Generator")
@@ -13,7 +13,6 @@ logger.setLevel(logging.INFO)
 
 
 import io
-import os
 from datetime import datetime
 from xml.sax.saxutils import escape as _xml_escape
 from reportlab.lib import colors

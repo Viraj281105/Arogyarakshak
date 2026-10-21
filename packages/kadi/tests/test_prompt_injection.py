@@ -21,8 +21,6 @@ limitation is documented in extraction.py's own comments, not hidden.
 """
 
 import json
-from io import BytesIO
-from unittest.mock import MagicMock
 
 import pytest
 

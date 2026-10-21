@@ -12,8 +12,7 @@ checked against a primary source and must not be presented as settled law.
 import json
 import logging
 import os
-import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 logger = logging.getLogger("BillNyay.RegulatoryAgent")
 logger.setLevel(logging.INFO)

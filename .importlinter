@@ -1,0 +1,100 @@
+# Architecture fitness functions (ADR-018). Run from the repo root:
+#
+#   PYTHONPATH=apps/api lint-imports
+#
+# CI runs this in the backend job. A failing contract names the offending import chain.
+# To add an exception, add it to the contract's `ignore_imports` with a comment saying
+# why, and get it reviewed like any other architecture change (see
+# docs/architecture/module-boundaries.md#exceptions).
+
+[importlinter]
+root_packages =
+    app
+    kadi
+    billnyay
+    daavisetu
+    bimanyay
+    schemesetu
+    dawacheck
+include_external_packages = True
+
+[importlinter:contract:packages-framework-free]
+name = Domain packages do not depend on the API application, the web framework or the ORM
+type = forbidden
+source_modules =
+    kadi
+    billnyay
+    daavisetu
+    bimanyay
+    schemesetu
+    dawacheck
+forbidden_modules =
+    app
+    fastapi
+    starlette
+    sqlalchemy
+
+[importlinter:contract:kadi-is-shared-base]
+name = Kadi (shared layer) does not depend on any domain module
+type = forbidden
+source_modules =
+    kadi
+forbidden_modules =
+    billnyay
+    daavisetu
+    bimanyay
+    schemesetu
+    dawacheck
+
+[importlinter:contract:domain-modules-independent]
+name = Domain modules do not import each other (cross-module work goes through Kadi or the API layer)
+type = independence
+modules =
+    billnyay
+    daavisetu
+    bimanyay
+    schemesetu
+    dawacheck
+
+[importlinter:contract:no-route-imports-below-http]
+name = Application code below the HTTP layer never imports route modules
+type = forbidden
+source_modules =
+    app.services
+    app.auto_triggers
+    app.background
+    app.config
+    app.database
+    app.case_auth
+    app.case_retention
+    app.case_timeline
+    app.claim_pack
+    app.clinical
+    app.consent
+    app.daavisetu_playbooks
+    app.evaluation
+    app.kadi_resolution
+    app.latency_metrics
+    app.models
+    app.observability
+    app.schema
+    app.rate_limit
+forbidden_modules =
+    app.api
+    app.main
+
+[importlinter:contract:routes-independent]
+name = Route modules do not import each other (shared logic belongs in app.services)
+type = independence
+modules =
+    app.api.v1.endpoints.billnyay
+    app.api.v1.endpoints.bimanyay
+    app.api.v1.endpoints.claim_pack
+    app.api.v1.endpoints.clinical_demo
+    app.api.v1.endpoints.clinical_review
+    app.api.v1.endpoints.clinical_safety
+    app.api.v1.endpoints.clinical_transcription
+    app.api.v1.endpoints.daavisetu
+    app.api.v1.endpoints.dawacheck
+    app.api.v1.endpoints.kadi
+    app.api.v1.endpoints.schemesetu

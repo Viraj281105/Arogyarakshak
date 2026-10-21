@@ -20,11 +20,13 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress. Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; 505 backend pytest tests passing; 36 mobile tests passing; 37 web tests passing; Next.js production build passing with 0 errors; Mobile TypeScript check passing with 0 errors; CI guardrails 6/6 passing).
+- **Latest (2026-10-19, engineering foundation pass — ADR-018…021, branch `arch/engineering-foundation`, uncommitted at time of writing):** application service layer + import-linter contracts, Alembic migrations, persisted document-job state with restart reconciliation, production-profile refusal, request ids / JSON logs / hardening headers / liveness vs readiness, FastAPI 0.148 + Starlette 1.9 + python-multipart 0.0.32 + Next.js 16.4.2 (pip-audit and web `npm audit` now clean), multi-stage images, kustomize base, CI security workflow. **Backend 1119 passed, 7 skipped; web 133, lint 0, tsc 0, build OK; mobile 126, tsc 0; contracts 5/5; guardrails 8/8.** Live run on SQLite (fresh DB migrated at start-up, upload → audit in the browser). **Not verified:** container builds (no Docker engine), cluster deployment (none), Alembic on PostgreSQL (CI only), backup restore. Full report: `docs/architecture/engineering-foundation-2026-10.md`.
+- **Previous (2026-10-19, explanation trail — ADR-017):** every finding (BillNyay line, DawaCheck medicine, DaaviSetu readiness item, BimaNyay deadline) now carries a deterministic, no-LLM `explanation` (evidence + provenance, exact rule/row, trust, what could not be determined, "not recorded"). **Backend 1043 passed, 6 skipped; web 106; mobile 126; web lint 0, tsc 0; mobile type-check 0; CI Ruff gate OK.** Browser-verified on SQLite demo mode (Scenario C and A, DaaviSetu readiness); BimaNyay UI and mobile not run in a browser/device.
 - **Latest (2026-09-30, Scenario E — Health-a-thon diabetes workflow):** demo Scenario E adds a paperwork-only diabetes admission path on existing machinery (upload → Kadi extraction → DaaviSetu readiness with a diabetes demo playbook → doctor confirmation of one clinical fact → missing-document list). Changes: `demo/documents/E_diabetes_admission_note.txt`, `DEMO_PLAYBOOK_DIABETES` in `apps/api/app/clinical/demo.py`, `SCENARIOS["E"]`, route accepts `E`, web tab mapping + playbook ID display, one new test. **Backend 1012 passed, 6 skipped; web 93, lint 0, tsc 0; guardrails 8/8.** Browser-verified on SQLite with rule-based extraction (not Postgres, not Groq, not mobile). The checklist wording is unsourced and needs clinical-lead sign-off.
 - **Previous (2026-09-27, release-candidate pass — committed on `viraj-dev` as b0cd0eb..576abd1, merged to `main` via PR #149):** price-basis correctness in DawaCheck **and** BillNyay (ADR-012), a Postgres-only FK bug fixed (DaaviSetu doctor confirmation) and FK enforcement added to the test DB, demo kit controls (status / reset / Load Scenario A–D, DEMO MODE banner, "What is simulated?"), case timeline, "add a document to this case", honesty fixes across web/mobile, README + `docs/JUDGE_DEMO.md`. Totals: **1011 passed, 6 skipped backend, 93 web, 115 mobile**; web lint 0 / build OK; mobile type-check 0; CI Ruff gate OK; guardrails 8/8. **Runtime-validated:** PostgreSQL 16 (local API against the compose Postgres) and the full docker-compose stack (postgres + api + web images) — `scripts/demo_runtime_smoke.py` 49/49 on both; browser (containerised web: demo reset, Scenario A/C, BillNyay basis, reviewer workspace sign-in). **Not validated:** Android device/emulator (none installed), real Groq (no key configured).
 - **Earlier (2026-09-27, demo-hardening pass — committed on `viraj-dev` (2eabd17..7a30f45)):** OCR trust pipeline hardened (single medicine trust gate; no uncertain reading dropped), plausibility honesty, four-eyes safety-rule retirement, explicit "Safety check unavailable", mobile processing lifecycle, deterministic demo kit (`demo/`). Current totals: **922 passed, 6 skipped backend, 88 web, 109 mobile**, mobile type-check 0 errors, web lint 0, web build OK, CI Ruff gate OK, CI guardrails 8/8. **Not validated:** mobile on a device/emulator (none available), Postgres (Docker engine did not start), real Groq path (no key configured).
 - **Primary Focus (2026-09-15):** Phase 4 hardening — anti-fabrication UI fixes, lightweight security hardening (rate limiting, case-id entropy; full authentication deliberately deferred, see ADR-008), a DawaCheck prescription-shorthand translator, SchemeSetu regional state-name normalization, Hindi/Marathi BillNyay appeal letters, and an E2E latency monitoring harness (#116).
-- **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness covers entity resolution and latency only — PEA/BMA/CFMA/CRMA/WER metrics (#102–#115) remain unmeasured.
+- **Known accepted risks (disclosed, not hidden):** no authentication layer (ADR-008); mobile dependencies carry unresolved advisories pending a major Expo SDK upgrade (see `npm audit` in `apps/mobile`); the evaluation harness now covers entity resolution, latency and (2026-10-19, synthetic data only) BMA, PEA, billing-anomaly P/R/F1, CRMA, an OCR WER/CER utility and DawaCheck price mapping — see `docs/evaluation/phase4-harnesses.md`. Those numbers are development-set figures on hand-written data, not real-world accuracy; CFMA and real-document OCR WER/CER remain unmeasured.
 - **Active Blockers:** None for currently assigned work.
 
 ---
@@ -56,7 +58,7 @@ flowchart TD
 ## 4. Architecture Snapshot
 
 - **Backend Gateway (`apps/api`)**: FastAPI async application running under Uvicorn. Implements versioned `/api/v1` routing, async database engine (`asyncpg`), and real-time Server-Sent Events (SSE) status streams.
-- **Database & Search**: PostgreSQL 16 (pgvector image; no vector columns or similarity queries are used). `kadi/vector_store.py` is an unwired FAISS/pgvector scaffold — no FAISS index exists. Entity-resolution candidates are blocked by case and entity type instead (ADR-006).
+- **Database & Search**: PostgreSQL 16 (pgvector image; no vector columns or similarity queries are used). No FAISS/pgvector code exists (the unwired `kadi/vector_store.py` scaffold was removed 2026-10-19 as dead code). Entity-resolution candidates are blocked by case and entity type instead (ADR-006).
 - **LLM Reasoning**: Groq API cloud client (Target model: `openai/gpt-oss-120b`). Deprecated models (`llama3-70b`) are strictly barred.
 - **Frontend Clients**:
   - `apps/web`: Next.js 16 App Router, React 19, TypeScript, Vanilla CSS design tokens (Mobile-first, 320px–1280px+, WCAG 2.1 AA).
@@ -135,7 +137,7 @@ arogyarakshak/
 | Feature | Status | Location | Documentation | Automated Tests |
 |---|---|---|---|---|
 | **Kadi Entity Extraction** | Complete | `packages/kadi/kadi/extraction.py` | `packages/kadi/README.md` | Yes (`test_api.py`) |
-| **Kadi Vector Store** | Scaffold (not wired) | `packages/kadi/kadi/vector_store.py` | `docs/architecture/components.md` | No — contains no FAISS and is imported by no endpoint |
+| **Kadi Vector Store** | Not implemented (scaffold removed 2026-10-19) | — | `docs/architecture/components.md` | — |
 | **Kadi OCR Engine** | Complete | `packages/kadi/kadi/ocr/ocr_parser.py` | `packages/kadi/README.md` | Yes (`test_ocr.py`) |
 | **BillNyay 5-Agent Pipeline** | Complete (all 5 agents wired) | `packages/billnyay/billnyay/agents/`| `packages/billnyay/README.md` | Yes (`test_agents.py`, `test_api.py`) |
 | **DaaviSetu Pre-Auth Generator** | Complete | `packages/daavisetu/daavisetu/generator.py` | `packages/daavisetu/README.md` | Yes (`test_daavisetu.py`) |
@@ -160,10 +162,38 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Active Task (2026-10-19) — engineering foundation pass (branch `arch/engineering-foundation`)
+- [x] `apps/api/app/services/` + `.importlinter` (5 contracts) + `test_architecture.py` (ADR-018).
+- [x] Alembic (`apps/api/alembic.ini`, `migrations/`, `app/schema.py`, `SCHEMA_MANAGEMENT`), `test_migrations.py` (ADR-020).
+- [x] `kadi_document_jobs` + start-up reconciliation + SSE interrupted state (ADR-019).
+- [x] Production profile refusal, hardening headers, request ids, JSON logs, `/health/live` + `/health/ready`, log redaction (route templates, no validation input, no file names, uvicorn access log off).
+- [x] Dependency upgrades (FastAPI/Starlette/python-multipart/Next.js) with full re-test; OpenAPI snapshot contract.
+- [x] Multi-stage images, `infrastructure/kubernetes/` + `tests/infrastructure/`, CI gates + `security.yml` (ADR-021).
+- [x] Latency harness fixed (it had been passing with 0 samples).
+- [ ] Not done / needs the user: run CI on GitHub (first run of `security.yml`, Alembic on PostgreSQL, image builds); build/run the images once Docker works locally; backup-restore drill; decide on committing/PR.
+
+### Active Task (2026-10-19) — "Why am I seeing this?" explanation trail (ADR-017)
+- [x] `kadi.explanation.Explanation` + builders in `dawacheck/explain.py`, `billnyay/explain.py`, `daavisetu/readiness.py` (`explain_item`), `bimanyay/tracker.py`; additive `explanation` on the four finding types (no new endpoint — same ADR-009 authorization); web `ExplainTrail` + mobile `ExplainToggle`; ADR-017, API docs, CHANGELOG.
+- [x] Verified: backend pytest, CI Ruff gate, web lint/tsc/tests, mobile type-check/tests, and in the running demo (Scenario C DawaCheck — held-back and compared rows; Scenario A BillNyay and DaaviSetu readiness) on SQLite.
+- [ ] Not done / needs the user: native-speaker QA of the hi/mr explain labels; server-supplied explanation text is English only; BimaNyay UI and mobile were not browser/device-run (API + type-check only); no SchemeSetu explanation (it already has a reasoning trace).
+
+### Active Task (2026-10-19) — read-aloud and simple language (web, PR branch `claude/read-aloud-plain-language-491609`)
+- [x] On-device `speechSynthesis` Listen/Stop on four summaries (BimaNyay deadlines + appeal, DaaviSetu document check, DawaCheck result) in en/hi/mr; Simple-language switch; ADR-016; 23 new tests.
+- [x] Verified: lint 0, `tsc` clean, web tests pass; browser (Edge-based pane, local en-US voices only): DawaCheck, BimaNyay appeal and deadline summaries render in en/hi/mr; hi/mr show the honest no-on-device-voice message with no buttons; en Listen starts (`speechSynthesis.speaking` true) and Stop cancels; console clean. The DaaviSetu document-check summary is unit-tested but was not exercised in the browser.
+- [ ] NOT verified: real audio (the embedded browser has zero voices). [ ] Native-speaker QA of `lib/listenCopy.ts` hi/mr. [ ] Mobile has no equivalent.
+
+### Active Task (2026-10-19) — Claim Pack (branch `claude/claim-pack-0f7726`, PR to `main`)
+- [x] `GET /api/v1/kadi/cases/{id}/claim-pack` (ADR-015): cross-module in-memory ZIP + manifest; 9 pytest tests (apps/api 433 + packages 589 passed, 6 skipped; web 105; lint/tsc/ruff/guardrails clean; browser-verified on SQLite: plain `.zip` and `.zip.arenc` downloads, smoke 58/58). [x] Web `ClaimPackPanel` + `lib/claimPack.ts` (opt-in ADR-014 encryption), 4 web tests. [ ] Not done: mobile control; institution playbook in the checklist; Postgres run.
+
+### Active Task (2026-10-19) — Phase-4 evaluation harnesses (#102–#115 area)
+- [x] BMA, PEA, billing-anomaly P/R/F1, CRMA (25 scenarios), OCR WER/CER utility, DawaCheck price-mapping accuracy. Code `apps/api/app/evaluation/`, SYNTHETIC datasets `data/evaluation/*.jsonl` (loader refuses non-synthetic files), runner `scripts/evaluate_phase4.py`, tests `apps/api/tests/test_evaluation_harness.py` (24, hand-computed expectations), report `docs/evaluation/phase4-harnesses.md` (measured results incl. bad ones).
+- [x] Small refactor in `billnyay` endpoint, behaviour unchanged: `_match_cghs_key` (used by `_match_cghs_rate`) and pure `audit_billing_lines` (used by `build_case_audit`).
+- [ ] Not done: CFMA, real-scan OCR WER/CER (the OCR fixture hypotheses are simulated), LLM-path extraction accuracy. Defects the harness found are listed in the report's follow-ups and NOT fixed (BillNyay substring matcher, Kadi hyphen-separator lines, BimaNyay ignoring reason text, DawaCheck combination products).
+
 ### Active Task (2026-10-15) — independent-task pass
 - [x] Scenario E added to the demo smoke script (58/58, SQLite). [x] #40 decided: local demo via Docker Compose (ADR-013, `docker-compose.demo.yml`, `docs/development/deployment.md`) — validated with `docker compose config` only; the Docker daemon was not running. [x] #101: client-side encryption for DaaviSetu downloads (ADR-014), browser-verified. [x] Appeal PDF provenance footer. [x] Mobile SLA reminder planner (no push delivery).
 - [x] #90 needed no new code: `billnyay/outcome/` + `POST /billnyay/outcome-estimate` already refuse a probability without a cited, non-synthetic dataset. It is blocked on the data, not on code.
-- [ ] Not done / needs the user: Android device run, real-Groq Scenario A run (no key), Postgres SAVEPOINT path, Expo SDK decision, native-speaker QA, clinical-lead review.
+- [ ] Not done / needs the user: Android device run, real-Groq Scenario A run (no key), Postgres SAVEPOINT path, native-speaker QA, clinical-lead review.
 
 ### Earlier task (2026-09-30) — Scenario E: diabetes admission readiness (Health-a-thon theme: Diabetes Care → Patient/Caregiver → Financial & Administrative Support)
 Smallest real end-to-end workflow for the theme, reusing existing machinery (no new module). Status:
@@ -245,7 +275,7 @@ None. Ready for Product Phase 2 when directed by user.
 - [ ] **Native-speaker QA** of the hi/mr strings marked `NEEDS NATIVE-SPEAKER QA` in `apps/web/app/translations.ts` and `apps/mobile/src/translations/strings.ts`.
 - [ ] **Devanagari OCR Hardening**: Validate Tesseract / vision OCR pipeline on handwritten Marathi/Hindi prescriptions and faded dot-matrix hospital bills.
 - [x] **Kadi Entity Resolution (Phase 3)**: string similarity + rule-based cross-script phonetics + optional IndicSBERT, merge/ask/new branching and feedback-calibrated thresholds (ADR-006). IndicXlit remains blocked on fairseq / Python 3.11 (#29).
-- [ ] **Mobile Push SLA Alerts**: planner + sync logic done and tested (`slaReminders.ts`); the `expo-notifications` adapter, permission flow and device run are NOT done and wait on the Expo SDK decision (see Known Issues §3).
+- [ ] **Mobile Push SLA Alerts**: planner + sync logic done and tested (`slaReminders.ts`); the `expo-notifications` adapter, permission flow and device run are NOT done and are unblocked: the SDK decision is made (stay on 52, Known Issues §3); add `expo-notifications` at the SDK-52 version (`npx expo install expo-notifications`) and run on a device.
 
 ### P2 — Medium (Evaluation & QA)
 - [ ] **Implement Benchmark Mapping Accuracy (BMA) Harness**: Build automated evaluation test comparing hospital bills against CGHS codes.
@@ -301,10 +331,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **Workaround:** Always activate `.venv\Scripts\Activate.ps1` or run directly with `C:\Users\VIRAJ\AppData\Local\Programs\Python\Python311\python.exe`.
 - **Status:** Documented in `docs/development/troubleshooting.md`.
 
-### 3. Expo SDK mismatch in `apps/mobile` (open, found 2026-10-15)
-- **Problem:** `package.json` declares `expo ~57.0.25` (dependabot commit fe4b773) while `expo-camera ~16`, `expo-constants ~17` etc. and CI/README target SDK 52; `npm ls` marks the installed `expo@52.0.49` invalid. Dependabot PR #148 also fails the mobile CI job.
-- **Impact:** blocks adding `expo-notifications`; risks a broken `npm ci`/build.
-- **Status:** needs a decision (stay on 52 or upgrade the whole SDK).
+### 3. Expo SDK mismatch in `apps/mobile` (RESOLVED 2026-10-15)
+- **Problem:** dependabot commit fe4b773 ("bump postcss", an indirect dependency) rewrote `expo` to `~57.0.25` in `package.json`/lockfile while every other Expo package, the README and CI target SDK 52; dependabot PR #148 failed mobile CI for the same reason.
+- **Resolution:** restored `expo ~52.0.37` and the SDK-52 lockfile; kept the postcss fix via `"overrides": {"postcss": "^8.5.28"}` (resolves 8.5.30). `npm ci`, `tsc` and 123 mobile tests pass; `npm ls` is clean.
+- **Decision:** stay on SDK 52. A future SDK upgrade must move every `expo-*` package together. Group-update PRs that touch `expo` itself should be reviewed, not auto-merged.
 
 ### 2. Pytest Asyncio Default Fixture Loop Scope Warning (RESOLVED)
 - **Problem:** Deprecation warning during pytest run: `asyncio_default_fixture_loop_scope is unset`.
@@ -340,6 +370,13 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-003 (Bring-Your-Own-Document Privacy):** Zero persistent storage of patient health documents. Raw files exist only in transient memory during extraction.
 - **ADR-004 (Groq Model Selection):** Hardcoded deprecation ban on `llama3-70b`. All calls dynamically load from `GROQ_MODEL` (default: `openai/gpt-oss-120b`).
 - **ADR-005 (DaaviSetu vs BimaNyay Division):** Clean lifecycle separation: DaaviSetu owns pre-claim application filing; BimaNyay owns post-denial repudiation disputes and IRDAI appeals.
+- **ADR-018 (Application service layer & import contracts):** shared use cases live in `apps/api/app/services`; route modules are thin and never imported by anything below the HTTP layer; domain packages framework-free and mutually independent — all enforced by `lint-imports` in CI.
+- **ADR-019 (Processing reliability without a broker):** BYOD forbids storing documents, so no durable queue; instead `kadi_document_jobs` records state, start-up marks in-flight jobs `interrupted`, the client is told to re-upload. The API must run as exactly one process/replica.
+- **ADR-020 (Alembic):** migrations are the schema source of truth; `SCHEMA_MANAGEMENT=migrate|none|create_all`; legacy `create_all` databases are stamped at `0001_baseline`, never recreated.
+- **ADR-021 (Modular monolith & deployment topology):** no service extraction (OCR worker blocked by ADR-003); single-replica kustomize path, no HPA/PDB/Helm; nothing deployed.
+- **ADR-017 (Explanation trail):** every finding carries a deterministic `Explanation` (evidence + provenance class, exact rule/row, trust, undetermined, derived `not_recorded`), built by the owning package from the decision's own values, delivered additively on existing authorised responses; never an LLM, never an invented reason.
+- **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
+
 - **ADR-011 (Clinical Review & Safety Governance):** Kadi-owned shared layer. Reviewers/institutions hold header-only bearer credentials (no accounts); case holders delegate single reviews with per-request consent; mandatory COI before evidence; immutable, versioned, human-confirmed statements appended verbatim (never via LLM); verification never overstated (no registry integration → at most SELF_DECLARED; DEMO_VERIFIED only in demo mode); plausibility not necessity; readiness not approval; safety rules adopted from named protocols with independent approval; OCR transcription by pharmacists/transcriptionists with two blind readings for medication fields; provenance classes survive downstream.
 
 ---
@@ -360,7 +397,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
-- **Current totals (2026-09-30, Scenario E):** backend `pytest` **1012 passed, 6 skipped** (`apps/api` 424 + `packages` 588); web `npm test` **93**, lint 0, `tsc --noEmit` 0; `scripts/ci_guardrails.py` 8/8. Mobile was not touched and not re-run (115 at the previous pass). Run with the Python 3.11 interpreter (see §11, item 1).
+- **Current totals (2026-10-19, engineering foundation pass):** backend `pytest` **1119 passed, 7 skipped** (`pytest.ini` now also collects `tests/`; the 7th skip is the PostgreSQL variant of `test_migrations.py`, run in CI via `MIGRATION_TEST_DATABASE_URL`); `lint-imports` 5/5; web 133, lint 0, tsc 0, build OK; mobile 126, tsc 0; guardrails 8/8; CI Ruff gate OK. New suites: `apps/api/tests/test_architecture.py`, `test_migrations.py`, `test_document_jobs.py`, `test_platform_foundation.py`, `test_openapi_contract.py`, `tests/infrastructure/test_kubernetes_manifests.py`.
+- **Previous totals (2026-09-30, Scenario E):** backend `pytest` **1012 passed, 6 skipped** (`apps/api` 424 + `packages` 588); web `npm test` **93**, lint 0, `tsc --noEmit` 0; `scripts/ci_guardrails.py` 8/8. Mobile was not touched and not re-run (115 at the previous pass). Run with the Python 3.11 interpreter (see §11, item 1).
 - **Previous totals (2026-09-27, release-candidate pass):** backend `pytest` **1011 passed, 6 skipped** (SQLite with foreign keys enforced); web `npm test` **93**, lint 0, build OK; mobile `npm test` **115**, type-check 0; CI Ruff gate OK; guardrails 8/8; `scripts/demo_runtime_smoke.py` **49/49** on PostgreSQL 16 and on the docker-compose stack. New suites: `packages/dawacheck/tests/test_price_basis.py`, `packages/billnyay/tests/test_rate_basis.py`, `packages/kadi/tests/test_case_timeline.py`, `apps/api/tests/test_dawacheck_price_basis_pipeline.py`, `test_demo_control.py`, `test_case_timeline_api.py`, `test_review_transitions.py`, `apps/web/tests/dawacheck_price_basis.test.ts`, `apps/mobile/tests/price_check.test.ts`.
 - **Earlier totals (2026-09-27, demo-hardening pass):** backend `pytest` **922 passed, 6 skipped**; web `npm test` **88**, lint 0, build OK; mobile `npm test` **109**, type-check 0; CI Ruff gate OK; `scripts/ci_guardrails.py` 8/8. New suites: `packages/kadi/tests/test_ocr_trust_gate.py`, `apps/api/tests/test_ocr_trust_pipeline.py`, `test_appeal_pdf_lifecycle.py`, `test_safety_unavailable.py`, `test_demo_documents.py`, `test_demo_scenario_c.py`, `apps/web/tests/demo_hardening.test.ts`, `apps/mobile/tests/case_processing.test.ts`. Not run: Postgres, device/emulator, real Groq.
 - **Earlier totals (2026-09-23, after ADR-011):** backend `pytest` **835 passed, 6 skipped** (was 686); web `npm test` **74** (was 58), `npm run lint` 0 errors, `npm run build` OK; mobile `npm test` **87** (was 77), `npm run type-check` 0 errors; `scripts/ci_guardrails.py` 8/8.
@@ -417,11 +455,43 @@ Phase 5: Submission & Demo Polish (FUTURE)
 | **Clinical Review & Safety Governance** | [`docs/architecture/clinical-review.md`](docs/architecture/clinical-review.md) |
 | **Agile Planning & Sprints** | [`docs/planning/weekly-sprint-playbook.md`](docs/planning/weekly-sprint-playbook.md) |
 | **Academic & Research Portfolio** | [`docs/academic/README.md`](docs/academic/README.md) |
+| **Phase-4 Evaluation Harnesses (synthetic)** | [`docs/evaluation/phase4-harnesses.md`](docs/evaluation/phase4-harnesses.md) |
 | **Task Backlog** | [`docs/ArogyaRakshak_Task_Backlog.md`](docs/ArogyaRakshak_Task_Backlog.md) |
+| **Engineering foundation report (2026-10)** | [`docs/architecture/engineering-foundation-2026-10.md`](docs/architecture/engineering-foundation-2026-10.md) |
+| **Module boundaries / where code goes** | [`docs/architecture/module-boundaries.md`](docs/architecture/module-boundaries.md) |
+| **Service catalog** | [`docs/architecture/service-catalog.md`](docs/architecture/service-catalog.md) |
+| **Database migrations** | [`docs/operations/database-migrations.md`](docs/operations/database-migrations.md) |
+| **Operational runbook (incl. backup/restore draft)** | [`docs/operations/runbook.md`](docs/operations/runbook.md) |
+| **Kubernetes path** | [`docs/operations/kubernetes.md`](docs/operations/kubernetes.md) |
+| **Supply-chain security policy** | [`docs/security/supply-chain.md`](docs/security/supply-chain.md) |
+| **API contract & compatibility** | [`docs/api/compatibility.md`](docs/api/compatibility.md), [`docs/api/openapi.json`](docs/api/openapi.json) |
 
 ---
 
 ## 17. Recent Changes
+
+### 2026-10-19 — Engineering foundation pass (ADR-018…021, branch `arch/engineering-foundation`)
+- **Added**: `apps/api/app/services/` (billnyay_audit, dawacheck_benchmarks, schemesetu_eligibility, daavisetu_claims, case_ingestion, case_purge, document_jobs); `app/schema.py`, `app/observability.py`; `apps/api/alembic.ini`, `migrations/` (0001_baseline, 0002_document_jobs); `KadiDocumentJob` model; `/health/live`, `/health/ready`; `.importlinter`; `scripts/export_openapi.py`, `docs/api/openapi.json`; `infrastructure/kubernetes/`; `.github/workflows/security.yml`; `apps/web/.dockerignore`; ADR-018…021 and the docs listed in §16.
+- **Changed**: route modules re-export moved names; `app.background` no longer imports `app.main`; start-up schema step replaces `create_all`; production profile refuses insecure defaults; error logs use route templates and omit validation input; uploaded file names no longer logged; uvicorn access log off; FastAPI 0.148.0 / Starlette 1.9.0 / python-multipart 0.0.32 / alembic 1.14.0 (`apps/api/requirements.txt`), Next.js 16.4.2; deprecated `HTTP_422_UNPROCESSABLE_ENTITY` / `HTTP_413_REQUEST_ENTITY_TOO_LARGE` constants renamed; both Dockerfiles multi-stage; compose web bound to 127.0.0.1 and uses the `build` target; CI permissions reduced to `contents: read`, plus lint-imports, Alembic on PostgreSQL, kustomize render.
+- **Fixed**: `scripts/evaluate_latency.py` (401 on every upload, reported PASS with 0 samples); a test that leaked a probe route into the app under FastAPI ≥ 0.13x; web image copying host `node_modules`.
+
+### 2026-10-19 — Explanation trail (ADR-017, branch `claude/explain-trail-c37690`)
+- **Added**: `packages/kadi/kadi/explanation.py`; `dawacheck/explain.py`; `billnyay/explain.py`; `explain_item` in `daavisetu/readiness.py`; `_explain_deadline` in `bimanyay/tracker.py`; `name_provenance_class` in `medicine_trust.py`; web `components/ExplainTrail.tsx`, `lib/explanation.ts`, `lib/explainStrings.ts`; mobile `components/ExplainToggle.tsx`, `services/explanation.ts`; ADR-017; tests in each package, `apps/api/tests/test_explanations_api.py`, `apps/web/tests/explanation.test.ts`, `apps/mobile/tests/explanation.test.ts`.
+- **Changed (additive)**: `explanation` on BillNyay audit items, DawaCheck responses, readiness items, BimaNyay timeline events; `daavisetu_playbooks.case_evidence` carries `source_file`.
+- **Honest gaps the trail exposes (not fixed)**: no CGHS procedure code and no NPPA serial in the bundled tables; no per-line OCR confidence; keyword evidence has no document name; BimaNyay counts from the entered date, in calendar days, and falls back to today on an unreadable date.
+
+### 2026-10-19 — Read-aloud and simple language (web)
+- **Added**: `app/lib/{speech,listenCopy,listenSummaries}.ts`, `app/hooks/useListen.ts`, `app/components/{ListenSummary,SimpleLanguageToggle}.tsx`, `tests/listen.test.ts`, ADR-016, `docs/development/accessibility-read-aloud.md`. Additive edits to `page.tsx` (toggle), `BimaNyayView`, `DawaCheckView`, `DaaviSetuView` and `PreauthReadinessPanel` (new optional `lang` prop).
+- **Privacy**: only voices with `localService === true`; no cloud fallback; no speech recognition; spoken text is built from structured fields + static strings, never server free text.
+
+### 2026-10-19 — Claim Pack
+- **Added**: `apps/api/app/claim_pack.py`, `endpoints/claim_pack.py` (registered under `/kadi`), `tests/test_claim_pack.py`; `apps/web/app/lib/claimPack.ts`, `components/ClaimPackPanel.tsx` (mounted in `page.tsx` after the case timeline), `tests/claim_pack.test.ts`; ADR-015; API overview row; CHANGELOG.
+
+### 2026-10-19 — Phase-4 evaluation harnesses (branch `claude/evaluation-harnesses-5d0704`)
+- **Added**: `apps/api/app/evaluation/` (metrics, bma, pea, anomaly, crma, ocr_wer, dawacheck_mapping, datasets, runner); `data/evaluation/*.jsonl` (6 synthetic datasets); `scripts/evaluate_phase4.py`; `apps/api/tests/test_evaluation_harness.py`; `docs/evaluation/phase4-harnesses.md`.
+- **Changed (no behaviour change)**: `apps/api/app/api/v1/endpoints/billnyay.py` — extracted `_match_cghs_key` and `audit_billing_lines`.
+- **Measured (synthetic)**: BMA 0.705 accuracy; PEA procedure F1 0.942; anomaly line F1 0.810 (all 6 FNs are abstentions); CRMA 0.560; DawaCheck mapping accuracy 0.865; OCR utility corpus WER 0.381 / CER 0.089 on simulated errors. Found: `ppe`⊂"appendectomy" and `icu`⊂"particular" substring mis-maps; BimaNyay decides from category only; DawaCheck maps combination products to a single drug.
+- **Gold-label correction disclosed**: PEA-009 (`Dolo 650: 33` is a real medicine line) fixed after the first run; no other label changed.
 
 ### 2026-10-15 — Independent-task pass (uncommitted on `viraj-dev` at time of writing)
 - **Added**: `apps/web/app/lib/packageCrypto.ts` + `tests/package_crypto.test.ts` (8) and the opt-in protect/unlock controls in `DaaviSetuView.tsx`; `apps/mobile/src/services/slaReminders.ts` + tests (8); `docker-compose.demo.yml`; ADR-013, ADR-014; `docs/development/deployment.md`, `mobile-sla-reminders.md`; PDF footer in `billnyay/tools/pdf_compiler.py` + test; Scenario E in the smoke script; `DOCUMENT_SIGNING_SECRET` documented.
@@ -622,11 +692,41 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
+### Latest handoff (2026-10-19, engineering foundation pass)
+- Where code goes: `docs/architecture/module-boundaries.md`. `lint-imports` + `test_architecture.py` will fail a new module that is not in `.importlinter` or that imports a route module.
+- Model change ⇒ Alembic revision (`cd apps/api && alembic revision --autogenerate -m ...`, review it). `test_migrations.py` fails otherwise.
+- Never run more than one API process (ADR-019): no `--workers`, replicas or HPA.
+- Tests that patch the ingestion pipeline patch `app.services.case_ingestion`, not the kadi route module. A test that mounts a temporary router must restore `app.router.routes` and reset `app.openapi_schema` and `app.observability._templates`.
+- Contract change ⇒ `PYTHONPATH=apps/api python scripts/export_openapi.py` and review the diff.
+- Running two pytest processes at once in the repo root corrupts both (shared `test_temp.db`).
+- First GitHub run of `security.yml`: gitleaks scans full history and may surface old findings to triage; `alembic check` on PostgreSQL may report dialect type differences SQLite hides.
+
+### Latest handoff (2026-10-19, explanation trail)
+- To add an explanation to a new finding: build `kadi.explanation.Explanation` in the owning package from the decision's own values, use `fact(label, value)` so a missing value stays `None`, and let `not_recorded` derive itself. Never fill a gap with a plausible string.
+- `PR #150` rewrites `dawacheck/reference_data.py`/`checker.py` and `#145` the Kadi line-items parser; this work avoided both (`dawacheck/explain.py` only reads `MedicineBenchmark` fields). If #150 adds an NPPA serial/notification to the reference rows, surface it in `explain_medicine` (it is currently reported "not recorded").
+- Importing `kadi.explanation` from a module package imports `kadi` (~0.4 s); module package tests need `pip install -e packages/kadi` (CI already does).
+
+### Latest handoff (2026-10-19, read-aloud)
+- Never relax `selectLocalVoice` to accept `localService:false` and never add `SpeechRecognition` or a TTS package (ADR-016, network boundary). `speakWithVoice` throws on a non-local voice by design.
+- New summaries: add strings to `ListenCopy` for en/hi/mr (placeholder parity is tested), a builder in `listenSummaries.ts`, then `<ListenSummary>`; pass structured fields only.
+- Marathi usually has no local voice on Windows/Chrome, so the buttons are hidden there by design. Audio output itself was never heard by an agent; test with a real voice.
+- Gotcha when editing files via bash heredocs in this environment: backslash sequences in regex strings were mangled (`` lost); write such files with the editor tools.
+
 ### Latest handoff (2026-10-15, independent-task pass)
+
+### Latest handoff (2026-10-19, Claim Pack)
+- The pack is read-only: it recomputes the BillNyay audit and DawaCheck rows deterministically and rolls back DawaCheck's staged brand mappings; it never drafts an appeal. Add new sections in `claim_pack._sections` and keep the manifest honest (`included` + provenance). Checklist uses the generic baseline only. Mobile has no control yet.
+
+### Latest handoff (2026-10-19, evaluation harnesses)
+- Run `python scripts/evaluate_phase4.py` (offline, no Groq). Never quote its numbers as real-world accuracy: datasets are synthetic, hand-written, hard-case-heavy. Add new rows rather than editing labels after seeing results; if a label must change, disclose it in `docs/evaluation/phase4-harnesses.md`.
+- Harness code deliberately lives in `apps/api/app/evaluation/` (not in the packages) so it can import billnyay/kadi/bimanyay/dawacheck together without new inter-package dependencies.
+- The report lists four unfixed defects as follow-ups. The DawaCheck one touches `reference_data.py`/`checker.py`, which open PRs #145/#150 also edit — merge those first.
+
+### Earlier handoff (2026-10-15, independent-task pass)
 - Client encryption lives only in the web DaaviSetu view; BillNyay's signed appeal PDF is deliberately excluded (ADR-014). Mobile has no equivalent.
 - The `/billnyay/.../appeal/verify` hash/HMAC feature already existed; do not rebuild it. A file's own hash cannot be printed inside it, so the PDF footer only describes it.
 - The smoke script needs `--admin-key`; on SQLite use `DATABASE_URL=sqlite+aiosqlite:///./x.db` and delete the file afterwards.
-- `apps/mobile/package.json` has `expo ~57` but SDK-52 sibling packages: resolve this before adding any `expo-*` dependency.
+- Mobile stays on Expo SDK 52 (the `expo ~57` bump from dependabot was reverted); install new Expo packages with `npx expo install` so versions match the SDK.
 - Open reviews: PRs #150 (NPPA data) and #145 (prescription OCR) need their authors' fixes; merge #150 first.
 
 ### Earlier handoff (2026-09-30, Scenario E)

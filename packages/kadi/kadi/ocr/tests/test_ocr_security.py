@@ -7,7 +7,6 @@ inside every call to `parse_document` — loading model weights from disk (or tr
 download) on every single image upload, and racing under concurrent requests.
 """
 
-import io
 import struct
 import threading
 import zlib

@@ -121,7 +121,7 @@ def main() -> int:
 
     client, engine, db_path = _bootstrap_app()
     from app.config import settings
-    from app.api.v1.endpoints.kadi import latency_tracker
+    from app.latency_metrics import tracker as latency_tracker
 
     latency_tracker.reset()
     groq_configured = bool(settings.groq_api_key)
@@ -135,10 +135,14 @@ def main() -> int:
         for _ in range(args.repeats):
             case_res = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
             case_id = case_res.json()["id"]
+            # ADR-009: every case-scoped request needs the case's one-time access token.
+            # Without it every upload was a 401 and the run "passed" with zero samples.
+            token = case_res.json()["access_token"]
             t0 = time.time()
             upload_res = client.post(
                 f"/api/v1/kadi/cases/{case_id}/upload",
                 files={"file": (f"{name}.txt", payload)},
+                headers={"X-Case-Access-Token": token},
             )
             elapsed = time.time() - t0
             if upload_res.status_code != 202:
@@ -160,7 +164,9 @@ def main() -> int:
     print(f"  violations:      {summary.violations}")
     print(f"  compliance_rate: {summary.compliance_rate}")
 
-    if summary.violations:
+    if summary.sample_count == 0:
+        print("\nFAIL: no run produced a latency sample, so nothing was measured.")
+    elif summary.violations:
         print(f"\nFAIL: {summary.violations} of {summary.sample_count} run(s) exceeded the {summary.target_seconds:.0f}s target.")
     else:
         print(f"\nPASS: all {summary.sample_count} run(s) stayed within the {summary.target_seconds:.0f}s target.")
@@ -179,7 +185,7 @@ def main() -> int:
     if db_path.exists():
         db_path.unlink()
 
-    return 1 if summary.violations else 0
+    return 1 if (summary.violations or summary.sample_count == 0) else 0
 
 
 if __name__ == "__main__":

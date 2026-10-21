@@ -1,0 +1,53 @@
+{"_meta": {"name": "dawacheck_mapping_synthetic_v1", "synthetic": true, "provenance": "Hand-written medicine-name queries (brand aliases, formatting and spelling variants, dosage variants, out-of-subset drugs, look-alikes/combinations). Gold = which entry of the 7-formulation curated NPPA subset in packages/dawacheck/dawacheck/reference_data.py the name should map to, or null when the medicine is not in that subset. Labels written BEFORE running the matcher from general pharmaceutical knowledge; brand-to-generic claims are not independently verified against a brand database.", "description": "Query -> expected reference active_ingredient (null = not in subset, must not be mapped) and, for mapped rows, the expected per-unit ceiling in rupees (reference ceiling, proportionally scaled for a different strength)."}}
+{"id": "DAWA-001", "category": "alias", "query": "Dolo 650", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-002", "category": "alias", "query": "Crocin 650", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-003", "category": "alias", "query": "Calpol 650", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-004", "category": "alias", "query": "Mox 500", "expected_active_ingredient": "Amoxicillin 500mg", "expected_ceiling": 7.5}
+{"id": "DAWA-005", "category": "alias", "query": "Augmentin 625 Duo", "expected_active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)", "expected_ceiling": 20.1}
+{"id": "DAWA-006", "category": "alias", "query": "Glycomet 500", "expected_active_ingredient": "Metformin Hydrochloride 500mg SR", "expected_ceiling": 2.15}
+{"id": "DAWA-007", "category": "alias", "query": "Meronem 1g", "expected_active_ingredient": "Meropenem 1000mg Powder for Injection", "expected_ceiling": 850.0}
+{"id": "DAWA-008", "category": "alias", "query": "Pan 40", "expected_active_ingredient": "Pantoprazole 40mg", "expected_ceiling": 3.2}
+{"id": "DAWA-009", "category": "alias", "query": "Pantocid 40", "expected_active_ingredient": "Pantoprazole 40mg", "expected_ceiling": 3.2}
+{"id": "DAWA-010", "category": "alias", "query": "Azithral 500", "expected_active_ingredient": "Azithromycin 500mg", "expected_ceiling": 21.5}
+{"id": "DAWA-011", "category": "format", "query": "DOLO 650 TAB", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-012", "category": "format", "query": "Tab Dolo 650", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-013", "category": "format", "query": "Crocin 650mg tablet", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-014", "category": "format", "query": "paracetamol 650mg", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-015", "category": "format", "query": "Metformin 500mg SR", "expected_active_ingredient": "Metformin Hydrochloride 500mg SR", "expected_ceiling": 2.15}
+{"id": "DAWA-016", "category": "format", "query": "Inj Meropenem 1g", "expected_active_ingredient": "Meropenem 1000mg Powder for Injection", "expected_ceiling": 850.0}
+{"id": "DAWA-017", "category": "dosage_variant", "query": "Paracetamol 325mg", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 1.15}
+{"id": "DAWA-018", "category": "dosage_variant", "query": "Amoxicillin 250mg", "expected_active_ingredient": "Amoxicillin 500mg", "expected_ceiling": 3.75}
+{"id": "DAWA-019", "category": "dosage_variant", "query": "Pantoprazole 20mg", "expected_active_ingredient": "Pantoprazole 40mg", "expected_ceiling": 1.6}
+{"id": "DAWA-020", "category": "dosage_variant", "query": "Azithromycin 250mg", "expected_active_ingredient": "Azithromycin 500mg", "expected_ceiling": 10.75}
+{"id": "DAWA-021", "category": "dosage_variant", "query": "Meropenem 500mg", "expected_active_ingredient": "Meropenem 1000mg Powder for Injection", "expected_ceiling": 425.0}
+{"id": "DAWA-022", "category": "dosage_variant", "query": "Metformin 1000mg", "expected_active_ingredient": "Metformin Hydrochloride 500mg SR", "expected_ceiling": 4.3}
+{"id": "DAWA-023", "category": "spelling_ocr", "query": "Amoxycillin 500mg", "expected_active_ingredient": "Amoxicillin 500mg", "expected_ceiling": 7.5}
+{"id": "DAWA-024", "category": "spelling_ocr", "query": "Paracetmol 650mg", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-025", "category": "spelling_ocr", "query": "Azithromicin 500mg", "expected_active_ingredient": "Azithromycin 500mg", "expected_ceiling": 21.5}
+{"id": "DAWA-026", "category": "spelling_ocr", "query": "Pantaprazole 40mg", "expected_active_ingredient": "Pantoprazole 40mg", "expected_ceiling": 3.2}
+{"id": "DAWA-027", "category": "spelling_ocr", "query": "Dolo650", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-028", "category": "spelling_ocr", "query": "Augmentin625", "expected_active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)", "expected_ceiling": 20.1}
+{"id": "DAWA-029", "category": "spelling_ocr", "query": "Crosin 650", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 2.3}
+{"id": "DAWA-030", "category": "unlisted_brand_of_listed_drug", "query": "Azee 500", "expected_active_ingredient": "Azithromycin 500mg", "expected_ceiling": 21.5}
+{"id": "DAWA-031", "category": "unlisted_brand_of_listed_drug", "query": "Pantop 40", "expected_active_ingredient": "Pantoprazole 40mg", "expected_ceiling": 3.2}
+{"id": "DAWA-032", "category": "unlisted_brand_of_listed_drug", "query": "Zithromax 500", "expected_active_ingredient": "Azithromycin 500mg", "expected_ceiling": 21.5}
+{"id": "DAWA-033", "category": "unlisted_brand_of_listed_drug", "query": "Dolo 500", "expected_active_ingredient": "Paracetamol 650mg", "expected_ceiling": 1.77}
+{"id": "DAWA-034", "category": "unlisted_brand_of_listed_drug", "query": "Amoxyclav 625", "expected_active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)", "expected_ceiling": 20.1}
+{"id": "DAWA-035", "category": "unlisted_brand_of_listed_drug", "query": "Amoxicillin Clavulanate 625", "expected_active_ingredient": "Amoxicillin (500mg) + Clavulanic Acid (125mg)", "expected_ceiling": 20.1}
+{"id": "DAWA-036", "category": "not_in_subset", "query": "Ibuprofen 400mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-037", "category": "not_in_subset", "query": "Cetirizine 10mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-038", "category": "not_in_subset", "query": "Atorvastatin 10mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-039", "category": "not_in_subset", "query": "Ecosprin 75", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-040", "category": "not_in_subset", "query": "Telmisartan 40mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-041", "category": "not_in_subset", "query": "Omeprazole 20mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-042", "category": "not_in_subset", "query": "Insulin Glargine", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-043", "category": "not_in_subset", "query": "Cefixime 200mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-044", "category": "not_in_subset", "query": "Diclofenac 50mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-045", "category": "not_in_subset", "query": "Ondansetron 4mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-046", "category": "hard_negative", "query": "Erythromycin 500mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-047", "category": "hard_negative", "query": "Metronidazole 400mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-048", "category": "hard_negative", "query": "Paracetamol + Ibuprofen", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-049", "category": "hard_negative", "query": "Pantoprazole + Domperidone", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-050", "category": "hard_negative", "query": "Amlodipine 5mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-051", "category": "hard_negative", "query": "Ampicillin 500mg", "expected_active_ingredient": null, "expected_ceiling": null}
+{"id": "DAWA-052", "category": "hard_negative", "query": "Meloxicam 15mg", "expected_active_ingredient": null, "expected_ceiling": null}

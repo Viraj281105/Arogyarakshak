@@ -39,6 +39,31 @@ python scripts/evaluate_latency.py --repeats 10 --json eval.json
 
 ## Results
 
+### 2026-10-19 (after the harness fix)
+
+The harness had stopped sending the per-case access token (ADR-009), so every upload got a
+401 and the script printed `PASS: all 0 run(s)` — a pass with nothing measured. It now sends
+the token and exits non-zero when no sample was recorded.
+
+`GROQ_API_KEY` unset (offline fallback), development laptop (Windows, Python 3.11), ephemeral
+SQLite, 20 runs (4 fixtures × 5 repeats), FastAPI 0.148 / Starlette 1.9, with the request-id
+middleware and document-job writes (ADR-019) in the path:
+
+| Metric | Value |
+|---|---|
+| Samples | 20 |
+| p50 | 0.026 s |
+| p95 | 0.035 s |
+| max | 0.041 s |
+| mean | 0.025 s |
+| Violations (> 10 s) | 0 |
+
+Slower than the 2026-09-15 figures below; the pipeline gained OCR trust gating, explanation
+trails and job bookkeeping in between, and the difference has not been attributed to any one
+change. Same caveats as before: text fixtures only, no EasyOCR, no Groq, no PostgreSQL.
+
+### 2026-09-15
+
 Measured on 2026-09-15, `GROQ_API_KEY` unset (offline fallback), development laptop
 (Windows, Python 3.11), 12 total runs (4 fixtures × 3 repeats):
 

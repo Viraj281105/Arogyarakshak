@@ -1,4 +1,5 @@
 import { describe, it } from 'node:test';
+import { apiTypesSource, screenSource } from './sourceTree';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,10 +9,10 @@ const read = (...p: string[]) => readFileSync(join(process.cwd(), ...p), 'utf-8'
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 const endpoints = read('src', 'api', 'endpoints.ts');
-const types = read('src', 'api', 'types.ts');
+const types = apiTypesSource();
 const reviewCard = read('src', 'components', 'ClinicalReviewCard.tsx');
 const workflowCards = read('src', 'components', 'ClinicalWorkflowCards.tsx');
-const billNyay = read('src', 'screens', 'BillNyayScreen.tsx');
+const billNyay = screenSource('BillNyayScreen', 'billnyay');
 const bimaNyay = read('src', 'screens', 'BimaNyayScreen.tsx');
 const daaviSetu = read('src', 'screens', 'DaaviSetuScreen.tsx');
 const dawaCheck = read('src', 'screens', 'DawaCheckScreen.tsx');
@@ -83,7 +84,7 @@ describe('ADR-011 mobile module integration', () => {
 });
 
 // --- Audit fixes: routing, processing race, directory, safety failure ---
-const cameraScan = read('src', 'screens', 'CameraScanScreen.tsx');
+const cameraScan = screenSource('CameraScanScreen', 'camera');
 const navTypes = read('src', 'navigation', 'types.ts');
 
 describe('Audit fixes (mobile)', () => {

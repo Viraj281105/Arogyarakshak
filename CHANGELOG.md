@@ -9,6 +9,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Engineering foundation pass (2026-10-19, ADR-018 – ADR-021)
+
+#### Added
+- `apps/api/app/services/` application layer and `.importlinter` architecture contracts, run in CI (`lint-imports`) and backed by `test_architecture.py` (ADR-018).
+- Alembic migrations (`apps/api/alembic.ini`, `migrations/`), `SCHEMA_MANAGEMENT=migrate|none|create_all`, automatic adoption of databases created by the old `create_all` start-up (ADR-020).
+- `kadi_document_jobs`: persisted document processing state; jobs in flight at a restart become `interrupted` and the progress stream tells the user to re-upload (ADR-019).
+- `/health/live` and `/health/ready`; `X-Request-ID` on every response; `LOG_FORMAT=json`; hardening headers (`nosniff`, `DENY`, `no-referrer`, `no-store`, CORP).
+- OpenAPI contract snapshot (`docs/api/openapi.json`, `scripts/export_openapi.py`, `test_openapi_contract.py`).
+- `infrastructure/kubernetes/` (kustomize, single-replica API, hardened pods) with policy tests in `tests/infrastructure/` (ADR-021). Not deployed anywhere.
+- `.github/workflows/security.yml`: gitleaks, pip-audit, npm audit, Trivy image report and CycloneDX SBOM.
+
+#### Changed
+- `APP_ENV=production` now refuses to start with the default/short signing secret, default database credentials, wildcard CORS, `create_all` or demo mode; `/docs` and `/redoc` are off in production.
+- FastAPI 0.115.12 → 0.148.0, Starlette → 1.9.0 (pinned), python-multipart 0.0.12 → 0.0.32, Next.js 16.3.4 → 16.4.2; known advisories on the API and web production dependencies cleared.
+- API and web images are multi-stage; uvicorn access log disabled in favour of route-template access logs; compose web bound to 127.0.0.1.
+- CI: least-privilege permissions; Alembic upgrade + `alembic check` and a migration round trip on PostgreSQL 16; kustomize render.
+
+#### Fixed
+- Logs no longer contain case ids from URLs, submitted validation values or uploaded file names.
+- `scripts/evaluate_latency.py` had been reporting PASS with zero samples (every upload was a 401).
+- Web image build copied the host's `node_modules` over the Linux install (missing `.dockerignore`).
+
+### "Why am I seeing this?" explanation trail (2026-10-19, ADR-017)
+
+#### Added
+- **Deterministic explanation per finding** — `kadi.explanation.Explanation` (evidence + provenance class, exact rule/reference row, trust state, what could not be determined, derived `not_recorded`), built by the owning package next to each decision: `dawacheck.explain`, `billnyay.explain`, `daavisetu.readiness.explain_item`, `bimanyay.tracker`. No LLM call.
+- Additive `explanation` field on BillNyay `audit_items[]`, DawaCheck case medicines and manual `/benchmark`, DaaviSetu readiness `items[]` and BimaNyay `timeline_events[]`; same per-case authorization as the findings (ADR-009). Existing fields unchanged.
+- Web: collapsed, accessible `ExplainTrail` disclosure under each finding (en; hi/mr labels flagged `NEEDS NATIVE-SPEAKER QA`). Mobile: plain-text `ExplainToggle` on BillNyay lines, case medicines and BimaNyay deadlines.
+- `kadi.clinical_review.medicine_trust.name_provenance_class`; DaaviSetu readiness evidence now carries the source document name when recorded.
+- Tests: per-builder (incl. the "not recorded" paths), API (`test_explanations_api.py`), web and mobile.
+
+#### Changed
+- BillNyay audit: explanations reuse the existing `_match_cghs_key` (no matching change).
+
+### Read-aloud and simple language (2026-10-19)
+
+#### Added
+- **On-device read-aloud (ADR-016).** "Listen" / "Stop" on four result summaries (BimaNyay deadlines and appeal, DaaviSetu document check, DawaCheck price result) in English, Hindi and Marathi. Uses only the browser's `speechSynthesis` with voices that report `localService === true`; where no on-device voice exists (common for Marathi) the buttons are replaced by an honest message instead of falling back to a cloud voice. No speech recognition, no third-party TTS, nothing leaves the device. Playback never starts by itself.
+- **Simple language** switch: short plain-sentence variant of the same summaries, from curated static strings (no LLM, no runtime translation). Hindi/Marathi strings are flagged `NEEDS NATIVE-SPEAKER QA`.
+- `apps/web/app/lib/{speech,listenCopy,listenSummaries}.ts`, `hooks/useListen.ts`, `components/{ListenSummary,SimpleLanguageToggle}.tsx`, `tests/listen.test.ts` (23 tests), `docs/development/accessibility-read-aloud.md`.
+- Not verified: actual audio output with a real local voice.
+
+### Claim Pack (2026-10-19)
+
+#### Added
+- **Claim Pack (ADR-015)** — `GET /api/v1/kadi/cases/{case_id}/claim-pack`: one in-memory ZIP with a cover sheet, the DaaviSetu documentation checklist, the BimaNyay deadline timeline, the BillNyay audit and appeal draft (only if they exist), DawaCheck rows, the pre-auth form (only if submitted) and a manifest of what is and is not included with provenance classes. Missing parts say "Not available for this case". Web: `ClaimPackPanel` with the optional browser-side password protection from ADR-014. Mobile: not added.
+
+### Phase-4 evaluation harnesses (2026-10-19)
+
+#### Added
+- **Evaluation harnesses** (`apps/api/app/evaluation/`, run with `scripts/evaluate_phase4.py`, offline, no Groq key): BMA (bill line → CGHS key), PEA (procedure extraction), billing-anomaly precision/recall/F1, CRMA (claim-rejection mapping), OCR WER/CER utility, DawaCheck price-mapping accuracy.
+- Six **SYNTHETIC**, hand-written labelled datasets in `data/evaluation/` (the loader rejects any file not flagged synthetic) and 24 tests with hand-computed expected values.
+- `docs/evaluation/phase4-harnesses.md` — measured results, including failures, and limitations. Numbers are development-set figures, not real-world accuracy.
+
+#### Changed
+- `billnyay` endpoint: extracted `_match_cghs_key` and the pure `audit_billing_lines` (no behaviour change) so the harness scores production logic.
+
+### Mobile Expo SDK pin (2026-10-15)
+
+#### Fixed
+- `apps/mobile`: reverted the accidental `expo ~57` bump from dependabot commit fe4b773 back to SDK 52 (`npm ci` and `npm ls` were failing/invalid; dependabot PR #148 failed mobile CI). The postcss security bump is kept through an `overrides` entry.
+
 ### Independent-task pass (2026-10-15)
 
 #### Added

@@ -9,7 +9,7 @@ import hashlib
 
 import pytest
 
-from app.api.v1.endpoints import billnyay as billnyay_endpoint
+from app.services import billnyay_appeal as billnyay_endpoint  # PDF rendering moved here (restructuring)
 from tests.clinical_helpers import K, client, evidence_ids, finalize, full_statement, make_case, rh
 
 B = "/api/v1/billnyay"

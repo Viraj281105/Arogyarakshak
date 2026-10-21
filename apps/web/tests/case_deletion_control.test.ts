@@ -4,7 +4,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('SEC-03: web UI exposes explicit case deletion, not just server-side expiry', () => {
-  const pageSrc = readFileSync(join(process.cwd(), 'app', 'page.tsx'), 'utf-8');
+  // The page renders the control; the case-session hook it uses performs the request.
+  const pageSrc = ['app/page.tsx', 'app/hooks/useCaseSession.ts']
+    .map((f) => readFileSync(join(process.cwd(), f), 'utf-8'))
+    .join('\n');
 
   it('calls DELETE /api/v1/kadi/cases/{caseId} with the case access token header', () => {
     assert.ok(
