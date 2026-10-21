@@ -49,8 +49,16 @@ export function normalizeErrorDetail(detail: unknown): string {
   }
 
   if (detail && typeof detail === "object") {
-    // A structured (non-array) detail — never render it raw; summarize instead of
-    // exposing arbitrary server-internal object shapes to the UI.
+    // The API's own structured refusals carry a readable `message`, sometimes with the
+    // fields it could not resolve (e.g. DaaviSetu's 422 `missing_fields`).
+    const { message, missing_fields } = detail as { message?: unknown; missing_fields?: unknown };
+    if (typeof message === "string" && message.trim()) {
+      const missing = Array.isArray(missing_fields)
+        ? missing_fields.filter((f): f is string => typeof f === "string").map((f) => f.replace(/_/g, " "))
+        : [];
+      return missing.length > 0 ? `${message} Missing: ${missing.join(", ")}.` : message;
+    }
+    // Anything else — summarize instead of exposing arbitrary server-internal shapes.
     try {
       return JSON.stringify(detail);
     } catch {

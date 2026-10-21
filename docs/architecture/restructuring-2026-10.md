@@ -113,3 +113,68 @@ apps/mobile/src/
 Rules: route packages compose sub-routers and re-export the names other code and tests
 already import; no new generic `utils` modules; data dictionaries (translations, read-aloud
 copy) and CSS stay as they are.
+
+## 4. Measured results and verification
+
+### 4.1 Production source and test line counts
+
+Measured using the exact rules defined in §1:
+
+| Area | Production source | Tests (counted separately) |
+|---|---|---|
+| **Backend** | 177 files, 26,915 lines | 95 files, 15,245 lines |
+| **Web** | 67 files, 10,488 lines | 13 files, 1,485 lines |
+| **Mobile** | 68 files, 7,679 lines | 12 files, 1,677 lines |
+
+### 4.2 Resolution of oversized production files (> 500 lines)
+
+Every oversized route, service facade, model, component, and screen from §2 was modularized:
+
+| Baseline lines | File | Final state | Actions & modules created |
+|---|---|---|---|
+| 800 | `apps/api/app/api/v1/endpoints/kadi.py` | Split into package | `apps/api/app/api/v1/endpoints/kadi/` (`__init__.py`, `cases.py` [332], `resolution.py` [194], `abdm.py` [149], `schemas.py` [143], `insights.py` [118], `loaders.py` [42]) |
+| 743 | `apps/api/app/api/v1/endpoints/billnyay.py` | 233 lines | Extracted `services/billnyay_llm.py` (243) and `services/billnyay_appeal.py` (295) |
+| 710 | `apps/api/app/clinical/service.py` | 57 lines | Thin facade delegating to `case_reviews.py` (257), `statements.py` (274), `reviewer_reviews.py` (150), `facts.py` (98), `review_common.py` (21) |
+| 668 | `apps/api/app/models.py` | Split into package | `apps/api/app/models/` (`kadi.py` [195], `clinical_review.py` [150], `daavisetu.py` [106], `safety.py` [88], `bimanyay.py` [73], `transcription.py` [70], `billnyay.py` [35], `schemesetu.py` [29], `dawacheck.py` [25], re-exported by `__init__.py` [83]) |
+| 630 | `apps/api/app/api/v1/endpoints/clinical_review.py` | Split into package | `apps/api/app/api/v1/endpoints/clinical_review/` (`reviewer.py` [206], `registry.py` [187], `case_holder.py` [180], `schemas.py` [78], `__init__.py` [24]) |
+| 522 | `apps/api/app/api/v1/endpoints/daavisetu.py` | Split into package | `apps/api/app/api/v1/endpoints/daavisetu/` (`readiness.py` [217], `claims.py` [213], `__init__.py` [18]) |
+| 1003 | `apps/web/app/clinical-review/page.tsx` | 128 lines | Extracted components to `apps/web/app/clinical-review/components/` (`ReviewsTab.tsx` [220], `SafetyTab.tsx` [215], `StatementEditor.tsx` [188], `TranscriptionTab.tsx` [103], `ReviewSummary.tsx` [96], `SignInPanel.tsx` [92], `FactConfirmations.tsx` [75], `EvidencePanel.tsx` [56]) |
+| 632 | `apps/web/app/components/modules/BillNyayView.tsx` | 195 lines | Extracted `modules/billnyay/` (`AuditResults.tsx` [169], `AppealLetterCard.tsx` [128], `types.ts` [84], `PlausibilityCard.tsx` [78]) |
+| 546 | `apps/web/app/page.tsx` | 227 lines | Extracted `hooks/useCaseSession.ts` (301) and `components/ModuleTabs.tsx` (34) |
+| 528 | `apps/web/app/components/modules/BimaNyayView.tsx` | 195 lines | Extracted `modules/bimanyay/` (`SlaTimeline.tsx` [111], `ClinicalSection.tsx` [102], `AppealDrafts.tsx` [81], `DisputeSummary.tsx` [63], `types.ts` [55]) |
+| 546 | `apps/mobile/src/screens/CameraScanScreen.tsx` | 143 lines | Extracted `screens/camera/` (`styles.ts` [135], `useScanUpload.ts` [130], `ScanOverlays.tsx` [113], `PermissionGate.tsx` [57]) |
+| 515 | `apps/mobile/src/api/types.ts` | Split into package | `apps/mobile/src/api/types/` (`clinical.ts` [158], `billnyay.ts` [79], `dawacheck.ts` [70], `core.ts` [69], `bimanyay.ts` [65], `schemesetu.ts` [52], `daavisetu.ts` [28], re-exported by `index.ts` [11]) |
+
+### 4.3 Files retained > 500 lines
+
+Only 7 production files exceed 500 lines, each retained with deliberate justification:
+1. `apps/mobile/src/translations/strings.ts` (785 lines): static trilingual string dictionary (retained per §3).
+2. `apps/web/app/globals.css` (755 lines): CSS design tokens and layout primitives (retained per §3, no visual changes).
+3. `apps/web/app/translations.ts` (719 lines): static trilingual string dictionary (retained per §3).
+4. `packages/kadi/kadi/clinical_review/transcription.py` (648 lines): cohesive clinical transcription domain logic.
+5. `apps/web/app/lib/listenCopy.ts` (516 lines): static read-aloud copy dictionaries.
+6. `packages/daavisetu/daavisetu/readiness.py` (503 lines): pre-claim documentation readiness domain logic.
+7. `apps/api/app/clinical/transcription_service.py` (502 lines): database persistence and audit service for transcription tasks.
+
+### 4.4 Duplication and dead code resolution
+
+- **D1 (Denial extraction):** Unified in `apps/api/app/services/billnyay_appeal.py`.
+- **D2 (Signed-PDF compilation):** Unified in `apps/api/app/services/billnyay_appeal.py`.
+- **D3 (Appeal loading):** Unified in `apps/api/app/services/billnyay_appeal.py`.
+- **D4 (API_BASE):** Unified into single definition at `apps/web/app/lib/apiBase.ts`.
+- **X1 (Vector store scaffold):** Removed dead `packages/kadi/kadi/vector_store.py` (56 lines).
+- **X2 (Mobile hooks barrel):** Removed unused `apps/mobile/src/hooks/index.ts`.
+- **X3 (Uncalled job view):** Removed `document_jobs.job_view`.
+- **X4 (Unused imports/variables):** Cleaned 19 unused items flagged by Ruff.
+- **X5 (Runtime dependency):** Removed unused `httpx` from `apps/api/requirements.txt`.
+
+### 4.5 Engineering baseline verification
+
+- **GitHub Actions CI (PR #158, commit `3e154d7`):** 11/11 passing runs across API dependencies (pip-audit), API image scan + SBOM, architectural invariants guard, backend suite (Python 3.11, PostgreSQL 16), CI quality gate, Docker container build, mobile client suite, mobile dependencies, secret scan (gitleaks), web client suite, and web production dependencies (npm audit).
+- **Backend test suite:** 1,119 passed, 7 skipped.
+- **Architecture contracts (`lint-imports`):** 5/5 kept (no cycles, no route imports below HTTP layer).
+- **CI Guardrails (`scripts/ci_guardrails.py`):** 8/8 checks passed.
+- **Web client:** 133 tests passed, ESLint clean (0 errors), Next.js build OK.
+- **Mobile client:** 126 tests passed, TypeScript clean (0 errors).
+- **Reviewer workspace browser verification:** Verified in live browser against migrated SQLite backend with seeded demo credentials. Sign-in, error states on invalid credentials, 3-tab navigation, safety governance rule display, and reviewer registration verified end-to-end.
+

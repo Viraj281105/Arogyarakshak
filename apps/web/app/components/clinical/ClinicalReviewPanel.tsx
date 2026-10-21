@@ -172,17 +172,8 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
   const openReviews = reviews.filter((r) => r.review_type === "CLINICAL_STATEMENT");
 
   return (
-    <section
-      aria-labelledby={`clinical-review-${sourceModule}`}
-      style={{
-        border: "1px solid var(--border-medium)",
-        borderRadius: "var(--radius-md)",
-        padding: "1.25rem",
-        marginBottom: "1.5rem",
-        background: "var(--bg-surface-elevated)",
-      }}
-    >
-      <h3 id={`clinical-review-${sourceModule}`}>🩺 Clinical Review by a Named Doctor</h3>
+    <section aria-labelledby={`clinical-review-${sourceModule}`} className="case-panel bn-card clinical-review-panel">
+      <h3 id={`clinical-review-${sourceModule}`}>Clinical review by a named doctor</h3>
       <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
         Some findings need a clinician&apos;s judgment, which ArogyaRakshak will not invent. You can share selected case
         evidence with a doctor you choose; they write and sign their own statement, with their conflict of interest
@@ -213,7 +204,7 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
         onChange={(e) => setQuestion(e.target.value)}
       />
       <label className="consent-wrapper" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", margin: "0.75rem 0" }}>
-        <input type="checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
+        <input type="checkbox" className="consent-checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
         <span style={{ fontSize: "0.85rem" }}>
           I agree to share this case&apos;s extracted, de-identified evidence with the reviewer I assign, for this review
           only. I can cancel at any time to revoke their access.
@@ -224,8 +215,8 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
           Request Clinical Review
         </button>
         {openReviews.length > 0 && (
-          <button type="button" className="btn" style={{ border: "1px solid var(--border-subtle)" }} disabled={busy} onClick={() => run(async () => undefined)}>
-            ↻ Refresh status
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => run(async () => undefined)}>
+            Refresh status
           </button>
         )}
       </div>

@@ -6,6 +6,7 @@ import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
 import { describePriceCheck, PriceCheck } from "../../lib/dawacheck";
 import { ProvenanceBadge } from "./Attribution";
 import { StatePanel } from "./StatePanel";
+import { PriceBar } from "../modules/dawacheck/PriceBar";
 import { ExplainTrail } from "../ExplainTrail";
 import type { Explanation } from "../../lib/explanation";
 import type { Language } from "../../translations";
@@ -93,8 +94,11 @@ export const CaseMedicineTrustPanel: React.FC<{
   const blocked = (rows ?? []).filter((r) => BLOCKED_STATES.has(r.trust?.state ?? ""));
 
   return (
-    <section aria-labelledby="case-medicines-title" style={{ marginBottom: "1.5rem" }}>
-      <h3 id="case-medicines-title">💊 Medicines from your documents</h3>
+    <section aria-labelledby="case-medicines-title" className="case-panel bn-card">
+      <div className="case-panel-head">
+        <h3 id="case-medicines-title">Medicines from your documents</h3>
+        {rows && rows.length > 0 && <span className="timeline-count">{rows.length} found</span>}
+      </div>
       {loading && !rows && <StatePanel kind="loading">Checking the medicines extracted from your documents…</StatePanel>}
       {error && (
         <StatePanel kind="error" onRetry={retry}>
@@ -113,23 +117,15 @@ export const CaseMedicineTrustPanel: React.FC<{
         </StatePanel>
       )}
       {rows && rows.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.6rem" }}>
+        <ul className="dc-meds">
           {rows.map((r) => {
             const state = r.trust?.state ?? "";
             const isBlocked = BLOCKED_STATES.has(state);
             const price = r.benchmark ? describePriceCheck(r.benchmark) : null;
             return (
-              <li
-                key={r.entity_id}
-                style={{
-                  border: `1px solid ${isBlocked ? "var(--status-warning)" : "var(--border-subtle)"}`,
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.75rem 0.9rem",
-                  minWidth: 0,
-                }}
-              >
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-                  <strong style={{ overflowWrap: "anywhere" }}>{r.brand_name}</strong>
+              <li key={r.entity_id} className={`dc-med ${isBlocked ? "is-blocked" : ""}`}>
+                <div className="bn-badges">
+                  <strong className="dc-med-name">{r.brand_name}</strong>
                   {isBlocked ? (
                     <span className={TONE_CLASS.warning}>{r.trust?.label ?? humanizeEnum(state)}</span>
                   ) : (
@@ -138,28 +134,27 @@ export const CaseMedicineTrustPanel: React.FC<{
                   {price && <span className={TONE_CLASS[price.tone]}>{price.badge}</span>}
                 </div>
                 {(r.trust?.reasons ?? []).length > 0 && (
-                  <div style={{ fontSize: "0.78rem", marginTop: "0.3rem", opacity: 0.9 }}>
+                  <div className="bn-fine">
                     {(r.trust?.reasons ?? []).map(humanizeEnum).join(" · ")}
                   </div>
                 )}
-                <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>
+                <div className="dc-med-body">
                   {r.benchmark && price ? (
                     <>
-                      <div>
+                      <PriceBar check={r.benchmark} view={price} />
+                      <div className="bn-fine">
                         {price.billed} · {price.ceiling} (reference: {r.benchmark.active_ingredient})
                       </div>
-                      {price.reason && <div style={{ marginTop: "0.25rem", color: "var(--status-warning)" }}>{price.reason}</div>}
-                      {price.basisNote && (
-                        <div style={{ marginTop: "0.25rem", fontSize: "0.78rem", opacity: 0.85 }}>{price.basisNote}</div>
-                      )}
+                      {price.reason && <div className="dc-med-reason">{price.reason}</div>}
+                      {price.basisNote && <div className="bn-fine">{price.basisNote}</div>}
                     </>
                   ) : (
-                    <span>{r.note ?? "Not price-checked."}</span>
+                    <span className="bn-fine">{r.note ?? "Not price-checked."}</span>
                   )}
                 </div>
                 <ExplainTrail explanation={r.explanation} lang={lang} />
                 {isBlocked && FLAGGABLE_STATES.has(state) && (
-                  <div style={{ marginTop: "0.5rem" }}>
+                  <div>
                     <button
                       type="button"
                       className="btn btn-secondary btn-compact"

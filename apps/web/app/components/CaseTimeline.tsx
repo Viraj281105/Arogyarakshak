@@ -56,12 +56,16 @@ export const CaseTimeline: React.FC<{
   const loading = result?.key !== key;
 
   return (
-    <details className="card" style={{ marginBottom: "1.25rem" }} open>
-      <summary style={{ cursor: "pointer", minHeight: "var(--min-touch-target, 44px)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <strong>What has happened to this case</strong>
-        {data && <span style={{ fontSize: "0.8rem", opacity: 0.8 }}>({data.events.length} step{data.events.length === 1 ? "" : "s"})</span>}
+    <details className="case-panel timeline-panel" open>
+      <summary className="case-panel-head timeline-summary">
+        <h3>What has happened to this case</h3>
+        {data && (
+          <span className="timeline-count">
+            {data.events.length} step{data.events.length === 1 ? "" : "s"}
+          </span>
+        )}
       </summary>
-      <div style={{ marginTop: "0.5rem", display: "grid", gap: "0.6rem" }}>
+      <div className="timeline-body">
         {processing && (
           <StatePanel kind="loading">
             {data?.in_progress ? `In progress: ${data.in_progress.stage}. ` : "Processing… "}Steps appear here only once they have happened.
@@ -81,34 +85,37 @@ export const CaseTimeline: React.FC<{
         {data && data.events.length === 0 && !processing && !data.failure && (
           <StatePanel kind="empty">Nothing has been recorded for this case yet.</StatePanel>
         )}
+        {!data && !result?.error && <p className="timeline-loading">Loading the case history…</p>}
         {data && data.events.length > 0 && (
-          <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "0.45rem" }}>
+          <ol className="timeline">
             {data.events.map((e, i) => (
-              <li key={`${e.at}-${i}`} style={{ borderLeft: "2px solid var(--border-subtle)", paddingLeft: "0.75rem", minWidth: 0 }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", opacity: 0.8 }} title={e.at}>
+              <li key={`${e.at}-${i}`} className={`timeline-event actor-${e.actor.toLowerCase()}`}>
+                <span className="timeline-dot" aria-hidden="true" />
+                <div className="timeline-meta">
+                  <time dateTime={e.at} title={e.at}>
                     {formatTimestamp(e.at)}
-                  </span>
-                  <strong style={{ fontSize: "0.9rem" }}>{e.label}</strong>
+                  </time>
                   <span className={TONE_CLASS[ACTOR[e.actor].tone]}>{ACTOR[e.actor].label}</span>
                 </div>
-                {e.detail && <div style={{ fontSize: "0.8rem", opacity: 0.9, overflowWrap: "anywhere" }}>{e.detail}</div>}
+                <strong className="timeline-label">{e.label}</strong>
+                {e.detail && <p className="timeline-detail">{e.detail}</p>}
               </li>
             ))}
           </ol>
         )}
         {data && data.now.medicines > 0 && (
-          <p style={{ margin: 0, fontSize: "0.85rem" }}>
+          <p className="timeline-now">
             <strong>Now:</strong> {data.now.medicines_checkable} of {data.now.medicines} medicine(s) can be price-checked
             {data.now.medicines_held_back > 0 && <>; {data.now.medicines_held_back} held back until a human reads the entry</>}
             {data.now.medicines_human_reviewed > 0 && <>; {data.now.medicines_human_reviewed} read and agreed by independent human readers</>}.
           </p>
         )}
-        <div>
-          <button type="button" className="btn btn-secondary btn-compact" disabled={loading} onClick={() => setTick((n) => n + 1)}>
-            {loading ? "Refreshing…" : "Refresh history"}
-          </button>
-        </div>
+        <button type="button" className="btn btn-ghost btn-compact" disabled={loading} onClick={() => setTick((n) => n + 1)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
+            <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
+          </svg>
+          {loading ? "Refreshing…" : "Refresh history"}
+        </button>
       </div>
     </details>
   );

@@ -120,12 +120,9 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string; 
   const flaggedEntities = new Set(tasks.filter((t) => t.status !== "CANCELLED").map((t) => t.entity_id));
 
   return (
-    <section
-      aria-labelledby="transcription-title"
-      style={{ border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.25rem", marginBottom: "1.5rem" }}
-    >
-      <h3 id="transcription-title">✍️ Unclear prescription text — human reading</h3>
-      <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+    <section aria-labelledby="transcription-title" className="case-panel bn-card">
+      <h3 id="transcription-title">Unclear prescription text — human reading</h3>
+      <p className="bn-fine">
         When the software is unsure what a prescription says, it asks trained human readers instead of guessing. A medicine
         name, strength, frequency, route or duration needs two independent readings that agree. ArogyaRakshak never stores
         the document image — readers look at the original you hold.
@@ -138,14 +135,13 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string; 
       )}
 
       {medicines.length > 0 && (
-        <div style={{ marginBottom: "0.75rem" }}>
+        <div className="dc-flags">
           <div className="stat-label">Does a medicine look misread? Flag it:</div>
           {medicines.map((m) => (
             <button
               key={m.id}
               type="button"
-              className="btn btn-compact"
-              style={{ border: "1px solid var(--border-subtle)", margin: "0.25rem 0.5rem 0 0" }}
+              className="btn btn-ghost btn-compact"
               disabled={flaggedEntities.has(m.id)}
               onClick={() => flag(m.id)}
             >
@@ -156,14 +152,14 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string; 
       )}
 
       {tasks.length > 0 && (
-        <label className="consent-wrapper" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", margin: "0.5rem 0" }}>
-          <input type="checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
+        <label className="consent-wrapper">
+          <input type="checkbox" className="consent-checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
           <span style={{ fontSize: "0.85rem" }}>I agree to share the masked, redacted text of these readings with the readers I assign.</span>
         </label>
       )}
 
       {tasks.map((task) => (
-        <div key={task.task_id} style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem", marginTop: "0.75rem" }}>
+        <div key={task.task_id} className="dc-task">
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
             <strong>
               {humanizeEnum(task.field_type)} ·{" "}

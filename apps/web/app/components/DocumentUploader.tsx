@@ -33,6 +33,15 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     }
   };
 
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) setSelectedFile(file);
+  };
+
   const handleTriggerBrowse = () => {
     fileInputRef.current?.click();
   };
@@ -49,14 +58,19 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
 
   return (
-    <div className="card card-glass" style={{ marginBottom: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
+    <section className="intake-card" aria-labelledby="intake-title">
+      <div className="intake-head">
         <div>
-          <h2>{t.upload.title}</h2>
+          <p className="lp-kicker">Start a check</p>
+          <h2 id="intake-title">{t.upload.title}</h2>
           <p>{t.upload.subtitle}</p>
         </div>
         <span className="privacy-pill">
-          🔒 {t.byodBadge}
+          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
+            <rect x="4" y="11" width="16" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          {t.byodBadge}
         </span>
       </div>
 
@@ -83,8 +97,14 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         />
 
         <div
-          className="dropzone"
+          className={`dropzone ${selectedFile ? "has-file" : ""} ${dragging ? "is-dragging" : ""}`}
           onClick={handleTriggerBrowse}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -95,48 +115,47 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           }}
           aria-label="Document upload dropzone"
         >
-          <svg
-            width="40"
-            height="40"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ color: "var(--brand-cyan)", margin: "0 auto 0.75rem auto" }}
-            aria-hidden="true"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
+          <span className="dropzone-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" className="lp-icon">
+              {selectedFile ? (
+                <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 14l2 2 4-4" />
+              ) : (
+                <path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
+              )}
+            </svg>
+          </span>
 
-          <p style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+          <p className="dropzone-title">
             {selectedFile ? (
-              <span style={{ color: "var(--brand-teal)" }}>Selected: {selectedFile.name}</span>
+              <>
+                <span className="dropzone-selected-label">Selected</span>
+                <span className="dropzone-filename">{selectedFile.name}</span>
+              </>
             ) : (
               t.upload.dragDrop
             )}
           </p>
-          <p style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
-            Supports PDF, JPG, PNG (Hospital bills, IRDAI rejection letters, discharge summaries)
-          </p>
+          <p className="dropzone-hint">Hospital bills, discharge summaries, insurer letters or prescriptions</p>
+
+          <ul className="lp-chips dropzone-facts" aria-label="Accepted files">
+            <li>PDF · JPG · PNG · TXT · CSV</li>
+            <li>Up to 10 MB</li>
+            <li>English text recognition for scans</li>
+          </ul>
 
           <div className="dropzone-actions" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleTriggerBrowse}
-            >
-              📁 {t.upload.browse}
+            <button type="button" className="btn btn-secondary" onClick={handleTriggerBrowse}>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
+                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              </svg>
+              {t.upload.browse}
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleTriggerCamera}
-            >
-              📷 {t.upload.cameraCapture}
+            <button type="button" className="btn btn-secondary" onClick={handleTriggerCamera}>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
+                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+              {t.upload.cameraCapture}
             </button>
           </div>
         </div>
@@ -145,35 +164,31 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           <input
             type="checkbox"
             id="consent-checkbox"
+            className="consent-checkbox"
             checked={consentGiven}
             onChange={(e) => setConsentGiven(e.target.checked)}
-            style={{ width: "20px", height: "20px", minWidth: "20px", accentColor: "var(--brand-cyan)", cursor: "pointer" }}
           />
-          <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            {t.upload.consentText}
-          </span>
+          <span>{t.upload.consentText}</span>
         </label>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
-          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-            ℹ️ {t.upload.zeroRetentionNotice}
-          </span>
+        <div className="intake-footer">
+          <span className="intake-notice">{t.upload.zeroRetentionNotice}</span>
           <button
             type="submit"
-            className="btn btn-primary"
+            className="btn btn-primary btn-lg"
             disabled={!consentGiven || !selectedFile || isProcessing}
           >
             {isProcessing ? (
               <>
-                <span className="step-indicator active" style={{ display: "inline-block", marginRight: "0.25rem" }} />
+                <span className="spinner" aria-hidden="true" />
                 {t.upload.processing}
               </>
             ) : (
-              <>⚡ {t.upload.processBtn}</>
+              t.upload.processBtn
             )}
           </button>
         </div>
       </form>
-    </div>
+    </section>
   );
 };

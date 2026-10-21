@@ -35,19 +35,13 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
   const unavailable = failure !== null || evaluation?.status === "UNAVAILABLE";
   if (unavailable) {
     return (
-      <div
-        role="alert"
-        style={{
-          border: "1px solid var(--status-warning)",
-          borderRadius: "var(--radius-md)",
-          padding: "0.75rem 1rem",
-          marginBottom: "1rem",
-          fontSize: "0.85rem",
-        }}
-      >
-        <strong>⚠️ Safety check unavailable.</strong> The clinical safety check could not be run
-        {failure ? ` (${failure})` : ""}. No safety assessment has been made for this case — this is not the same as
-        &quot;nothing found&quot;. If you have urgent symptoms, seek medical care directly.
+      <div role="alert" className="safety-card is-unavailable">
+        <SafetyIcon />
+        <div>
+          <strong>Safety check unavailable.</strong> The clinical safety check could not be run
+          {failure ? ` (${failure})` : ""}. No safety assessment has been made for this case — this is not the same as
+          &quot;nothing found&quot;. If you have urgent symptoms, seek medical care directly.
+        </div>
       </div>
     );
   }
@@ -56,54 +50,54 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
 
   if (evaluation.escalations.length === 0) {
     return (
-      <p style={{ fontSize: "0.75rem", opacity: 0.75, marginBottom: "1rem" }}>
-        🛡️ {evaluation.coverage_note} {evaluation.disclaimer}
-      </p>
+      <div className="safety-card is-quiet">
+        <SafetyIcon />
+        <p>
+          <strong>Safety check:</strong> {evaluation.coverage_note} {evaluation.disclaimer}
+        </p>
+      </div>
     );
   }
 
   return (
-    <section
-      role="alert"
-      aria-labelledby="safety-escalation-title"
-      style={{
-        border: "2px solid var(--status-danger)",
-        background: "rgba(239, 68, 68, 0.1)",
-        borderRadius: "var(--radius-md)",
-        padding: "1rem 1.25rem",
-        marginBottom: "1.5rem",
-      }}
-    >
-      <h3 id="safety-escalation-title" style={{ color: "var(--status-danger)" }}>
-        ⚠️ Clinical safety check
-      </h3>
-      {evaluation.escalations.map((esc) => (
-        <div key={esc.rule_id} style={{ marginTop: "0.75rem" }}>
-          <strong>
-            {esc.severity === "URGENT" ? "Urgent: " : ""}
-            {esc.title}
-          </strong>
-          <p style={{ margin: "0.25rem 0" }}>{esc.message}</p>
-          <p style={{ fontSize: "0.8rem" }}>
-            Matched words: {esc.matched_terms.join(", ")} · Rule v{esc.rule_version} · Source: {esc.source.name}
-            {esc.source.version ? ` (${esc.source.version})` : ""}
-            {esc.source.section ? `, ${esc.source.section}` : ""}
-          </p>
-          <ul style={{ fontSize: "0.75rem", paddingLeft: "1.1rem", opacity: 0.85 }}>
-            {esc.limitations.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-          {esc.human_review_recommended && (
-            <p style={{ fontSize: "0.8rem" }}>A human clinician should assess this; ArogyaRakshak cannot.</p>
-          )}
-          {esc.rule_review_overdue && (
-            <p style={{ fontSize: "0.75rem", color: "var(--status-warning)" }}>This rule is past its scheduled review date.</p>
-          )}
-        </div>
-      ))}
-      <p style={{ fontSize: "0.75rem", marginTop: "0.75rem" }}>{evaluation.disclaimer}</p>
-      {evaluation.scope_note && <p style={{ fontSize: "0.7rem", opacity: 0.8 }}>{evaluation.scope_note}</p>}
+    <section role="alert" aria-labelledby="safety-escalation-title" className="safety-card is-escalated">
+      <SafetyIcon />
+      <div>
+        <h3 id="safety-escalation-title">Clinical safety check</h3>
+        {evaluation.escalations.map((esc) => (
+          <div key={esc.rule_id} className="safety-escalation">
+            <strong>
+              {esc.severity === "URGENT" && (
+                <>
+                  <span className="safety-urgent">Urgent</span>{" "}
+                </>
+              )}
+              {esc.title}
+            </strong>
+            <p>{esc.message}</p>
+            <p className="safety-source">
+              Matched words: {esc.matched_terms.join(", ")} · Rule v{esc.rule_version} · Source: {esc.source.name}
+              {esc.source.version ? ` (${esc.source.version})` : ""}
+              {esc.source.section ? `, ${esc.source.section}` : ""}
+            </p>
+            <ul className="safety-limits">
+              {esc.limitations.map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+            {esc.human_review_recommended && <p>A human clinician should assess this; ArogyaRakshak cannot.</p>}
+            {esc.rule_review_overdue && <p className="safety-overdue">This rule is past its scheduled review date.</p>}
+          </div>
+        ))}
+        <p className="safety-disclaimer">{evaluation.disclaimer}</p>
+        {evaluation.scope_note && <p className="safety-disclaimer">{evaluation.scope_note}</p>}
+      </div>
     </section>
   );
 };
+
+const SafetyIcon: React.FC = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon safety-icon">
+    <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM12 8v5M12 16h.01" />
+  </svg>
+);

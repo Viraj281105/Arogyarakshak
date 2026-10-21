@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Language, translations } from "../translations";
 import { API_BASE, caseAuthHeaders } from "../hooks/useApi";
 import { ResolutionDecision, formatScore, resolutionPaths, signalRows } from "../lib/resolution";
+import { StatePanel } from "./clinical/StatePanel";
 
 interface EntityResolutionReviewProps {
   caseId: string;
@@ -70,52 +71,45 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
   if (!loaded || (!error && decisions.length === 0)) return null;
 
   return (
-    <section className="card" style={{ marginBottom: "1.5rem" }} aria-labelledby="resolution-review-title">
-      <h3 id="resolution-review-title">{t.title}</h3>
-      <p style={{ fontSize: "0.9rem", marginBottom: "1rem" }}>{t.intro}</p>
+    <section className="case-panel resolution" aria-labelledby="resolution-review-title">
+      <div className="case-panel-head">
+        <h3 id="resolution-review-title">{t.title}</h3>
+        {decisions.length > 0 && <span className="timeline-count">{decisions.length} to answer</span>}
+      </div>
+      <p className="resolution-intro">{t.intro}</p>
 
-      {error && (
-        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-          ⚠️ {error}
-        </div>
-      )}
+      {error && <StatePanel kind="error">{error}</StatePanel>}
 
       {decisions.map((decision) => (
-        <div
-          key={decision.id}
-          style={{
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md)",
-            padding: "1rem",
-            marginBottom: "0.75rem",
-          }}
-        >
-          <div className="grid-2" style={{ marginBottom: "0.75rem" }}>
-            <div>
-              <div className="stat-label">{t.mentionLabel}</div>
+        <div key={decision.id} className="resolution-item">
+          <div className="resolution-pair">
+            <div className="resolution-name">
+              <span className="stat-label">{t.mentionLabel}</span>
               <strong>{decision.mention_name}</strong>
             </div>
-            <div>
-              <div className="stat-label">{t.existingLabel}</div>
+            <span className="resolution-vs" aria-hidden="true">≈ ?</span>
+            <div className="resolution-name">
+              <span className="stat-label">{t.existingLabel}</span>
               <strong>{decision.candidate_name}</strong>
             </div>
           </div>
 
-          <ul style={{ listStyle: "none", fontSize: "0.8rem", marginBottom: "0.5rem" }}>
+          <ul className="resolution-signals">
             {signalRows(decision.signals).map((row) => (
               <li key={row.signal}>
-                {signalLabel(row.signal)}: {row.value ?? t.signalUnavailable}
+                <span>{signalLabel(row.signal)}</span>
+                <span className="code-tabular">{row.value ?? t.signalUnavailable}</span>
               </li>
             ))}
           </ul>
-          <div style={{ fontSize: "0.75rem", marginBottom: "0.75rem", opacity: 0.8 }}>
+          <p className="resolution-confidence">
             {t.confidenceLabel}: {formatScore(decision.confidence)} · {t.uncalibratedNote}
-          </div>
+          </p>
 
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <div className="resolution-actions">
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary btn-compact"
               disabled={busyId === decision.id}
               onClick={() => answer(decision, true)}
             >
@@ -123,8 +117,7 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
             </button>
             <button
               type="button"
-              className="btn"
-              style={{ border: "1px solid var(--border-subtle)" }}
+              className="btn btn-ghost btn-compact"
               disabled={busyId === decision.id}
               onClick={() => answer(decision, false)}
             >

@@ -11,6 +11,8 @@ import { ExplainTrail } from "../ExplainTrail";
 import type { Explanation } from "../../lib/explanation";
 import { ListenSummary } from "../ListenSummary";
 import { buildMedicineSummary } from "../../lib/listenSummaries";
+import { StatePanel } from "../clinical/StatePanel";
+import { PriceBar } from "./dawacheck/PriceBar";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
 interface MedicineBenchmarkResponse extends PriceCheck {
@@ -106,136 +108,163 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
   const price = result ? describePriceCheck(result) : null;
 
   return (
-    <div className="card">
-      <div style={{ marginBottom: "1.5rem" }}>
+    <div className="module-panel">
+      <header className="module-head">
+        <p className="lp-kicker">DawaCheck · NPPA ceiling prices</p>
         <h2>{t.title}</h2>
         <p>{t.desc}</p>
-      </div>
+      </header>
 
       {/* ADR-011: uncertain prescription readings go to human readers, never silently into a medication fact */}
       {caseId && (
         <>
           <CaseMedicineTrustPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} lang={currentLang} />
           <TranscriptionPanel caseId={caseId} caseToken={caseToken} refreshKey={caseRefresh} onChanged={bumpCase} />
-          <h3 style={{ marginBottom: "0.75rem" }}>Check any medicine by name</h3>
         </>
       )}
 
       {/* Search Form */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.75rem",
-          marginBottom: "1.5rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <input
-          type="text"
-          className="input-field"
-          style={{ flex: 2, minWidth: "200px" }}
-          placeholder={t.searchPlaceholder}
-          value={brandName}
-          onChange={(e) => setBrandName(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <input
-          type="number"
-          className="input-field"
-          style={{ flex: 1, minWidth: "120px" }}
-          placeholder="Amount paid (₹)"
-          aria-label="Amount paid in rupees"
-          step="0.01"
-          min="0"
-          value={mrp}
-          onChange={(e) => setMrp(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <select
-          className="input-field"
-          style={{ flex: 1.4, minWidth: "190px" }}
-          aria-label="What the amount paid is for"
-          value={basis}
-          onChange={(e) => {
-            setBasis(e.target.value as PriceBasis | "");
-            setCount("");
-          }}
-        >
-          <option value="">The amount is for…</option>
-          {BASIS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {needsCount && (
-          <input
-            type="number"
-            className="input-field"
-            style={{ flex: 1, minWidth: "140px" }}
-            placeholder={basisOption?.needs === "pack" ? "Units in it (e.g. 15)" : "Number of units"}
-            aria-label={basisOption?.needs === "pack" ? "Number of tablets or capsules in one strip or pack" : "Number of units the amount covers"}
-            step="1"
-            min="1"
-            value={count}
-            onChange={(e) => setCount(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-        )}
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleSearch}
-          disabled={api.loading || !formReady}
-        >
-          {api.loading ? "Checking..." : `🔍 ${t.searchBtn}`}
-        </button>
-      </div>
-
-      {/* Error State */}
-      {api.error && (
-        <div
-          style={{
-            padding: "1rem",
-            marginBottom: "1.5rem",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid var(--status-danger)",
-            borderRadius: "var(--radius-md)",
-            color: "#fca5a5",
-            fontSize: "0.9rem",
-          }}
-        >
-          ⚠️ {api.error}
+      <section className="case-panel bn-card" aria-labelledby="dc-form-title">
+        <h3 id="dc-form-title">Check any medicine by name</h3>
+        <p className="bn-fine">
+          NPPA ceiling prices are <strong>per tablet, capsule or vial</strong>. Say what your amount paid for — one unit, a
+          strip, a pack, or several units — and DawaCheck converts it to a price per unit before comparing. If the number of
+          units is not known, it says so instead of guessing.
+        </p>
+        <div className="dc-form">
+          <div className="ds-field dc-field-name">
+            <label className="input-label" htmlFor="dc-name">
+              Medicine name and strength
+              <span className="ds-required">required</span>
+            </label>
+            <input
+              id="dc-name"
+              type="text"
+              className="input-field"
+              placeholder={t.searchPlaceholder}
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+          <div className="ds-field">
+            <label className="input-label" htmlFor="dc-amount">
+              Amount paid (₹)
+              <span className="ds-required">required</span>
+            </label>
+            <input
+              id="dc-amount"
+              type="number"
+              inputMode="decimal"
+              className="input-field"
+              aria-label="Amount paid in rupees"
+              step="0.01"
+              min="0"
+              value={mrp}
+              onChange={(e) => setMrp(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+          <div className="ds-field">
+            <label className="input-label" htmlFor="dc-basis">
+              The amount is for
+              <span className="ds-required">required</span>
+            </label>
+            <select
+              id="dc-basis"
+              className="select-field"
+              aria-label="What the amount paid is for"
+              value={basis}
+              onChange={(e) => {
+                setBasis(e.target.value as PriceBasis | "");
+                setCount("");
+              }}
+            >
+              <option value="">The amount is for…</option>
+              {BASIS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {needsCount && (
+            <div className="ds-field">
+              <label className="input-label" htmlFor="dc-count">
+                {basisOption?.needs === "pack" ? "Units in it" : "Number of units"}
+                <span className="ds-required">required</span>
+              </label>
+              <input
+                id="dc-count"
+                type="number"
+                inputMode="numeric"
+                className="input-field"
+                placeholder={basisOption?.needs === "pack" ? "e.g. 15" : "e.g. 10"}
+                aria-label={basisOption?.needs === "pack" ? "Number of tablets or capsules in one strip or pack" : "Number of units the amount covers"}
+                step="1"
+                min="1"
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          )}
         </div>
-      )}
+        <div className="ds-form-actions">
+          <button type="button" className="btn btn-primary" onClick={handleSearch} disabled={api.loading || !formReady}>
+            {api.loading ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Checking…
+              </>
+            ) : (
+              t.searchBtn
+            )}
+          </button>
+          {!formReady && <span className="ds-hint">Enter the name, the amount, and what the amount was for.</span>}
+        </div>
+
+        {/* Error State */}
+        {api.error && (
+          <StatePanel kind="error" onRetry={handleSearch}>
+            Could not check the price: {api.error}
+          </StatePanel>
+        )}
+      </section>
 
       {/* Real Result */}
       {result && price && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>{t.brandName}</th>
-                  <th>{t.genericName}</th>
-                  <th>{t.mrp}</th>
-                  <th>{t.nppaCeiling}</th>
-                  <th>{t.complianceCol}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style={{ fontWeight: 600 }}>{result.brand_name}</td>
-                  <td style={{ color: "var(--text-secondary)" }}>{result.active_ingredient}</td>
-                  <td>{price.billed}</td>
-                  <td style={{ color: "var(--brand-cyan)", fontWeight: 600 }}>{price.ceiling}</td>
-                  <td>
-                    <span className={TONE_CLASS[price.tone]}>{price.badge}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <section className={`case-panel bn-card dc-result is-${price.verdict}`} aria-labelledby="dc-result-title">
+          <div className="case-panel-head">
+            <div>
+              <h3 id="dc-result-title">{result.brand_name}</h3>
+              <p className="bn-fine">
+                {t.genericName}: {result.active_ingredient}
+              </p>
+            </div>
+            <span className={TONE_CLASS[price.tone]}>{price.badge}</span>
           </div>
+
+          <PriceBar check={result} view={price} />
+
+          <dl className="ds-summary">
+            <div>
+              <dt>{t.mrp}</dt>
+              <dd>{price.billed}</dd>
+            </div>
+            <div>
+              <dt>{t.nppaCeiling}</dt>
+              <dd>{price.ceiling}</dd>
+            </div>
+          </dl>
+          {price.reason && <p className="bn-notice is-warning">{price.reason}</p>}
+          {price.basisNote && <p className="bn-fine">{price.basisNote}</p>}
+          {result.match_method === "fuzzy_phonetic" && (
+            <p className="bn-notice is-warning">
+              Matched by spelling similarity to “{result.active_ingredient}” — check this is the same medicine.
+            </p>
+          )}
+
           <ListenSummary
             lang={currentLang}
             panel="medicine"
@@ -251,122 +280,72 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
               currentLang
             )}
           />
-          {price.reason && (
-            <div role="status" style={{ marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--status-warning)" }}>
-              {price.reason}
-            </div>
-          )}
           <ExplainTrail explanation={result.explanation} lang={currentLang} />
-          {result.match_method === "fuzzy_phonetic" && (
-            <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--status-warning)" }}>
-              Matched by spelling similarity to “{result.active_ingredient}” — check this is the same medicine.
-            </div>
-          )}
 
           {/* Generic Substitute Info */}
           {result.generic_substitute_available && (
-            <div
-              style={{
-                marginTop: "1rem",
-                padding: "0.85rem 1rem",
-                backgroundColor: "rgba(16, 185, 129, 0.08)",
-                borderRadius: "var(--radius-md)",
-                fontSize: "0.85rem",
-                color: "var(--brand-emerald)",
-              }}
-            >
-              💊 <strong>Generic Alternative:</strong> {result.generic_substitute_store_info}
+            <div className="dc-generic">
+              <strong>Generic alternative (from DawaCheck&apos;s reference data):</strong> {result.generic_substitute_store_info}
             </div>
           )}
 
           {/* Dataset Provenance Disclosure */}
-          <div
-            style={{
-              marginTop: "0.75rem",
-              padding: "0.65rem 1rem",
-              fontSize: "0.78rem",
-              color: "var(--status-warning)",
-            }}
-          >
-            ⓘ {t.dataSourceNotice.replace("{count}", String(result.reference_entry_count))}
-          </div>
-        </div>
+          <p className="bn-fine">{t.dataSourceNotice.replace("{count}", String(result.reference_entry_count))}</p>
+        </section>
       )}
 
-      {!result && !api.loading && (
-        <div
-          style={{
-            padding: "0.65rem 0.85rem",
-            marginBottom: "1rem",
-            border: "1px dashed var(--border-subtle)",
-            borderRadius: "var(--radius-md)",
-            fontSize: "0.85rem",
-            color: "var(--text-secondary)",
-          }}
-        >
-          NPPA ceiling prices are <strong>per tablet, capsule or vial</strong>. Tell us what your amount paid for — one
-          unit, a strip, a pack, or several units — and DawaCheck converts it to a price per unit before comparing. If the
-          number of units is not known, it says so instead of guessing.
-        </div>
-      )}
+      {/* law_library.json lists DPCO 2013 Para 14(1) as not verified against a primary source. */}
+      <p className="dc-legal">
+        <strong>Legal basis:</strong> NPPA notifies these ceilings under the Drugs (Prices Control) Order, 2013. This project
+        has not yet verified the Order&apos;s text against the Gazette, so it makes no claim here about what follows when a
+        price is above the ceiling.
+      </p>
 
-      <div
-        style={{
-          marginTop: "1.5rem",
-          padding: "0.85rem 1rem",
-          backgroundColor: "rgba(6, 182, 212, 0.08)",
-          borderRadius: "var(--radius-md)",
-          fontSize: "0.825rem",
-          color: "var(--brand-cyan)",
-        }}
-      >
-        💡 <strong>DPCO 2013 Provision:</strong> Charging above the notified NPPA ceiling price is an offence under the Essential Commodities Act, 1955. Retail pharmacies must mandatorily display generic bio-equivalents.
-      </div>
-
-      <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.08))", paddingTop: "1.25rem" }}>
-        <h3 style={{ marginBottom: "0.75rem" }}>{t.prescriptionTranslatorTitle}</h3>
+      <section className="case-panel bn-card" aria-labelledby="dc-rx-title">
+        <h3 id="dc-rx-title">{t.prescriptionTranslatorTitle}</h3>
+        <p className="bn-fine">Turns dosing abbreviations such as “OD”, “TDS” or “SOS” into plain words. Anything it does not know is listed, not guessed.</p>
+        <label className="sr-only" htmlFor="dc-rx">
+          Prescription instructions
+        </label>
         <textarea
+          id="dc-rx"
           className="textarea-field"
           rows={2}
-          style={{ width: "100%", marginBottom: "0.75rem" }}
           placeholder={t.prescriptionInputPlaceholder}
           value={instructionsText}
           onChange={(e) => setInstructionsText(e.target.value)}
         />
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={handleTranslate}
-          disabled={translateApi.loading || !instructionsText.trim()}
-        >
-          {t.translateBtn}
-        </button>
+        <div className="ds-form-actions">
+          <button type="button" className="btn btn-secondary" onClick={handleTranslate} disabled={translateApi.loading || !instructionsText.trim()}>
+            {translateApi.loading ? "Translating…" : t.translateBtn}
+          </button>
+        </div>
+        {translateApi.error && <StatePanel kind="error">Could not translate: {translateApi.error}</StatePanel>}
 
         {translateApi.data && (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="dc-rx-result">
             {translateApi.data.instructions.length === 0 ? (
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>—</p>
+              <p className="bn-fine">—</p>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              <ul className="dc-tokens">
                 {translateApi.data.instructions.map((instr, idx) => (
-                  <span
-                    key={idx}
-                    className={`badge ${instr.recognized ? "badge-success" : "badge-danger"}`}
-                    title={instr.recognized ? t.recognizedBadge : undefined}
-                  >
-                    {instr.token} {instr.recognized ? `→ ${instr.translated}` : "?"}
-                  </span>
+                  <li key={idx} className={instr.recognized ? "is-known" : "is-unknown"}>
+                    <span className="dc-token code-tabular">{instr.token}</span>
+                    <span className="dc-token-arrow" aria-hidden="true">→</span>
+                    <span className="dc-token-meaning">
+                      {instr.recognized ? instr.translated : "not recognised"}
+                      {instr.recognized && <span className="sr-only"> ({t.recognizedBadge})</span>}
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
             {translateApi.data.unrecognized_tokens.length > 0 && (
-              <p style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-                ⓘ {t.unrecognizedNotice.replace("{tokens}", translateApi.data.unrecognized_tokens.join(", "))}
-              </p>
+              <p className="bn-fine">{t.unrecognizedNotice.replace("{tokens}", translateApi.data.unrecognized_tokens.join(", "))}</p>
             )}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

@@ -53,6 +53,14 @@ describe('normalizeErrorDetail (P1-9)', () => {
     assert.ok(result.length > 0);
   });
 
+  test('reads a structured refusal as its message and the fields it could not resolve', () => {
+    const result = normalizeErrorDetail({
+      message: 'Cannot generate a pre-authorization form.',
+      missing_fields: ['hospital_name', 'diagnosis'],
+    });
+    assert.strictEqual(result, 'Cannot generate a pre-authorization form. Missing: hospital name, diagnosis.');
+  });
+
   test('never returns a non-string for any input shape', () => {
     for (const input of ['x', 42, null, undefined, true, [], {}, [1, 2, 3]]) {
       assert.strictEqual(typeof normalizeErrorDetail(input), 'string');

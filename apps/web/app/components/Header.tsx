@@ -9,6 +9,8 @@ interface HeaderProps {
   onLanguageChange: (lang: Language) => void;
   currentTheme?: "dark" | "light";
   onThemeToggle?: () => void;
+  /** Shown only when the server reports demo mode. */
+  demoBadge?: React.ReactNode;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLanguageChange,
   currentTheme = "dark",
   onThemeToggle,
+  demoBadge,
 }) => {
   const t = translations[currentLang];
 
@@ -23,30 +26,45 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="header-bar">
       <div className="container header-inner">
         <Link href="/" className="brand-logo" aria-label="ArogyaRakshak Home">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ color: "var(--brand-cyan)" }}
-            aria-hidden="true"
-          >
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            <path d="M12 8v8" />
-            <path d="M8 12h8" />
-          </svg>
-          <span>{t.appName}</span>
-          {/* Not a production deployment: an academic release candidate. */}
+          <div className="brand-emblem-wrap">
+            <div className="brand-emblem-inner">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ color: "currentColor" }}
+                aria-hidden="true"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="M12 8v8" />
+                <path d="M8 12h8" />
+              </svg>
+            </div>
+          </div>
+          <div className="brand-text">
+            <div className="brand-name">
+              <span>{t.appName}</span>
+              <span className="brand-devanagari" lang="hi">आरोग्यरक्षक</span>
+            </div>
+            <div className="brand-tagline">{t.tagline}</div>
+          </div>
           <span className="brand-badge" title="Release candidate of an academic project — not a production medical or legal service">
             PROTOTYPE
           </span>
         </Link>
 
         <div className="nav-actions">
+          {demoBadge}
+          <Link href="/clinical-review" className="reviewer-link-chip" title="Open Clinician & Reviewer Workspace">
+            <span className="reviewer-status-dot" aria-hidden="true" />
+            <span>Reviewer workspace</span>
+          </Link>
+
           <div className="privacy-pill" title={t.byodDescription}>
             <svg
               width="14"
@@ -100,7 +118,16 @@ export const Header: React.FC<HeaderProps> = ({
               aria-label={currentTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
               title={currentTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             >
-              {currentTheme === "dark" ? "☀️" : "🌙"}
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
+                {currentTheme === "dark" ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                  </>
+                ) : (
+                  <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+                )}
+              </svg>
             </button>
           )}
         </div>

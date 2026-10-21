@@ -33,26 +33,19 @@ export function ClinicalSection({
     <>
       {/* ADR-011: clinical-interpretation trigger (machine-derived) */}
       {result.clinical_review?.requires_clinical_interpretation && (
-        <div
-          style={{
-            padding: "1rem 1.25rem",
-            marginBottom: "1.25rem",
-            border: "1px solid var(--status-warning)",
-            borderRadius: "var(--radius-md)",
-          }}
-        >
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-            <strong>🩺 Clinical review required</strong>
+        <div className="bm-clinical-flag" role="note">
+          <div className="bn-badges">
+            <strong>Clinical review required</strong>
             <ProvenanceBadge provenance="AI_DERIVED" />
           </div>
-          <ul style={{ fontSize: "0.85rem", paddingLeft: "1.1rem", margin: "0.5rem 0" }}>
+          <ul className="safety-limits">
             {result.clinical_review.reasons.map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
-          <p style={{ fontSize: "0.8rem" }}>{result.clinical_review.note}</p>
+          <p className="bn-fine">{result.clinical_review.note}</p>
           {!caseId && (
-            <p style={{ fontSize: "0.8rem" }}>
+            <p className="bn-fine">
               Upload your records above to create a case, then request a statement from a named doctor here.
             </p>
           )}
@@ -70,31 +63,31 @@ export function ClinicalSection({
         />
       )}
       {caseId && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <button type="button" className="btn btn-secondary" onClick={loadClinicalStatements}>
+        <div className="bm-annex">
+          <button type="button" className="btn btn-secondary" onClick={loadClinicalStatements} disabled={statementsApi.loading}>
             Attach finalized clinician statements to these appeals
           </button>
           {statementsApi.data &&
             (statementsApi.data.human_clinical_statement_attached ? (
-              <div style={{ marginTop: "0.75rem" }}>
+              <div className="bm-annex-list">
                 {statementsApi.data.statements.map((s) => (
                   <ClinicalStatementCard key={s.statement_id} statement={s} />
                 ))}
                 <button
                   type="button"
-                  className="btn"
-                  style={{ border: "1px solid var(--border-subtle)" }}
-                  onClick={() => navigator.clipboard.writeText(statementsApi.data!.annex_text)}
+                  className="btn btn-ghost"
+                  onClick={() => navigator.clipboard.writeText(statementsApi.data!.annex_text).catch(() => undefined)}
                 >
-                  📋 Copy attributed annex (verbatim)
+                  Copy attributed annex (verbatim)
                 </button>
               </div>
             ) : (
-              <p style={{ fontSize: "0.85rem", marginTop: "0.5rem", color: "var(--status-warning)" }}>
+              <p className="bn-annex-missing">
                 No finalized statement from a named clinician exists for this case. Do not describe any appeal
                 reasoning as a doctor&apos;s opinion.
               </p>
             ))}
+          {statementsApi.error && <p className="ds-hint">Could not load clinician statements: {statementsApi.error}</p>}
         </div>
       )}
     </>

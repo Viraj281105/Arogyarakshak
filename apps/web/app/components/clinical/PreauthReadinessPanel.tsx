@@ -11,6 +11,7 @@ import type { Explanation } from "../../lib/explanation";
 import type { Language } from "../../translations";
 import { ListenSummary } from "../ListenSummary";
 import { buildReadinessSummary } from "../../lib/listenSummaries";
+import { StatePanel } from "./StatePanel";
 
 interface ReadinessItem {
   item_id: string;
@@ -50,6 +51,16 @@ const MARK: Record<ReadinessItem["status"], string> = {
   CONFIRMED_BY_REVIEWER: "✓",
   REJECTED_BY_REVIEWER: "✗",
   REVIEWER_COULD_NOT_DETERMINE: "?",
+};
+
+// Visual tone per status, for the mark beside each item.
+const TONE: Record<ReadinessItem["status"], "ok" | "missing" | "question"> = {
+  PRESENT: "ok",
+  MISSING: "missing",
+  NEEDS_CLINICAL_CONFIRMATION: "question",
+  CONFIRMED_BY_REVIEWER: "ok",
+  REJECTED_BY_REVIEWER: "missing",
+  REVIEWER_COULD_NOT_DETERMINE: "question",
 };
 
 const STATUS_TEXT: Record<ReadinessItem["status"], string> = {
@@ -133,76 +144,90 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
 
   const pendingFacts = report?.items.filter((i) => i.status === "NEEDS_CLINICAL_CONFIRMATION") ?? [];
 
+  const counts = report
+    ? report.items.reduce(
+        (acc, i) => ({ ...acc, [TONE[i.status]]: acc[TONE[i.status]] + 1 }),
+        { ok: 0, missing: 0, question: 0 } as Record<"ok" | "missing" | "question", number>
+      )
+    : null;
+
   return (
-    <section
-      aria-labelledby="readiness-title"
-      style={{ border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.25rem", marginBottom: "1.5rem" }}
-    >
-      <h3 id="readiness-title">📑 Pre-authorization readiness</h3>
-      <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+    <section aria-labelledby="readiness-title" className="case-panel bn-card readiness-panel">
+      <h3 id="readiness-title">Pre-authorization readiness</h3>
+      <p className="bn-fine">
         Checks which commonly requested documents can be found in your case. It does not predict approval.
       </p>
-      <details style={{ marginBottom: "0.75rem" }}>
-        <summary style={{ fontSize: "0.85rem" }}>Hospital desk: apply your institution&apos;s private playbook</summary>
-        <div className="grid-2" style={{ marginTop: "0.5rem" }}>
-          <input className="input-field" placeholder="Playbook ID (PB-…)" value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} />
+      <details className="ds-unlock">
+        <summary>Hospital desk: apply your institution&apos;s private playbook</summary>
+        <div className="grid-2">
+          <input className="input-field" placeholder="Playbook ID (PB-…)" aria-label="Playbook ID" value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} />
           <input
             className="input-field"
             type="password"
             placeholder="Institution credential"
+            aria-label="Institution credential"
             value={institutionToken}
             onChange={(e) => setInstitutionToken(e.target.value)}
           />
         </div>
       </details>
-      <button type="button" className="btn btn-primary" onClick={check}>
-        Check documentation readiness
-      </button>
-      {error && (
-        <div role="alert" style={{ color: "#fca5a5", fontSize: "0.85rem", marginTop: "0.75rem" }}>
-          ⚠️ {error}
-        </div>
-      )}
+      <div>
+        <button type="button" className="btn btn-primary" onClick={check}>
+          {report ? "Check again" : "Check documentation readiness"}
+        </button>
+      </div>
+      {error && <StatePanel kind="error" onRetry={check}>{error}</StatePanel>}
 
-      {report && (
-        <div style={{ marginTop: "1rem" }}>
+      {report && counts && (
+        <div className="readiness-result">
           <ListenSummary lang={lang} panel="readiness" summary={buildReadinessSummary(report.items, lang)} />
-          <div className="stat-label">Guidance used: {report.guidance_label}</div>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0.5rem 0" }}>
+          <div className="readiness-meter" role="img" aria-label={`${counts.ok} found, ${counts.question} need a doctor, ${counts.missing} not found`}>
             {report.items.map((item) => (
-              <li key={item.item_id} style={{ padding: "0.4rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <strong>
-                  {MARK[item.status]} {item.label}
-                </strong>{" "}
-                <span style={{ fontSize: "0.8rem" }}>— {STATUS_TEXT[item.status]}</span>
-                {item.evidence_strength === "KEYWORD_MATCH" && (
-                  <span style={{ fontSize: "0.75rem", opacity: 0.8 }}> (keyword found in document text — weak evidence)</span>
-                )}
-                {item.origin === "INSTITUTION_PLAYBOOK" && <span className="badge badge-info" style={{ marginLeft: "0.4rem" }}>playbook</span>}
-                {item.clinical_decision && item.clinical_decision.decision !== "PENDING" && (
-                  <div style={{ fontSize: "0.75rem" }}>
-                    {humanizeEnum(item.clinical_decision.decision)} — {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label};
-                    COI: {item.clinical_decision.coi_label})
-                  </div>
-                )}
-                <ExplainTrail explanation={item.explanation} lang={lang} />
+              <span key={item.item_id} className={`readiness-cell is-${TONE[item.status]}`} title={item.label} />
+            ))}
+          </div>
+          <div className="readiness-legend">
+            <span><i className="readiness-dot is-ok" aria-hidden="true" /> {counts.ok} found</span>
+            <span><i className="readiness-dot is-question" aria-hidden="true" /> {counts.question} need a doctor</span>
+            <span><i className="readiness-dot is-missing" aria-hidden="true" /> {counts.missing} not found</span>
+          </div>
+          <div className="stat-label">Guidance used: {report.guidance_label}</div>
+          <ul className="readiness-items">
+            {report.items.map((item) => (
+              <li key={item.item_id} className={`readiness-item is-${TONE[item.status]}`}>
+                <span className="readiness-mark" aria-hidden="true">{MARK[item.status]}</span>
+                <div className="readiness-text">
+                  <strong>{item.label}</strong>
+                  <span className="readiness-status">
+                    {STATUS_TEXT[item.status]}
+                    {item.evidence_strength === "KEYWORD_MATCH" && " (keyword found in document text — weak evidence)"}
+                  </span>
+                  {item.origin === "INSTITUTION_PLAYBOOK" && <span className="badge badge-info">playbook</span>}
+                  {item.clinical_decision && item.clinical_decision.decision !== "PENDING" && (
+                    <span className="readiness-status">
+                      {humanizeEnum(item.clinical_decision.decision)} — {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label};
+                      COI: {item.clinical_decision.coi_label})
+                    </span>
+                  )}
+                  <ExplainTrail explanation={item.explanation} lang={lang} />
+                </div>
               </li>
             ))}
           </ul>
           <div className="stat-label">Recommended action</div>
-          <ul style={{ fontSize: "0.85rem", paddingLeft: "1.1rem" }}>
+          <ul className="readiness-actions">
             {report.recommended_actions.map((a) => (
               <li key={a}>{a}</li>
             ))}
           </ul>
-          <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>{report.evidence_scope_note}</p>
-          <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>{report.disclaimer}</p>
+          <p className="bn-fine">{report.evidence_scope_note}</p>
+          <p className="bn-fine">{report.disclaimer}</p>
 
           {pendingFacts.length > 0 && !factReview && (
-            <div style={{ marginTop: "0.75rem" }}>
-              <label className="consent-wrapper" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
-                <input type="checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
-                <span style={{ fontSize: "0.85rem" }}>I agree to share this case&apos;s de-identified evidence with the doctor I assign to confirm these facts.</span>
+            <div className="readiness-confirm">
+              <label className="consent-wrapper">
+                <input type="checkbox" className="consent-checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
+                <span>I agree to share this case&apos;s de-identified evidence with the doctor I assign to confirm these facts.</span>
               </label>
               <button
                 type="button"
@@ -215,16 +240,14 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
             </div>
           )}
           {factReview && (
-            <div style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
-              <p>
-                Doctor confirmation request: {humanizeEnum(factReview.status)}
-              </p>
+            <div className="readiness-confirm">
+              <p>Doctor confirmation request: {humanizeEnum(factReview.status)}</p>
               {factReview.assigned_reviewer ? (
                 <ReviewerAttribution reviewer={factReview.assigned_reviewer} />
               ) : (
                 <AssignReviewer directory={doctors} label="Assign doctor" onAssign={assignDoctor} />
               )}
-              <p style={{ fontSize: "0.75rem", opacity: 0.8 }}>Re-run the readiness check after the doctor decides to see the result.</p>
+              <p className="bn-fine">Re-run the readiness check after the doctor decides to see the result.</p>
             </div>
           )}
         </div>

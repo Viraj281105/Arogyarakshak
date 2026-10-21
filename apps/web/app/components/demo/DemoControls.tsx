@@ -17,7 +17,7 @@ const CopyButton: React.FC<{ value: string; label: string }> = ({ value, label }
   return (
     <button
       type="button"
-      className="btn btn-secondary btn-compact"
+      className="btn btn-ghost btn-compact"
       aria-label={`Copy ${label}`}
       onClick={async () => {
         try {
@@ -36,46 +36,49 @@ const CopyButton: React.FC<{ value: string; label: string }> = ({ value, label }
 
 const Credentials: React.FC<{ creds: DemoCredentials }> = ({ creds }) => (
   <div className="demo-credentials">
-    <p style={{ margin: "0 0 0.5rem", fontSize: "0.8rem" }}>
-      One-time demo credentials — shown now and kept only in this tab&apos;s memory. Reviewer tokens go into the reviewer
-      workspace; reviewer IDs are what the patient pastes to assign someone.
+    <h4>One-time demo credentials</h4>
+    <p className="bn-fine">
+      Shown now and kept only in this tab&apos;s memory. Reviewer tokens go into the reviewer workspace; reviewer IDs are
+      what the patient pastes to assign someone.
     </p>
-    <div className="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Demo persona</th>
-            <th>Role in the demo</th>
-            <th>Reviewer ID (for assigning)</th>
-            <th>Reviewer token (for the workspace)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(creds.reviewers).map(([key, p]) => (
-            <tr key={key}>
-              <td>{p.name}</td>
-              <td>{PERSONA_ROLES[key] ?? "Demo persona"}</td>
-              <td>
-                <code style={{ overflowWrap: "anywhere" }}>{p.reviewer_id}</code> <CopyButton value={p.reviewer_id} label={`${p.name} reviewer ID`} />
-              </td>
-              <td>
-                <CopyButton value={p.reviewer_token} label={`${p.name} token`} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <ul className="demo-personas">
+      {Object.entries(creds.reviewers).map(([key, p]) => (
+        <li key={key} className="demo-persona">
+          <div className="demo-persona-who">
+            <strong>{p.name}</strong>
+            <span>{PERSONA_ROLES[key] ?? "Demo persona"}</span>
+          </div>
+          <div className="demo-persona-row">
+            <span className="demo-persona-label">Reviewer ID</span>
+            <code>{p.reviewer_id}</code>
+            <CopyButton value={p.reviewer_id} label={`${p.name} reviewer ID`} />
+          </div>
+          <div className="demo-persona-row">
+            <span className="demo-persona-label">Workspace token</span>
+            <code className="demo-masked" aria-label="hidden">
+              ••••••••
+            </code>
+            <CopyButton value={p.reviewer_token} label={`${p.name} token`} />
+          </div>
+        </li>
+      ))}
+    </ul>
+    <div className="demo-persona-row">
+      <span className="demo-persona-label">Scenario B desk</span>
+      <span>
+        {creds.institution.name} — playbook <code>{creds.playbook_id}</code>
+      </span>
+      <CopyButton value={creds.playbook_id} label="playbook ID" />
+      <CopyButton value={creds.institution.institution_token} label="institution credential" />
     </div>
-    <p style={{ margin: "0.5rem 0 0", fontSize: "0.8rem" }}>
-      Scenario B desk: {creds.institution.name} — playbook <code>{creds.playbook_id}</code>{" "}
-      <CopyButton value={creds.playbook_id} label="playbook ID" />{" "}
-      institution credential <CopyButton value={creds.institution.institution_token} label="institution credential" />
-    </p>
     {creds.diabetes_playbook_id && (
-      <p style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}>
-        Scenario E desk: same institution — playbook <code>{creds.diabetes_playbook_id}</code>{" "}
+      <div className="demo-persona-row">
+        <span className="demo-persona-label">Scenario E desk</span>
+        <span>
+          same institution — playbook <code>{creds.diabetes_playbook_id}</code>
+        </span>
         <CopyButton value={creds.diabetes_playbook_id} label="diabetes playbook ID" />
-      </p>
+      </div>
     )}
   </div>
 );
@@ -145,42 +148,59 @@ export const DemoControls: React.FC<{
   const noKey = !key.trim();
 
   return (
-    <details className="card demo-controls" style={{ marginBottom: "1.5rem" }}>
+    <details className="demo-controls">
       <summary>
-        <strong>Demo controls</strong> <span style={{ fontSize: "0.8rem", opacity: 0.8 }}>(operator only — demo mode)</span>
+        <span className="demo-banner-tag">Operator</span>
+        <strong>Demo controls</strong>
+        <span className="bn-fine">load a scenario or reset the demo</span>
       </summary>
-      <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.75rem" }}>
+      <div className="demo-controls-body">
         {!status.governance_configured && (
           <StatePanel kind="warning">
             The server has no CLINICAL_GOVERNANCE_ADMIN_KEY configured, so reset and scenario loading are disabled.
           </StatePanel>
         )}
-        <label style={{ display: "grid", gap: "0.3rem", fontSize: "0.85rem" }}>
-          Demo operator key (the server&apos;s CLINICAL_GOVERNANCE_ADMIN_KEY; kept in memory only)
+        <div className="ds-field">
+          <label className="input-label" htmlFor="demo-key">
+            Demo operator key
+            <span className="ds-optional">kept in memory only</span>
+          </label>
           <input
+            id="demo-key"
             type="password"
             className="input-field"
             autoComplete="off"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder="Operator key"
+            placeholder="The server's CLINICAL_GOVERNANCE_ADMIN_KEY"
           />
-        </label>
+        </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+        <ul className="demo-scenarios" aria-label="Demo scenarios">
           {status.scenarios.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="btn btn-primary btn-compact"
-              disabled={!!busy || noKey}
-              onClick={() => handleLoad(s)}
-              title={s.title}
-            >
-              {busy === s.id ? `Loading ${s.id}…` : `Load Scenario ${s.id}`}
-            </button>
+            <li key={s.id}>
+              <button
+                type="button"
+                className={`demo-scenario ${current?.id === s.id ? "is-current" : ""}`}
+                disabled={!!busy || noKey}
+                onClick={() => handleLoad(s)}
+              >
+                <span className="demo-scenario-id" aria-hidden="true">
+                  {busy === s.id ? <span className="spinner" /> : s.id}
+                </span>
+                <span className="demo-scenario-text">
+                  <strong>{busy === s.id ? `Loading ${s.id}…` : `Load Scenario ${s.id}`}</strong>
+                  <span>{s.title}</span>
+                  <span className="demo-scenario-module">{s.module}</span>
+                </span>
+              </button>
+            </li>
           ))}
-          <button type="button" className="btn btn-secondary btn-compact" disabled={!!busy || noKey} onClick={handleReset}>
+        </ul>
+        {noKey && <span className="ds-hint">Enter the operator key to enable the scenarios and reset.</span>}
+
+        <div>
+          <button type="button" className="btn btn-danger-outline btn-compact" disabled={!!busy || noKey} onClick={handleReset}>
             {busy === "reset" ? "Resetting…" : "Reset demo"}
           </button>
         </div>
@@ -194,25 +214,25 @@ export const DemoControls: React.FC<{
 
         {current && (
           <div className="demo-script">
-            <strong>
+            <h4>
               Scenario {current.id}: {current.title}
-            </strong>
-            <p style={{ margin: "0.3rem 0" }}>
+            </h4>
+            <p>
               <em>Starting state:</em> {current.starting_state}
             </p>
-            <ol style={{ margin: "0.3rem 0 0.3rem 1.2rem" }}>
+            <ol>
               {current.actions.map((a) => (
                 <li key={a}>{a}</li>
               ))}
             </ol>
-            <p style={{ margin: 0 }}>
+            <p>
               <em>Expected:</em> {current.expected}
             </p>
           </div>
         )}
         {creds && <Credentials creds={creds} />}
         {!creds && (
-          <p style={{ margin: 0, fontSize: "0.8rem", opacity: 0.85 }}>
+          <p className="bn-fine">
             Press <strong>Reset demo</strong> first to get the demo reviewers&apos; one-time credentials.
           </p>
         )}
