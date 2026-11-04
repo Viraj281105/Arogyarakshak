@@ -1,0 +1,69 @@
+@appendix A | Feasibility Assessment and Mathematical Model
+
+## A.1 Feasibility Assessment
+
+**Technical feasibility.** Every component of the current system is built from mature open-source software running on commodity hardware without a GPU, and the full stack has been run end to end on PostgreSQL 16 and Docker Compose. The technically uncertain parts are known and bounded: real-document OCR accuracy, particularly for Devanagari, and the quality of LLM-drafted text, which the architecture confines to drafting.
+
+**Economic feasibility.** The software stack is free and open source. Reference data is published by the government at no cost. The only potential running cost is LLM inference, which is optional: the system is fully functional, in a disclosed degraded mode, without it. A local deployment therefore costs nothing beyond the machine it runs on.
+
+**Operational and legal feasibility.** The project handles sensitive personal data, so its operation is feasible only within the constraints it has adopted: no stored documents, consent-gated linkage, deletion and expiry, and local-only deployment until real authentication exists. It provides decision support and drafts, not legal or medical advice, and its interface and documentation say so.
+
+**Schedule feasibility.** Phases 1–3 were completed within the first two months, and Phase 4 is under way. The remaining work (Section 8.5) consists mostly of validation and data tasks that can proceed in parallel across the five team members.
+
+## A.2 Mathematical Model of the System
+
+Let the system be described as a tuple
+
+!eq S = { I, C, K, M, R, O, F }
+
+where *I* is the set of input documents uploaded to a case; *C* = (id, h(t), κ, τ) is a case with identifier id, stored token hash h(t), consent flag κ ∈ {0, 1} and expiry τ; *K* is the Kadi transformation; *M* = {m₁, …, m₅} are the domain modules; *R* is the set of reference tables; *O* is the set of outputs; and *F* is the set of failure and refusal states. Kadi maps documents to a set of typed entities:
+
+!eq K : I → E,   E = { (type, value, provenance) }
+
+Each module mᵢ is a function of the entities, the reference data and, for cross-module reads, the consent flag:
+
+!eq mᵢ(E, R, κ) → oᵢ ∈ O ∪ F,   with mᵢ(E, R, 0) = ∅ for every cross-module read
+
+A finding is admissible only if its basis is established. For a price comparison with stated amount a, basis b, stated unit count n and per-unit ceiling c, the unit price is
+
+!eq u = a / n  if b ∈ {strip, pack} and n ∈ ℤ⁺ is stated;   u = a  if b = unit
+
+and the verdict is compare(u, c) when u is defined, and CANNOT_COMPARE — with no percentage — otherwise.
+
+Entity resolution combines signal scores sⱼ ∈ [0, 1] with weights wⱼ as in Equation 5.1 and decides
+
+!eq d = MERGE if c_lp ≥ θ_m ∧ ¬G;   ASK if c ≥ θ_a ∧ ¬G;   NEW otherwise
+
+where c_lp is the confidence from the lexical and phonetic signals alone, G is true when any hard guard (strength, form, laterality, variant, prefix) conflicts, θ_m = 0.90 and θ_a = 0.70. Where an empirical rate p̂ is reported from n decided disputes, its 95% interval is the Wilson score interval [42]:
+
+!eq ( p̂ + z²/2n ± z √( p̂(1 − p̂)/n + z²/4n² ) ) / ( 1 + z²/n ),   z = 1.96
+
+## A.3 Computational Complexity
+
+The problems ArogyaRakshak solves are not NP-hard; its costs are dominated by I/O and model inference. For a document with L lines and N extracted mentions, line parsing and heuristic extraction are O(L). Entity resolution compares each mention only with existing entities of the same type in the same case (blocking), so for E_t entities of a type the cost is O(N · E_t · ℓ²) with ℓ the string length for edit distance; because a case holds a handful of documents, E_t is small and the step takes well under a millisecond per pair without IndicSBERT. Bill auditing is O(L · K) for K reference keys (K = 27), and eligibility and deadline computation are O(1) per request. The dominant costs are OCR on images, which grows with image resolution, and LLM calls, which are bounded per document and per appeal. The system's scalability limit is therefore not algorithmic but architectural — the single-process design required by zero retention (ADR-019).
+
+@appendix B | Architecture Decision Records
+
+!table Index of the 21 architecture decision records in the repository | 9,33,58
+| ADR | Title | Decision in one line |
+| 001 | Monorepo structure | One repository with editable Python packages and two client apps. |
+| 002 | Kadi shared intelligence layer | All OCR, extraction and resolution live in Kadi, never in a module. |
+| 003 | Bring-your-own-document privacy | Files only in memory; redacted facts persist; consent enforced server-side. |
+| 004 | Groq model selection | Model read from `GROQ_MODEL`; deprecated models banned by CI. |
+| 005 | DaaviSetu / BimaNyay division | Pre-claim and post-denial work are separate modules. |
+| 006 | Kadi entity resolution | Lexical + phonetic + optional semantic; guards; merge/ask/new; bounded calibration. |
+| 007 | Federated consent verification | Design only: identity and signed consent before any zero-knowledge protocol. |
+| 008 | No authentication (accepted risk) | Compensating controls: case-id entropy and rate limiting. |
+| 009 | Per-case access authorisation | 256-bit token, hashed at rest, constant-time check on every case route. |
+| 010 | Retention and erasure | Owner-initiated deletion of a case and everything derived from it. |
+| 011 | Clinical review and safety governance | Human statements verbatim only; COI; blind transcription; four-eyes safety rules. |
+| 012 | Price basis before comparison | Convert from stated counts or refuse; no percentage without a basis. |
+| 013 | Deployment target | Local Docker Compose demo; no public hosting without authentication. |
+| 014 | Client-side package encryption | Optional browser-side encryption of downloads. |
+| 015 | Claim Pack | Read-only, in-memory cross-module ZIP with a manifest. |
+| 016 | On-device read-aloud | Local speech-synthesis voices only; no cloud fallback. |
+| 017 | Explanation trail | Deterministic "Why am I seeing this?" record on every finding. |
+| 018 | Service layer and import contracts | Thin routes, shared services, framework-free packages, enforced by import-linter. |
+| 019 | Reliability without a broker | Persisted job state; interrupted jobs re-uploaded; exactly one API process. |
+| 020 | Alembic migrations | Migrations are the schema source of truth; migration-vs-model test. |
+| 021 | Modular monolith and topology | No service extraction; single-replica Kubernetes path validated, not deployed. |

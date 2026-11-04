@@ -474,6 +474,12 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
+### 2026-11-04 — Preliminary Project Report (docs only, uncommitted)
+- **Added**: `docs/academic/reports/preliminary-project-report/` — 67-page PPR (`.docx` with Word-updated Contents/LoF/LoT, `.pdf`), `Repository_Audit_Summary.md`, and `source/` (chapter markup, SVG figure scripts, screenshots, DOCX builder, Word export script).
+- **Re-verified for the report**: backend 1119 passed / 7 skipped (`.venv`), lint-imports 5/5, guardrails 8/8, web 153/153 + eslint 0, mobile 126/126; Scenario A run in the browser on SQLite demo mode.
+- **Found, not fixed**: ADR-010 still says there is no automatic purge, but `app/case_retention.py` enforces a 90-day TTL sweep — ADR-010 needs an amendment. The global Python 3.11 has stale Starlette; use `.venv`.
+- **Team must supply**: two roll numbers, HoD name, college logo, plagiarism report; confirm the base-paper DOI [15] and the guide-name spelling.
+
 ### 2026-10-19 — Engineering foundation pass (ADR-018…021, branch `arch/engineering-foundation`)
 - **Added**: `apps/api/app/services/` (billnyay_audit, dawacheck_benchmarks, schemesetu_eligibility, daavisetu_claims, case_ingestion, case_purge, document_jobs); `app/schema.py`, `app/observability.py`; `apps/api/alembic.ini`, `migrations/` (0001_baseline, 0002_document_jobs); `KadiDocumentJob` model; `/health/live`, `/health/ready`; `.importlinter`; `scripts/export_openapi.py`, `docs/api/openapi.json`; `infrastructure/kubernetes/`; `.github/workflows/security.yml`; `apps/web/.dockerignore`; ADR-018…021 and the docs listed in §16.
 - **Changed**: route modules re-export moved names; `app.background` no longer imports `app.main`; start-up schema step replaces `create_all`; production profile refuses insecure defaults; error logs use route templates and omit validation input; uploaded file names no longer logged; uvicorn access log off; FastAPI 0.148.0 / Starlette 1.9.0 / python-multipart 0.0.32 / alembic 1.14.0 (`apps/api/requirements.txt`), Next.js 16.4.2; deprecated `HTTP_422_UNPROCESSABLE_ENTITY` / `HTTP_413_REQUEST_ENTITY_TOO_LARGE` constants renamed; both Dockerfiles multi-stage; compose web bound to 127.0.0.1 and uses the `build` target; CI permissions reduced to `contents: read`, plus lint-imports, Alembic on PostgreSQL, kustomize render.

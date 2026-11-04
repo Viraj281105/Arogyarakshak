@@ -1,0 +1,9 @@
+We, the undersigned students of the Final Year of the Bachelor of Engineering (Computer Engineering) programme at PES's Modern College of Engineering, Pune, declare that this preliminary project report on **ArogyaRakshak** records work carried out by our group under the guidance of Prof. Deipali V. Gore.
+
+The descriptions of the system in this report are based on the project's own source code, test suites, architecture decision records and engineering logs as they stand on 4 November 2026. Wherever a capability is planned rather than built, or has been checked only on synthetic data, the report says so in the same place it is described. Ideas, results and data taken from other authors and from government publications are acknowledged through the references at the end of the report.
+
+To the best of our knowledge this report has not been submitted, in part or in full, for the award of any other degree or diploma.
+
+Place: Pune
+
+Date: ____________

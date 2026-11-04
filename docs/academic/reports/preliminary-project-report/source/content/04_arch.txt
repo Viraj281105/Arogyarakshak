@@ -1,0 +1,93 @@
+@chapter 4 | System Architecture and Design
+
+## 4.1 High-Level Architecture
+
+ArogyaRakshak is a **modular monolith**: one deployable API process whose internal boundaries are as strict as those between separate services, but without the network hops, distributed state and operational cost that separate services would bring. Figure 4.1 shows the four layers. Clients talk to the API over REST and Server-Sent Events. The API is a thin HTTP layer over application services, which orchestrate the framework-free domain packages. Kadi sits beneath the five domain modules as their shared foundation. PostgreSQL holds case state, and packaged reference tables hold the public benchmarks. Two external services are optional and off unless configured: the Groq inference API for LLM extraction and drafting, and the Hugging Face Hub for the IndicSBERT model weights.
+
+!figure fig_arch.png | High-level architecture of ArogyaRakshak as implemented | 6.1
+
+The choice of a monolith was deliberate and is recorded in ADR-021. The obvious candidate for extraction — an OCR worker fed by a queue — would require putting patient documents on a durable queue or in shared storage, which the zero-retention principle forbids. Without that extraction there is no workload whose scaling or failure profile differs enough from the rest to justify a separate service. The same reasoning fixes the API at **exactly one process and one replica** (ADR-019): processing status and rate-limit counters live in process memory, and a second replica would split them.
+
+## 4.2 Component Architecture and Module Boundaries
+
+A monolith stays modular only if its boundaries are enforced. ADR-018 defines the layers and the allowed import direction shown in Figure 4.2, and the `import-linter` tool checks five contracts on every pull request:
+
+1) Domain packages do not import the API application, the web framework or the ORM.
+2) Kadi does not depend on any domain module.
+3) Domain modules do not import each other; cross-module work goes through Kadi or the API layer.
+4) Application code below the HTTP layer never imports route modules.
+5) Route modules do not import each other; shared logic belongs in `app/services`.
+
+!figure fig_layers.png | Layering and import contracts enforced by import-linter (ADR-018) | 5.6
+
+The practical effect is that every domain rule can be unit-tested without a database or a web server, and that a change in, say, DawaCheck's price logic cannot break BimaNyay. On 4 November 2026 the linter analysed 214 files and 1,036 dependencies and reported all five contracts kept.
+
+## 4.3 Backend Architecture
+
+The backend (`apps/api`) is a FastAPI application served by Uvicorn. Its structure follows the layers above:
+
+- **Configuration** (`config.py`) is a Pydantic settings object. In the production profile the application refuses to start with insecure defaults such as the development database credentials or a default document-signing secret, and it refuses demo mode altogether.
+- **Middleware** assigns a request identifier, emits structured JSON logs that record route templates rather than concrete URLs or request bodies, applies per-client rate limiting, sets hardening headers and handles CORS. Error handlers return the project's standard `{detail, message}` payload and never leak internal exception text.
+- **Route modules** under `/api/v1/<module>` validate input with Pydantic, resolve authorisation and consent through dependencies, and delegate to services. The OpenAPI document is snapshotted in the repository and a contract test fails if it changes unintentionally.
+- **Application services** (`app/services`) hold the use cases called from more than one entry point — for example, the BillNyay audit is used both by its route and by Kadi's auto-triggers, so both call the same `build_case_audit` and can never disagree.
+- **Background work** runs in-process: document processing, consent-bounded auto-triggers, and a periodic sweep that purges expired cases.
+
+Document processing is the backend's most delicate path (Figure 4.3). The upload route reads the file into memory, records a row in `kadi_document_jobs`, returns `202 Accepted` and schedules processing as a background task. The background task runs the Kadi pipeline over the in-memory bytes, persists entities and resolution decisions, runs auto-triggers if the case has consent, and marks the job completed or failed. Because the file is never stored, a job interrupted by a restart cannot be resumed; instead, start-up reconciliation marks it `interrupted` and the stream tells the client to upload again (ADR-019). This trades a small amount of convenience for an invariant that is easy to state and easy to test.
+
+!figure fig_sequence.png | Sequence of a document upload, processing and module call | 6.1
+
+## 4.4 Frontend Architecture
+
+The web client (`apps/web`) is a Next.js 16 application using the App Router, React 19 and TypeScript, styled with plain CSS design tokens rather than a component framework. Two routes matter: `/`, the patient workspace, and `/clinical-review`, the reviewer workspace. The patient workspace is a single page that moves through intake, a live "Your case" desk (progress stream, safety notices, duplicate questions, Claim Pack and timeline) and a tabbed module workspace. API access is centralised in a small library layer; the case access token is held in memory and sent as a header, except on the SSE stream, where the browser's `EventSource` API cannot set headers and the token travels as a query parameter accepted only by that route.
+
+Several interface decisions follow from the honesty principle rather than from aesthetics. Module tabs stay disabled until processing completes, so a user never sees findings computed from a half-read document. A rule-based estimate in BimaNyay is shown as "starting estimate, NN / 100" rather than as a percentage chance. Reference counts shown on the landing page are read from a snapshot module that a test locks to the packaged data. Hindi and Marathi strings that have not yet been reviewed by a native speaker are marked as such in the source. The client also offers on-device read-aloud through the browser's speech synthesis, restricted to voices that run locally so that no text leaves the device (ADR-016).
+
+## 4.5 Mobile Architecture
+
+The mobile client (`apps/mobile`) is an Expo SDK 52 / React Native 0.76 application in TypeScript. It shares the backend API contract with the web client and offers the same five module screens, plus a camera screen for capturing documents. Its architecture reflects mobile constraints: a processing state machine with a 90-second timeout and a manual refresh; a shared "active case" so that a document scanned once is reachable from every module; guards against stale responses overwriting newer ones; and an offline action queue that replays module requests when connectivity returns. A deadline-reminder planner for BimaNyay milestones is implemented and unit-tested; the notification delivery adapter and on-device testing remain outstanding (Section 8.5).
+
+## 4.6 Database Design
+
+PostgreSQL 16 stores 27 tables, each prefixed with its owning module as required by the project's naming rules and checked by a CI guardrail. Figure 4.4 shows the core of the schema. `kadi_cases` is the anchor: it holds the case identifier (`CASE-` followed by 64 random bits), the SHA-256 hash of the access token, the consent flag and an expiry timestamp. Entities, document digests, resolution decisions, document jobs and module insights hang off the case; so do the module-owned records — BillNyay appeals with their compiled PDFs, DaaviSetu claims, SchemeSetu income profiles and clinical reviews.
+
+!figure fig_erd.png | Entity-relationship view of the core schema (selected tables and columns) | 6.1
+
+Three schema decisions deserve comment. First, the only trace of an uploaded document is its digest in `kadi_case_documents`, used to detect re-uploads that would otherwise double-count a bill's total. Second, identical bill lines are never merged into one entity, because two identical charges may themselves be evidence of double billing. Third, schema evolution goes exclusively through Alembic migrations (ADR-020); a test compares the migrated schema with the ORM models on both SQLite and PostgreSQL, and legacy databases created before migrations existed are stamped at the baseline revision rather than recreated.
+
+## 4.7 API Architecture
+
+The API exposes 99 paths and 109 operations under `/api/v1`, grouped by module (Table 4.1). Every route that names a case runs two checks in a fixed order: `require_case_access` answers "may this caller reach this case at all?", and, for routes that read Kadi context across modules, `require_case_consent` answers "may this case's context be shared?". The two are kept separate on purpose; consent is a property of the case, while access is a property of the caller.
+
+!table API route groups (from the committed OpenAPI snapshot) | 16,10,74
+| Prefix | Paths | Representative responsibilities |
+| `/kadi` | 61 | Case lifecycle, upload, SSE stream, timeline, entities and resolution decisions, FHIR import, insights, Claim Pack, clinical review, safety rules, transcription, demo controls, latency metrics |
+| `/daavisetu` | 14 | Readiness, institutions and playbooks, clinical-fact confirmation, claim generation, PDF and ZIP downloads |
+| `/billnyay` | 9 | Case audit, ICD plausibility, appeal drafting, PDF compile and verification, outcome estimate (refuses without data) |
+| `/schemesetu` | 6 | Eligibility (stateless and case-linked), income profile, transition advice |
+| `/bimanyay` | 3 | Denial analysis, timeline, clinical statements |
+| `/dawacheck` | 3 | Manual benchmark, case medicine benchmarks, prescription shorthand |
+| `/health*` | 3 | Health, liveness and readiness probes |
+
+## 4.8 Module Interactions
+
+Modules never call each other directly; they interact through Kadi in two ways. The first is **shared context**: once a case holds a diagnosis, procedures and bill lines, BillNyay, DaaviSetu, SchemeSetu and DawaCheck all read the same resolved entities. The second is **auto-triggering**. Kadi's trigger rules (`kadi/triggers.py`) are declarative: given how many entities of each type a case holds, whether consent was given and whether an income profile exists, they report which checks are ready. The application then runs only the ready, read-only checks — BillNyay's audit and diagnosis–procedure check, DawaCheck's medicine benchmarks and SchemeSetu's eligibility — through the same service functions their routes use, and records each result in `kadi_module_insights`. Claim generation is never auto-run, and a failing check is recorded with an error identifier without stopping the others. The result is the behaviour envisaged in the original design: one upload, several insights, no re-entry of facts.
+
+## 4.9 Security Architecture
+
+Figure 4.5 shows the request path and the data-minimisation controls that apply to every path. The project has no user accounts. ADR-008 records this as an accepted risk with compensating controls; ADR-009 then added a real authorisation boundary that does not require accounts. Each case receives a 256-bit token at creation, shown to the client exactly once; only its SHA-256 hash is stored, and every case route compares the presented token with a constant-time comparison. A missing token yields 401, a wrong one 403.
+
+!figure fig_security.png | Request-path checks, data-minimisation controls and disclosed risks | 6.1
+
+Other controls address specific threats. Per-client rate limiting bounds automated enumeration and abuse of LLM-backed routes. Logs record route templates and omit validation input and file names, so patient data does not leak into log files. Generated appeal PDFs carry a SHA-256 digest and an HMAC so that tampering can be detected, and finalising or withdrawing a clinician's statement re-renders and re-signs the stored PDF so that older copies fail verification. Every piece of document-derived text placed into an LLM prompt is wrapped in a random boundary generated per call, defeating documents that try to forge section markers. The CI guardrails additionally check that the database and API ports are bound only to the local interface and that no API keys are committed.
+
+## 4.10 Consent and Privacy Mechanisms
+
+Privacy in ArogyaRakshak is less a feature than a set of things the system refuses to do. It refuses to store the uploaded file: bytes are read in memory, and a guardrail scans the code for patterns that would write them to disk. It refuses to keep direct identifiers: the excerpt retained for appeal drafting passes through `kadi.redaction`, which removes names, phone numbers, e-mail addresses, Aadhaar and PAN numbers and postal addresses, and the patient's name is never persisted. The documentation is careful to call this *direct-identifier removal* rather than anonymisation, since a diagnosis together with a hospital name may still identify a person in a small population.
+
+It refuses to share across modules without consent: `consent_opt_in` defaults to false, is set when the case is created, and is re-read from the database before any auto-triggered check. And it refuses to keep data indefinitely: a patient can delete a case and everything derived from it, including compiled PDFs and case-linked BimaNyay records, and since the retention work recorded under SEC-03 every case also carries an expiry deadline (90 days by default) enforced by a periodic server-side sweep. Earlier documentation described case records as "temporary" before any expiry existed; correcting that gap was one of the findings of the project's internal security audit. The same thinking extends to the clients: the Claim Pack is assembled in memory, and its optional encryption happens in the browser, so the server never sees the password (ADR-014).
+
+## 4.11 Deployment Architecture
+
+The supported deployment is a local, single-machine demonstration run with Docker Compose (ADR-013), shown on the left of Figure 4.6. Multi-stage images run as non-root users, the API runs a single Uvicorn worker, PyTorch is pinned to CPU-only wheels to keep images small, and all ports bind to `127.0.0.1`. A Kubernetes path exists as a kustomize base and example overlay with a single-replica deployment, liveness and readiness probes and a migration job; it is rendered and policy-tested in CI but has not been deployed anywhere, and the documentation says so. Public hosting is deliberately not supported until real authentication, TLS and a data-protection review are in place.
+
+!figure fig_deploy.png | Supported local deployment and the validated (not deployed) Kubernetes path | 6.1

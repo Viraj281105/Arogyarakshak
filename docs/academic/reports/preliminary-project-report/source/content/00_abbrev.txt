@@ -1,0 +1,41 @@
+!plaintable | 22,78
+| Abbreviation | Expansion |
+| ABDM / ABHA | Ayushman Bharat Digital Mission / Ayushman Bharat Health Account |
+| ADR | Architecture Decision Record |
+| API | Application Programming Interface |
+| ASHA / AWW / AWH | Accredited Social Health Activist / Anganwadi Worker / Anganwadi Helper |
+| BMA | Benchmark Mapping Accuracy |
+| BYOD | Bring Your Own Document (zero document retention) |
+| CER / WER | Character Error Rate / Word Error Rate |
+| CFMA | Claim Form Field Mapping Accuracy |
+| CGHS | Central Government Health Scheme |
+| CI | Continuous Integration |
+| COI | Conflict of Interest |
+| CRMA | Claim Rejection Mapping Accuracy |
+| DPCO | Drugs (Prices Control) Order, 2013 |
+| DPDP | Digital Personal Data Protection Act, 2023 |
+| FHIR | Fast Healthcare Interoperability Resources (HL7) |
+| GRO | Grievance Redressal Officer (of an insurer) |
+| HMAC | Hash-based Message Authentication Code |
+| ICD-10 | International Classification of Diseases, 10th Revision |
+| IRDAI | Insurance Regulatory and Development Authority of India |
+| LLM | Large Language Model |
+| MJPJAY | Mahatma Jyotirao Phule Jan Arogya Yojana (Maharashtra) |
+| MRP | Maximum Retail Price |
+| NER | Named Entity Recognition |
+| NHA | National Health Authority |
+| NPPA | National Pharmaceutical Pricing Authority |
+| OCR | Optical Character Recognition |
+| OOPE | Out-of-Pocket Expenditure |
+| ORM | Object-Relational Mapping |
+| PEA | Procedure Extraction Accuracy |
+| PED | Pre-Existing Disease |
+| PII | Personally Identifiable Information |
+| PM-JAY | Ayushman Bharat Pradhan Mantri Jan Arogya Yojana |
+| RAG | Retrieval-Augmented Generation |
+| SBERT | Sentence-BERT |
+| SECC | Socio-Economic and Caste Census, 2011 |
+| SLA | Service-Level (statutory response) timeline |
+| SSE | Server-Sent Events |
+| TTL | Time To Live (automatic expiry) |
+| WCAG | Web Content Accessibility Guidelines |
