@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mobile adopts generated design tokens (2026-11-15)
+
+#### Changed
+- `apps/mobile/src/theme/colors.ts`, `spacing.ts` now derive from `src/generated/tokens.ts` (single source: `packages/design-tokens/tokens.json`); no hex literals remain in `colors.ts`. Export names and the `ColorPalette` type are unchanged; `radii` gains `xl` (20).
+- Mobile colour values aligned to the web value (only one differed): light theme `textMuted` `#8C948E` -> `#6F7771` (darker, better contrast). Dark theme: no differences.
+
 ### Not-found and error pages, page 10 of the per-page design pass (2026-10-21)
 
 #### Added
