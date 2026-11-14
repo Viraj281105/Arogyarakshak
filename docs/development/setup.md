@@ -108,6 +108,18 @@ npm install
 cd ../..
 ```
 
+### 5.2.1 Self-hosted fonts (no Google Fonts)
+Fonts are served from npm packages, never from Google at build or runtime:
+- Web (`apps/web`): `@fontsource-variable/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`,
+  imported as CSS in `app/globals.css`. Their `@font-face` rules use `unicode-range`, so browsers
+  fetch only the latin / latin-ext files they need. Do not use `next/font/google`.
+- Mobile (`apps/mobile`): `@expo-google-fonts/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`
+  (font files ship in the app binary), plus `expo-font` and `expo-splash-screen`, loaded by
+  `src/hooks/useAppFonts.ts` while the splash screen stays up.
+- The font stacks live in `packages/design-tokens/tokens.json` and keep a Devanagari-capable
+  fallback (`'Noto Sans Devanagari', 'Nirmala UI', Mangal`) because none of the four families
+  include Devanagari. After editing them run `npm run generate`.
+
 ### 5.3 Shared TypeScript code (vendoring)
 Shared web/mobile code (tokens, API client, i18n) is authored in `packages/<name>/src` and
 copied into each app by the root tooling (ADR-022). Install it once at the repo root:

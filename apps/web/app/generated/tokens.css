@@ -45,10 +45,10 @@
   --paper-over: #B85D43;
   --paper-bundled: #9A7E4B;
   --paper-unmatched: #8C948E;
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-headline: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', 'Noto Sans Devanagari', 'Nirmala UI', Mangal, serif;
+  --font-headline: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif;
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, monospace;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;

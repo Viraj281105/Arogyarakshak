@@ -13,6 +13,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const tokensPath = join(here, "..", "tokens.json");
 const tokens = JSON.parse(readFileSync(tokensPath, "utf8"));
 const baseline = JSON.parse(readFileSync(join(here, "fixtures", "globals-vars.baseline.json"), "utf8"));
+// NOTE: the baseline fixture is a historical snapshot of globals.css. Task 6 (self-hosted fonts)
+// intentionally changed the four --font-* stacks (Fontsource variable family names plus a Devanagari-
+// capable fallback), so ONLY those four fixture entries were updated; every other entry is unchanged.
 
 // Generated variables not in the baseline are only allowed with these prefixes.
 const ALLOWED_EXTRA = ["--space-", "--radius-", "--motion-", "--z-"];

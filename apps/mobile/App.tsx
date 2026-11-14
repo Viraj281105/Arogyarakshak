@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { ThemeProvider, useTheme } from './src/theme';
 import { useLanguage } from './src/hooks/useLanguage';
+import { useAppFonts } from './src/hooks/useAppFonts';
 import { Header, OfflineBanner } from './src/components';
 import { RootNavigator } from './src/navigation';
+
+// Keep the native splash screen up until the bundled fonts are ready.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const AppContent: React.FC = () => {
   const { isDark, colors } = useTheme();
@@ -28,6 +33,18 @@ const AppContent: React.FC = () => {
 };
 
 export default function App() {
+  const fontsReady = useAppFonts();
+
+  useEffect(() => {
+    if (fontsReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsReady]);
+
+  if (!fontsReady) {
+    return null;
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>

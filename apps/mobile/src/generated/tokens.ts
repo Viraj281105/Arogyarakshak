@@ -137,8 +137,8 @@ export const zIndex = {
 } as const;
 
 export const fonts = {
-  display: "'Fraunces', Georgia, 'Times New Roman', serif",
-  headline: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
-  sans: "'Inter', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
-  mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+  display: "'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', 'Noto Sans Devanagari', 'Nirmala UI', Mangal, serif",
+  headline: "'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif",
+  sans: "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif",
+  mono: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, monospace",
 } as const;

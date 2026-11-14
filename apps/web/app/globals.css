@@ -2,7 +2,14 @@
 /* Editorial Sovereignty, Human-Authored Trust, Natural Materials, DPDP Act 2023 Compliance */
 
 @import "./generated/tokens.css";
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+/* Self-hosted variable fonts (npm @fontsource-variable): no third-party font requests.
+   Each stylesheet declares per-subset @font-face rules with unicode-range, so the
+   browser fetches only the latin / latin-ext files it actually needs; Devanagari
+   falls through to the stack's system fallbacks (see tokens.json font stacks). */
+@import "@fontsource-variable/fraunces/opsz.css";
+@import "@fontsource-variable/plus-jakarta-sans/wght.css";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
 
 *,
 *::before,
