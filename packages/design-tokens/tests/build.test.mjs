@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { existsSync, copyFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildCss, buildTs, runBuild } from "../build.mjs";
@@ -60,13 +62,16 @@ test("buildTs output camelCases keys (bg-base -> bgBase)", () => {
 });
 
 async function loadGenerated(t) {
+  // Node-version independent: strip the TS-only syntax and load the result as plain ESM.
+  const js = buildTs(t)
+    .replace(/ as const;/g, ";")
+    .replace(/^export type .*$/gm, "");
   const dir = mkdtempSync(join(tmpdir(), "tokens-ts-"));
-  const file = join(dir, "tokens.ts");
-  writeFileSync(file, buildTs(t));
+  const file = join(dir, "tokens.mjs");
+  writeFileSync(file, js);
   try {
     return await import(pathToFileURL(file).href);
   } finally {
-    // module is already evaluated; safe to remove
     rmSync(dir, { recursive: true, force: true });
   }
 }
@@ -122,4 +127,55 @@ test("--check passes when outputs are current and fails after editing a generate
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("parity check fails when a value is altered", () => {
+  const altered = structuredClone(tokens);
+  altered.color.dark["bg-base"] = "#000000";
+  altered.color.light["bg-surface"] = "#010101";
+  const { result } = extractVars(buildCss(altered));
+  assert.ok(diffVars(baseline.root, result.root).some((p) => p.startsWith("value --bg-base")));
+  assert.ok(diffVars(baseline.light, result.light).some((p) => p.startsWith("value --bg-surface")));
+});
+
+test("--check reports a missing output file and creates nothing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tokens-missing-"));
+  try {
+    const cssPath = join(dir, "web", "tokens.css");
+    const tsPath = join(dir, "mobile", "tokens.ts");
+    assert.throws(() => runBuild({ tokensPath, cssPath, tsPath, check: true }), /out of date/);
+    assert.ok(!existsSync(join(dir, "web")) && !existsSync(join(dir, "mobile")));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI `node build.mjs --check` exits non-zero on stale or missing output, zero when current", () => {
+  // Mirror the package layout in a temp repo so the CLI's default paths resolve inside it.
+  const root = mkdtempSync(join(tmpdir(), "tokens-cli-"));
+  try {
+    const pkg = join(root, "packages", "design-tokens");
+    mkdirSync(pkg, { recursive: true });
+    copyFileSync(join(here, "..", "build.mjs"), join(pkg, "build.mjs"));
+    copyFileSync(tokensPath, join(pkg, "tokens.json"));
+    const run = (...args) => spawnSync(process.execPath, [join(pkg, "build.mjs"), ...args], { encoding: "utf8" });
+
+    assert.notEqual(run("--check").status, 0, "missing outputs must fail");
+    assert.equal(run().status, 0, "build writes outputs");
+    assert.equal(run("--check").status, 0, "current outputs pass");
+    const css = join(root, "apps", "web", "app", "generated", "tokens.css");
+    writeFileSync(css, readFileSync(css, "utf8") + "/* stale */\n");
+    const r = run("--check");
+    assert.notEqual(r.status, 0, "stale output must fail");
+    assert.match(r.stderr, /out of date/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("extractVars keeps a final custom property that has no trailing semicolon", () => {
+  const css = [":root {", "  --a: 1px;", "  --b: #fff", "}", '[data-theme="light"] { --a: 2px; --c: red }', ""].join("\n");
+  const { result } = extractVars(css);
+  assert.deepEqual(result.root, { "--a": "1px", "--b": "#fff" });
+  assert.deepEqual(result.light, { "--a": "2px", "--c": "red" });
 });

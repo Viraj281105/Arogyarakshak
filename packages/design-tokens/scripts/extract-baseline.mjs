@@ -5,6 +5,7 @@
 // Prints a JSON fixture to stdout; a selector report (every selector that
 // declares custom properties) goes to stderr.
 import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 export function extractVars(cssText) {
   const css = cssText.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -22,6 +23,7 @@ export function extractVars(cssText) {
         i++;
         walk(depth + 1, sel);
       } else if (ch === "}") {
+        record(buf, depth, selector); // last declaration may lack a trailing ';'
         i++;
         return;
       } else if (ch === ";") {
@@ -61,7 +63,7 @@ export function extractVars(cssText) {
   return { result, declaring };
 }
 
-if (import.meta.main) {
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   const src = readFileSync(process.argv[2] ?? 0, "utf8");
   const { result, declaring } = extractVars(src);
   for (const [sel, n] of declaring) console.error(`${n}\t${sel}`);

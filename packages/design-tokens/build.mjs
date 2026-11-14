@@ -2,7 +2,7 @@
 // Usage: node packages/design-tokens/build.mjs [--check]
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..", "..");
@@ -101,7 +101,7 @@ export function runBuild({ check = false, ...overrides } = {}) {
   }
 }
 
-if (import.meta.main) {
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   try {
     runBuild({ check: process.argv.includes("--check") });
   } catch (err) {
