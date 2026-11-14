@@ -1,0 +1,13 @@
+{
+  "name": "arogyarakshak-tooling",
+  "private": true,
+  "description": "Repo-level tooling (shared-code vendoring, checks). Not a workspace root.",
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "check:generated": "node scripts/run-checks.mjs",
+    "test": "node scripts/run-tests.mjs"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

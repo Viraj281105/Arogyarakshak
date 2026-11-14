@@ -108,6 +108,18 @@ npm install
 cd ../..
 ```
 
+### 5.3 Shared TypeScript code (vendoring)
+Shared web/mobile code (tokens, API client, i18n) is authored in `packages/<name>/src` and
+copied into each app by the root tooling (ADR-022). Install it once at the repo root:
+```bash
+npm install            # root: tsx + scripts only, no workspaces
+npm run generate       # regenerate vendored copies (runs scripts/generators/*.mjs)
+npm run check:generated  # fail if any vendored copy is stale (runs scripts/checks/*.mjs)
+npm test               # Node tests in scripts/tests and packages/*/tests
+```
+Never hand-edit vendored files (they start with a GENERATED banner); edit the source in
+`packages/<name>/src`, run `npm run generate`, and commit both.
+
 ---
 
 ## 6. Running the Stack
