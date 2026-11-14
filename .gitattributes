@@ -33,3 +33,9 @@ Dockerfile* text eol=lf
 *.pyc binary
 *.egg binary
 *.whl binary
+
+# Generated / vendored shared code must stay LF so freshness checks pass on Windows
+apps/web/app/generated/** text eol=lf
+apps/web/app/shared/** text eol=lf
+apps/mobile/src/generated/** text eol=lf
+apps/mobile/src/shared/** text eol=lf
