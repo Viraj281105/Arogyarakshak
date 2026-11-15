@@ -8,6 +8,7 @@
     "test": "node scripts/run-tests.mjs"
   },
   "devDependencies": {
+    "openapi-typescript": "7.13.0",
     "tsx": "^4.23.15"
   }
 }

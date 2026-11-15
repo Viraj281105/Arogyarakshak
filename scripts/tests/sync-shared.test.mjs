@@ -63,3 +63,24 @@ test("missing target dir: created in write mode, reported (not created) in check
   syncShared({ from, to, banner: TS_BANNER, check: false });
   assert.ok(existsSync(join(to[0], "a.ts")));
 });
+
+test("check mode reports an orphaned vendored file and leaves it in place", () => {
+  const { from, to } = fixture();
+  syncShared({ from, to, banner: TS_BANNER, check: false });
+  const orphan = join(to[0], "nested", "gone.ts");
+  writeFileSync(orphan, "export {};\n");
+  const { changed } = syncShared({ from, to, banner: TS_BANNER, check: true });
+  assert.deepEqual(changed, [orphan]);
+  assert.ok(existsSync(orphan));
+});
+
+test("write mode removes an orphaned vendored file, then is idempotent", () => {
+  const { from, to } = fixture();
+  syncShared({ from, to, banner: TS_BANNER, check: false });
+  const orphan = join(to[1], "old.ts");
+  writeFileSync(orphan, "export {};\n");
+  const { changed } = syncShared({ from, to, banner: TS_BANNER, check: false });
+  assert.deepEqual(changed, [orphan]);
+  assert.ok(!existsSync(orphan));
+  assert.deepEqual(syncShared({ from, to, banner: TS_BANNER, check: false }).changed, []);
+});

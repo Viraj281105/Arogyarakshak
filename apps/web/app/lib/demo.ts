@@ -7,6 +7,7 @@
  */
 
 import { API_BASE, normalizeErrorDetail } from "../hooks/useApi";
+import { api } from "./apiClient";
 
 export interface SimulatedItem {
   item: string;
@@ -83,7 +84,7 @@ async function demoFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export function fetchDemoStatus(): Promise<DemoStatus> {
-  return demoFetch<DemoStatus>("/status");
+  return api.request<DemoStatus>("/api/v1/kadi/clinical-demo/status");
 }
 
 const keyHeaders = (key: string) => ({ "Content-Type": "application/json", "X-Governance-Admin-Key": key });

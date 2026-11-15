@@ -131,6 +131,9 @@ npm test               # Node tests in scripts/tests and packages/*/tests
 ```
 Never hand-edit vendored files (they start with a GENERATED banner); edit the source in
 `packages/<name>/src`, run `npm run generate`, and commit both.
+`packages/api-client` also needs the root devDependency `openapi-typescript` (official npm registry): it generates
+`src/generated/schema.d.ts` from the committed `docs/api/openapi.json`, so re-export that file first (`scripts/export_openapi.py`) after an API change.
+Vendoring also removes files left behind in a vendored dir after a source file is deleted (and `check:generated` reports them).
 
 ---
 
