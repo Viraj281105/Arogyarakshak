@@ -16,7 +16,7 @@ test("no workflow line has a literal backslash-n used as a line break", () => {
 
 test("every line ending in a backslash continuation is followed by a non-empty line", () => {
   lines.forEach((l, i) => {
-    if (/\\s*$/.test(l) && !l.trimEnd().endsWith("\\\\")) {
+    if (/\\$/.test(l) && !l.trimEnd().endsWith("\\\\")) {
       assert.ok((lines[i + 1] ?? "").trim() !== "", `line ${i + 1} continues into an empty line`);
     }
   });

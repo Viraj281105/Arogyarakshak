@@ -5,7 +5,7 @@ Chrome 157. These are measurements only; **no budget is set here** (budgets and 
 
 ## Web (apps/web, Next.js 16.4.2, Turbopack production build)
 
-Command: `cd apps/web && npm run build`, then `node scripts/measure-baseline.mjs apps/web/.next`.
+Command: `cd apps/web && NEXT_TELEMETRY_DISABLED=1 npm run build`, then `node scripts/measure-baseline.mjs apps/web/.next`.
 
 Initial JS per route = polyfills + root main files + the route's entry chunks, gzip KB. For `/` this equals
 (253.10 KB) the gzip sum of the `<script src>` chunks in the prerendered `index.html`.
@@ -41,7 +41,7 @@ Only `/` was measured; `/clinical-review` was not.
 
 ## Mobile (apps/mobile, Expo SDK 52, React Native 0.76.7)
 
-Command: `cd apps/mobile && npx expo export --platform android --output-dir <scratchpad>`.
+Command: `cd apps/mobile && EXPO_NO_TELEMETRY=1 npx expo export --platform android --output-dir <scratchpad>`.
 
 - Android JS bundle (Hermes bytecode, `AppEntry-*.hbc`): 2,319,176 bytes = **2264.8 KB (2.32 MB)**, 860 modules, 17 assets.
 

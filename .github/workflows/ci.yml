@@ -16,6 +16,13 @@ concurrency:
 permissions:
   contents: read
 
+# Project network rule: no telemetry endpoints from CI (only GitHub runners,
+# Postgres service containers and the PyPI/npm registries). Covers `next build`,
+# lhci's `next start` and `expo export`.
+env:
+  EXPO_NO_TELEMETRY: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # 1. GOVERNANCE & ARCHITECTURAL INVARIANTS GUARD
