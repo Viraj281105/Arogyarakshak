@@ -70,3 +70,21 @@ test("findUnusedKeys returns dotted paths whose leaf is never referenced in the 
   };
   assert.deepEqual(findUnusedKeys(catalogue, [a, b]), ["lonely", "nested.orphan"]);
 });
+
+test("findUnusedKeys matches only real property/bracket access of the leaf", () => {
+  const dir = mkdtempSync(join(tmpdir(), "i18n-unused-regex-"));
+  const unusedOf = (src: string) => {
+    const f = join(dir, `s${Math.random().toString(36).slice(2)}.ts`);
+    writeFileSync(f, src);
+    return findUnusedKeys({ en: { title: "T" }, hi: {}, mr: {} }, [f]);
+  };
+  assert.deepEqual(unusedOf("const a = mytitle;"), ["title"]);
+  assert.deepEqual(unusedOf("const a = foo.titles;"), ["title"]);
+  assert.deepEqual(unusedOf("const a = foo.title;"), []);
+  assert.deepEqual(unusedOf('const a = x["title"];'), []);
+  assert.deepEqual(unusedOf("const a = x['title'];"), []);
+});
+
+test("findUnreviewedStubs(common) is empty for the real common catalogue", () => {
+  assert.deepEqual(findUnreviewedStubs(common), []);
+});

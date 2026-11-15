@@ -75,8 +75,9 @@ export function findUnusedKeys(catalogue: Catalogue, sourceFiles: string[]): str
   return Object.keys(flatten(catalogue.en))
     .filter((path) => {
       const leaf = path.split(".").pop()!;
-      const dotted = new RegExp(`\.${leaf}(?![\w$])`);
-      const quoted = new RegExp(`\[\s*["']${leaf}["']\s*\]`);
+      const escaped = leaf.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const dotted = new RegExp(String.raw`\.${escaped}(?![\w$])`);
+      const quoted = new RegExp(String.raw`\[\s*["']${escaped}["']\s*\]`);
       return !dotted.test(source) && !quoted.test(source);
     })
     .sort();
