@@ -115,8 +115,10 @@ cd ../..
 `babel-preset-expo`, which adds the Reanimated plugin itself when the package is installed; do
 not add `react-native-reanimated/plugin` as well. Motion patterns (`Reveal`, `Parallax`,
 `Pressable`, `CountUp`, `tap`) live in `apps/mobile/src/motion/` and honour the OS reduce-motion
-setting; Reanimated may only be imported there. `App.tsx` imports `react-native-gesture-handler`
-first and wraps the tree in `GestureHandlerRootView`. If `npx expo install` fails with
+setting; Reanimated may only be imported there. `react-native-gesture-handler` is installed but
+unused: importing it from `App.tsx` added about 0.97 MB (+42%) to the Hermes bundle, so the first
+gesture-using screen (WS5) must add `import 'react-native-gesture-handler'` as the first line of
+`App.tsx` and wrap the root in `GestureHandlerRootView`, and re-measure the bundle. If `npx expo install` fails with
 `EALLOWSCRIPTS`, run `npm install` in `apps/mobile` after it has edited `package.json`.
 
 ### 5.2.1 Self-hosted fonts (no Google Fonts)

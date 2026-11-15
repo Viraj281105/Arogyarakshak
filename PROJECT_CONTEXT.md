@@ -475,7 +475,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ## 17. Recent Changes
 
 ### 2026-11-15 — WS0 Task 10: mobile motion system (branch `ws0/foundation`)
-- **Added**: `apps/mobile/src/motion/` (`logic.ts` pure helpers, `useReducedMotion`, `Reveal`, `Parallax`, `Pressable`, `CountUp`, `haptics.tap`, `index.ts`), `babel.config.js`, `tests/motion.test.ts`; deps `react-native-reanimated`, `react-native-gesture-handler`, `@shopify/flash-list`, `expo-haptics` (SDK 52 pins). `App.tsx` wraps the root in `GestureHandlerRootView`.
+- **Added**: `apps/mobile/src/motion/` (`logic.ts` pure helpers, `useReducedMotion`, `Reveal`, `Parallax`, `Pressable`, `CountUp`, `haptics.tap`, `index.ts`), `babel.config.js`, `tests/motion.test.ts`; deps `react-native-reanimated`, `react-native-gesture-handler`, `@shopify/flash-list`, `expo-haptics` (SDK 52 pins). `react-native-gesture-handler` is installed but not imported (importing it added about 0.97 MB to the bundle); the first gesture-using screen in WS5 adds the first-line import and `GestureHandlerRootView`.
 - **Not verified**: animations/haptics were not run on a device or simulator. No screens use the patterns yet (WS5).
 
 ### 2026-11-04 — Preliminary Project Report (docs only, uncommitted)
