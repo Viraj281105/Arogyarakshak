@@ -365,7 +365,8 @@ jobs:
           echo "| Mobile Frontend (Expo 52 + Tests) | $MOBILE |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker & Compose Build Verification | $DOCKER |" >> $GITHUB_STEP_SUMMARY
 
-          if [ "$INVARIANTS" = "success" ] && \n             [ "$FOUNDATION" = "success" ] && \
+          if [ "$INVARIANTS" = "success" ] && \
+             [ "$FOUNDATION" = "success" ] && \
              [ "$BACKEND" = "success" ] && \
              [ "$WEB" = "success" ] && \
              [ "$MOBILE" = "success" ] && \
