@@ -29,6 +29,11 @@ REQUIRED_PACKAGES = [
     "dawacheck",
 ]
 
+# TypeScript source packages vendored into the apps by scripts/sync-shared.mjs
+# (see ADR-022). They have no Python packaging, so pyproject.toml/setup.py is
+# not required for exactly these names; every other hygiene check still applies.
+TS_SOURCE_PACKAGES = {"design-tokens", "api-client", "i18n"}
+
 # Mandatory table prefixes per AGENTS.md
 ALLOWED_TABLE_PREFIXES = (
     "kadi_",
@@ -116,6 +121,8 @@ def check_package_hygiene() -> list[str]:
     for pkg in found_packages:
         if not pkg.islower():
             errors.append(f"Package Hygiene: Package '{pkg}' is not strictly lowercase!")
+        if pkg in TS_SOURCE_PACKAGES:
+            continue
         has_config = (packages_dir / pkg / "pyproject.toml").exists() or (packages_dir / pkg / "setup.py").exists()
         if not has_config:
             errors.append(f"Package Hygiene: Package '{pkg}' is missing pyproject.toml or setup.py!")
