@@ -37,6 +37,34 @@ jobs:
           python scripts/ci_guardrails.py
 
   # ──────────────────────────────────────────────────────────────────────────
+  # 1b. FOUNDATION CHECKS (shared-code freshness, generated files, root tooling tests)
+  # ──────────────────────────────────────────────────────────────────────────
+  foundation-checks:
+    name: "Foundation Checks (generated files fresh · root tooling tests)"
+    runs-on: ubuntu-latest
+    needs: [governance-and-invariants]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install Root Tooling Dependencies
+        run: npm ci
+
+      - name: Run Root Tooling & Package Node Tests
+        run: npm test
+
+      - name: Verify Generated and Vendored Files Are Fresh
+        run: npm run check:generated
+
+  # ──────────────────────────────────────────────────────────────────────────
   # 2. BACKEND TEST MATRIX & STATIC ANALYSIS (FastAPI & Domain Packages)
   # ──────────────────────────────────────────────────────────────────────────
   backend-ci:
@@ -183,6 +211,15 @@ jobs:
         working-directory: apps/web
         run: npm run build
 
+      - name: Install Root Tooling Dependencies (budget checks, Lighthouse CI)
+        run: npm ci
+
+      - name: Enforce Web Initial-JS Bundle Budget
+        run: npm run check:web-budget
+
+      - name: Lighthouse CI (LCP / CLS budgets on the local production server)
+        run: npx lhci autorun --config=apps/web/lighthouserc.json
+
   # ──────────────────────────────────────────────────────────────────────────
   # 4. MOBILE CLIENT VALIDATION (Expo SDK 52 · TypeScript · Tests)
   # ──────────────────────────────────────────────────────────────────────────
@@ -213,6 +250,13 @@ jobs:
       - name: Run Mobile Unit & Contract Test Suite
         working-directory: apps/mobile
         run: npm test
+
+      - name: Export Android Bundle (Hermes)
+        working-directory: apps/mobile
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/mobile-export"
+
+      - name: Enforce Mobile Bundle Size Budget
+        run: node scripts/build-checks/mobile-bundle-budget.mjs "$RUNNER_TEMP/mobile-export"
 
   # ──────────────────────────────────────────────────────────────────────────
   # 5. DOCKER & INFRASTRUCTURE INTEGRITY
@@ -271,6 +315,7 @@ jobs:
     if: always()
     needs:
       - governance-and-invariants
+      - foundation-checks
       - backend-ci
       - web-ci
       - mobile-ci
@@ -280,6 +325,7 @@ jobs:
       - name: Check All Upstream Jobs
         run: |
           INVARIANTS="${{ needs.governance-and-invariants.result }}"
+          FOUNDATION="${{ needs.foundation-checks.result }}"
           BACKEND="${{ needs.backend-ci.result }}"
           WEB="${{ needs.web-ci.result }}"
           MOBILE="${{ needs.mobile-ci.result }}"
@@ -289,6 +335,7 @@ jobs:
           echo "     AROGYARAKSHAK CI PIPELINE SUMMARY    "
           echo "=========================================="
           echo "Architectural Invariants & Security: $INVARIANTS"
+          echo "Foundation Checks (generated files + tooling tests): $FOUNDATION"
           echo "Backend Test Suite (FastAPI + Packages): $BACKEND"
           echo "Web Frontend (Next.js 16 + ESLint): $WEB"
           echo "Mobile Frontend (Expo 52 + Tests):  $MOBILE"
@@ -300,12 +347,13 @@ jobs:
           echo "| Pipeline Stage | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Architectural Invariants & Security | $INVARIANTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Foundation Checks (generated files + tooling tests) | $FOUNDATION |" >> $GITHUB_STEP_SUMMARY
           echo "| Backend Test Suite (FastAPI + Packages) | $BACKEND |" >> $GITHUB_STEP_SUMMARY
           echo "| Web Frontend (Next.js 16 + ESLint) | $WEB |" >> $GITHUB_STEP_SUMMARY
           echo "| Mobile Frontend (Expo 52 + Tests) | $MOBILE |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker & Compose Build Verification | $DOCKER |" >> $GITHUB_STEP_SUMMARY
 
-          if [ "$INVARIANTS" = "success" ] && \
+          if [ "$INVARIANTS" = "success" ] &&              [ "$FOUNDATION" = "success" ] && \
              [ "$BACKEND" = "success" ] && \
              [ "$WEB" = "success" ] && \
              [ "$MOBILE" = "success" ] && \

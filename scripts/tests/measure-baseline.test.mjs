@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -38,4 +38,13 @@ test("measureWebRouteSizes sums gzip KB of shared + route entry chunks", () => {
   for (const r of Object.keys(expected)) {
     assert.ok(Math.abs(got[r] - expected[r]) < 0.01, `${r}: ${got[r]} vs ${expected[r]}`);
   }
+});
+
+test("measureWebRouteSizes throws naming the route and manifest path when a manifest is missing", () => {
+  const { dir } = fixture();
+  rmSync(join(dir, "server", "app", "a", "page_client-reference-manifest.js"));
+  assert.throws(
+    () => measureWebRouteSizes(dir),
+    (err) => /\/a/.test(err.message) && /a[\\/]page_client-reference-manifest\.js/.test(err.message),
+  );
 });

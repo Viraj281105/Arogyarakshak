@@ -8,6 +8,14 @@ import { gzipSync } from "node:zlib";
 import { pathToFileURL } from "node:url";
 import vm from "node:vm";
 
+// Routes (by public path) that legitimately have no client reference manifest.
+// Empty on purpose: in the Next.js 16.4.2 production build every app route
+// (/, /clinical-review, /motion-lab, /_not-found, /_global-error) emits one, so a
+// missing manifest means a broken/partial build. Silently counting only the shared
+// chunks would let a budget check pass wrongly. Add a route here only after
+// confirming in a real build that it has none, and say why in a comment.
+const ROUTES_WITHOUT_CLIENT_MANIFEST = new Set();
+
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
 }
@@ -43,6 +51,11 @@ export function measureWebRouteSizes(nextDir) {
     if (existsSync(manifestFile)) {
       const entry = loadClientManifest(manifestFile).entryJSFiles ?? {};
       for (const list of Object.values(entry)) list.forEach((f) => files.add(f));
+    } else if (!ROUTES_WITHOUT_CLIENT_MANIFEST.has(route)) {
+      throw new Error(
+        `Route ${route} has no client reference manifest at ${manifestFile}; ` +
+          "refusing to report a size that omits its entry chunks (incomplete build?).",
+      );
     }
     let total = 0;
     for (const f of files) {

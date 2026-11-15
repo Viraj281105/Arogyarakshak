@@ -5,9 +5,12 @@
   "scripts": {
     "generate": "node scripts/generate.mjs",
     "check:generated": "node scripts/run-checks.mjs",
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "check:web-budget": "node scripts/build-checks/web-bundle-budget.mjs --require-build",
+    "check:mobile-budget": "node scripts/build-checks/mobile-bundle-budget.mjs"
   },
   "devDependencies": {
+    "@lhci/cli": "0.16.1",
     "openapi-typescript": "7.13.0",
     "tsx": "^4.23.15"
   }
