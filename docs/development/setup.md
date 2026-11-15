@@ -120,6 +120,20 @@ Fonts are served from npm packages, never from Google at build or runtime:
   fallback (`'Noto Sans Devanagari', 'Nirmala UI', Mangal`) because none of the four families
   include Devanagari. After editing them run `npm run generate`.
 
+### 5.2.2 Web motion system (`apps/web/app/motion`)
+Two animation dependencies, both pinned: `motion` 14.14.0 (Motion for React, official npm) and
+`lenis` 1.3.27 (smooth scroll). No GSAP, no Three.js. ESLint `no-restricted-imports` confines
+`motion`, `framer-motion`, `lenis` and `gsap` to `app/motion/**`.
+- Budget rule: routes that do not use a motion pattern must not pay for it. `SmoothScroll`
+  (mounted in `layout.tsx`) imports Lenis dynamically after mount and skips it under reduced
+  motion; Motion's `domAnimation` loads lazily via `LazyMotion` and only `Magnetic` uses it.
+- `Reveal`, `Parallax` and `ScrollScrub` are CSS-only (`animation-timeline: view()` behind
+  `@supports` and `prefers-reduced-motion: no-preference`); the server-rendered state is the
+  final visible state. `CountUp` server-renders its final value. `format` is a function, so pass
+  it from a client component.
+- `/motion-lab` (dev only, route group `(dev)`, not linked) shows every pattern and returns 404
+  when `NODE_ENV === "production"`.
+
 ### 5.3 Shared TypeScript code (vendoring)
 Shared web/mobile code (tokens, API client, i18n) is authored in `packages/<name>/src` and
 copied into each app by the root tooling (ADR-022). Install it once at the repo root:
