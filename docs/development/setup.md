@@ -106,7 +106,8 @@ Two animation dependencies, both pinned: `motion` 14.14.0 (Motion for React, off
 `lenis` 1.3.27 (smooth scroll). No GSAP, no Three.js. ESLint `no-restricted-imports` confines
 `motion`, `framer-motion`, `lenis` and `gsap` to `app/motion/**`.
 - Budget rule: routes that do not use a motion pattern must not pay for it. `SmoothScroll`
-  (mounted in `layout.tsx`) imports Lenis dynamically after mount and skips it under reduced
+  (opt-in per page, not mounted in `layout.tsx`; it sets `allowNestedScroll` so inner scroll
+  containers keep working) imports Lenis dynamically after mount and skips it under reduced
   motion; Motion's `domAnimation` loads lazily via `LazyMotion` and only `Magnetic` uses it.
 - `Reveal`, `Parallax` and `ScrollScrub` are CSS-only (`animation-timeline: view()` behind
   `@supports` and `prefers-reduced-motion: no-preference`); the server-rendered state is the

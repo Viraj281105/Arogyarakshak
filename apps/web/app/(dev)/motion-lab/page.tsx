@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Magnetic from "../../motion/Magnetic";
 import Parallax from "../../motion/Parallax";
+import SmoothScroll from "../../motion/SmoothScroll";
 import Reveal from "../../motion/Reveal";
 import ScrollScrub from "../../motion/ScrollScrub";
 import LabCountUp from "./LabCountUp";
@@ -18,6 +19,7 @@ export default function MotionLabPage() {
   if (process.env.NODE_ENV === "production") notFound();
   return (
     <main style={{ maxWidth: "40rem", margin: "0 auto", padding: "2rem 1rem 8rem" }}>
+      <SmoothScroll />
       <h1>Motion lab</h1>
       <LabStatus />
       <section style={{ ...card, marginTop: "2rem" }}>
@@ -43,6 +45,17 @@ export default function MotionLabPage() {
         <Parallax>
           <p data-testid="parallax">Drifts as it crosses the viewport.</p>
         </Parallax>
+      </section>
+      <section style={card}>
+        <h2>Nested scroll</h2>
+        <div
+          data-testid="nested-scroll"
+          style={{ maxHeight: "8rem", overflow: "auto", border: "1px dashed currentColor", padding: "0.5rem" }}
+        >
+          {Array.from({ length: 30 }, (_, i) => (
+            <p key={i}>Nested line {i + 1}: wheel here scrolls this box, not the page.</p>
+          ))}
+        </div>
       </section>
       <section style={card}>
         <h2>ScrollScrub</h2>

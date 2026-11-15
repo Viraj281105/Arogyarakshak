@@ -9,7 +9,9 @@ import { useReducedMotion } from "./useReducedMotion";
  * separate lazy chunk and costs nothing on first load; if that chunk fails to load, native
  * scrolling simply continues. Skipped entirely under reduced motion and destroyed if the
  * preference flips on. Keyboard, in-page find and touch scrolling stay native (no syncTouch);
- * anchor links are handled by Lenis (`anchors: true`).
+ * anchor links are handled by Lenis (`anchors: true`). Not mounted in the root layout: pages
+ * opt in individually (only /motion-lab today), and `allowNestedScroll` keeps inner scroll
+ * containers working when they do.
  */
 export default function SmoothScroll() {
   const reduced = useReducedMotion();
@@ -20,6 +22,9 @@ export default function SmoothScroll() {
       autoRaf: true,
       anchors: true,
       syncTouch: false,
+      // Wheel events over nested scrollable elements (letters, textareas) must scroll those
+      // elements, not the page. Lenis defaults this to false.
+      allowNestedScroll: true,
     });
     return () => handle.stop();
   }, [reduced]);

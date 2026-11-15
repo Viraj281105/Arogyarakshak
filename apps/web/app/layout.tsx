@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./motion/motion.css";
-import SmoothScroll from "./motion/SmoothScroll";
 
 export const metadata: Metadata = {
   title: "ArogyaRakshak (आरोग्यरक्षक) — Healthcare Cost & Rights Intelligence",
@@ -34,7 +33,6 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <SmoothScroll />
         {children}
       </body>
     </html>

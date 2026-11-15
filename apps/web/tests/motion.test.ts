@@ -212,6 +212,13 @@ describe('SmoothScroll (Lenis) accessibility', () => {
     assert.match(src, /anchors:\s*true/);
     assert.ok(!/syncTouch:\s*true/.test(src));
   });
+  test('lets wheel events scroll nested scroll containers', () => {
+    assert.match(src, /allowNestedScroll:\s*true/);
+  });
+  test('is not mounted in the root layout; /motion-lab mounts it locally', () => {
+    assert.ok(!/SmoothScroll/.test(read(join(appDir, 'layout.tsx'))));
+    assert.match(read(join(appDir, '(dev)', 'motion-lab', 'page.tsx')), /<SmoothScroll\s*\/>/);
+  });
 });
 
 describe('navigateWithTransition', () => {
