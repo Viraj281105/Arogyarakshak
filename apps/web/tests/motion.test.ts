@@ -13,6 +13,7 @@ import {
 } from '../app/motion/useReducedMotion';
 import { navigateWithTransition } from '../app/motion/viewTransition';
 import CountUp from '../app/motion/CountUp';
+import { startSmoothScroll } from '../app/motion/startSmoothScroll';
 
 const appDir = join(__dirname, '..', 'app');
 const motionDir = join(appDir, 'motion');
@@ -204,7 +205,8 @@ describe('SmoothScroll (Lenis) accessibility', () => {
   });
   test('respects reduced motion and destroys the instance', () => {
     assert.match(src, /useReducedMotion/);
-    assert.match(src, /\.destroy\(\)/);
+    assert.match(src, /\.stop\(\)/);
+    assert.match(read(join(motionDir, 'startSmoothScroll.ts')), /\.destroy\(\)/);
   });
   test('does not hijack touch scroll and keeps anchor links native-friendly', () => {
     assert.match(src, /anchors:\s*true/);
@@ -259,5 +261,74 @@ describe('navigateWithTransition', () => {
     }
     assert.equal(started, 1);
     assert.equal(calls, 1);
+  });
+});
+
+describe('startSmoothScroll lifecycle', () => {
+  const tick = () => new Promise((r) => setTimeout(r, 10));
+  function track() {
+    const created: Array<{ destroyed: number }> = [];
+    class Fake {
+      destroyed = 0;
+      constructor() {
+        created.push(this);
+      }
+      destroy() {
+        this.destroyed++;
+      }
+    }
+    return { created, Fake };
+  }
+
+  test('a rejecting loader is swallowed (no unhandled rejection), reported, and stop() is a no-op', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (e: unknown) => unhandled.push(e);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const errors: unknown[] = [];
+      const h = startSmoothScroll<object>(() => Promise.reject(new Error('chunk failed')), {}, (e) => errors.push(e));
+      await tick();
+      assert.doesNotThrow(() => h.stop());
+      await tick();
+      assert.equal(errors.length, 1);
+      assert.deepEqual(unhandled, []);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  test('an onError that throws still produces no unhandled rejection', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (e: unknown) => unhandled.push(e);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      startSmoothScroll<object>(() => Promise.reject(new Error('x')), {}, () => {
+        throw new Error('reporter broke');
+      });
+      await tick();
+      assert.deepEqual(unhandled, []);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  test('stop() before the load resolves prevents instance creation', async () => {
+    const { created, Fake } = track();
+    let resolve!: (v: { default: typeof Fake }) => void;
+    const h = startSmoothScroll<object>(() => new Promise((r) => (resolve = r)), {});
+    h.stop();
+    resolve({ default: Fake });
+    await tick();
+    assert.equal(created.length, 0);
+  });
+
+  test('a resolving loader creates exactly one instance and stop() destroys it once', async () => {
+    const { created, Fake } = track();
+    const h = startSmoothScroll<object>(() => Promise.resolve({ default: Fake }), { anchors: true });
+    await tick();
+    assert.equal(created.length, 1);
+    h.stop();
+    h.stop();
+    assert.equal(created[0].destroyed, 1);
   });
 });
