@@ -134,6 +134,7 @@ Never hand-edit vendored files (they start with a GENERATED banner); edit the so
 `packages/api-client` also needs the root devDependency `openapi-typescript` (official npm registry): it generates
 `src/generated/schema.d.ts` from the committed `docs/api/openapi.json`, so re-export that file first (`scripts/export_openapi.py`) after an API change.
 Vendoring also removes files left behind in a vendored dir after a source file is deleted (and `check:generated` reports them).
+`packages/i18n` holds the `Language` type and the `common` string namespace (only keys whose EN/HI/MR text is identical on web and mobile; spread into both catalogues). `check:generated` also fails if `common` has a key missing or blank in any language; `packages/i18n/tools/parity.ts` has the parity helpers (`findMissingKeys`, `findUnreviewedStubs`, `findUnusedKeys`).
 
 ---
 
