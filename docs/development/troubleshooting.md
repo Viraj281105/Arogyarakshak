@@ -236,7 +236,7 @@ This document catalogs known failure modes, error messages, and verified solutio
 - **Remedy**: build first (`cd apps/web && npm run build`) and see `docs/development/performance-budgets.md`. Do not raise a ceiling to silence it; delete the entries of routes that are fixed and lower ceilings of routes that shrank.
 
 ### Lighthouse CI step fails with an engines / Node version error
-- **Cause**: `@lhci/cli` and the Lighthouse it bundles need Node 22.19 or newer. Everything else in `foundation-checks` runs on Node 20, which prints harmless EBADENGINE warnings for `@lhci/cli`.
+- **Cause**: `@lhci/cli` and the Lighthouse it bundles need Node 22.19 or newer. The Lighthouse step is in `web-ci` and has its own Node 22 setup step; the rest of `web-ci` and `foundation-checks` run on Node 20, and the `foundation-checks` `npm ci` prints harmless EBADENGINE warnings for `@lhci/cli`.
 - **Remedy**: run `npx lhci autorun --config=apps/web/lighthouserc.json` under Node 22.19+ (CI does this in its own `setup-node` step). Chrome must be installed locally.
 
 ### Lighthouse CI fails on CLS (about 0.096 against a 0.1 limit)
