@@ -232,5 +232,17 @@ This document catalogs known failure modes, error messages, and verified solutio
 - **Remedy**: from the repo root run `npm run generate`, review the diff, and commit the regenerated files. Never hand-edit generated or shared/vendored directories; change the source (for example `packages/design-tokens/tokens.json`) and regenerate.
 
 ### `npm run check:web-budget` fails
-- **Cause**: a route exceeds the 170 KB initial-JS budget or its `KNOWN_VIOLATIONS` ceiling, a ceiling entry is no longer needed, or `apps/web/.next` is missing/incomplete.
-- **Remedy**: build first (`cd apps/web && npm run build`) and see `docs/development/performance-budgets.md`. Do not raise a ceiling to silence it; remove entries for routes that are fixed.
+- **Cause**: a route exceeds the 170 KB initial-JS budget or its `KNOWN_VIOLATIONS` ceiling; or the ratchet reports a route that shrank to 170 KB or less ("remove it from KNOWN_VIOLATIONS"), or a map entry for a route that no longer exists (the check fails in both directions on purpose); or `apps/web/.next` is missing or a route has no client reference manifest (the check throws instead of passing).
+- **Remedy**: build first (`cd apps/web && npm run build`) and see `docs/development/performance-budgets.md`. Do not raise a ceiling to silence it; delete the entries of routes that are fixed and lower ceilings of routes that shrank.
+
+### Lighthouse CI step fails with an engines / Node version error
+- **Cause**: `@lhci/cli` and the Lighthouse it bundles need Node 22.19 or newer. Everything else in `foundation-checks` runs on Node 20, which prints harmless EBADENGINE warnings for `@lhci/cli`.
+- **Remedy**: run `npx lhci autorun --config=apps/web/lighthouserc.json` under Node 22.19+ (CI does this in its own `setup-node` step). Chrome must be installed locally.
+
+### Lighthouse CI fails on CLS (about 0.096 against a 0.1 limit)
+- **Cause**: known WS0 regression, the self-hosted fonts swap in and push `ul.lp-assurances` on the landing page down. See "Known issue: CLS" in `docs/development/performance-budgets.md`.
+- **Remedy**: add metric-matched fallback fonts (`size-adjust`) through the token pipeline, or fix it in the WS4 landing rewrite. Do not widen the 0.1 limit.
+
+### `node --test packages/...` finds no tests on Windows, or `npm test` at the root runs nothing
+- **Cause**: on Windows `node --test <directory>` and glob arguments do not expand the way they do on Linux.
+- **Remedy**: run the root `npm test`, which discovers `scripts/tests/*.test.*` and `packages/*/tests/*.test.*` itself, or pass explicit file paths (`node --import tsx --test packages/i18n/tests/parity.test.ts`).

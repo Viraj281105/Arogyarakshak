@@ -32,3 +32,11 @@ i18n catalogues. Constraints found in the repository:
 - Cost: duplicated files in the repository and a small diff noise on every shared change.
 - A future move to a real workspace or a published package remains possible; consumers
   import from one local path, so only the vendoring step would change.
+
+## Scope and rulings made while implementing WS0
+- **Vendored, not installed.** The spec called the shared pieces "packages" installed as dependencies; the decision above replaces that. `packages/design-tokens`, `packages/api-client` and `packages/i18n` are source packages that are copied into `apps/web/app/{generated,shared}` and `apps/mobile/src/{generated,shared}`.
+- **This is the only ADR WS0 adds.** The spec also named ADRs for self-hosted telemetry and for a job queue that supersedes ADR-019; they are written in WS1 and WS3 when those decisions are implemented.
+- **Adoption of the shared API client is partial.** It is the transport of the mobile client (`apps/mobile/src/api/client.ts`) and of the web `fetchDemoStatus`. Other web endpoints migrate page by page in WS4 and mobile screens in WS5.
+- **Types come from the existing contract.** The client's `schema.d.ts` is generated with `openapi-typescript` from the committed `docs/api/openapi.json` (kept current by `scripts/export_openapi.py` and `apps/api/tests/test_openapi_contract.py`); no second OpenAPI export was added.
+- **Fonts were not dropped.** All four families (Fraunces, Plus Jakarta Sans, Inter, JetBrains Mono) are used today, so the spec's "drop unused fonts" waits for the page redesigns. They are now self-hosted.
+- **Budgets.** The web 170 KB initial-JS budget is enforced as a ratchet because every route was already over it (see `docs/development/performance-budgets.md`). The Lighthouse step runs on Node 22 while the rest of `foundation-checks` stays on Node 20 on purpose: `@lhci/cli` needs Node 22.19 or newer, and Node 20 is what proves the repo scripts are Node 20 compatible.

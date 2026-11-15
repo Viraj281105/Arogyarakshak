@@ -12,7 +12,7 @@ are in [`performance-baseline.md`](performance-baseline.md).
 
 ## Web initial JS: 170 KB budget and the KNOWN_VIOLATIONS ratchet
 
-Every route was already over 170 KB when the budget was introduced (Task 1 baseline), so a flat 170 KB gate would
+Every route was already over 170 KB when the budget was introduced (WS0 baseline), so a flat 170 KB gate would
 fail from day one. The check instead works as a ratchet over `KNOWN_VIOLATIONS` (`{ route: ceilingKB }`):
 
 - A route not in the map fails if it is over 170 KB (170 passes, 171 fails).
@@ -32,7 +32,7 @@ Ceilings are the measured gzip size rounded up to the next whole KB (fresh build
 | `/_global-error` | 174.57 | 175 |
 
 These are known violations, not accepted ones. They are shared framework + design-system + motion code; reducing them is a
-follow-up for WS4. Numbers are higher than the Task 1 baseline (`/` 253.1 KB) because the motion system was added since.
+follow-up for WS4. Numbers are higher than the WS0 baseline (`/` 253.1 KB) because the motion system was added since.
 
 ### Removing a KNOWN_VIOLATIONS entry
 
@@ -65,7 +65,7 @@ Run Lighthouse locally with Node 22.19 or newer.
 
 ### Known issue: CLS is close to the limit (follow-up)
 
-Local lhci run (Node 24.19.0, 3 runs): CLS 0.0964 each run, limit 0.1; the Task 1 baseline recorded CLS 0. Root cause
+Local lhci run (Node 24.19.0, 3 runs): CLS 0.0964 each run, limit 0.1; the WS0 baseline recorded CLS 0. Root cause
 (Lighthouse "layout shifts" / CLS culprits): `ul.lp-assurances` in the landing-page hero is pushed down once the web
 fonts load (cause reported for all seven font files: "Web font loaded"). The fonts are the self-hosted `@fontsource-variable`
 families added during WS0; their `@font-face` rules use `font-display: swap`, so the fallback-to-webfont swap changes the
@@ -76,7 +76,7 @@ confirm with lhci. The 0.1 limit is not widened. First CI runs may go red on CLS
 
 ## Mobile bundle: 2,900,000 B
 
-Baseline 2,319,176 B (Task 1) plus about 25% headroom, rounded to 2,900,000 B. Current size is 2,361,153 B. The headroom
+Baseline 2,319,176 B (WS0 baseline) plus about 25% headroom, rounded to 2,900,000 B. Current size is 2,361,153 B. The headroom
 exists because WS5 will import Reanimated. **After WS5, re-measure the bundle and tighten this budget**
 (`MOBILE_BUNDLE_BUDGET_BYTES` in `scripts/build-checks/mobile-bundle-budget.mjs`) to the new size plus a small margin.
 

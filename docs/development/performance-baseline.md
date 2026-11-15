@@ -1,7 +1,7 @@
 # Performance baseline (WS0)
 
 Recorded 2026-11-15 on branch `ws0/foundation` (commit 7717ac3 plus Task 1 files). Windows 11, Node v24.19.0,
-Chrome 157. These are measurements only; **no budget is set here** (budgets are Task 11).
+Chrome 157. These are measurements only; **no budget is set here** (budgets and the later measurements are in [`performance-budgets.md`](performance-budgets.md); note that its Lighthouse CI tool version measures LCP lower than the CLI used here, so the two LCP figures are not comparable).
 
 ## Web (apps/web, Next.js 16.4.2, Turbopack production build)
 

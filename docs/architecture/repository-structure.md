@@ -58,6 +58,11 @@ arogyarakshak/
 │   ├── configuration/           # Environment variables & runtime settings
 │   └── development/             # Developer workflow, setup, and testing guides
 ├── .github/                     # Issue templates, PR templates, CODEOWNERS, CI
+├── packages/design-tokens/      # TypeScript source packages (WS0, ADR-022): tokens, shared API client, shared i18n.
+├── packages/api-client/         #   Vendored into apps/web/app/{generated,shared} and apps/mobile/src/{generated,shared};
+├── packages/i18n/               #   never hand-edited (`npm run generate`, `npm run check:generated`).
+├── scripts/                     # Root Node tooling (sync-shared, generate, run-checks, run-tests, build-checks/)
+├── package.json                 # Root tooling only; not an npm workspace
 └── docker-compose.yml           # PostgreSQL 16 + pgvector, API, and Web services
 ```
 
