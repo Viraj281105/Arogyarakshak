@@ -49,6 +49,12 @@ test("a known-violation entry for a route that no longer exists fails", () => {
   assert.match(errors[0], /no longer exists/);
 });
 
+test("an empty measurement fails even with an empty KNOWN_VIOLATIONS map", () => {
+  const errors = evaluateWebBudget({}, {});
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /No routes were measured/);
+});
+
 test("web check throws (does not pass silently) when .next is missing", () => {
   const empty = mkdtempSync(join(tmpdir(), "no-next-"));
   assert.throws(() => checkWebBundleBudget(join(empty, ".next")), /npm run build/);

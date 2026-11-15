@@ -35,7 +35,7 @@ export function findHermesBundle(exportDir) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const exportDir = process.argv.find((a, i) => i >= 2 && !a.startsWith("--"));
   if (!exportDir) {
-    console.error("usage: node scripts/build-checks/mobile-bundle-budget.mjs <expo-export-output-dir> [--require-build]");
+    console.error("usage: node scripts/build-checks/mobile-bundle-budget.mjs <expo-export-output-dir>");
     process.exit(2);
   }
   try {

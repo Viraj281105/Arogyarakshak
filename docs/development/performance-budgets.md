@@ -6,7 +6,7 @@ are in [`performance-baseline.md`](performance-baseline.md).
 | Surface | Metric | Budget | Enforced by |
 |---|---|---|---|
 | Web (`apps/web`) | Initial JS per route, gzip | **170 KB**, with a ratchet for known violations (below) | `scripts/build-checks/web-bundle-budget.mjs`, `web-ci` job |
-| Web `/` (mobile profile, 4x CPU, slow 4G) | Largest Contentful Paint | **Target 2000 ms** (warning). **Temporary error ceiling 2500 ms** | Lighthouse CI, `apps/web/lighthouserc.json` |
+| Web `/` (mobile profile, 4x CPU, slow 4G) | Largest Contentful Paint | **2000 ms** (error; the spec target). Warning at 1500 ms | Lighthouse CI, `apps/web/lighthouserc.json` |
 | Web `/` | Cumulative Layout Shift | **0.1** (error) | Lighthouse CI |
 | Mobile (`apps/mobile`) | Android Hermes `.hbc` bundle | **2,900,000 B** | `scripts/build-checks/mobile-bundle-budget.mjs`, `mobile-ci` job |
 
@@ -48,18 +48,31 @@ external URLs), mobile form factor with the same throttling as the baseline (sim
 1638.4 Kbps), performance category only. Aggregation is the median.
 
 - `cumulative-layout-shift` above 0.1: error.
-- `largest-contentful-paint` above 2000 ms: warning (this is the spec target).
-- `largest-contentful-paint` above 2500 ms: error. **2500 ms is a temporary ceiling**, set from the 2.3 s baseline
-  measurement (rounded up) because the page does not yet meet the 2000 ms target. Tighten it to 2000 ms (and delete the
-  warning entry) when the WS4 bundle work lands.
+- `largest-contentful-paint` above 2000 ms: error (the spec target). Above 1500 ms: warning.
 
-`@lhci/cli` is a pinned root devDependency and bundles its own Lighthouse (13.x), so absolute numbers differ from the
-Lighthouse 12.8.2 CLI used for the baseline. Compare like with like.
+The 2000 ms budget is the spec target, not a loosened number. The figures in `performance-baseline.md` (LCP about 2.3 s)
+came from the Lighthouse 12.8.2 CLI; this gate runs `@lhci/cli` 0.16.1, which bundles Lighthouse 13.6, and on the same
+machine it measures much lower (LCP 0.92-0.94 s on 2026-11-15, for the same profile). The discrepancy between the two
+tools is unexplained. If CI on a GitHub runner measures LCP above 2000 ms, investigate before loosening anything; any
+loosening must be recorded here with the measured value and the reason.
 
-Local run on 2026-11-15 (lhci 0.16.1, Lighthouse 13.6): LCP 0.92-0.94 s, CLS 0.096 (3 runs). CLS is close to the 0.1 limit:
-the shift comes from `ul.lp-assurances` on the landing page (the Task 1 baseline recorded CLS 0). Treat any change to the
-landing page layout/motion as CLS-sensitive. The Lighthouse 12.8.2 CLI measured LCP about 4.5 s and the same CLS on that
-day, on a loaded machine, so LCP is noisy across Lighthouse versions and hosts.
+**Node requirement:** `@lhci/cli` and its Lighthouse declare `engines.node >= 22.19`, so the Lighthouse step in `web-ci`
+runs under Node 22 (a separate `actions/setup-node` step plus a root `npm ci` on Node 22). The rest of `web-ci` and
+`foundation-checks` stay on Node 20; `foundation-checks` prints EBADENGINE warnings for `@lhci/cli`, which are accepted.
+Run Lighthouse locally with Node 22.19 or newer.
+
+`@lhci/cli` is a pinned root devDependency.
+
+### Known issue: CLS is close to the limit (follow-up)
+
+Local lhci run (Node 24.19.0, 3 runs): CLS 0.0964 each run, limit 0.1; the Task 1 baseline recorded CLS 0. Root cause
+(Lighthouse "layout shifts" / CLS culprits): `ul.lp-assurances` in the landing-page hero is pushed down once the web
+fonts load (cause reported for all seven font files: "Web font loaded"). The fonts are the self-hosted `@fontsource-variable`
+families added during WS0; their `@font-face` rules use `font-display: swap`, so the fallback-to-webfont swap changes the
+height of the hero text above the list. Not fixed in this task because a proper fix is not small: it needs size-adjusted
+fallback `@font-face` metrics for Fraunces, Plus Jakarta Sans and Inter (or `font-display: optional`/preloading), and the
+font stacks come from generated design tokens. Follow-up: add metric-matched fallback fonts (or preload the hero fonts) and
+confirm with lhci. The 0.1 limit is not widened. First CI runs may go red on CLS if a runner measures slightly higher.
 
 ## Mobile bundle: 2,900,000 B
 

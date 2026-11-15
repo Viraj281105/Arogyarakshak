@@ -27,6 +27,9 @@ export const KNOWN_VIOLATIONS = {
 /** Pure: returns a list of failure messages (empty = pass). */
 export function evaluateWebBudget(sizes, known = KNOWN_VIOLATIONS, limit = WEB_INITIAL_JS_KB) {
   const errors = [];
+  if (Object.keys(sizes).length === 0) {
+    return ["No routes were measured; refusing to pass an empty measurement (broken build?)."];
+  }
   for (const [route, kb] of Object.entries(sizes)) {
     if (Object.hasOwn(known, route)) {
       const ceiling = known[route];

@@ -20,14 +20,14 @@
         {
           "matchingUrlPattern": ".*",
           "assertions": {
-            "largest-contentful-paint": ["error", { "maxNumericValue": 2500, "aggregationMethod": "median" }],
+            "largest-contentful-paint": ["error", { "maxNumericValue": 2000, "aggregationMethod": "median" }],
             "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }]
           }
         },
         {
           "matchingUrlPattern": ".*",
           "assertions": {
-            "largest-contentful-paint": ["warn", { "maxNumericValue": 2000, "aggregationMethod": "median" }]
+            "largest-contentful-paint": ["warn", { "maxNumericValue": 1500, "aggregationMethod": "median" }]
           }
         }
       ]

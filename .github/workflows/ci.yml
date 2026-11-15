@@ -55,6 +55,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
+      # Deliberately Node 20: proves our scripts run on it. EBADENGINE warnings from the
+      # @lhci/cli devDependency (needs Node >= 22.19) are expected and accepted here.
       - name: Install Root Tooling Dependencies
         run: npm ci
 
@@ -211,11 +213,21 @@ jobs:
         working-directory: apps/web
         run: npm run build
 
-      - name: Install Root Tooling Dependencies (budget checks, Lighthouse CI)
+      - name: Install Root Tooling Dependencies (budget checks)
         run: npm ci
 
       - name: Enforce Web Initial-JS Bundle Budget
         run: npm run check:web-budget
+
+      # @lhci/cli and the Lighthouse it bundles require Node >= 22.19 (engines), so the
+      # Lighthouse step alone runs on Node 22; the rest of this job stays on Node 20.
+      - name: Set up Node.js 22 (Lighthouse CI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Root Tooling Dependencies (Node 22, for Lighthouse CI)
+        run: npm ci
 
       - name: Lighthouse CI (LCP / CLS budgets on the local production server)
         run: npx lhci autorun --config=apps/web/lighthouserc.json
@@ -353,7 +365,7 @@ jobs:
           echo "| Mobile Frontend (Expo 52 + Tests) | $MOBILE |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker & Compose Build Verification | $DOCKER |" >> $GITHUB_STEP_SUMMARY
 
-          if [ "$INVARIANTS" = "success" ] &&              [ "$FOUNDATION" = "success" ] && \
+          if [ "$INVARIANTS" = "success" ] && \n             [ "$FOUNDATION" = "success" ] && \
              [ "$BACKEND" = "success" ] && \
              [ "$WEB" = "success" ] && \
              [ "$MOBILE" = "success" ] && \
