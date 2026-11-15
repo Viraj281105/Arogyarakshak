@@ -1,0 +1,87 @@
+@chapter 6 | Methodology and Technical Implementation
+
+## 6.1 Development Methodology
+
+The project follows an iterative, issue-driven process organised into five phases (Figure 8.1 shows the timeline). Scope was first broken into atomic GitHub issues, each labelled by module, technical role and phase milestone; at the time of writing the tracker holds 128 issues (76 closed, 52 open) and 27 pull requests have been merged. Work proceeded in batches of issues, and every batch closed through the same cycle (Figure 6.1): implement the smallest change in the package that owns the concern, test it, verify it in a running system, subject it to an adversarial review, and record what changed in the project's living engineering log (`PROJECT_CONTEXT.md`), the relevant architecture decision record and the changelog.
+
+!figure fig_method.png | Iterative, issue-driven development cycle used across Phases 1–4 | 6.1
+
+Two practices distinguish this process from a conventional student workflow. The first is the **adversarial audit**: at several points — after Phase 1, after the clinical-review layer, before the release candidate — the team stopped building and audited the whole system for false claims, misleading labels and security gaps, recording findings with priorities (P0–P3) and fixing them before continuing. Many of the design rules in Chapter 5, including ADR-008 to ADR-012, originate in such audits. The second is **documentation as code**: a change is not complete until its documentation is, and the repository's agent manual makes this gate explicit for both human and AI-assisted contributors. Twenty-one ADRs now record the decisions that shaped the system, each with its context, the options considered and the consequences, following the format popularised by Nygard [43].
+
+AI coding assistants were used extensively during development under the same rules: the agent manual fixes naming conventions, forbids deprecated model names, requires verification before a task is declared done, and treats the code — not the documentation — as the source of truth when the two disagree.
+
+## 6.2 Data Sources and Processing Pipelines
+
+ArogyaRakshak deliberately avoids learning from private patient data. Its decisions rest on three kinds of data, each handled differently.
+
+**Reference data** is packaged with the code: the curated CGHS table with billing units, the NPPA formulation subset with aliases and generic information, the scheme criteria with citations and provenance flags, a law library in which each entry records its source URL, issue date, verification date and verification status, and the curated ICD-10 plausibility table. Every module that reads reference data reports *which row* it used, which is what makes the explanation trail possible.
+
+**Development and evaluation data** is synthetic and labelled as such. Six evaluation datasets in `data/evaluation/` begin with a metadata record marking them synthetic, and the loader refuses any file without that marker; the entity-resolution evaluation uses a curated set of 100 mention pairs; and the demonstration kit contains synthetic documents for five scenarios (Table 6.1). Public datasets downloaded during project selection — synthetic handwritten prescriptions, invoice and receipt OCR samples, insurance-claim and fraud-detection datasets and inpatient-discharge records — are kept under `data/raw/` with provenance notes and are used for exploration and tests, not to train any model.
+
+**Patient data** exists only during a request. The processing pipeline (Section 4.3) reads it in memory, persists only redacted, structured facts linked to a case, and discards the file.
+
+!table Synthetic demonstration scenarios, each pinned by an automated test | 8,46,22,24
+| ID | What the scenario exercises | Module | Human step involved |
+| A | Hospital bill + discharge summary → audit → clinician statement → appeal PDF | BillNyay | Delegated clinical review |
+| B | Pre-authorisation readiness with a clinical fact awaiting confirmation | DaaviSetu | Doctor confirmation |
+| C | Uncertain handwriting on a prescription → two-reader agreement or disagreement | DawaCheck | Blind transcription |
+| D | Denial analysis with a red-flag term → safety escalation card | BimaNyay | Safety rule approval |
+| E | Diabetes admission → readiness with one missing document | DaaviSetu | Doctor confirmation |
+
+A runtime smoke script drives all five scenarios over HTTP against a running stack and checks 58 conditions; it has passed on SQLite and, in an earlier 49-check form, on PostgreSQL 16 and on the full Docker Compose stack.
+
+## 6.3 Use of AI and Machine-Learning Techniques
+
+The system uses machine learning in four places, each with a deliberately limited role.
+
+- **OCR** (EasyOCR, a deep-learning recogniser) turns images into text and supplies per-segment confidence, which the trust gate uses.
+- **LLM extraction** (Groq-hosted, model from `GROQ_MODEL`) turns document text into the shared entity schema. It is optional; a deterministic fallback produces the same schema.
+- **LLM drafting** in BillNyay's agent chain writes letters from typed facts. It never decides whether a line is overcharged, whether a denial is wrongful or whether a patient is eligible — those decisions are made by deterministic code before the LLM is involved.
+- **Sentence embeddings** (IndicSBERT) provide an optional semantic signal for entity resolution that can raise a pair to "ask the user" but never cause a merge.
+
+The rule underlying this division is simple: an LLM may *read* and *write*, but it may not *decide* anything the patient will act on, and nothing it produces may be presented as a clinician's view. Every agent receives document-derived text inside randomly generated boundaries, its output is parsed into a Pydantic model, and anything it cites that cannot be verified is stripped.
+
+## 6.4 OCR, Extraction and Entity Resolution
+
+Sections 5.1.2–5.1.4 describe these stages in detail. Two methodological points are worth adding. First, the extraction stage is designed so that its two implementations, LLM and heuristic, emit the same schema; the downstream modules cannot tell which one ran, and the evaluation harnesses can therefore measure the heuristic path without a network connection. Second, entity resolution is evaluated against a fixed development set, and every change to the resolver re-runs that set. Table 6.2 reproduces the measured results.
+
+!table Entity-resolution results on the 100-pair synthetic development set (2026-09-13) | 30,10,10,10,11,10,10,9
+| Configuration | Merge precision | Merge recall | Merge F1 | Review recall | False merges | Silent misses | p50 latency |
+| Lexical only | 1.000 | 0.542 | 0.703 | 0.746 | 0 | 15 | 0.12 ms |
+| Lexical + phonetic | 1.000 | 0.729 | 0.843 | 0.780 | 0 | 13 | 0.19 ms |
+| Lexical + phonetic + IndicSBERT | 1.000 | 0.729 | 0.843 | 0.831 | 0 | 10 | 64.5 ms |
+| Baseline: Soundex (first word) | 0.667 | 0.576 | 0.618 | – | 17 | – | – |
+
+The rule-based phonetic signal raised merge recall from 0.542 to 0.729, and all 22 Hindi and Marathi transliteration pairs merged. IndicSBERT added no merges, by design, but moved three translation pairs (बुखार/fever, मधुमेह/diabetes, दिल का दौरा/heart attack) from silent misses to questions for the user, at a cost of roughly 64 ms per comparison on a CPU. That trade-off is why it is off by default. The Soundex baseline made 17 false matches, mostly different strengths of the same drug — exactly the errors the hard guards prevent.
+
+## 6.5 Rule-Based Reasoning and Regulatory Intelligence
+
+Three modules are, at their core, rule engines: BillNyay's audit, BimaNyay's clause auditor and tracker, and SchemeSetu's eligibility engine. They share a pattern. Rules are data, not prose: each criterion, rate or deadline lives in one record that names its source. Rules are evaluated deterministically, so the same input always gives the same output and can be tested exactly. Rules can abstain: a CGHS rate with a recurring unit is not applied without a stated count, a PM-JAY criterion the system does not collect yields "verification needed", and a regulatory provision the team could not verify is labelled as unverified rather than cited. And rules report themselves: every finding carries the identifier of the rule or row that produced it.
+
+This is what the project means by *regulatory intelligence*. It is not a model that has learned the regulations; it is a small, inspectable encoding of specific provisions, with explicit provenance and explicit gaps, that a reviewer can check line by line against the circular it cites.
+
+## 6.6 Evidence-Grounded Decision-Making: the Explanation Trail
+
+ADR-017 gives every finding a structured, deterministic explanation built by the package that made the decision, from the values it actually used. An explanation records the evidence and its provenance class (machine-derived, human-reviewed, human-authored, external source or patient-provided), the exact rule or reference row, the trust status of the inputs, what could not be determined, and — derived automatically — what was *not recorded*. The trail is never written by an LLM and never invents a reason. It is delivered additively on existing, already-authorised responses, so it adds no new attack surface. In the clients it appears as a "Why am I seeing this?" control under each finding.
+
+Building the trail had a useful side effect: it exposed gaps that had been invisible. The bundled CGHS table has no procedure codes and the NPPA subset no notification serial numbers, so the trail cannot cite them; OCR confidence is not kept per line; and BimaNyay counts days from the date the user enters, falling back to today if the date cannot be read. These are now stated in the trail itself rather than hidden.
+
+## 6.7 Testing and Validation
+
+Validation operates at four levels.
+
+**Unit and integration tests.** The backend suite covers every package and the API, including adversarial security tests for the clinical-review layer, transition tests for review lifecycles, foreign-key enforcement in the SQLite test engine (added after a PostgreSQL-only bug was found at runtime), migration-versus-model comparison, architecture-contract tests and an OpenAPI snapshot test. The web and mobile clients have their own suites, run with `tsx --test`, covering API contracts, translation-dictionary completeness, price-basis logic, explanation rendering and the BYOD invariant. Section 8.3 reports the counts.
+
+**Static gates.** Ruff linting, `import-linter` contracts, TypeScript type-checking for both clients, ESLint for the web client and a custom guardrail script with eight checks (zero document retention, model grounding, package naming, table prefixes, secret detection, CPU-only PyTorch pins and local-only database and API bindings) run in CI on every pull request, alongside Alembic migrations applied to a real PostgreSQL service, Next.js production builds and a separate security workflow.
+
+**Runtime verification.** Each pass is verified against a running API and, for interface changes, in a browser at mobile (375 px) and desktop (1440 px) widths in both themes. The demonstration smoke script provides a repeatable end-to-end check.
+
+**Evaluation harnesses.** Six Phase-4 harnesses measure behaviour on synthetic, team-written datasets whose labels were fixed before the first run (Figure 6.2). The metrics are standard:
+
+!eq P = TP / (TP + FP),   R = TP / (TP + FN),   F1 = 2PR / (P + R)
+
+!eq WER = (S + D + I) / N_words,   CER = (S + D + I) / N_chars
+
+!figure fig_eval.png | Phase-4 evaluation results on synthetic development sets | 6.1
+
+The value of these harnesses lay as much in what they found as in the numbers. The BMA harness (benchmark mapping accuracy, 0.705) showed that mapping works when a bill uses the table's own wording, fails on every synonym or abbreviation (0 of 14), and in eight cases applied a rate where none should apply because of substring matches such as "ppe" inside "appendectomy". The billing-anomaly harness (line-level F1 0.810) found that all six false negatives were deliberate abstentions rather than wrong "fair" verdicts. The PEA harness (procedure F1 0.942) found two layouts the heuristic parser mishandles — hyphen separators and trailing text after an amount — including a case where a "Total" row was parsed as a charge. The CRMA harness (0.560) revealed that BimaNyay ignores the insurer's reason text. The OCR harness was explicitly limited to validating the WER/CER utility on simulated errors (corpus WER 0.381, CER 0.089), because no real OCR output has yet been labelled. The project's evaluation report lists these defects as follow-ups rather than fixing them silently inside the evaluation work, so that the measured numbers describe the code as it was.

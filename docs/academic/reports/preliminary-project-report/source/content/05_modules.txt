@@ -1,0 +1,143 @@
+@chapter 5 | Detailed Module Architecture
+
+This chapter examines each component in turn. For every module we describe the problem it addresses, its internal design and workflow, the algorithms it relies on, how it connects to the rest of the platform, and — separately and explicitly — what is implemented, what has been verified and what remains. Table 5.1 at the end of the chapter consolidates that status.
+
+## 5.1 Kadi — Shared Document Intelligence
+
+### 5.1.1 Problem and motivation
+
+In the hackathon prototype every feature parsed its own documents. A patient who uploaded a bill to check charges and later wanted to know about scheme eligibility had to upload it again, and the two parsers produced subtly different results from the same text. ADR-002 replaced this with a single shared layer. Kadi is not a sixth module with its own user-facing purpose; it is the infrastructure that makes the other five agree on what the patient's documents say.
+
+### 5.1.2 Pipeline
+
+Figure 5.1 shows Kadi's six stages. All of them operate on bytes held in memory.
+
+!figure fig_kadi.png | The Kadi document pipeline and its side paths | 6.1
+
+**Read.** PDFs with a text layer are read with PyMuPDF; images are recognised with EasyOCR [45], which also reports a confidence for each recognised segment. The OCR reader is currently configured for English only; Devanagari recognition is planned work (Section 9.1). **Line items.** A single shared parser turns raw lines into billing items. It understands ₹, Rs and INR prefixes and Indian digit grouping (1,25,000), and it drops summary rows such as "Total Bill" while keeping clinical names that merely contain the word, such as "Total Knee Replacement". Before this parser was consolidated, the OCR path and the extraction fallback disagreed and could persist the same line twice under two names. **Extract.** When a Groq API key is configured, an extraction agent asks the model (read from `GROQ_MODEL`, by default `openai/gpt-oss-120b`) to produce structured JSON for the hospital, diagnoses, procedures, medicines, amounts and line items. Without a key, a deterministic heuristic extractor produces the same schema and the API logs that it is running in degraded mode.
+
+**Ground and redact.** While the text is still in memory, each extracted medicine is grounded to its single source line, so that an LLM-normalised name such as "Pan 40" keeps the facts its line stated ("Strip of 15"). Only derived price facts and a short matched snippet are kept. The excerpt retained for appeal drafting is passed through direct-identifier redaction. **Resolve.** New mentions are reconciled with the case's existing entities (Section 5.1.4), and the document's SHA-256 digest is checked so that a re-upload does not double-count a bill. **Persist and trigger.** Entities and resolution decisions are written, timeline events recorded, and — with consent — the ready module checks run.
+
+### 5.1.3 Inputs and outputs
+
+Kadi accepts PDF, image and plain-text documents, and since Phase 3 a client-supplied HL7 FHIR R4 bundle of the kind ABDM health-information providers exchange (discharge-summary and prescription records). Its outputs are typed entities with provenance, pending duplicate questions for the user, module insights, a plain-language case timeline built only from persisted records, and a case graph — a node-link projection computed on request from the existing tables rather than stored in a graph database, since a case holds a handful of documents.
+
+### 5.1.4 Entity resolution across scripts
+
+The resolver (ADR-006) answers one question: is this new mention the same thing as an entity the case already holds? Figure 5.2 summarises the algorithm. Candidates are first **blocked** to the same case and entity type, which keeps the comparison set small. Bill lines and document text are never resolved, because two identical charges are separate charges.
+
+!figure fig_resolution.png | Kadi entity resolution: signals, hard guards, noisy-OR combination and three-way decision | 6.1
+
+Three signals are computed. The **lexical** signal combines normalised Levenshtein similarity with fuzzy Jaccard and containment over "core" tokens, from which numbers, units, dosage forms and stop-words are removed. The **phonetic** signal romanises Devanagari with a deterministic table and builds an Indic phonetic key that folds aspirates, sh/s, ph/f, v/w, vowel length and schwa deletion — the variations that make क्रोसिन, Crosin and Crocin the same word. The optional **semantic** signal uses IndicSBERT to compare meaning across languages (बुखार and "fever"). The signals are combined with a weighted noisy-OR,
+
+!eq c = 1 − ∏ᵢ (1 − wᵢ · sᵢ),   w_lex = 0.9,  w_phon = 0.7,  w_sem = 0.5
+
+so that one strong signal is enough to raise confidence while weak signals accumulate. Hard guards then override the score: a conflict in strength, dosage form, laterality, variant letter or an opposite clinical prefix (hyper-/hypo-) forces a new entity. A mention merges only if the lexical and phonetic confidence *alone* reaches 0.90; it is sent to the user if confidence reaches 0.70, if semantic similarity alone lifts it, or if more than one candidate qualifies. The "semantic can ask but never merge" rule was added after the first real IndicSBERT evaluation merged Prednisone with Prednisolone — two different drugs.
+
+The thresholds are explicitly documented as uncalibrated defaults chosen by reasoning. A feedback-calibration routine can adjust them from users' confirm and reject answers, but only with at least 30 labels including at least 8 of each class, and by no more than ±0.05 per step within [0.5, 0.99]. The documentation is careful to say that this is bounded deterministic recalibration and not reinforcement learning from human feedback.
+
+### 5.1.5 Human review, trust and safety
+
+Kadi also hosts the clinical-review layer introduced by ADR-011, because its concerns cut across modules. Three mechanisms matter here. First, **medicine trust**: a single function decides whether an extracted medicine is a settled fact. If an uncertain OCR reading links to exactly one medicine, a transcription task is created containing only the redacted reading, a masked line of context and a bounding box — never an image — and the medicine is withheld from price comparison until two blind readings by pharmacists or transcriptionists agree. Second, **delegated clinical review**: a patient can delegate a single review to a reviewer, who must declare conflicts of interest before seeing evidence; the reviewer's statement is versioned and immutable, and it enters an appeal only verbatim, through an annex. Because no medical-register API is available to the project, reviewers are shown at most as "self-declared", never as verified doctors. Third, **safety rules**: red-flag escalation rules adapted from named protocols become active only after independent approval by board members, retirement requires a second person, and an upload-time scan reports matches while storing only the rule identifier, version and matched terms.
+
+### 5.1.6 Status, limitations and next steps
+
+Kadi's pipeline, resolution, FHIR import, timeline, explanation type and clinical-review layer are implemented and covered by tests. Its known limits are equally concrete: EasyOCR runs in English only; IndicXlit is not used (issue #29 remains open on the fairseq dependency); the LLM extraction path has never been measured because no Groq key was available during evaluation; and FHIR records are parsed from a bundle the client supplies — the system does not pull records from ABDM, whose sandbox registration (#46) is an external dependency.
+
+## 5.2 BillNyay — Hospital Bill Auditing
+
+### 5.2.1 Problem and objectives
+
+BillNyay answers the question patients most often ask at discharge: is this bill reasonable? Its objectives are to compare each line with a published benchmark, to identify items that are normally bundled into another charge, to flag diagnosis–procedure combinations that deserve a second look, and to help the patient ask the hospital for a justification in writing.
+
+### 5.2.2 Architecture and workflow
+
+BillNyay has two halves (Figure 5.3). The **deterministic audit** always runs. Each bill line is matched to a key in a curated CGHS table of 27 entries, each with a benchmark rate, a category, a bundling flag and a billing unit (per day, visit, session, shift, bottle or service). A recurring unit is applied only to a count the bill line states, so "Room Rent (Private Ward) 3 days ₹13,500" is compared with three days at the benchmark rather than one. Each line ends as *within reference*, *above reference*, *usually included elsewhere* or *not benchmarked*, and lines without a benchmark are reported as unverified rather than fair. A separate check compares the billed procedures with a curated ICD-10 table covering six diagnosis groups (I21, K35, K80, N18, O82, S72) and reports clinical *plausibility* only — explicitly not medical necessity — with anything outside the table marked as not assessed.
+
+!figure fig_billnyay.png | BillNyay: deterministic audit and the five-agent appeal-drafting chain | 6.1
+
+The **appeal chain** drafts the letter. Five agents, each in its own file with typed Pydantic inputs and outputs, run in sequence: an Auditor extracts structured denial or dispute facts; a Clinician produces a standard-of-care rationale, with any citation it cannot verify stripped; a Regulatory agent retrieves entries from a law library in which every entry carries its source, issue date and verification status; a Barrister drafts the letter in English, Hindi or Marathi; and a Judge scores the draft. A consensus step, in which the upstream agents vote on whether the evidence is strong enough, surfaces weaknesses before drafting. If the Judge reports that revision is needed, its issues are fed back to the Barrister as critique for a bounded number of attempts. The final letter is compiled into a PDF with ReportLab, carrying a provenance footer, a SHA-256 digest and an HMAC for verification. Without a Groq key, an offline template in the three languages replaces the LLM drafting.
+
+### 5.2.3 Lessons embedded in the code
+
+Two changes from the project's internal audits illustrate how BillNyay's design matured. The original Judge returned the same sub-scores regardless of input; it now performs deterministic checks — whether the case's own facts appear in the letter, whether citations are consistent with what the Clinician was permitted to cite, whether structural elements are present, and whether the letter contains concrete unsupported claims. And an outcome estimator requested in the backlog (#90) refuses to output a probability of success unless a cited, non-synthetic dataset of decided disputes is loaded; when one is, it reports an empirical base rate with a Wilson 95% interval [42] rather than a per-case prediction. No such dataset exists today, so the estimator returns "insufficient evidence".
+
+### 5.2.4 Status, limitations and next steps
+
+The audit, plausibility check, agent chain, PDF compilation and verification are implemented and tested; the web client shows the audit, appeal and plausibility views and was browser-verified with the synthetic Scenario A bill (Figure 8.5). The appeal and grievance routes are not yet called by either client (#20). The evaluation harness (Section 6.7) exposed a real defect: substring matching maps "appendectomy" to the PPE-kit rate because "ppe" occurs inside it, and has no synonym handling, so "USG" or "X Ray Chest" go unbenchmarked. The CGHS table is a curated subset; ingesting the full official schedule (#13) and validating each rate against it are prerequisites for real use.
+
+## 5.3 DaaviSetu — Pre-Authorisation and Claim Preparation
+
+### 5.3.1 Problem and objectives
+
+Many claims fail before any medical question is asked, because a pre-authorisation request is incomplete. DaaviSetu's objective is narrow by design (ADR-005): help the patient and hospital desk assemble a complete request *before* submission. Everything after a denial belongs to BimaNyay.
+
+### 5.3.2 Design
+
+DaaviSetu has three parts (Figure 5.5, right). The **readiness assistant** compares the case's evidence with a checklist — a baseline list, optionally extended by an institution's private playbook that is never shared with other institutions — and marks each item *present*, *missing* or *needs clinical confirmation*. A clinical fact is never marked satisfied by software; it waits for a named reviewer's confirmation. The **generator** fills an Annexure-B-style cashless pre-authorisation request from Kadi context using ReportLab, and a generic AcroForm filler can populate named fields of a fillable PDF; the documentation is explicit that no specific insurer's proprietary form is shipped, because the project holds no verified copy of one. The **package assembler** produces a ZIP with the request, a redacted case summary and a manifest that lists exactly what is and is not included — the original scan, by design, is not. Downloads can optionally be encrypted in the browser before they are saved (ADR-014).
+
+### 5.3.3 Status, limitations and next steps
+
+Readiness, playbooks, doctor confirmation, generation and packaging are implemented and browser-verified on synthetic Scenario B. Real insurer templates (#48, #78), the Claim Form Field Mapping Accuracy metric (#105) and an OCR check of filled fields before download (#82) remain open. The diabetes-admission playbook used in demo Scenario E is labelled illustrative and awaits clinical-lead review.
+
+## 5.4 BimaNyay — Insurance Denial Auditing
+
+### 5.4.1 Problem and objectives
+
+When a claim is repudiated, the patient receives a letter citing a category and a clause, and a clock starts that the patient may not know about. BimaNyay audits the denial against the IRDAI Master Circular [3], drafts escalations for each tier of the grievance ladder, and computes the dates by which each step must happen.
+
+### 5.4.2 Design and algorithms
+
+The **clause auditor** maps the denial category and the policy's age to possible regulatory violations. For example, a pre-existing-disease denial on a policy older than the five-year moratorium is flagged against the moratorium provisions of the Master Circular; investigation-only admissions, room-rent deductions, delayed intimation and general exclusions have their own rules. Where the project could not verify a provision against a primary source, the output says "IRDAI provision not verified" rather than inventing a citation. The **drafter** produces three documents: a letter to the insurer's Grievance Redressal Officer, a narrative sized to the Bima Bharosa portal's 2,000-character complaint field, and a statement of facts for the Insurance Ombudsman — each in English, Hindi or Marathi. The **tracker** computes milestones (Figure 5.4): a 15-day insurer response window [5], a further 15-day review window on Bima Bharosa, and the one-year limitation for an Ombudsman complaint [4]. A **clinical-trigger** check identifies denials that turn on clinical interpretation ("not medically necessary", "investigation only") and recommends obtaining an attributable clinician statement through the review layer.
+
+!figure fig_bimanyay.png | BimaNyay escalation ladder and statutory milestones | 6.1
+
+### 5.4.3 Status, limitations and next steps
+
+The auditor, drafter, tracker and clinical triggers are implemented with English, Hindi and Marathi templates and tested; the web view was browser-verified with Scenario D. The CRMA evaluation (Section 6.7) found the module's most important limitation: it decides from the category string and policy age alone and never reads the insurer's stated reason, so a valid denial in a rule-covered category is still called wrongful, and a wrongful denial filed under an unexpected category is missed. Reading and classifying the reason text is the first item on BimaNyay's roadmap. Deadlines are counted in calendar days from the date the user enters, and the CRMA labels reflect the team's reading of the regulations, not legal advice.
+
+## 5.5 SchemeSetu — Government Healthcare Schemes
+
+### 5.5.1 Problem and objectives
+
+Eligible families often do not use PM-JAY or MJPJAY because they do not know they qualify. SchemeSetu's objective is to give a provisional answer from criteria the government has actually published, together with the steps to confirm it.
+
+### 5.5.2 Design: honest rules instead of retrieval
+
+The original design called for retrieval-augmented reasoning over scheme documents. The implemented module is a rule engine instead, and the change was made for a reason worth recording. While implementing it, the team found that the income limits in early prototypes (₹2.5 lakh for PM-JAY, ₹1.5 lakh for MJPJAY) had no official source: PM-JAY eligibility rests on SECC-2011 deprivation and occupational criteria, state-verified databases, families of ASHA, Anganwadi workers and helpers, and all persons aged 70 and above [9], [10]; MJPJAY, under a Government of Maharashtra resolution of 28 July 2023, covers families resident in the state [11]. The engine therefore treats income as recorded but non-determinative. Because the system does not collect the SECC or occupational criteria, PM-JAY is always reported as *verification needed* — never as "not eligible" — with the steps to verify; MJPJAY follows the state of residence (Figure 5.5, left). A dialect normaliser maps inputs such as महाराष्ट्र, the misspelling "Maharastra" or a city name to the canonical state. Every result carries a step-by-step reasoning trace, the provenance of each criterion and its sources.
+
+!figure fig_scheme_ready.png | SchemeSetu's rule engine and DaaviSetu's readiness flow | 6.1
+
+### 5.5.3 Status, limitations and next steps
+
+The engine, reasoning trace, dialect normaliser, transition adviser (for moves into or out of Maharashtra) and consent-bounded recommendation trigger are implemented and browser-verified. Category and medical need are accepted but explicitly labelled "not used to decide". Ingestion of empanelled-hospital lists (#14, #15) and scheme rules for other states are future work.
+
+## 5.6 DawaCheck — Medicine Price Intelligence
+
+### 5.6.1 Problem and objectives
+
+NPPA ceiling prices apply per dosage unit — one tablet, capsule or vial — while patients pay per strip, pack or bill line. DawaCheck's objective is to compare like with like, suggest a generic alternative where one is listed, and translate prescription shorthand.
+
+### 5.6.2 Design: establish the basis before comparing
+
+The module's central rule, recorded in ADR-012, came from a failure. An early build reported "Dolo 650: ₹33" as 1,335% above the ₹2.30 per-tablet ceiling; the ₹33 was the price of a strip of fifteen. The rule now is that a basis comes from a statement, never an assumption (Figure 5.6): from the user's declaration on the manual form, from the bill line itself ("Strip of 15", "15's", "Qty 10"), or from a document heading such as "Rate per tablet". A strip or pack price is converted to a unit price only with a stated, whole, positive unit count. Dosing schedules ("1-0-1 × 5 days") and strengths ("650") are never read as quantities. When the basis is unknown, contradictory, or the dosage form differs from the reference, the result is *cannot compare*, with a plain reason and no percentage. The same rule was then applied to BillNyay's CGHS units.
+
+!figure fig_pricebasis.png | DawaCheck's convert-or-refuse price-basis rule (ADR-012) | 6.1
+
+Brand names are matched to formulations through aliases and a pure-Python Double Metaphone implementation [36] that tolerates OCR and spelling variants. Dose proportionality is normalised by active ingredient. A shorthand translator maps a fixed set of standard abbreviations (OD, BD, TDS, QID, HS and similar) to plain language in three languages and lists unknown tokens rather than guessing. Medicines held back by Kadi's trust gate are never benchmarked.
+
+### 5.6.3 Status, limitations and next steps
+
+The checker, price basis, matching, translator and explanation trail are implemented; the live check in Figure 8.6 shows "Dolo 650, ₹33 per strip of 15" correctly converted to ₹2.20 per tablet, within the ₹2.30 ceiling. The limitation is coverage: the curated reference holds seven formulations, and the evaluation found that combination products map to a single drug. Full Schedule-I ingestion (open PR on 2025 data), a Jan Aushadhi store locator (#74) and real prescription OCR accuracy (#108) are the next steps.
+
+## 5.7 Consolidated Implementation Status
+
+!table Implementation status by component (as of 4 November 2026) | 14,30,28,28
+| Component | Implemented and tested | Verified in a running system | Partial or planned |
+| Kadi | Pipeline, redaction, resolution, calibration, FHIR import, timeline, graph projection, clinical review, safety rules, transcription | Upload → stream → timeline on SQLite and PostgreSQL; demo Scenarios A–E | Devanagari OCR; IndicXlit (#29); LLM-path accuracy; ABDM pull (#46, #56) |
+| BillNyay | CGHS audit with units, ICD plausibility, 5-agent chain, judge, PDF integrity, outcome refusal | Audit, appeal (offline template), plausibility in browser | Client wiring of appeal/grievance (#20); full CGHS (#13); synonym matching; real Groq run |
+| DaaviSetu | Readiness, playbooks, doctor confirmation, Annexure-B PDF, package, encryption | Readiness and form in browser | Insurer templates (#48, #78); CFMA (#105) |
+| BimaNyay | Clause auditor, 3-tier drafter (en/hi/mr), SLA tracker, clinical triggers | Analysis in browser (Scenario D) | Reading reason text; push reminders on device |
+| SchemeSetu | Rule engine, trace, provenance, dialect normaliser, transition adviser | Maharashtra and Karnataka cases in browser | Hospital lists (#14, #15); other states |
+| DawaCheck | Price basis, matching, translator, trust gate | Manual and case checks in browser | Full Schedule-I; store locator (#74); prescription OCR (#24, #108) |
+| Clients | Web (10 pages redesigned), mobile (5 modules, camera) | Web at 375 px and 1440 px, light and dark | Mobile not yet run on a device; native-speaker QA (#37) |

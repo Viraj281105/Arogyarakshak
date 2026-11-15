@@ -1,0 +1,52 @@
+@unnumbered References
+
+[1] Ministry of Health and Family Welfare, Government of India, *National Health Accounts Estimates for India 2022–23*. New Delhi: National Health Systems Resource Centre, 2026.
+[2] R. M. Anjana *et al.*, "Metabolic non-communicable disease health report of India: the ICMR-INDIAB national cross-sectional study (ICMR-INDIAB-17)," *The Lancet Diabetes & Endocrinology*, vol. 11, no. 7, pp. 474–489, 2023.
+[3] Insurance Regulatory and Development Authority of India, "Master Circular on Health Insurance Business," Ref. IRDAI/HLT/CIR/PRO/84/5/2024, 29 May 2024.
+[4] Ministry of Finance, Government of India, *Insurance Ombudsman Rules, 2017* (as amended).
+[5] Insurance Regulatory and Development Authority of India, *IRDAI (Protection of Policyholders' Interests) Regulations*, as referenced by the BimaNyay timeline rules.
+[6] Department of Pharmaceuticals, Government of India, *Drugs (Prices Control) Order, 2013*, and ceiling-price notifications of the National Pharmaceutical Pricing Authority.
+[7] Ministry of Health and Family Welfare, "Central Government Health Scheme — rates for treatment procedures and investigations," [Online]. Available: https://cghs.mohfw.gov.in
+[8] National Health Authority, "Ayushman Bharat Pradhan Mantri Jan Arogya Yojana," [Online]. Available: https://pmjay.gov.in
+[9] Press Information Bureau, Government of India, release ID 2053883 on the extension of AB PM-JAY to all citizens aged 70 years and above, 11 Sep. 2024.
+[10] Press Information Bureau, Government of India, release ID 2116209 on AB PM-JAY coverage and eligibility, 28 Mar. 2025.
+[11] Government of Maharashtra, Government Resolution on the integrated implementation of Mahatma Jyotirao Phule Jan Arogya Yojana, 28 Jul. 2023 (as cited in the project's scheme-criteria table).
+[12] Government of India, *The Digital Personal Data Protection Act, 2023* (No. 22 of 2023).
+[13] National Health Authority, "Ayushman Bharat Digital Mission," [Online]. Available: https://abdm.gov.in
+[14] HL7 International, "FHIR Release 4 (v4.0.1)," 2019. [Online]. Available: https://hl7.org/fhir/R4
+[15] S. Rahulprasath, S. Pranav Harshan, P. V. Kabilash, A. Lakshithraj and J. Sreemathy, "AI in healthcare: Simplifying medical reports for enhanced patient comprehension," in *Proc. Int. Conf. Emerging Technologies in Computing and Communication (ETCC)*, Bangalore, India, 2025, doi: 10.1109/ETCC65847.2025.11108371.
+[16] P. Lewis *et al.*, "Retrieval-augmented generation for knowledge-intensive NLP tasks," in *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 33, 2020, pp. 9459–9474.
+[17] Z. Ji *et al.*, "Survey of hallucination in natural language generation," *ACM Computing Surveys*, vol. 55, no. 12, Art. 248, 2023.
+[18] L. Zheng *et al.*, "Judging LLM-as-a-judge with MT-Bench and Chatbot Arena," in *Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks Track*, 2023.
+[19] Q. Wu *et al.*, "AutoGen: Enabling next-gen LLM applications via multi-agent conversation," arXiv:2308.08155, 2023.
+[20] Y. Du, S. Li, A. Torralba, J. B. Tenenbaum and I. Mordatch, "Improving factuality and reasoning in language models through multiagent debate," in *Proc. Int. Conf. Machine Learning (ICML)*, 2024.
+[21] K. Singhal *et al.*, "Large language models encode clinical knowledge," *Nature*, vol. 620, pp. 172–180, 2023.
+[22] R. Smith, "An overview of the Tesseract OCR engine," in *Proc. 9th Int. Conf. Document Analysis and Recognition (ICDAR)*, 2007, pp. 629–633.
+[23] Y. Xu, M. Li, L. Cui, S. Huang, F. Wei and M. Zhou, "LayoutLM: Pre-training of text and layout for document image understanding," in *Proc. 26th ACM SIGKDD Int. Conf. Knowledge Discovery & Data Mining*, 2020, pp. 1192–1200.
+[24] D. Gîfu, "AI-backed OCR in healthcare," *Procedia Computer Science*, vol. 207, pp. 1134–1143, 2022.
+[25] P. Prakash and S. K. Yeliyur Hanumanthaiah, "A comparative analysis of optical character recognition models for extracting and classifying texts in natural scenes," *IAES Int. J. Artificial Intelligence*, vol. 14, no. 2, pp. 1290–1301, 2025, doi: 10.11591/ijai.v14.i2.pp1290-1301.
+[26] A. du Preez, S. Bhattacharya, P. Beling and E. Bowen, "Fraud detection in healthcare claims using machine learning: A systematic review," *Artificial Intelligence in Medicine*, vol. 160, Art. 103061, 2025, doi: 10.1016/j.artmed.2024.103061.
+[27] T. Azad and P. William, "Fraud detection in healthcare billing and claims," *Int. J. Science and Research Archive*, vol. 13, no. 2, pp. 3376–3395, 2024, doi: 10.30574/ijsra.2024.13.2.2606.
+[28] Y. Xie *et al.*, "Analyzing health insurance claims on different timescales to predict days in hospital," *J. Biomedical Informatics*, vol. 60, pp. 187–196, 2016, doi: 10.1016/j.jbi.2016.01.002.
+[29] A. Mustafa, U. Naseem and M. Rahimi Azghadi, "Large language models vs human for classifying clinical documents," *Int. J. Medical Informatics*, vol. 195, Art. 105800, 2025, doi: 10.1016/j.ijmedinf.2025.105800.
+[30] V. Carchiolo, A. Longheu, G. Reitano and L. Zagarella, "Medical prescription classification: A NLP-based approach," in *Proc. Federated Conf. Computer Science and Information Systems (FedCSIS)*, 2019, doi: 10.15439/2019F197.
+[31] A. Ly, B. Uthayasooriyar and T. Wang, "A survey on natural language processing (NLP) & applications in insurance," arXiv preprint, Oct. 2020.
+[32] I. P. Fellegi and A. B. Sunter, "A theory for record linkage," *J. American Statistical Association*, vol. 64, no. 328, pp. 1183–1210, 1969.
+[33] P. Christen, *Data Matching: Concepts and Techniques for Record Linkage, Entity Resolution, and Duplicate Detection*. Berlin: Springer, 2012.
+[34] V. I. Levenshtein, "Binary codes capable of correcting deletions, insertions, and reversals," *Soviet Physics Doklady*, vol. 10, no. 8, pp. 707–710, 1966.
+[35] W. E. Winkler, "String comparator metrics and enhanced decision rules in the Fellegi–Sunter model of record linkage," in *Proc. Section on Survey Research Methods*, American Statistical Association, 1990, pp. 354–359.
+[36] L. Philips, "The double metaphone search algorithm," *C/C++ Users Journal*, vol. 18, no. 6, pp. 38–43, 2000.
+[37] N. Reimers and I. Gurevych, "Sentence-BERT: Sentence embeddings using Siamese BERT-networks," in *Proc. EMNLP-IJCNLP*, 2019, pp. 3982–3992.
+[38] S. Deode, J. Gadre, A. Kajale, A. Joshi and R. Joshi, "L3Cube-IndicSBERT: A simple approach for learning cross-lingual sentence representations using multilingual BERT," in *Proc. 37th Pacific Asia Conf. Language, Information and Computation (PACLIC)*, 2023; arXiv:2304.11434.
+[39] Y. Madhani *et al.*, "Aksharantar: Open Indic-language transliteration datasets and models for the next billion users," in *Findings of EMNLP*, 2023; arXiv:2205.03018.
+[40] A. Mhaske *et al.*, "Naamapadam: A large-scale named entity annotated data for Indic languages," in *Proc. 61st Annual Meeting of the Association for Computational Linguistics (ACL)*, 2023.
+[41] O. Litake, M. Sabane, P. Patil, A. Ranade and R. Joshi, "L3Cube-MahaNER: A Marathi named entity recognition dataset and BERT models," in *Proc. WILDRE-6 Workshop, LREC*, 2022.
+[42] E. B. Wilson, "Probable inference, the law of succession, and statistical inference," *J. American Statistical Association*, vol. 22, no. 158, pp. 209–212, 1927.
+[43] M. Nygard, "Documenting architecture decisions," Cognitect blog, 15 Nov. 2011.
+[44] OWASP Foundation, "OWASP Top 10 for Large Language Model Applications," 2023.
+[45] JaidedAI, "EasyOCR: Ready-to-use OCR with 80+ supported languages," GitHub repository, [Online]. Available: https://github.com/JaidedAI/EasyOCR
+[46] W3C, "Web Content Accessibility Guidelines (WCAG) 2.1," W3C Recommendation, 2018.
+[47] Insurance Regulatory and Development Authority of India, "Bima Bharosa — Integrated Grievance Management System," [Online]. Available: https://bimabharosa.irdai.gov.in
+[48] National Pharmaceutical Pricing Authority, "Pharma Sahi Daam" mobile application and price database, [Online]. Available: https://nppa.gov.in
+[49] Pharmaceuticals & Medical Devices Bureau of India, "Janaushadhi Sugam" mobile application, [Online]. Available: https://janaushadhi.gov.in
+[50] National Health Authority, "PM-JAY beneficiary identification portal," [Online]. Available: https://beneficiary.nha.gov.in

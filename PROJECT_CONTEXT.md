@@ -85,10 +85,13 @@ arogyarakshak/
 │   │   └── tests/               # Backend integration test suite (test_api.py)
 │   ├── web/                     # Next.js 16 App Router frontend application
 │   │   ├── app/components/      # Mobile-first components & module views
+│   │   ├── app/{generated,shared}/ # Vendored from packages/ (tokens.css, api-client, i18n); never hand-edit
+│   │   ├── app/motion/          # WS0 motion system (+ (dev)/motion-lab, 404 in production)
 │   │   ├── app/globals.css      # Design tokens, fluid typography, touch targets
 │   │   ├── app/page.tsx         # Trilingual dashboard with BYOD intake & SSE stream
 │   │   └── package.json         # React 19, Next.js dependencies
 │   └── mobile/                  # React Native / Expo client (Expo SDK 52, TypeScript, BYOD scanner)
+│       #   (src/generated, src/shared = vendored from packages/, never hand-edit; src/motion = WS0 motion system)
 │       ├── App.tsx              # Root component (SafeArea, Theme, Navigation)
 │       ├── src/api/             # Shared REST API client matching backend
 │       ├── src/components/      # Accessible UI primitives (>= 44px)
@@ -104,6 +107,9 @@ arogyarakshak/
 │   ├── bimanyay/                # Claim denial dispute & IRDAI appeal tracker
 │   ├── schemesetu/              # PMJAY/MJPJAY rule-based eligibility (no RAG, no embeddings)
 │   └── dawacheck/               # NPPA Schedule-I price verification & generics
+├── packages/design-tokens|api-client|i18n  # TypeScript source packages (WS0, ADR-022): vendored, not installed
+├── scripts/                     # Root Node tooling: sync-shared, generate, run-checks, run-tests, build-checks/ (+ Python helpers)
+├── package.json                 # Root tooling only (tsx, openapi-typescript, @lhci/cli); no workspaces
 ├── data/                        # Government rate schedules (CGHS) and raw test sets
 ├── docs/                        # Complete documentation portal (architecture, guides, ADRs)
 │   ├── architecture/            # Repository structure, components, data flow
@@ -165,6 +171,15 @@ arogyarakshak/
 ---
 
 ## 8. Current Work
+
+### Active Task (2026-11-15) — WS0 Foundation (branch `ws0/foundation`, not merged)
+Spec `docs/superpowers/specs/2026-11-06-foundation-design.md`, plan `docs/superpowers/plans/2026-11-06-foundation.md`, ADR-022.
+- [x] Perf baseline (`docs/development/performance-baseline.md`), root tooling and vendoring (`scripts/`, `npm run generate` / `check:generated`).
+- [x] `packages/design-tokens` consumed by web (`app/generated/tokens.css`) and mobile (`src/generated/tokens.ts`).
+- [x] Self-hosted fonts (Google Fonts removed), `packages/api-client` (mobile transport + web `fetchDemoStatus`), `packages/i18n` (`common` namespace, 25 keys).
+- [x] Web motion system + dev-only `/motion-lab`; mobile motion system (`src/motion`).
+- [x] CI: `foundation-checks` job (root tooling tests + generated/vendored freshness check, Node 20); `web-ci` gains the web bundle budget ratchet and Lighthouse LCP/CLS (Node 22 setup step); `mobile-ci` gains the mobile bundle budget.
+- [ ] Not done / needs the user: run CI on GitHub via a PR or `workflow_dispatch` (workflow and the Lighthouse step were never executed; first run may be red on CLS); run the mobile motion and fonts on a device; merge decision. Open items are in section 9 and the 2026-11-15 handoff in section 18.
 
 ### Active Task (2026-10-19) — engineering foundation pass (branch `arch/engineering-foundation`)
 - [x] `apps/api/app/services/` + `.importlinter` (5 contracts) + `test_architecture.py` (ADR-018).
@@ -262,6 +277,32 @@ None. Ready for Product Phase 2 when directed by user.
 ---
 
 ## 9. Next Tasks
+
+### WS0 follow-ups and the next workstreams (2026-11-15)
+- [ ] **Web bundle (WS4)**: every route's initial JS is above the 170 KB spec budget (gzip KB ceilings recorded in `KNOWN_VIOLATIONS`, `scripts/build-checks/web-bundle-budget.mjs`: `/` 255, `/clinical-review` 203, `/motion-lab` 231, `/_not-found` 184, `/_global-error` 175). WS4 must reduce them and delete the entries (the ratchet fails when a fixed route stays in the map).
+- [ ] **CLS 0.096 vs the 0.1 limit on `/`** (baseline was 0): self-hosted fonts swap and shift `ul.lp-assurances`. Proper fix: metric-matched fallback fonts (`size-adjust`) generated through the token pipeline, or the WS4 landing rewrite. The Lighthouse CI step may be red on its first CI runs. Reviewer analysis: 0.0964 was measured on Windows (Segoe UI fallback); `ubuntu-latest` falls back to DejaVu Sans (wider than Inter), so CI may measure higher. Plan: run via PR/`workflow_dispatch` and read the real value; if red, fix rather than loosen: load Fraunces and Plus Jakarta Sans via `next/font/local` from the woff2 files already in `node_modules/@fontsource-variable/*` (no network) for preload and `adjustFontFallback`, feeding the token font stack; only if that slips, downgrade the CLS assertion to `warn` with a dated exception in `performance-budgets.md` naming the CI value, owner WS4.
+- [ ] **Validate CI on GitHub** (a plain push will NOT trigger CI: the push filter does not match `ws0/foundation`; open a PR to `main` or `develop`, or run the workflow manually via `workflow_dispatch` on the branch: Actions tab -> "Run workflow"): `.github/workflows/ci.yml` changes (the `foundation-checks` job, the web bundle budget and Node 22 Lighthouse steps in `web-ci`, the mobile bundle budget in `mobile-ci`, `ci-gate`) were never run on GitHub and `actionlint` was not run; the first CI run is the real validation. Same for Node 20 compatibility of `packages/design-tokens` scripts and tests (only Node 24.19 was available locally): `foundation-checks` on Node 20 is the proof.
+- [ ] **Mobile on a device (WS5)**: motion, haptics and fonts were never run on a device or simulator. Fonts are loaded but not applied by any component (the `fonts` tokens are CSS stacks; React Native needs family names such as `Inter_400Regular`). `react-native-gesture-handler` is installed but intentionally not imported (importing it in `App.tsx` added about 934 KB to the bundle); the first gesture-using screen must add `import 'react-native-gesture-handler'` and `GestureHandlerRootView`. Re-measure the mobile bundle (budget 2,900,000 B, now 2,361,153 B) when WS5 imports `src/motion` (Reanimated) and tighten the budget.
+- [ ] **Hindi/Marathi review**: the `common` namespace has no stubs, but near-duplicate keys whose web and mobile wording differ stay local and need a human reviewer to reconcile: `tagline`, `byodBadge`, `byodDescription`, `tabs.*`, `modules.<module>.{title,desc}`, `billnyay.{notBenchmarked,unmatchedNotice}`, `bimanyay.{insurerName,claimedAmount,deniedAmount,denialReason,diagnosis,reversalScore,groTab,ombudsmanTab,copyDraft,timelineTitle}`, `daavisetu.{diagnosis,policyId,hospital,treatment,generateBtn,downloadPackage}`, `schemesetu.{state,medicalNeed,checkBtn,notEligible,howToClaim}`, `dawacheck.translateBtn` (plus `modules.daavisetu.patientName` and `modules.dawacheck.dataSourceNotice`: same English, different hi/mr). Mobile variants use emoji and colons; web variants are more hedged, a content decision.
+- [ ] **WS1 Observability**: Prometheus, Grafana, Loki, Tempo, OTel Collector, Alertmanager in a separate compose override file; no PHI in telemetry, redaction tests required. Pulling self-hosted Docker images needs explicit user approval under the AGENTS.md Network Boundaries rule. The self-hosted-telemetry ADR is written with WS1, not yet.
+- [ ] **WS2 LLM reliability and CI eval harness**: extends the existing Phase-4 evaluation work.
+- [ ] **WS3 Platform**: job queue with SSE progress, k6, chaos tests, SBOM/cosign, OPA/Kyverno. A queue needs an ADR superseding the "without a broker" decision in ADR-019 (not written; one API process remains the rule until then).
+- [ ] **WS4 Web redesign**, page by page (also removes the bundle violations above and polishes the motion minors below).
+- [ ] **WS5 Mobile screens**, screen by screen (adopt the shared client, tokens, fonts and `src/motion`).
+- [ ] **WS6 Bill anomaly detection**: needs labelled data; no accuracy claims without it.
+- [ ] Pre-existing: `expo-doctor` reports 17/18 (react-native 0.76.7 installed, 0.76.9 expected).
+
+#### WS0 deferred minors (parked from reviews; none blocks WS0)
+- **Tokens**: `extract-baseline` only reads depth-1 `:root` / `[data-theme="light"]` rules and its paren copier ignores quotes; `min-touch-target` is duplicated in `space` and `webOnly.root` (FOLLOW-UP: two sources of truth, keep one); the CLI-spawn test does not realpath `argv[1]` (macOS symlinked tmp only); the semantic compare has an alpha-rounding blind spot.
+- **Vendoring/tooling**: `discover.mjs` / `generate.mjs` do not guard a missing default export; `measure-baseline` web numbers are gzip but the mobile `.hbc` is not gzipped (not comparable).
+- **Triage**: items tagged FOLLOW-UP were triaged by the final reviewer (not "leave") and carry a "do before" trigger.
+- **Fonts**: mobile `fonts` tokens are CSS stacks (FOLLOW-UP, do before any RN component uses `fonts.*`); `useAppFonts` has no timeout for a never-settling `useFonts` (FOLLOW-UP, do before WS5 device testing) and logs with a raw `console.warn`; unused cyrillic/greek/vietnamese woff2 files are emitted into `.next/static/media`; the mobile error-path test regex is weak.
+- **API client**: no test for a caller-supplied abort signal (FOLLOW-UP, cheap); the shared client drops/truncates raw `text/html` error bodies, so a proxy 502 page currently becomes `detail` (FOLLOW-UP, soon); the mobile client is built per request.
+- **i18n**: `findUnusedKeys` is a leaf-name heuristic; the parity test leaves a tmp dir; helpers live in `packages/i18n/tools/` and are not vendored.
+- **Web motion**: `CountUp` paints the final value then blinks to 0 and starts regardless of visibility (no IntersectionObserver); `Magnetic` reads the rect of the transformed element on every pointermove (CountUp blink, missing IntersectionObserver and this: FOLLOW-UP, do before first use in WS4); `useReducedMotion` calls `matchMedia` per snapshot; `motion.css` has no `@media print` guard (FOLLOW-UP, do before Reveal is used on printable pages); Lenis no longer loads on every route (removed from the root layout in the final review; pages opt in); `viewTransition` does not await async navigation; the Lenis, 404 and ESLint tests are source-regex scans.
+- **Mobile motion**: the `Pressable` scale transform overrides a caller-supplied transform and a late prime can replay a mounted `Reveal` (both FOLLOW-UP, do before WS5 uses them); the `App.tsx` prime timer is not cleared on success; `CountUp` blink (as on web); the component and haptics tests are regex scans.
+- **Build checks**: `/motion-lab` (dev-only, 404 in production) occupies a `KNOWN_VIOLATIONS` entry (FOLLOW-UP: consider excluding `(dev)` routes from the measurement). The browser state of `fetchDemoStatus` with the API down was not verified (the caller `DemoBanner.tsx` swallows errors with `.catch(() => {})`, so no user-visible failure is expected).
+- **CI**: root `npm ci` is not cached in the Node 22 Lighthouse step; the `ci-gate` bash condition is not covered by a persisted test; `/tmp` paths in the docs are Unix-only; actionlint, Chrome on `ubuntu-latest`, `$RUNNER_TEMP` and `startServerCommand` on Linux are unvalidated.
 
 ### P0 — Critical (Immediate Sprints)
 - [x] **Scaffold BimaNyay Package**: Created `packages/bimanyay` with Pydantic schemas for denial reasons, policy clauses, and appeal outputs.
@@ -378,6 +419,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-019 (Processing reliability without a broker):** BYOD forbids storing documents, so no durable queue; instead `kadi_document_jobs` records state, start-up marks in-flight jobs `interrupted`, the client is told to re-upload. The API must run as exactly one process/replica.
 - **ADR-020 (Alembic):** migrations are the schema source of truth; `SCHEMA_MANAGEMENT=migrate|none|create_all`; legacy `create_all` databases are stamped at `0001_baseline`, never recreated.
 - **ADR-021 (Modular monolith & deployment topology):** no service extraction (OCR worker blocked by ADR-003); single-replica kustomize path, no HPA/PDB/Helm; nothing deployed.
+- **ADR-022 (Shared TypeScript code is vendored):** shared web/mobile code lives in `packages/<name>/src` and is copied into each app by `scripts/sync-shared.mjs`; copies are committed, never hand-edited, and `npm run check:generated` fails CI when stale. No npm workspaces; the web Docker context stays `apps/web`.
 - **ADR-017 (Explanation trail):** every finding carries a deterministic `Explanation` (evidence + provenance class, exact rule/row, trust, undetermined, derived `not_recorded`), built by the owning package from the decision's own values, delivered additively on existing authorised responses; never an LLM, never an invented reason.
 - **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
 
@@ -468,11 +510,27 @@ Phase 5: Submission & Demo Polish (FUTURE)
 | **Operational runbook (incl. backup/restore draft)** | [`docs/operations/runbook.md`](docs/operations/runbook.md) |
 | **Kubernetes path** | [`docs/operations/kubernetes.md`](docs/operations/kubernetes.md) |
 | **Supply-chain security policy** | [`docs/security/supply-chain.md`](docs/security/supply-chain.md) |
+| **WS0 performance baseline and budgets** | [`docs/development/performance-baseline.md`](docs/development/performance-baseline.md), [`docs/development/performance-budgets.md`](docs/development/performance-budgets.md) |
+| **WS0 foundation spec and plan** | [`docs/superpowers/specs/2026-11-06-foundation-design.md`](docs/superpowers/specs/2026-11-06-foundation-design.md), [`docs/superpowers/plans/2026-11-06-foundation.md`](docs/superpowers/plans/2026-11-06-foundation.md) |
 | **API contract & compatibility** | [`docs/api/compatibility.md`](docs/api/compatibility.md), [`docs/api/openapi.json`](docs/api/openapi.json) |
 
 ---
 
 ## 17. Recent Changes
+
+### 2026-11-15 — WS0 Foundation (branch `ws0/foundation`, 7717ac3..HEAD)
+- **Added**: root tooling and vendoring (`package.json`, `scripts/`, ADR-022); `packages/design-tokens` (`tokens.json` -> `apps/web/app/generated/tokens.css`, `apps/mobile/src/generated/tokens.ts`); `packages/api-client` (types generated from `docs/api/openapi.json`); `packages/i18n` (`Language`, `common` namespace of 25 keys); vendored dirs `apps/web/app/{generated,shared}` and `apps/mobile/src/{generated,shared}` (never hand-edit; `npm run generate`, `npm run check:generated`); web `app/motion/` and `(dev)/motion-lab` (404 in production); mobile `src/motion/`; self-hosted fonts; CI: a `foundation-checks` job (tooling tests, freshness check) plus performance budgets in `web-ci` (bundle ratchet, Lighthouse) and `mobile-ci` (bundle size) (`docs/development/performance-budgets.md`).
+- **Deviations from the spec** (recorded in the plan and ADR-022): shared code is vendored instead of installed as packages; ADR-022 is the only ADR (telemetry and job-queue ADRs belong to WS1/WS3); the shared client is adopted for mobile transport and web `fetchDemoStatus` only; fonts were not dropped (all four are used). Rulings made along the way: generated API types come from the existing `docs/api/openapi.json`; the web 170 KB budget is a ratchet with a `KNOWN_VIOLATIONS` map because every route was already over it; the Lighthouse step in `web-ci` runs on Node 22 while `foundation-checks` stays on Node 20.
+- **Behaviour changes**: mobile light-theme `textMuted` `#8C948E` -> `#6F7771`; mobile request timeout now reports status 0 instead of 408 (no consumer depended on 408); web `fetchDemoStatus` now rejects with an `ApiError` object and has a 30 s default timeout; `radii.xl` (20) added on mobile; Google Fonts removed (Fontsource / expo-google-fonts npm packages, no Google requests) and web font stacks lead with the `'<Family> Variable'` names with Devanagari fallbacks; the `common` i18n namespace was moved verbatim, no wording changed.
+- **Final-review fixes**: `ci_guardrails.py` exempts the vendored TS packages (`TS_SOURCE_PACKAGES`: `design-tokens`, `api-client`, `i18n`) from the pyproject/setup.py rule (ADR-022); `ci.yml` sets `EXPO_NO_TELEMETRY` and `NEXT_TELEMETRY_DISABLED` at workflow level (network rule); `<SmoothScroll/>` removed from the root layout (it broke wheel scrolling inside nested scroll containers) and now mounts only in `/motion-lab`, with `allowNestedScroll: true`; web `/` initial JS is 254.24 KB gzip after the change.
+- **Mobile motion**: `react-native-reanimated`, `react-native-gesture-handler`, `@shopify/flash-list`, `expo-haptics` added (SDK 52 pins). Gesture handler is installed but not imported (it added about 934 KB to the bundle).
+- **Not verified**: the browser state of `fetchDemoStatus` when the API is down (`DemoBanner.tsx` swallows errors with `.catch(() => {})`, so no user-visible failure is expected); the workflow and the Lighthouse step on GitHub; Node 20 locally; mobile animations, haptics and fonts on a device. No screens use the mobile patterns yet (WS5).
+
+### 2026-11-04 — Preliminary Project Report (docs only, uncommitted)
+- **Added**: `docs/academic/reports/preliminary-project-report/` — 67-page PPR (`.docx` with Word-updated Contents/LoF/LoT, `.pdf`), `Repository_Audit_Summary.md`, and `source/` (chapter markup, SVG figure scripts, screenshots, DOCX builder, Word export script).
+- **Re-verified for the report**: backend 1119 passed / 7 skipped (`.venv`), lint-imports 5/5, guardrails 8/8, web 153/153 + eslint 0, mobile 126/126; Scenario A run in the browser on SQLite demo mode.
+- **Found, not fixed**: ADR-010 still says there is no automatic purge, but `app/case_retention.py` enforces a 90-day TTL sweep — ADR-010 needs an amendment. The global Python 3.11 has stale Starlette; use `.venv`.
+- **Team must supply**: two roll numbers, HoD name, college logo, plagiarism report; confirm the base-paper DOI [15] and the guide-name spelling.
 
 ### 2026-10-19 — Engineering foundation pass (ADR-018…021, branch `arch/engineering-foundation`)
 - **Added**: `apps/api/app/services/` (billnyay_audit, dawacheck_benchmarks, schemesetu_eligibility, daavisetu_claims, case_ingestion, case_purge, document_jobs); `app/schema.py`, `app/observability.py`; `apps/api/alembic.ini`, `migrations/` (0001_baseline, 0002_document_jobs); `KadiDocumentJob` model; `/health/live`, `/health/ready`; `.importlinter`; `scripts/export_openapi.py`, `docs/api/openapi.json`; `infrastructure/kubernetes/`; `.github/workflows/security.yml`; `apps/web/.dockerignore`; ADR-018…021 and the docs listed in §16.
@@ -695,6 +753,12 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 18. Agent Handoff Notes
+
+### Latest handoff (2026-11-15, WS0 Foundation — branch `ws0/foundation`, not merged)
+- **State**: WS0 is implemented and committed on `ws0/foundation` (cut from `arch/engineering-foundation` at 2c717a9); nothing is deployed. Read `docs/superpowers/specs/2026-11-06-foundation-design.md`, ADR-022 and `docs/development/performance-budgets.md` first.
+- **Rules for the next agent**: never hand-edit `apps/web/app/{generated,shared}` or `apps/mobile/src/{generated,shared}`; change `packages/<name>/src` (or `tokens.json`), run `npm run generate`, commit both; CI fails on stale copies. Do not raise a `KNOWN_VIOLATIONS` ceiling or loosen the CLS/LCP limits; lower or remove them when routes improve. Run Node tests through root `npm test` (on Windows `node --test` needs file paths).
+- **Honest open items**: web initial JS is over 170 KB on all routes; CLS is 0.096 (limit 0.1) on `/` because of the font swap, so the Lighthouse step may fail on its first CI runs; the CI workflow, the Lighthouse step and Node 20 compatibility of `packages/design-tokens` were never run (no runner, only Node 24.19 locally); mobile motion and fonts were never run on a device and no mobile component applies the fonts yet. Full list in section 9.
+- **Next**: open a PR to `main` (or `develop`) or run the workflow via `workflow_dispatch` on the branch (Actions -> Run workflow; a plain push does not trigger CI because the push filter does not match `ws0/foundation`) and read the first CI run; then WS1 (needs user approval before pulling any Docker image), WS2, WS3 (ADR-019 supersession), WS4, WS5, WS6 as listed in section 9. The telemetry and job-queue ADRs are not written.
 
 ### Latest handoff (2026-10-20, Sovereign UI/UX Transformation & Cinematic Scroll Storytelling)
 - **Stitch MCP Creative Partnership**:

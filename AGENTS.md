@@ -92,6 +92,10 @@ arogyarakshak/
 │   ├── bimanyay/                # Post-denial insurance claim audit, IRDAI appeals & SLA tracker
 │   ├── schemesetu/              # PMJAY/MJPJAY rule-based eligibility & reasoning trace (no RAG/embeddings)
 │   └── dawacheck/               # NPPA Schedule-I medicine pricing & generic mapping
+│   ├── design-tokens/           # TypeScript source packages (WS0, ADR-022): design tokens, shared API client, shared i18n.
+│   ├── api-client/              #   Vendored (copied) into apps/web/app/{generated,shared} and apps/mobile/src/{generated,shared};
+│   └── i18n/                    #   never hand-edit the copies; run `npm run generate` (root) after editing the source.
+├── scripts/                     # Root Node tooling: sync-shared, generate, run-checks, run-tests, build-checks/ (+ Python helpers)
 ├── data/                        # Ingestion scripts & raw public government data (CGHS, NPPA, PMJAY)
 ├── docs/                        # Complete technical documentation, backlog, and ADRs
 ├── infrastructure/kubernetes/   # Kustomize base + example overlay (ADR-021); validated, not deployed
@@ -153,6 +157,11 @@ npm run lint
 
 # Architecture contracts (from the repo root)
 PYTHONPATH=apps/api lint-imports
+
+# Shared TypeScript tooling (repo root, after `npm install`; ADR-022)
+npm run generate           # regenerate vendored copies after editing packages/<name>/src or tokens.json
+npm run check:generated    # fail if any vendored/generated copy is stale
+npm test                   # root tooling and packages/*/tests Node tests
 ```
 
 ---

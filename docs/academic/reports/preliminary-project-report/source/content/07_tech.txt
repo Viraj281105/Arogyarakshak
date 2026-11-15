@@ -1,0 +1,49 @@
+@chapter 7 | Technology Stack and Requirements
+
+## 7.1 Technology Stack
+
+The stack was chosen for three properties: mature, well-documented open-source components a five-person team can maintain; a Python core for the document and language work; and no network dependency outside Groq, the local database and the official package registries, a boundary written into the project's agent manual. Table 7.1 lists the components with the versions pinned in the repository at the time of writing.
+
+!table Technology stack (versions as pinned in the repository, November 2026) | 18,30,52
+| Layer | Technology | Role in ArogyaRakshak |
+| Language runtimes | Python 3.11; Node.js 20; TypeScript 5 | Backend and domain packages; web and mobile clients |
+| API framework | FastAPI 0.148, Starlette 1.9, Uvicorn 0.34 | Async REST endpoints, Server-Sent Events, dependency-based authorisation |
+| Validation and settings | Pydantic v2, pydantic-settings 2.9 | Typed requests, inter-agent messages, configuration with production refusal |
+| Persistence | PostgreSQL 16 (pgvector image), SQLAlchemy 2.0 (async), asyncpg, Alembic 1.14; aiosqlite for tests | 27 module-prefixed tables; migrations as the schema source of truth |
+| Document processing | PyMuPDF, EasyOCR (CPU), ReportLab, pypdf | PDF text, image OCR with confidences, PDF generation, AcroForm filling |
+| Language models | Groq API, model from `GROQ_MODEL` (default `openai/gpt-oss-120b`) | Optional extraction and appeal drafting |
+| Indic NLP | IndicSBERT via sentence-transformers 4.1 (optional extra); PyTorch 2.7.1 CPU | Optional cross-lingual similarity in entity resolution |
+| Algorithms (in-house) | Levenshtein, Jaro–Winkler, Double Metaphone, Indic phonetic key, noisy-OR, Wilson interval | Entity resolution, brand matching, bounded estimation |
+| Web client | Next.js 16.4 (App Router), React 19.2, CSS design tokens | Patient and reviewer workspaces, trilingual, light and dark |
+| Mobile client | Expo SDK 52, React Native 0.76 | Camera capture, five module screens, offline queue |
+| Quality gates | pytest, Ruff, import-linter, ESLint, tsc, tsx test runner, custom guardrails | Tests, style, architecture contracts, invariants |
+| Delivery | Docker (multi-stage, non-root), Docker Compose, kustomize, GitHub Actions, Dependabot | Reproducible local demo; validated Kubernetes path; CI and security workflows |
+
+Two choices in the table reflect constraints rather than preference. PyTorch is pinned to CPU wheels because EasyOCR otherwise pulls in CUDA builds that exhausted CI disk space (#141), and moved to 2.7.1 because the IndicSBERT weights ship only in a format that newer `transformers` refuses to load on older PyTorch for security reasons (CVE-2025-32434). And the PostgreSQL container uses the pgvector image although no vector columns exist; the FAISS/pgvector similarity search proposed in the original design was never wired in, and its unused scaffold was removed as dead code in October 2026.
+
+## 7.2 Development Tools
+
+Development used Git with GitHub for version control, issues, milestones, pull requests and Actions; Visual Studio Code; Docker Desktop; and AI coding assistants operating under the repository's agent manual. Documentation is kept in Markdown alongside the code, with diagrams in Mermaid, and the OpenAPI specification is exported to the repository by script so that API changes are reviewed like code.
+
+## 7.3 Hardware Requirements
+
+!table Hardware requirements | 26,37,37
+| Use | Minimum | Recommended |
+| Development / local demo (full stack) | 4-core x86-64 CPU, 8 GB RAM, 15 GB free disk | 8-core CPU, 16 GB RAM, SSD with 30 GB free |
+| With IndicSBERT enabled | + about 1 GB for model weights, + 2 GB RAM | 16 GB RAM; GPU not required (CPU inference) |
+| Patient device (web) | Any modern browser on a phone ≥ 320 px wide | Chromium, Firefox or Safari, current version |
+| Patient device (mobile) | Android or iOS device supported by Expo SDK 52, with camera | Device with autofocus camera for document capture |
+
+These figures are engineering estimates for the configurations the project actually runs; the OCR and embedding models are the dominant memory consumers, and no GPU is used anywhere in the build.
+
+## 7.4 Software Requirements
+
+!table Software requirements | 30,70
+| Component | Requirement |
+| Operating system | Windows 10/11, Ubuntu 22.04+ or macOS for development; Linux containers for deployment |
+| Runtimes | Python 3.11 (required: newer versions are not supported by every pinned dependency); Node.js 20 LTS |
+| Containers | Docker Engine with Compose v2 (local demo); kubectl with kustomize (optional Kubernetes path) |
+| Database | PostgreSQL 16 (provided by the Compose file); SQLite for tests |
+| External services | Groq API key (optional; without it the system runs in a disclosed degraded mode) |
+| Browsers | A current Chromium-, Gecko- or WebKit-based browser with JavaScript and EventSource support |
+| Mobile toolchain | Expo CLI and Expo Go or a development build for SDK 52 |

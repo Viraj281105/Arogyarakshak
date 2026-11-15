@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### WS0 Foundation: shared tokens, client, i18n, motion, fonts and CI budgets (2026-11-15, branch `ws0/foundation`)
+
+Spec `docs/superpowers/specs/2026-11-06-foundation-design.md`; shared code is vendored into each app (ADR-022).
+
+#### Added
+- Root tooling (`package.json`, no workspaces): `npm run generate`, `npm run check:generated`, `npm test`, `npm run check:web-budget`, `npm run check:mobile-budget`; scripts in `scripts/` (`sync-shared.mjs`, `run-checks.mjs`, `run-tests.mjs`, `generate.mjs`, `generators/`, `checks/`, `build-checks/`, `measure-baseline.mjs`).
+- `packages/design-tokens` (`tokens.json` -> `apps/web/app/generated/tokens.css`, `apps/mobile/src/generated/tokens.ts`), `packages/api-client` (typed client generated from `docs/api/openapi.json`) and `packages/i18n` (`Language` type and a `common` namespace of 25 keys), vendored into `apps/web/app/{generated,shared}` and `apps/mobile/src/{generated,shared}`. Never hand-edit those directories.
+- Web motion system `apps/web/app/motion/` (`Reveal`, `Parallax`, `ScrollScrub`, `CountUp`, `Magnetic`, `SmoothScroll`, view-transition helper, `useReducedMotion`) and a dev-only `/motion-lab` page (404 in production). New deps `motion` and `lenis`.
+- Mobile motion system `apps/mobile/src/motion/` (`Reveal`, `Parallax`, `Pressable`, `CountUp`, `haptics.tap`, `useReducedMotion`). New deps `react-native-reanimated`, `react-native-gesture-handler` (installed, not imported), `@shopify/flash-list`, `expo-haptics`.
+- CI: new `foundation-checks` job (root tooling tests and the generated/vendored freshness check, on Node 20); `web-ci` gains the web initial-JS budget (KNOWN_VIOLATIONS ratchet) and a Lighthouse LCP/CLS step on Node 22; `mobile-ci` gains an `expo export` and the Hermes bundle budget of 2,900,000 B. Budgets: `docs/development/performance-budgets.md`; baseline: `docs/development/performance-baseline.md`.
+- `.gitattributes` forces LF in the vendored directories.
+
+#### Changed
+- Mobile adopts generated design tokens: `apps/mobile/src/theme/colors.ts`, `spacing.ts` derive from `src/generated/tokens.ts`; no hex literals remain in `colors.ts`. Export names and the `ColorPalette` type are unchanged; `radii` gains `xl` (20).
+- Mobile colour values aligned to the web value (only one differed): light theme `textMuted` `#8C948E` -> `#6F7771` (darker, better contrast). Dark theme: no differences.
+- Fonts are self-hosted and Google Fonts is removed: web uses `@fontsource-variable/*`, mobile uses `@expo-google-fonts/*` with `expo-font` and `expo-splash-screen`. Web font stacks now lead with the `'<Family> Variable'` names and keep a Devanagari fallback (`'Noto Sans Devanagari', 'Nirmala UI', Mangal`). No requests go to Google. Mobile loads the fonts but no component applies them yet.
+- Mobile API transport (`apps/mobile/src/api/client.ts`) now delegates to the shared client. A request timeout now reports `status` 0 instead of 408 (no consumer depended on 408).
+- Web `fetchDemoStatus` (`apps/web/app/lib/demo.ts`) now uses the shared client: it rejects with an `ApiError` object (not a plain `Error`) and has a 30 s default timeout.
+- The 25 `common` i18n keys (appName, `resolution.*`, shared BimaNyay/SchemeSetu/DawaCheck strings) moved verbatim into `packages/i18n`; both catalogues spread them. No wording changed and no Hindi/Marathi text was invented.
+
+#### Known issues
+- Every web route's initial JS is above the 170 KB budget (`/` 255 KB gzip ceiling); recorded as KNOWN_VIOLATIONS for WS4 to reduce.
+- Landing page CLS is 0.096 against a 0.1 limit (baseline 0), caused by the self-hosted font swap; the Lighthouse CI step may be red on its first CI runs.
+- Not run on GitHub yet (workflow, Lighthouse step), not run on a device (mobile motion, fonts). See `PROJECT_CONTEXT.md` section 9 and the handoff.
+
 ### Not-found and error pages, page 10 of the per-page design pass (2026-10-21)
 
 #### Added

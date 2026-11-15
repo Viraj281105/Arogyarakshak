@@ -9,7 +9,7 @@ This guide walks you through setting up a complete local development environment
 Ensure you have the following software installed:
 - **Git** (`git --version` >= 2.30)
 - **Python 3.11** (`python --version` must report 3.11.x; Python 3.12+ or 3.14 may have compatibility issues with certain binary packages)
-- **Node.js** (`node --version` >= 18.x or 20.x, with `npm`)
+- **Node.js** (`node --version` >= 20 with `npm`; use 22.19 or newer only if you run Lighthouse CI locally, see `performance-budgets.md`)
 - **Docker Desktop** (with Docker Compose v2)
 
 ---
@@ -101,12 +101,69 @@ npm install
 cd ../..
 ```
 
+### 5.1.1 Web motion system (`apps/web/app/motion`)
+Two animation dependencies, both pinned: `motion` 14.14.0 (Motion for React, official npm) and
+`lenis` 1.3.27 (smooth scroll). No GSAP, no Three.js. ESLint `no-restricted-imports` confines
+`motion`, `framer-motion`, `lenis` and `gsap` to `app/motion/**`.
+- Budget rule: routes that do not use a motion pattern must not pay for it. `SmoothScroll`
+  (opt-in per page, not mounted in `layout.tsx`; it sets `allowNestedScroll` so inner scroll
+  containers keep working) imports Lenis dynamically after mount and skips it under reduced
+  motion; Motion's `domAnimation` loads lazily via `LazyMotion` and only `Magnetic` uses it.
+- `Reveal`, `Parallax` and `ScrollScrub` are CSS-only (`animation-timeline: view()` behind
+  `@supports` and `prefers-reduced-motion: no-preference`); the server-rendered state is the
+  final visible state. `CountUp` server-renders its final value. `format` is a function, so pass
+  it from a client component.
+- `/motion-lab` (dev only, route group `(dev)`, not linked) shows every pattern and returns 404
+  when `NODE_ENV === "production"`.
+
 ### 5.2 Mobile Application (React Native / Expo)
 ```bash
 cd apps/mobile
 npm install
 cd ../..
 ```
+
+### 5.2.1 Mobile motion system dependencies
+`apps/mobile` uses `react-native-reanimated` (~3.16), `react-native-gesture-handler` (~2.20),
+`@shopify/flash-list` (1.7.x) and `expo-haptics` (~14.0), at the versions Expo SDK 52 pins
+(`npx expo install <names>`; official npm registry only). `babel.config.js` lists only
+`babel-preset-expo`, which adds the Reanimated plugin itself when the package is installed; do
+not add `react-native-reanimated/plugin` as well. Motion patterns (`Reveal`, `Parallax`,
+`Pressable`, `CountUp`, `tap`) live in `apps/mobile/src/motion/` and honour the OS reduce-motion
+setting; Reanimated may only be imported there. `react-native-gesture-handler` is installed but
+unused: importing it from `App.tsx` added about 0.97 MB (+42%) to the Hermes bundle, so the first
+gesture-using screen (WS5) must add `import 'react-native-gesture-handler'` as the first line of
+`App.tsx` and wrap the root in `GestureHandlerRootView`, and re-measure the bundle. If `npx expo install` fails with
+`EALLOWSCRIPTS`, run `npm install` in `apps/mobile` after it has edited `package.json`.
+
+### 5.2.2 Self-hosted fonts (web and mobile, no Google Fonts)
+Fonts are served from npm packages, never from Google at build or runtime:
+- Web (`apps/web`): `@fontsource-variable/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`,
+  imported as CSS in `app/globals.css`. Their `@font-face` rules use `unicode-range`, so browsers
+  fetch only the latin / latin-ext files they need. Do not use `next/font/google`.
+- Mobile (`apps/mobile`): `@expo-google-fonts/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`
+  (font files ship in the app binary), plus `expo-font` and `expo-splash-screen`, loaded by
+  `src/hooks/useAppFonts.ts` while the splash screen stays up.
+- The font stacks live in `packages/design-tokens/tokens.json` and keep a Devanagari-capable
+  fallback (`'Noto Sans Devanagari', 'Nirmala UI', Mangal`) because none of the four families
+  include Devanagari. After editing them run `npm run generate`.
+
+### 5.3 Shared TypeScript code (vendoring)
+Shared web/mobile code (tokens, API client, i18n) is authored in `packages/<name>/src` and
+copied into each app by the root tooling (ADR-022). Install it once at the repo root:
+```bash
+npm install            # root: tsx + scripts only, no workspaces
+npm run generate       # regenerate vendored copies (runs scripts/generators/*.mjs)
+npm run check:generated  # fail if any vendored copy is stale (runs scripts/checks/*.mjs)
+npm test               # Node tests in scripts/tests and packages/*/tests
+```
+Never hand-edit vendored files (they start with a GENERATED banner); edit the source in
+`packages/<name>/src`, run `npm run generate`, and commit both.
+`packages/api-client` also needs the root devDependency `openapi-typescript` (official npm registry): it generates
+`src/generated/schema.d.ts` from the committed `docs/api/openapi.json`, so re-export that file first (`scripts/export_openapi.py`) after an API change.
+Root devDependencies (all from the official npm registry, pinned in the root `package-lock.json`): `tsx` (runs the TypeScript tests and generators), `openapi-typescript` (API client types) and `@lhci/cli` (Lighthouse CI for the LCP/CLS budgets). The root install is separate from the app installs; `apps/web` and `apps/mobile` keep their own lockfiles.
+Vendoring also removes files left behind in a vendored dir after a source file is deleted (and `check:generated` reports them).
+`packages/i18n` holds the `Language` type and the `common` string namespace (only keys whose EN/HI/MR text is identical on web and mobile; spread into both catalogues). `check:generated` also fails if `common` has a key missing or blank in any language; `packages/i18n/tools/parity.ts` has the parity helpers (`findMissingKeys`, `findUnreviewedStubs`, `findUnusedKeys`).
 
 ---
 
@@ -160,8 +217,11 @@ python -m pytest
 # Architecture contracts (ADR-018)
 PYTHONPATH=apps/api lint-imports
 
-# Mobile client invariant & contract tests (10 tests)
-cd apps/mobile
+# Root tooling tests and the stale-generated-files check (repo root)
 npm test
-cd ../..
+npm run check:generated
+
+# Web and mobile client tests, lint and types
+cd apps/web && npm test && npm run lint && cd ../..
+cd apps/mobile && npm run type-check && npm test && cd ../..
 ```

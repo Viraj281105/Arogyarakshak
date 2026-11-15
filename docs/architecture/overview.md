@@ -18,7 +18,7 @@ ArogyaRakshak (आरोग्यरक्षक) is an automated healthcare dec
 ```mermaid
 flowchart TD
     subgraph ClientLayer ["Client Applications"]
-        Web["apps/web (Next.js 15 / React 19 / TypeScript)"]
+        Web["apps/web (Next.js 16 / React 19 / TypeScript)"]
         Mobile["apps/mobile (React Native / Expo - Trilingual)"]
     end
 
@@ -85,7 +85,7 @@ flowchart TD
 arogyarakshak/
 ├── apps/
 │   ├── api/                     # FastAPI backend application
-│   ├── web/                     # Next.js 15 frontend application
+│   ├── web/                     # Next.js 16 frontend application
 │   └── mobile/                  # React Native / Expo mobile application
 ├── packages/                    # Python domain libraries (installed as editable via pip -e)
 │   ├── kadi/                    # Shared context, OCR, extraction & entity resolution

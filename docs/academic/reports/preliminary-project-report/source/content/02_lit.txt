@@ -1,0 +1,84 @@
+@chapter 2 | Literature Survey and Existing Systems
+
+## 2.1 Approach to the Survey
+
+The survey had two purposes. The first was to find out whether the problem had already been solved, either by a government portal or by a commercial product. The second was to locate the techniques — in OCR, claims analytics, language models, record linkage and Indic NLP — that a solution would have to build on, and to understand their known failure modes before we reproduced them. Sources came from three places: the team's literature bank and the papers collected in the repository during project selection, the regulatory and scheme documents the modules depend on, and standard references for the algorithms used in Kadi. The discussion below is organised by theme rather than by paper, because the gaps that matter for ArogyaRakshak appear between themes rather than inside any one of them.
+
+## 2.2 Existing Systems and Platforms
+
+**Government portals.** Each of the public bodies whose rules ArogyaRakshak applies offers some form of citizen-facing service. The PM-JAY beneficiary portal lets a family check whether it appears in the scheme's beneficiary database [50]. IRDAI's Bima Bharosa portal accepts and tracks complaints against insurers [47]. NPPA's *Pharma Sahi Daam* application lets a user look up the notified price of a formulation [48], and the Jan Aushadhi *Sugam* application locates Pradhan Mantri Bhartiya Janaushadhi Kendras and lists generic medicines [49]. The Ayushman Bharat Digital Mission provides health accounts and a consent-based framework for exchanging records [13]. These services are authoritative, and ArogyaRakshak treats them as the destinations a patient should eventually reach. Their limitation is that each answers one question, in one place, starting from information the citizen must already know and type correctly — a policy number, a formulation name, a beneficiary identifier. None of them reads the patient's own document, and none connects a finding in one domain to a consequence in another.
+
+**Commercial tools.** E-pharmacy and price-comparison applications show retail prices and substitutes, but their purpose is to sell medicines rather than to test a price against a statutory ceiling. Insurance aggregators and third-party-administrator applications help policyholders file and track claims, but they sit on the insurer's side of the transaction and do not audit the denial itself. Medical billing advocacy exists as a professional service in some countries, and machine-learning billing analytics are increasingly sold to payers and providers [26], [27]; in both cases the user is an institution, not the patient.
+
+!table Capabilities of existing systems compared with ArogyaRakshak | 21,12,11,11,11,11,12,11
+| System | Reads own docs | Bill audit | Pre-auth | Denial audit | Scheme check | Medicine price | Hindi / Marathi |
+| PM-JAY beneficiary portal [50] | No | No | No | No | Yes | No | Partial |
+| IRDAI Bima Bharosa [47] | No | No | No | Filing only | No | No | Partial |
+| NPPA Pharma Sahi Daam [48] | No | No | No | No | No | Lookup | No |
+| Jan Aushadhi Sugam [49] | No | No | No | No | No | Generics list | Partial |
+| E-pharmacy / price apps | Prescription upload (for sale) | No | No | No | No | Retail only | Partial |
+| Insurer / TPA apps | Claim upload | No | Filing | Status only | No | No | Partial |
+| Payer-side billing analytics [26], [27] | Institutional data | Fraud focus | No | No | No | No | No |
+| **ArogyaRakshak** | **Yes (BYOD)** | **Yes (CGHS subset)** | **Readiness + form** | **Yes (3 tiers)** | **Yes (rules + trace)** | **Yes (per unit)** | **Yes (QA pending)** |
+
+Table 2.1 summarises the comparison. Entries reflect the primary purpose of each class of system as publicly described; "Partial" language support indicates that some, but not all, of the interface is available in regional languages. The pattern is clear: every capability ArogyaRakshak offers exists somewhere in isolation, but nowhere starting from the patient's own paperwork and nowhere connected.
+
+## 2.3 Document Intelligence and OCR in Healthcare
+
+Optical character recognition is the first step of any system that starts from paper. Smith's description of the Tesseract engine [22] remains the reference point for open-source OCR: a line-finding and adaptive-classification pipeline that performs well on clean printed text and degrades on noisy scans, unusual layouts and handwriting. Gîfu's study of AI-backed OCR on clinical notes [24] applies deep-learning OCR and text classification to handwritten medical documents and illustrates the central difficulty for our domain — handwriting and medical shorthand produce errors that look plausible. Prakash and Hanumanthaiah's comparative analysis of OCR models for text in natural scenes [25] is relevant to the mobile client, where a bill photographed on a hospital bed is closer to a natural scene than to a flatbed scan.
+
+Layout-aware models such as LayoutLM [23] showed that jointly modelling text and its two-dimensional position improves information extraction from forms and receipts. They are a natural future direction for itemised bills, but they require fine-tuning data that does not yet exist for Indian hospital bills. Carchiolo et al. [30] classified medical prescriptions submitted to a health-insurance service using NLP techniques, demonstrating that prescription text can be mapped to structured categories at scale; their setting, however, is institutional, monolingual and Latin-script.
+
+The lesson we drew was not that OCR is solved but that OCR errors must be *visible downstream*. A reading that is uncertain should not silently become an entity that is priced. This led directly to Kadi's trust gate and human transcription workflow (Section 5.1.5), a design choice we did not find in the surveyed OCR work.
+
+## 2.4 AI in Claims and Healthcare Administration
+
+The literature on automated claims analysis is dominated by fraud detection from the payer's perspective. Du Preez et al.'s systematic review [26] surveys machine-learning approaches to detecting fraud in healthcare claims and highlights recurring problems: class imbalance, scarce labelled data and limited interpretability. Azad and William [27] review fraud detection in healthcare billing and claims, including rule-based, statistical and NLP-based methods. Xie et al. [28] model insurers' claims histories across several timescales to predict days in hospital, showing how much signal structured claims data carries. Ly et al. [31] survey NLP applications in insurance, from document classification to information extraction.
+
+Two observations from this body of work shaped our design. First, almost all of it assumes access to large, structured, institution-held datasets; a patient holding one bill has none of that. ArogyaRakshak therefore relies on published reference rates rather than learned models of "normal" billing. Second, the reviews repeatedly stress interpretability. A flagged claim is useful to an investigator only if the reason can be inspected; a flagged bill line is useful to a patient only under the same condition. This is the motivation for the deterministic explanation trail attached to every finding (Section 6.6).
+
+Mustafa et al. [29] compared large language models with human annotators on classifying clinical documents and found the models competitive on some tasks but inconsistent on others. Singhal et al. [21] showed that large language models encode substantial clinical knowledge while still producing errors that experts consider harmful. Together these results support a narrow role for LLMs in our system: reading and drafting, not deciding.
+
+The project's base paper, selected during project approval, is Rahulprasath et al.'s work on simplifying medical reports for patient comprehension [15]. It combines OCR-based extraction with retrieval-augmented generation to summarise a patient's medical report. ArogyaRakshak follows the same extract-then-ground pattern but extends it along four axes the paper leaves open: languages beyond English, multiple linked documents rather than one, actionable outputs (an appeal, a checklist, a deadline) rather than a summary, and explicit grounding checks on generated text.
+
+## 2.5 Large Language Models, Grounding and Multi-Agent Reasoning
+
+Retrieval-augmented generation [16] conditions a generator on documents retrieved at inference time, reducing — but not eliminating — unsupported statements. The broader survey of hallucination in natural language generation by Ji et al. [17] catalogues how models produce fluent text unfaithful to their sources, and notes that faithfulness metrics remain imperfect. Multi-agent frameworks such as AutoGen [19] decompose a task among cooperating LLM agents, and Du et al. [20] reported that debate among multiple model instances improves factuality on several benchmarks. Zheng et al. [18] studied the use of strong LLMs as judges of other models' outputs, finding reasonable agreement with humans alongside systematic biases such as position and verbosity preferences.
+
+These results informed BillNyay's appeal chain (Section 5.2), which separates fact extraction, clinical rationale, regulatory retrieval, drafting and review into distinct agents passing typed objects. Our own audit of the first version, however, found that an LLM-style "judge" whose scores were not actually computed from the evidence provided false assurance; the judge was rewritten to perform deterministic checks against the case's own facts. Similarly, the OWASP guidance on LLM applications [44] identifies prompt injection as the leading risk when untrusted text enters a prompt. Every document a patient uploads is untrusted text, so the chain wraps document-derived content in random, per-call boundaries.
+
+## 2.6 Entity Resolution and Indic Language Processing
+
+Deciding whether two mentions refer to the same entity is a classic record-linkage problem. Fellegi and Sunter [32] formalised it as a decision between match, possible match and non-match based on agreement weights — the same three-way outcome Kadi uses as merge, ask and new. Christen's monograph on data matching [33] covers blocking, comparison and classification, and string measures such as Levenshtein distance [34] and the Jaro–Winkler comparator [35] remain standard lexical signals. Phonetic encodings such as Double Metaphone [36] handle spelling variants, but they were designed for English names and cannot read Devanagari.
+
+Cross-script and cross-lingual matching needs Indic resources. Sentence-BERT [37] produces sentence embeddings suited to similarity search, and L3Cube's IndicSBERT [38] adapts this approach to ten Indian languages, reporting stronger cross-lingual similarity than general multilingual encoders. AI4Bharat's Aksharantar corpus and the IndicXlit transliteration model [39] provide large-scale transliteration between Roman and Indic scripts. Named-entity resources such as Naamapadam [40] and L3Cube-MahaNER [41] supply annotated Indic NER data. In ArogyaRakshak, IndicSBERT is integrated as an optional signal; IndicXlit could not be installed on the project's Python 3.11 stack because its fairseq dependency publishes wheels only for older Python versions, so cross-script matching is implemented with a rule-based romaniser and an Indic phonetic key instead (Section 5.1.4).
+
+## 2.7 Regulatory and Data-Protection Foundations
+
+The modules encode a small number of public regulatory sources. IRDAI's Master Circular on Health Insurance Business [3] consolidates instructions on claim settlement, cashless authorisation timelines and policyholder protection; reports at its release highlighted that insurers must decide emergency cashless requests within one hour and final discharge authorisation within three hours. The Insurance Ombudsman Rules, 2017 [4] define the Ombudsman route and its limitation period. The Drugs (Prices Control) Order, 2013 [6] empowers NPPA to fix ceiling prices for scheduled formulations, and CGHS publishes the rates it reimburses [7]. PM-JAY provides cover of up to ₹5 lakh per family per year to eligible families identified through deprivation and occupational criteria [8], extended in 2024 to all citizens aged 70 and above [9], [10]; MJPJAY extends coverage in Maharashtra [11]. On data protection, the Digital Personal Data Protection Act, 2023 [12] frames consent and purpose limitation for personal data, and ABDM's use of HL7 FHIR [13], [14] defines the record format in which interoperable health data is exchanged. Our use of these sources is limited to what each module cites in code; Chapter 9 discusses the risk that they change.
+
+## 2.8 Comparative Analysis
+
+!table Summary of surveyed work and its bearing on ArogyaRakshak | 18,26,26,30
+| Work | Contribution / approach | Limitation for our setting | Use in ArogyaRakshak |
+| Rahulprasath et al. [15] (base paper) | OCR + RAG + LLM summarisation of medical reports for patients | English only; single document; passive summary | Extract-then-ground pattern, extended to linked, actionable, multilingual outputs |
+| Smith [22]; Gîfu [24]; Prakash et al. [25] | Printed, handwritten and scene-text OCR | Plausible-looking errors on handwriting and photos | OCR confidence feeds a trust gate and human transcription |
+| Xu et al. [23] LayoutLM | Joint text + layout extraction from forms | Needs labelled Indian bill data | Future work for bill layout (Ch. 10) |
+| du Preez et al. [26]; Azad & William [27] | ML and NLP fraud detection in claims | Payer-side, data-hungry, limited interpretability | Rule-based benchmarks; explanation per finding |
+| Xie et al. [28]; Ly et al. [31] | Claims modelling; NLP in insurance | Structured institutional data | Problem framing only |
+| Mustafa et al. [29]; Singhal et al. [21] | LLM capability on clinical text | Inconsistent, occasionally harmful errors | LLMs read and draft; never decide clinical facts |
+| Lewis et al. [16]; Ji et al. [17] | Retrieval grounding; hallucination taxonomy | Grounding reduces but does not remove errors | Deterministic decisions; grounded drafting; refusals |
+| Wu et al. [19]; Du et al. [20]; Zheng et al. [18] | Multi-agent decomposition, debate, LLM judges | Judges can be biased or cosmetic | Typed agent chain; deterministic judge checks |
+| Fellegi & Sunter [32]; Christen [33]; [34]–[36] | Record-linkage theory; string and phonetic measures | English-centric phonetics | Three-way merge/ask/new; Indic phonetic key |
+| Deode et al. [38]; Madhani et al. [39]; [40], [41] | Indic sentence embeddings, transliteration, NER | Large models; dependency constraints | Optional IndicSBERT signal; IndicXlit blocked (#29) |
+
+## 2.9 Identified Research and Technological Gaps
+
+Reading across Table 2.1 and Table 2.2, six gaps emerge, each of which corresponds to a design decision described in later chapters.
+
+- **G1 — No patient-side, document-first tool.** Existing services start from information the user must already know; none reads the patient's own bill, letter or prescription. *Addressed by:* BYOD intake and Kadi extraction.
+- **G2 — No linkage across concerns.** A bill, a denial and a prescription from the same admission are treated as unrelated. *Addressed by:* Kadi's shared, consent-bounded case context and auto-triggered checks.
+- **G3 — Fluency without accountability.** LLM-based tools produce persuasive text whose basis cannot be inspected. *Addressed by:* deterministic comparisons, typed agent outputs and an explanation trail on every finding.
+- **G4 — No principled abstention.** Systems that always return an answer will eventually return a harmful one. *Addressed by:* convert-or-refuse price basis rules, "not benchmarked" lines and explicit insufficient-evidence states.
+- **G5 — Cross-script blind spots.** English-centric matching misses क्रोसिन and Crocin as the same medicine. *Addressed by:* Indic phonetic keys and optional IndicSBERT.
+- **G6 — Clinical authority by implication.** Automated appeals often imply medical endorsement they do not have. *Addressed by:* the clinical-review layer, in which only an attributable human statement can enter an appeal, verbatim.

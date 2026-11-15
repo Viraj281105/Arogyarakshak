@@ -1,0 +1,79 @@
+@chapter 3 | Proposed System
+
+## 3.1 Overview of ArogyaRakshak
+
+ArogyaRakshak (आरोग्यरक्षक, "protector of health") is organised around a single object: the **case**. A case begins when a patient or caregiver uploads a document and decides whether its contents may be shared across modules. From that moment Kadi reads the document, extracts what it can, reconciles new information with what the case already holds, and — if consent was given — runs the module checks for which the case now has enough context. The patient sees a live progress stream, a plain-language history of what has happened to the case, and a set of findings, each of which can be expanded to show exactly why it was produced.
+
+The name of each module reflects its role. *Nyay* means justice: **BillNyay** seeks fairness in a hospital bill and **BimaNyay** in an insurance decision. *Setu* means bridge: **DaaviSetu** bridges the patient to a complete claim (*daavi*, a claim) and **SchemeSetu** to a government scheme. **DawaCheck** checks the price of *dawa*, medicine. **Kadi** (कड़ी, a link in a chain) is the layer that connects them.
+
+## 3.2 Core Philosophy
+
+Five principles, each recorded as an architecture decision, govern how the system behaves. They are worth stating before the requirements, because several requirements exist only to enforce them.
+
+!callout Design principles
+**1. Bring your own document (ADR-003).** An uploaded file exists only in memory while it is read. The server keeps a SHA-256 digest for duplicate detection and a redacted excerpt — never the file.
+**2. Consent before linkage (ADR-003, ADR-009).** Cross-module reads require a per-case opt-in that defaults to off and is enforced on the server, not trusted from the client.
+**3. Explain or abstain (ADR-012, ADR-017).** Every finding carries the rule, reference row and inputs behind it; when the basis cannot be established, the output is a reason, not a number.
+**4. No manufactured clinical authority (ADR-011).** Software never writes, signs or implies a clinician's opinion. Clinical facts go to a named human reviewer.
+**5. Honest disclosure.** Synthetic data, degraded modes, unverified sources and accepted risks are labelled where they appear, in the interface and in the documentation.
+!endcallout
+
+## 3.3 Proposed Solution
+
+The solution has three layers. At the bottom, **framework-free domain packages** implement the rules of each domain: how a CGHS rate is applied, how a denial category maps to a regulatory clause, how a strip price becomes a per-tablet price. Above them, **Kadi** turns documents into a consistent case context that every package can read. At the top, an **application layer** exposes the packages through a versioned HTTP API and two clients, adds authorisation, consent, persistence and background processing, and keeps the user informed while work is in progress. Chapter 4 describes this structure in detail; this chapter describes what it does for the user.
+
+Figure 3.1 shows the actors and their principal use cases. The patient or caregiver is the primary actor. Four secondary actors exist because of the human-review principle: a clinical reviewer to whom a patient may delegate a single review, a pharmacist or medical transcriptionist who resolves uncertain handwriting, a governance board member who approves safety rules, and, in demonstration deployments only, an operator who resets and loads synthetic scenarios.
+
+!figure fig_usecase.png | Use-case diagram of ArogyaRakshak | 6.1
+
+## 3.4 Major Modules and System Capabilities
+
+!table Summary of modules, inputs, outputs and reference sources | 15,25,30,30
+| Module | Input it reads | Output to the patient | Reference / rule source |
+| Kadi | Bill, letter, prescription (PDF, image, text); FHIR R4 bundle | Case entities, duplicate questions, timeline, auto-triggered insights | Shared parsing rules; optional Groq LLM; optional IndicSBERT |
+| BillNyay | Bill line items; diagnosis and procedures | Per-line verdict (within / above / not benchmarked), plausibility note, dispute or appeal letter and PDF | Curated CGHS subset (27 entries) with billing units; curated ICD-10 table; cited law library |
+| DaaviSetu | Case entities; optional institution playbook | Readiness checklist, Annexure-B-style pre-authorisation PDF, claim package ZIP | Playbook items; IRDAI claim-form fields |
+| BimaNyay | Denial category, dates, policy age, amounts | Possible violations, GRO / Bima Bharosa / Ombudsman drafts, dated milestones | IRDAI Master Circular [3]; Ombudsman Rules [4] |
+| SchemeSetu | State of residence (income recorded only) | Provisional verdict per scheme with reasoning trace and sources | Cited PM-JAY and MJPJAY criteria [8]–[11] |
+| DawaCheck | Medicine name, amount and stated basis | Per-unit comparison with ceiling, generic suggestion, shorthand translation | Curated NPPA Schedule-I subset (7 formulations) [6] |
+
+Beyond the modules, several cross-cutting capabilities are visible to the user: a live processing stream; a case timeline built only from persisted records; a "Why am I seeing this?" explanation on every finding; provenance labels distinguishing machine-derived, human-reviewed, human-authored, external and patient-provided content; a Claim Pack that bundles every module's output into one in-memory ZIP with an optional password-protected, browser-side encrypted variant; on-device read-aloud for key summaries; a simple-language mode; and permanent deletion of the case on request.
+
+## 3.5 User Workflow
+
+Figure 3.2 shows the main workflow. A patient uploads a document from the web or mobile client and chooses whether to allow cross-module sharing. Kadi reads the document and resolves its entities against the case; if the same medicine appears under two spellings, the patient is asked rather than having the two silently merged. With consent, the read-only module checks run automatically and their results appear alongside the case. The patient can then open any module to see its full output, generate letters or forms, and download the Claim Pack. Two side paths keep humans in the loop: clinical facts route to a reviewer chosen by the patient, and uncertain handwriting on a prescription routes to two independent readers before any price is compared.
+
+!figure fig_workflow.png | End-to-end user workflow from upload to patient-facing output | 6.1
+
+## 3.6 Functional Requirements
+
+!table Functional requirements | 9,58,33
+| ID | Requirement | Realised by |
+| FR-1 | Create a case with an explicit cross-module consent choice and return a one-time access token. | `POST /kadi/cases`; ADR-009 |
+| FR-2 | Accept a PDF, image or text document, process it in memory and stream progress to the client. | Upload route, document jobs, SSE stream |
+| FR-3 | Extract hospital, diagnoses, procedures, medicines, amounts and bill lines into a shared schema. | Kadi extraction (LLM or heuristic) |
+| FR-4 | Resolve new mentions against the case, asking the user when identity is uncertain. | Kadi resolution; merge/ask/new |
+| FR-5 | Audit each bill line against the CGHS subset, honouring per-day, per-visit and per-session units. | BillNyay audit + rate basis |
+| FR-6 | Draft a dispute or appeal letter in English, Hindi or Marathi and compile a verifiable PDF. | BillNyay agents; PDF compiler |
+| FR-7 | Check pre-authorisation readiness and generate a pre-filled request and claim package. | DaaviSetu readiness, generator, assembler |
+| FR-8 | Audit a denial, list possible violations, draft three escalation tiers and compute deadlines. | BimaNyay auditor, drafter, tracker |
+| FR-9 | Report PM-JAY and MJPJAY eligibility with a step-by-step trace and cited sources. | SchemeSetu agent + reasoning trace |
+| FR-10 | Compare a medicine price with its NPPA ceiling on a per-unit basis, or refuse with a reason. | DawaCheck checker + price basis |
+| FR-11 | Attach a deterministic explanation to every finding. | `kadi.explanation` (ADR-017) |
+| FR-12 | Allow delegated clinical review, human transcription and governed safety rules. | Clinical review layer (ADR-011) |
+| FR-13 | Bundle all outputs into a Claim Pack and delete a case with everything derived from it. | Claim Pack (ADR-015); purge (ADR-010) |
+| FR-14 | Provide the interface in English, Hindi and Marathi on web and mobile. | Translation dictionaries in both clients |
+
+## 3.7 Non-Functional Requirements
+
+!table Non-functional requirements and how they are verified | 18,50,32
+| Quality | Requirement | Verification |
+| Privacy | No uploaded document written to disk or database; direct identifiers redacted from stored excerpts; cases expire after a configurable TTL (default 90 days). | CI guardrail (BYOD scan); redaction and purge tests |
+| Security | Constant-time token check on every case route; rate limiting; hardening headers; no internal error text returned to clients. | Security test suites; ADR-008/009 |
+| Correctness | No price verdict without an established basis; no probability without a cited, non-synthetic dataset. | Price-basis and outcome-estimator tests |
+| Transparency | Every finding explains its rule, data row and inputs; provenance labels survive downstream. | Explanation API tests |
+| Performance | Document processing completes within 10 s on the reference path. | Latency harness (p95 0.035 s on text fixtures) |
+| Reliability | Interrupted jobs are detected on restart and the client is told to re-upload. | Document-job tests (ADR-019) |
+| Accessibility | Mobile-first layout from 320 px, touch targets ≥ 44 px, light and dark themes, WCAG 2.1 AA contrast targets [46]. | Browser checks at 375 px and 1440 px |
+| Maintainability | Domain packages framework-free and mutually independent; schema changes only through migrations. | import-linter (5 contracts); migration test |
+| Portability | Reproducible containers with CPU-only ML dependencies; local-only port bindings. | Docker builds; guardrails |

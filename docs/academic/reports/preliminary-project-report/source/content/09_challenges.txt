@@ -1,0 +1,40 @@
+@chapter 9 | Challenges, Limitations and Risk Assessment
+
+## 9.1 Technical Challenges
+
+**Reading real documents.** Indian hospital bills vary from clean computer printouts to faded dot-matrix sheets and handwritten additions, and prescriptions are often handwritten in a mix of English, Devanagari and Latin abbreviations. The current OCR configuration reads English only, and every accuracy figure in this report comes from text fixtures or simulated OCR errors. Until a consented, de-identified Devanagari test set exists (#35) and real-scan WER/CER is measured (#114), document reading remains the single largest technical uncertainty.
+
+**Dependency constraints in the Indic ecosystem.** Some of the most relevant open models cannot be installed on a modern stack. IndicXlit's dependency on fairseq, whose last release supports only Python 3.6–3.8, forced a rule-based alternative. IndicSBERT required moving PyTorch to a newer release because of a security restriction on loading its weight format, and its roughly 950 MB of weights make it too heavy to enable by default.
+
+**Statelessness versus reliability.** The zero-retention rule means no durable job queue, no worker pool and no retry after a crash. The project accepted this trade-off explicitly (ADR-019) and compensated with persisted job state and honest "interrupted — please re-upload" messages, but it limits the system to a single API replica.
+
+**Making an LLM pipeline trustworthy.** The appeal chain is only as reliable as its weakest link. Our own audits found a judge that returned constant scores, a drafting template that implied a physician's endorsement, and fixed prompt delimiters that a crafted document could forge. Each was fixed, but the episode shows that LLM components need the same adversarial testing as security-critical code.
+
+## 9.2 Domain Challenges
+
+**Reference data that is public but not machine-readable.** CGHS schedules and NPPA price orders are published largely as PDFs whose structure changes between revisions, and some scheme resolutions could not be retrieved at all. The bundled tables are therefore curated subsets, and each finding must say so.
+
+**Regulation as a moving target.** The IRDAI Master Circular of May 2024 replaced dozens of earlier circulars, and scheme eligibility changed in 2024 with the extension of PM-JAY to everyone aged 70 and above. Rules encoded in code age; each record carries its source and date so that a reviewer can tell what to re-check.
+
+**Legal and clinical boundaries.** The system drafts letters but is not a lawyer, and audits bills but cannot judge medical necessity. Labels used in evaluation reflect the team's reading of regulations, not legal advice, and clinical questions are routed to humans whose registration the system cannot verify, because no authorised registry interface is available.
+
+**Language quality.** Hindi and Marathi interface strings and appeal templates exist, but native-speaker review is outstanding. A grammatically clumsy or legally imprecise appeal in a regional language could undermine the very user it is meant to help.
+
+## 9.3 Limitations of the Current Build
+
+The present system has no user accounts, so it is supported only as a local, single-machine demonstration. Its benchmarks cover 27 CGHS entries, seven NPPA formulations and two schemes. BimaNyay decides from the denial category and policy age without reading the insurer's reasons. Evaluation uses small synthetic datasets written by the team, so the numbers are regression floors rather than accuracy claims. The mobile client has not been run on a device, and the LLM path has not been run with a real key.
+
+## 9.4 Risk Assessment
+
+!table Risk register | 26,10,10,54
+| Risk | Likelihood | Impact | Mitigation in place or planned |
+| A finding is wrong and the patient acts on it | Medium | High | Deterministic rules; refusal when the basis is unknown; explanation on every finding; "not benchmarked" never shown as fair |
+| OCR misreads a medicine or amount | High | High | Confidence-based trust gate; two blind human readings; held-back medicines never priced |
+| LLM produces unsupported text in an appeal | Medium | High | LLM limited to drafting; deterministic judge checks; unverifiable citations stripped; offline template fallback |
+| Prompt injection through an uploaded document | Medium | Medium | Random per-call boundaries; typed outputs; no tool execution by agents |
+| Unauthorised access to a case | Low–Medium | High | 256-bit hashed token; rate limiting; local-only deployment until real authentication exists |
+| Re-identification from stored facts | Low | High | Direct-identifier redaction; no file storage; deletion and 90-day expiry; no claim of anonymity |
+| Reference data becomes outdated | High | Medium | Source and date on each record; table snapshot tests; planned scheduled re-ingestion |
+| Hindi/Marathi text is inaccurate | Medium | Medium | Strings marked for review; native-speaker QA before release |
+| Dependency vulnerabilities, especially in the mobile toolchain | Medium | Medium | Dependabot, security workflow and pinned versions; Expo SDK upgrade planned as one coordinated change |
+| Scope exceeds remaining time | Medium | Medium | Phased plan; Phase 5 limited to validation, demo and documentation |

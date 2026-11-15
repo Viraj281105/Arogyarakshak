@@ -1,0 +1,9 @@
+This report is the written half of a project that has kept five of us busy since July, and several people deserve thanks before we begin.
+
+We are grateful to our guide, **Prof. Deipali V. Gore**, for approving a project whose scope was larger than a typical final-year submission and for repeatedly asking the question that shaped most of our engineering decisions: *how do you know that output is correct?* We thank the Head of the Department of Computer Engineering and the Principal of PES's Modern College of Engineering for the facilities and the academic environment that made the work possible, and the department's faculty and laboratory staff for their support.
+
+The project leans heavily on public work done by others: the open Indic-language models released by L3Cube Pune and AI4Bharat, the open-source OCR and web frameworks listed in Chapter 7, and the rate schedules, price orders and circulars published by CGHS, NPPA, the National Health Authority, the Government of Maharashtra and IRDAI. Without that public information there would be nothing for a patient-facing audit tool to compare against.
+
+Finally, we thank our families for their patience during the many late evenings this build required.
+
+Viraj Jadhao · Anurag Pawar · Sanjali Paygude · Raj Janvekar · Arya Chandak

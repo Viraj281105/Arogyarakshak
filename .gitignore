@@ -258,3 +258,6 @@ test_temp.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Lighthouse CI output
+.lighthouseci/

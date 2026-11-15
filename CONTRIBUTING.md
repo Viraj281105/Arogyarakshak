@@ -41,7 +41,7 @@ The repository is organized as a unified monorepo:
 arogyarakshak/
 ├── apps/
 │   ├── api/             # FastAPI asynchronous backend application
-│   ├── web/             # Next.js 15 App Router web client
+│   ├── web/             # Next.js 16 App Router web client
 │   └── mobile/          # React Native / Expo mobile application (planned)
 ├── packages/            # Domain logic libraries (editable python packages)
 │   ├── kadi/            # Shared context, entity resolution, vector stores
@@ -174,7 +174,7 @@ curl http://localhost:8000/health
 - Communicate between agent stages using structured **Pydantic models / JSON schemas**, not unstructured free-form text.
 
 ### 7.2 Frontend Standards
-- Built on Next.js 15/16 App Router.
+- Built on Next.js 16 App Router.
 - Write modular, semantic HTML components.
 - Prepare all user-facing strings for i18n localization (English, Hindi, Marathi).
 

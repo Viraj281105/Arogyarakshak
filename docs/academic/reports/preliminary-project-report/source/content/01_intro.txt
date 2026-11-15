@@ -1,0 +1,55 @@
+@chapter 1 | Introduction
+
+## 1.1 Background
+
+Most discussions of healthcare technology in India start with diagnosis: better imaging, earlier detection, telemedicine for under-served districts. ArogyaRakshak starts somewhere less glamorous. It begins at the billing counter, on the day a patient is discharged, when a family is handed a stack of papers and asked to pay, to claim, or to appeal. The medical part of the episode may be over; the administrative part is just beginning, and it is where much of the financial harm of an illness is decided.
+
+India's health financing makes that administrative layer unusually consequential. According to the National Health Accounts estimates for 2022–23, out-of-pocket expenditure still made up roughly 43.4% of total health expenditure in the country [1]. A large share of hospital costs therefore lands directly on households, and the remainder flows through insurers and government schemes whose rules the household is expected to understand. Chronic illness magnifies the problem: the ICMR–INDIAB study estimated that more than 100 million Indians were living with diabetes in 2021 [2], a population that faces repeated admissions, recurring prescriptions and long-running interactions with insurers.
+
+The rules that govern these interactions are, in principle, public. The Central Government Health Scheme (CGHS) publishes the rates it pays empanelled hospitals [7]. The National Pharmaceutical Pricing Authority (NPPA) notifies ceiling prices for scheduled formulations under the Drugs (Prices Control) Order, 2013 [6]. The Insurance Regulatory and Development Authority of India (IRDAI) consolidated its health-insurance instructions in a Master Circular dated 29 May 2024 [3], and grievance routes run from the insurer's Grievance Redressal Officer to the IRDAI Bima Bharosa portal and the Insurance Ombudsman [4], [47]. The Ayushman Bharat Pradhan Mantri Jan Arogya Yojana (PM-JAY) and Maharashtra's Mahatma Jyotirao Phule Jan Arogya Yojana (MJPJAY) publish their eligibility criteria [8]–[11]. Public, however, is not the same as usable. These sources are scattered across portals and PDF circulars, written almost entirely in English legal and administrative language, and rarely connected to the specific document a patient is holding.
+
+## 1.2 The Indian Healthcare Landscape from the Patient's Side
+
+Figure 1.1 follows a single hospital episode from the patient's point of view. At each step a document appears that could, in principle, be checked against a public rule — and at each step the patient is usually the least-equipped person in the room to check it.
+
+!figure fig_problem.png | The administrative journey of a hospital episode and the module that addresses each friction point | 6.1
+
+Four friction points recur. First, **bill opacity**: an itemised bill lists room rent, nursing, consumables and procedures, but the patient has no reference against which to judge whether ₹7,200 for three days in a general ward is reasonable, or whether nursing should have been charged separately at all. Second, **claim paperwork**: cashless pre-authorisation requires a specific set of documents and clinical facts, and an incomplete request is delayed or rejected for administrative rather than medical reasons. Third, **denials and deductions**: when an insurer repudiates a claim it cites a clause, but whether that clause actually applies — for instance, whether a pre-existing-disease exclusion survives the moratorium period — and which deadline governs the next step are questions most policyholders cannot answer unaided. Fourth, **medicine pricing**: branded medicines are bought at retail MRP even when a ceiling price applies or a cheaper generic is available. Cutting across all four is a fifth question that is often never asked: whether the family was covered by PM-JAY or MJPJAY in the first place.
+
+## 1.3 Problem Identification
+
+The project grew out of a hackathon prototype of a bill-auditing tool, then called BillGuard. Taking it forward as a final-year project forced a closer look at what had actually gone wrong for the people the prototype was meant to help. Three observations shaped everything that followed.
+
+The first was that the four friction points are not separate problems. They share the same inputs (a patient's own documents), the same entities (a hospital, a diagnosis, a procedure, a list of medicines, a set of amounts) and the same need (compare a document with a public rule and decide what to do next). Building four independent tools would make the patient upload the same discharge summary four times and re-type the same facts into four forms.
+
+The second was that the cost of a wrong answer is asymmetric. A tool that tells a patient a bill line is "+1,335% overcharged" when it has actually compared a strip of fifteen tablets with a per-tablet ceiling does real harm: the patient may confront a hospital on false grounds or lose trust in a legitimate finding. We encountered exactly this class of error in our own early builds (Section 5.6). A useful system therefore has to know when *not* to answer.
+
+The third was that the most valuable data in this domain is also the most sensitive. Bills, prescriptions and claim letters reveal diagnoses, finances and identity. A design that accumulates them on a server for convenience would create a liability far larger than the problem it solves.
+
+## 1.4 Motivation
+
+Our motivation is practical rather than speculative. The reference data needed to check a bill, a price or a denial already exists and is published by the government; what is missing is the layer that reads a patient's document, finds the right reference, performs the comparison honestly, and explains the result in the patient's language. Large language models make the reading and drafting parts feasible for a student team for the first time, but they also make it easy to produce fluent, confident and wrong text. Much of the engineering effort described in this report therefore goes into the opposite direction: deterministic comparisons, explicit refusals, provenance on every finding, and human review wherever a clinical judgement is involved.
+
+## 1.5 Problem Statement
+
+To design and build a multilingual (English, Hindi, Marathi) decision-support platform that ingests a patient's own healthcare documents — a hospital bill, prescription, insurer denial letter or policy excerpt — once, holds the document only in memory while it is read, and, with the patient's explicit consent, produces evidence-grounded outputs across five concerns: a line-by-line bill audit against CGHS reference rates; a pre-authorisation readiness check and pre-filled request; an audit of claim denials against IRDAI rules with drafted escalations and statutory deadlines; a provisional PM-JAY/MJPJAY eligibility assessment; and a per-unit comparison of medicine prices with NPPA ceilings — while stating, for every finding, the rule and data it rests on, and refusing to produce a finding when the evidence does not support one.
+
+## 1.6 Objectives
+
+1) Build a shared intelligence layer (Kadi) that performs OCR, line-item parsing, entity extraction, identifier redaction and entity resolution once per document, and makes the resulting case context available to every module under a per-case consent boundary.
+2) Audit hospital bills line by line against a published CGHS benchmark subset, respecting the billing unit of each rate, and draft dispute and appeal letters whose factual content can be traced back to the case (BillNyay).
+3) Separate the insurance lifecycle cleanly into pre-claim preparation (DaaviSetu) and post-denial dispute handling against the IRDAI Master Circular with a three-tier escalation tracker (BimaNyay).
+4) Report PM-JAY and MJPJAY eligibility from cited official criteria with a step-by-step reasoning trace, never presenting an unverifiable criterion as a negative result (SchemeSetu).
+5) Compare medicine prices with NPPA ceilings only on a stated per-unit basis and refuse comparisons whose basis cannot be established (DawaCheck).
+6) Deliver the platform on web and mobile in English, Hindi and Marathi, under a zero-document-retention privacy model with server-enforced erasure.
+7) Validate the system through automated tests, architectural contracts and continuous integration, and define and run quantitative evaluation harnesses whose limitations are reported alongside their results.
+
+## 1.7 Scope
+
+The scope of the current build, and of this report, is deliberately bounded. ArogyaRakshak handles administrative and financial questions; it does not diagnose, recommend treatment or decide medical necessity. Bill benchmarking is limited to the curated CGHS subset bundled with the system, medicine benchmarking to a curated subset of NPPA Schedule-I formulations, and scheme eligibility to PM-JAY nationally and MJPJAY in Maharashtra. The supported deployment is a local, single-machine demonstration (ADR-013); public hosting is out of scope until a real authentication layer replaces the current per-case token model. Devanagari OCR, real-document accuracy measurement and native-speaker review of Hindi and Marathi text are planned work and are reported as such.
+
+## 1.8 Significance of the Project
+
+The contribution of ArogyaRakshak is less any single algorithm than the combination it attempts. To our knowledge from the survey in Chapter 2, no existing tool links bill auditing, claim preparation, denial disputes, scheme eligibility and medicine pricing through one shared, consent-bounded case context, in three languages, while treating abstention as a first-class output. The project also offers a concrete case study in building an LLM-assisted system for a high-stakes domain with the opposite instinct to the usual one: wherever a deterministic rule can decide, it decides; wherever a human must decide, the system routes the question to a human; and wherever neither is possible, the system says so.
+
+The remainder of this report is organised as follows. Chapter 2 surveys existing systems and research. Chapter 3 presents the proposed system and its requirements, and Chapter 4 its architecture. Chapter 5 examines each module in depth, Chapter 6 the methodology and evaluation, and Chapter 7 the technology stack. Chapter 8 reports current progress with verified results, Chapter 9 the challenges and risks, and Chapter 10 the documented roadmap and long-term vision. Chapter 11 concludes.

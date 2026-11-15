@@ -1,0 +1,64 @@
+@chapter 8 | Current Progress and Preliminary Results
+
+Every figure in this chapter comes from the repository or from runs we performed on 4 November 2026. Where a capability has been checked only on synthetic data, or only by type-checking, that is stated.
+
+## 8.1 How the Project Evolved
+
+The project was approved by the guide in July 2026 on the basis of a technical specification for three modules — BillNyay, SchemeSetu and DawaCheck — linked by Kadi. It inherited a hackathon prototype of the bill auditor, then called BillGuard, whose LLM pipeline had to be re-pointed immediately because the model it used had been deprecated by the inference provider. Over the following four months the scope grew in one direction and shrank in another. It grew when the insurance lifecycle was split into two new modules, DaaviSetu and BimaNyay (ADR-005), when a mobile client was added, and when the clinical-review layer was introduced to stop the system from implying medical authority it did not have. It shrank, in the sense of becoming more honest, whenever a planned technique turned out to be unnecessary, unavailable or unsafe. Table 8.1 records the most important of these changes.
+
+!table Evolution of key design decisions between the approved specification and the current build | 22,30,48
+| Topic | Original plan (July 2026) | Current build and reason |
+| Similarity search | FAISS + pgvector entity store | Not used. Resolution blocks by case and type, so candidate sets are tiny; the unwired scaffold was deleted (Oct 2026). |
+| Transliteration | IndicXlit (AI4Bharat) | Rule-based Devanagari romaniser + Indic phonetic key; IndicXlit's fairseq dependency has no Python 3.11 wheels (#29 open). |
+| Cross-lingual matching | IndicSBERT as a scoring signal | Implemented, optional and off by default; may ask but never merge after the Prednisone/Prednisolone finding. |
+| Scheme eligibility | RAG over PM-JAY/MJPJAY documents | Deterministic rule engine with reasoning trace; unsourced income limits removed (Sep 2026). |
+| Appeal QA | LLM "judge" with scores | Deterministic judge checks against case facts; fixed scores found and removed. |
+| Insurance | Inside BillNyay | Split into DaaviSetu (pre-claim) and BimaNyay (post-denial). |
+| Data retention | "Temporary" case records | Explicit DELETE (ADR-010) plus a 90-day server-enforced TTL sweep. |
+| Access control | None | Per-case 256-bit token, hashed at rest, constant-time check (ADR-009); full accounts deferred (ADR-008). |
+| Prices | Compare MRP with ceiling | Establish the price basis first; refuse otherwise (ADR-012). |
+
+## 8.2 Milestones and Work Completed
+
+Figure 8.1 places the work on a timeline drawn from the commit history. Phase 0 (scoping, monorepo scaffolding and the model swap) and Phase 1 (Kadi, four modules, CI) were complete by mid-August. Phases 2 and 3 — BimaNyay, the mobile client, end-to-end wiring of both clients, entity resolution and auto-triggering — closed on 13 September with all assigned issues resolved. Phase 4, covering multilingual output, evaluation and hardening, began on 15 September and is in progress. Within it, the clinical-review and safety-governance layer (late September), a release-candidate pass that validated the stack on PostgreSQL 16 and Docker Compose, the evaluation harnesses, explanation trail and Claim Pack (mid-October), an engineering-foundation pass introducing the service layer, migrations and deployment manifests, and a page-by-page redesign of the web client (October 21) were completed.
+
+!figure fig_gantt.png | Project timeline: completed work from the commit history and indicative plans to April 2027 | 6.1
+
+In quantitative terms, the repository on the date of this report contains about 26,000 lines of production Python across the API and six packages, a web client of roughly 10,500 lines and a mobile client of roughly 7,700 lines, 27 database tables, 99 API paths, 21 ADRs and 146 commits.
+
+## 8.3 Testing and Verification Results
+
+Table 8.2 lists the checks we re-ran for this report. All were run from a clean working tree on the `arch/engineering-foundation` branch.
+
+!table Verification performed on 4 November 2026 | 34,22,44
+| Check | Result | Notes |
+| Backend tests (`pytest`, packages + API) | 1,119 passed, 7 skipped | 181 s; the PostgreSQL migration variant is skipped locally and runs in CI |
+| Architecture contracts (`lint-imports`) | 5 kept, 0 broken | 214 files, 1,036 dependencies analysed |
+| CI guardrails (`ci_guardrails.py`) | 8 / 8 passed | BYOD, model grounding, naming, prefixes, secrets, CPU pin, port bindings |
+| Web tests (`npm test`) | 153 / 153 passed | API contracts, dictionaries, price basis, explanations |
+| Web lint (`eslint`) | 0 problems | |
+| Mobile tests (`npm test`) | 126 / 126 passed | Processing state machine, reminders, explanations |
+| Live API (demo mode, SQLite) | `/health` OK; Scenario A processed | GROQ_API_KEY unset (disclosed degraded mode) |
+| Browser check of web client | Landing, case desk, BillNyay audit, DawaCheck check | Screenshots in Figures 8.3–8.6 |
+
+The growth of the automated suites over the project (Figure 8.2) mirrors the methodology described in Chapter 6: most of the increase came in hardening passes, when each defect found by an audit was fixed together with a test that would have caught it.
+
+!figure fig_tests.png | Automated tests passing at each major milestone | 6.1
+
+Development-time latency on the reference path (offline extraction, synthetic single-page text fixtures, SQLite) was 0.026 s at the median and 0.035 s at the 95th percentile over 20 runs, well inside the 10-second target; scanned PDFs through EasyOCR and real Groq round-trips are different workloads and have not been measured. The evaluation results on synthetic data were presented in Section 6.7.
+
+## 8.4 The System in Operation
+
+Figures 8.3 to 8.6 are screenshots taken from the running system for this report, with the API in demonstration mode on a local SQLite database and synthetic Scenario A loaded through the real processing pipeline. Figure 8.3 shows the landing page, whose illustrative bill is labelled as such. Figure 8.4 shows the case desk after processing: the completed stage tracker, the server's last message, the safety-check notice and the case history built from persisted records. Figure 8.5 shows BillNyay's audit of the Scenario A bill: of ₹1,47,750 billed, five lines could be compared with the CGHS subset, and four lines totalling ₹50,950 are reported as *not benchmarked* rather than as fair. Figure 8.6 shows DawaCheck converting "₹33 for a strip of 15" to ₹2.20 per tablet and comparing it with the ₹2.30 ceiling.
+
+!figure 01_landing.png | Web client landing page (light theme, desktop width) | 5.0
+
+!figure 02_case.png | Case desk after processing synthetic Scenario A: stage tracker, safety notice and case history | 5.0
+
+!figure 03_billnyay.png | BillNyay audit of the Scenario A bill, with not-benchmarked lines shown separately | 5.0
+
+!figure 04_dawacheck.png | DawaCheck per-unit comparison with the NPPA ceiling, including the stated price basis | 5.0
+
+## 8.5 Remaining Work
+
+Four groups of work remain. **Validation:** run the mobile client on a device, exercise the LLM path with a real Groq key, and force the "safety unavailable" fallback on PostgreSQL. **Accuracy:** Devanagari OCR, real-document WER/CER, the BMA synonym and substring defects, BimaNyay's reliance on the category string, full CGHS and Schedule-I ingestion, and form-mapping accuracy. **Language:** native-speaker review of every Hindi and Marathi string, including appeal templates. **Integration:** client wiring of BillNyay's appeal and grievance routes, push delivery of reminders, and the deployment decision for the final demonstration (Chapter 10).

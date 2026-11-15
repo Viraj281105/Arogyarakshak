@@ -1,0 +1,56 @@
+@chapter 10 | Future Scope and Long-Term Vision
+
+ArogyaRakshak's planning documents — the task backlog, 128 GitHub issues, 21 ADRs (including one design-only proposal) and a separate futuristic-scope document — describe a system considerably larger than the one built so far. This chapter gathers those ideas, organises them into three horizons (Figure 10.1) and, for each, explains what it would do and what it would take. Ideas that originate in this report rather than in the repository are marked ◆ and discussed separately in Section 10.5.
+
+!figure fig_roadmap.png | Roadmap across three horizons, drawn from the repository's planning documents | 6.1
+
+## 10.1 Near Term: Completing and Validating the Current System
+
+The near-term work is less about new features than about turning a well-tested prototype into one whose outputs can be trusted on real paperwork.
+
+- **Devanagari OCR and real-document accuracy (#35, #114, #108).** Add Hindi/Marathi recognition, build a consented, de-identified test set of real bills and prescriptions, and report WER/CER per document type. This replaces the largest unknown in the system with a number, and it feeds the trust gate with calibrated confidence thresholds.
+- **Full CGHS schedule and better mapping (#13).** Parse the official schedule with its procedure codes, add a reviewed synonym table ("USG" → ultrasound) and replace substring matching with token-aware matching, eliminating the "ppe inside appendectomy" class of error found by the BMA harness.
+- **BimaNyay reads the insurer's reasons.** Classify the free-text reason in a denial letter in addition to its category, so that a valid, documented denial is not called wrongful — the main cause of the CRMA score of 0.560.
+- **Validation debt.** Run the mobile client on Android devices, wire push delivery of deadline reminders, run one full scenario with a real Groq key, and complete native-speaker review of Hindi and Marathi (#37). Wire BillNyay's appeal and grievance routes into both clients (#20).
+
+## 10.2 Medium Term: Expanding Reach and Integration
+
+- **Real authentication.** Replacing ADR-008's accepted risk with accounts or a verified identity provider is the precondition for any hosted deployment. The per-case token model can remain as a delegation mechanism on top.
+- **ABDM integration (#46, #54, #56).** Kadi already parses FHIR R4 bundles; registering as a health-information user in the ABDM sandbox would let a patient pull their discharge summary and prescriptions with ABDM consent instead of photographing them, improving accuracy and reducing OCR risk.
+- **Insurer templates and form-mapping accuracy (#48, #78, #105).** Ingest verified pre-authorisation templates from major insurers, measure field-mapping accuracy, and check filled fields by OCR before download (#82).
+- **Richer language technology (#29, #85, #63, #62).** Adopt IndicXlit when its dependencies allow, add clinical named-entity recognition, and evaluate open vision–language models for layout-aware extraction, with an LLM-assisted correction pass for OCR output that remains subject to the trust gate.
+- **Clinical reference checks (#69).** Extend plausibility checks with the National Formulary of India, keeping the strict distinction between plausibility and necessity.
+- **Evidence-based outcome estimates (#90).** The estimator already exists and refuses to answer without data; with a cited dataset of decided Ombudsman and Bima Bharosa disputes it could report honest base rates with intervals.
+- **Wider coverage.** Empanelled-hospital lists (#14, #15), a Jan Aushadhi store locator (#74), automated tracking of scheme circulars (#59) and price-variance statistics (#76).
+- **Privacy-preserving statistics (#93).** Differential-privacy noise on any aggregate statistics exported from the platform, so that patterns of overcharging could be reported without exposing individuals.
+
+## 10.3 Long-Term Research Horizon
+
+The project's futuristic-scope document, internally called "Project Mark-85", sketches an ambitious end-state. We present its ideas here as research directions, with an honest note on what each would require.
+
+**Federated, privacy-preserving case sharing (ADR-007, #87).** A patient might want a hospital, a TPA or a legal-aid organisation to verify that consent covers a particular purpose without seeing the patient's identity or case logs. ADR-007 analyses the threat model and options — signed consent receipts, selective-disclosure credentials and, only where unavoidable, zero-knowledge proofs — and concludes that the order of work should be identity and consent first, cryptography last. Nothing in it is implemented.
+
+**Voice and camera-first intake.** Patients with limited literacy could describe their situation by voice in a regional dialect, and a camera overlay could highlight bill lines as they are scanned. Both depend on robust on-device speech recognition and OCR in Indian languages, and both must respect the same zero-retention rule.
+
+**Medicine authenticity checks (#75, #77).** Lightweight vision models could inspect a strip's printing and expiry or a pill's shape and colour. These would be useful screening signals, never a substitute for pharmacist verification, and they require labelled image data that does not yet exist.
+
+**Self-maintaining forms and claims.** Layout-aware models could detect when an insurer changes its form and propose a new field mapping for human approval. The scope document goes further, imagining FHIR-triggered claim matching and automated payout through smart contracts; we regard autonomous settlement as outside what a patient-advocacy tool should do, but the narrower idea — automatically matching a discharge record to a pre-authorisation so that discharge is not delayed — is a realistic research problem.
+
+**Agent self-correction and graph reasoning.** Bounded judge-to-drafter revision loops already exist; future work could study them formally. The scope document's "knowledge swarm" of cross-lingual entity graphs aligned to ICD-11 or SNOMED-CT is a genuine research topic in cross-lingual clinical concept normalisation, for which the current case-graph projection is a natural starting point.
+
+## 10.4 Requirements and Integration with the Existing Architecture
+
+Most roadmap items fit the current architecture without structural change, which is a deliberate outcome of the module boundaries in Chapter 4. New reference data enters as packaged tables with provenance and snapshot tests. New signals for entity resolution join the noisy-OR combination and inherit the rule that only lexical and phonetic evidence may merge. New document sources, such as ABDM, become alternative inputs to Kadi's extraction and are resolved like any other mention. Two items do require architectural change: hosted deployment (authentication, TLS, a data-protection review and, possibly, a design for multiple replicas that still respects zero retention), and federated sharing (identity binding and signed consent before any cryptographic protocol).
+
+## 10.5 Newly Suggested Opportunities
+
+The following ideas do not appear in the repository and are offered by this report for the team's consideration.
+
+- ◆ **Consented bill-rate observatory.** With explicit opt-in, de-identified line items and their benchmark comparisons could be aggregated (with differential privacy, per #93) into a public view of how hospital charges compare with CGHS rates by city and specialty — evidence that would help regulators and journalists as well as patients.
+- ◆ **Legal-aid and NGO partner workspace.** Patient-advocacy organisations already help families with appeals. A workspace in which a patient delegates a case to such an organisation, using the same delegation and audit mechanisms as clinical review, would put the system's outputs in the hands of people trained to use them.
+- ◆ **Tamper-evident audit export.** Extending the PDF integrity mechanism to a signed export of the case timeline would let a patient show an ombudsman exactly when each document was received and each deadline computed.
+- ◆ **State scheme rule packs.** SchemeSetu's rule format could be packaged per state, so that partner institutions could contribute and review rules for schemes outside Maharashtra.
+
+## 10.6 Potential Impact
+
+If the near- and medium-term work succeeds, ArogyaRakshak would give an ordinary family something it rarely has at a billing counter or after a claim denial: an itemised, sourced second opinion in its own language, with the next step and its deadline written out. Even modest effects — a disputed duplicate charge, a pre-authorisation submitted complete the first time, an appeal filed before the deadline, a generic bought instead of a branded strip — matter when out-of-pocket spending is as large a share of health expenditure as it is in India. Just as importantly, the project demonstrates a pattern for building such tools responsibly: deterministic where possible, human-reviewed where necessary, and explicit about everything in between.
