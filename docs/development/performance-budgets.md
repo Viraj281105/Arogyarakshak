@@ -17,6 +17,7 @@ fail from day one. The check instead works as a ratchet over `KNOWN_VIOLATIONS` 
 
 - A route not in the map fails if it is over 170 KB (170 passes, 171 fails).
 - A route in the map fails if it is over its ceiling (it cannot grow).
+- The `/` ceiling (255 KB, measured 254.24 KB) has under 1 KB of headroom and was measured on Windows. If the first Linux CI build differs slightly, record the Linux measurement as the new ceiling here and in `KNOWN_VIOLATIONS`; that is a re-baseline, not a widening.
 - A route in the map that is now at or under 170 KB fails with "remove it from KNOWN_VIOLATIONS", so fixes stick.
 - A route in the map that no longer exists in the build fails.
 - A missing `.next` build, or a route without a client reference manifest, throws instead of passing.
@@ -74,6 +75,8 @@ fallback `@font-face` metrics for Fraunces, Plus Jakarta Sans and Inter (or `fon
 font stacks come from generated design tokens. Follow-up: add metric-matched fallback fonts (or preload the hero fonts) and
 confirm with lhci. The 0.1 limit is not widened. First CI runs may go red on CLS if a runner measures slightly higher.
 
+Final reviewer's analysis: the 0.0964 was measured on Windows, where the pre-swap fallback is Segoe UI. On `ubuntu-latest` the stack falls back to DejaVu Sans, which is wider than Inter, so the font-swap shift may be larger in CI and the Lighthouse CLS step may be red. Plan: open a PR to `main`/`develop` (or run the workflow via `workflow_dispatch` on the branch) once the CI fixes are in, and read the real CI value. If it is red, fix it rather than loosen it: load the two hero families (Fraunces, Plus Jakarta Sans) through `next/font/local` pointing at the woff2 files already in `node_modules/@fontsource-variable/*` (no network) to get preload plus size-adjusted fallbacks (`adjustFontFallback`), and feed the result into the token font stack. Only if that slips, downgrade the CLS assertion to `warn` with a dated exception here that names the measured CI value, with WS4 as owner.
+
 ## Mobile bundle: 2,900,000 B
 
 Baseline 2,319,176 B (WS0 baseline) plus about 25% headroom, rounded to 2,900,000 B. Current size is 2,361,153 B. The headroom
@@ -85,7 +88,11 @@ exists because WS5 will import Reanimated. **After WS5, re-measure the bundle an
 Build-dependent checks live in `scripts/build-checks/`, deliberately outside `scripts/checks/` so
 `npm run check:generated` (which needs no build) never runs them.
 
+Telemetry stays off for these commands (project network rule: only Groq, the local Postgres and the PyPI/npm registries may
+be contacted), which is why CI sets `NEXT_TELEMETRY_DISABLED` and `EXPO_NO_TELEMETRY` at workflow level.
+
 ```bash
+export NEXT_TELEMETRY_DISABLED=1 EXPO_NO_TELEMETRY=1   # PowerShell: $env:NEXT_TELEMETRY_DISABLED='1'; $env:EXPO_NO_TELEMETRY='1'
 npm ci                                   # repo root, once
 
 # Web bundle budget (needs a fresh build; throws if .next is missing)
