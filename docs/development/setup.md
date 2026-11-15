@@ -108,6 +108,17 @@ npm install
 cd ../..
 ```
 
+### 5.2.0 Mobile motion system dependencies
+`apps/mobile` uses `react-native-reanimated` (~3.16), `react-native-gesture-handler` (~2.20),
+`@shopify/flash-list` (1.7.x) and `expo-haptics` (~14.0), at the versions Expo SDK 52 pins
+(`npx expo install <names>`; official npm registry only). `babel.config.js` lists only
+`babel-preset-expo`, which adds the Reanimated plugin itself when the package is installed; do
+not add `react-native-reanimated/plugin` as well. Motion patterns (`Reveal`, `Parallax`,
+`Pressable`, `CountUp`, `tap`) live in `apps/mobile/src/motion/` and honour the OS reduce-motion
+setting; Reanimated may only be imported there. `App.tsx` imports `react-native-gesture-handler`
+first and wraps the tree in `GestureHandlerRootView`. If `npx expo install` fails with
+`EALLOWSCRIPTS`, run `npm install` in `apps/mobile` after it has edited `package.json`.
+
 ### 5.2.1 Self-hosted fonts (no Google Fonts)
 Fonts are served from npm packages, never from Google at build or runtime:
 - Web (`apps/web`): `@fontsource-variable/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`,

@@ -474,6 +474,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 17. Recent Changes
 
+### 2026-11-15 — WS0 Task 10: mobile motion system (branch `ws0/foundation`)
+- **Added**: `apps/mobile/src/motion/` (`logic.ts` pure helpers, `useReducedMotion`, `Reveal`, `Parallax`, `Pressable`, `CountUp`, `haptics.tap`, `index.ts`), `babel.config.js`, `tests/motion.test.ts`; deps `react-native-reanimated`, `react-native-gesture-handler`, `@shopify/flash-list`, `expo-haptics` (SDK 52 pins). `App.tsx` wraps the root in `GestureHandlerRootView`.
+- **Not verified**: animations/haptics were not run on a device or simulator. No screens use the patterns yet (WS5).
+
 ### 2026-11-04 — Preliminary Project Report (docs only, uncommitted)
 - **Added**: `docs/academic/reports/preliminary-project-report/` — 67-page PPR (`.docx` with Word-updated Contents/LoF/LoT, `.pdf`), `Repository_Audit_Summary.md`, and `source/` (chapter markup, SVG figure scripts, screenshots, DOCX builder, Word export script).
 - **Re-verified for the report**: backend 1119 passed / 7 skipped (`.venv`), lint-imports 5/5, guardrails 8/8, web 153/153 + eslint 0, mobile 126/126; Scenario A run in the browser on SQLite demo mode.
