@@ -1,22 +1,13 @@
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo } from 'react-native';
-import { readReducedMotion, subscribeReducedMotion } from './logic';
+import { useSyncExternalStore } from 'react';
+import { isReduced } from './logic';
+import { reducedMotionStore } from './store';
 
-/** Reactive OS reduce-motion preference. False until the async read resolves. */
+const getSnapshot = () => reducedMotionStore.get();
+
+/**
+ * OS reduce-motion preference, read synchronously from the primed store. Until the preference is
+ * known this returns true (final state), so reduced-motion users never see an animation start.
+ */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    readReducedMotion(AccessibilityInfo).then((v) => {
-      if (alive) setReduced(v);
-    });
-    const unsubscribe = subscribeReducedMotion(AccessibilityInfo, setReduced);
-    return () => {
-      alive = false;
-      unsubscribe();
-    };
-  }, []);
-
-  return reduced;
+  return isReduced(useSyncExternalStore(reducedMotionStore.subscribe, getSnapshot, getSnapshot));
 }

@@ -8,6 +8,10 @@ import {
   shouldAnimate,
   subscribeReducedMotion,
   readReducedMotion,
+  createReducedMotionStore,
+  motionMode,
+  isReduced,
+  shouldHaptic,
   type AccessibilityInfoLike,
 } from '../src/motion/logic';
 
@@ -107,14 +111,88 @@ test('logic.ts imports neither react-native nor reanimated', () => {
   assert.ok(!/from\s+['"]react-native/.test(logic));
 });
 
-test('useReducedMotion subscribes to reduceMotionChanged and unsubscribes in cleanup', () => {
+test('logic subscribes to reduceMotionChanged and removes the listener', () => {
   const logic = readFileSync(join(MOTION, 'logic.ts'), 'utf-8');
   assert.match(logic, /reduceMotionChanged/);
   assert.match(logic, /\.remove\(\)/);
+});
+
+test('useReducedMotion reads the primed store synchronously', () => {
   const hook = readFileSync(join(MOTION, 'useReducedMotion.ts'), 'utf-8');
-  assert.match(hook, /subscribeReducedMotion\(/);
-  assert.match(hook, /readReducedMotion\(/);
-  assert.match(hook, /return\s*\(\)\s*=>|return\s+\w+;|return\s+unsubscribe/);
+  assert.match(hook, /useSyncExternalStore\(/);
+  assert.match(hook, /reducedMotionStore/);
+});
+
+test('store: an event that arrives before the initial read wins (stale-read race)', async () => {
+  let resolveRead!: (v: boolean) => void;
+  const listeners = new Set<(v: boolean) => void>();
+  const a11y: AccessibilityInfoLike = {
+    isReduceMotionEnabled: () => new Promise<boolean>((r) => (resolveRead = r)),
+    addEventListener: (_n, cb) => {
+      listeners.add(cb);
+      return { remove: () => void listeners.delete(cb) };
+    },
+  };
+  const store = createReducedMotionStore(a11y);
+  assert.equal(store.get(), undefined);
+  const primed = store.prime();
+  listeners.forEach((l) => l(true)); // event first
+  resolveRead(false); // older read resolves afterwards
+  await primed;
+  assert.equal(store.get(), true);
+});
+
+test('store: prime sets the initial value, falls back to false on error', async () => {
+  const f = fakeA11y(true);
+  const store = createReducedMotionStore(f.a11y);
+  await store.prime();
+  assert.equal(store.get(), true);
+  const bad = createReducedMotionStore({
+    isReduceMotionEnabled: async () => {
+      throw new Error('x');
+    },
+    addEventListener: () => ({ remove() {} }),
+  });
+  await bad.prime();
+  assert.equal(bad.get(), false);
+});
+
+test('store: listeners are notified on change, once per change, and unsubscribe is idempotent', () => {
+  const f = fakeA11y(false);
+  const store = createReducedMotionStore(f.a11y);
+  let calls = 0;
+  const off = store.subscribe(() => calls++);
+  f.emit(true);
+  f.emit(true); // unchanged: no notification
+  f.emit(false);
+  assert.equal(calls, 2);
+  off();
+  off();
+  f.emit(true);
+  assert.equal(calls, 2);
+  assert.equal(store.get(), true);
+});
+
+test('unknown preference renders the final state and never haptics', () => {
+  assert.equal(motionMode(undefined), 'final');
+  assert.equal(motionMode(true), 'final');
+  assert.equal(motionMode(false), 'animate');
+  assert.equal(isReduced(undefined), true);
+  assert.equal(shouldHaptic(undefined), false);
+  assert.equal(shouldHaptic(true), false);
+  assert.equal(shouldHaptic(false), true);
+});
+
+test('Pressable animates its own style: no inner wrapper View around children', () => {
+  const src = readFileSync(join(MOTION, 'Pressable.tsx'), 'utf-8');
+  assert.match(src, /createAnimatedComponent\(RNPressable\)/);
+  assert.ok(!/<Animated\.View/.test(src));
+});
+
+test('tap reads the cached store, not the native bridge', () => {
+  const h = readFileSync(join(MOTION, 'haptics.ts'), 'utf-8');
+  assert.match(h, /shouldHaptic\(reducedMotionStore\.get\(\)\)/);
+  assert.ok(!/AccessibilityInfo/.test(h));
 });
 
 test('every exported pattern component and tap() reference useReducedMotion', () => {
@@ -130,7 +208,6 @@ test('every exported pattern component and tap() reference useReducedMotion', ()
 
 test('haptics tap is a no-op under reduced motion and swallows errors', () => {
   const h = readFileSync(join(MOTION, 'haptics.ts'), 'utf-8');
-  assert.match(h, /readReducedMotion|shouldAnimate/);
   assert.match(h, /catch/);
 });
 

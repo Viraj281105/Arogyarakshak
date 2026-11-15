@@ -16,7 +16,7 @@ const EASE = Easing.bezier(...STANDARD_BEZIER);
 /** Fade + 12px rise on mount. Final state immediately under reduced motion. */
 export function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const reduced = useReducedMotion();
-  const progress = useSharedValue(0);
+  const progress = useSharedValue(shouldAnimate(reduced) ? 0 : 1);
 
   useEffect(() => {
     if (!shouldAnimate(reduced)) {

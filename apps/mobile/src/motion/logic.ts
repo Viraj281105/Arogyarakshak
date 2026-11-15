@@ -32,6 +32,54 @@ export function subscribeReducedMotion(
   };
 }
 
+export interface ReducedMotionStore {
+  /** undefined = not yet known. */
+  get(): boolean | undefined;
+  /** Initial read. Never overwrites a value an event already set; a failed read means false. */
+  prime(): Promise<void>;
+  subscribe(listener: () => void): () => void;
+}
+
+/** Cache of the OS preference so components and haptics can read it synchronously. */
+export function createReducedMotionStore(a11y: AccessibilityInfoLike): ReducedMotionStore {
+  let value: boolean | undefined;
+  const listeners = new Set<() => void>();
+  const set = (v: boolean) => {
+    if (value === v) return;
+    value = v;
+    listeners.forEach((l) => l());
+  };
+  // Lives for the app's lifetime, so the event subscription is never removed.
+  subscribeReducedMotion(a11y, set);
+  return {
+    get: () => value,
+    async prime() {
+      const initial = await readReducedMotion(a11y);
+      if (value === undefined) set(initial);
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+/** Unknown is treated as reduced, so nobody sees a hidden / start-of-animation state. */
+export function isReduced(value: boolean | undefined): boolean {
+  return value !== false;
+}
+
+export function motionMode(value: boolean | undefined): 'animate' | 'final' {
+  return isReduced(value) ? 'final' : 'animate';
+}
+
+/** Haptics fire only when the preference is known to allow motion (no bridge call per press). */
+export function shouldHaptic(value: boolean | undefined): boolean {
+  return value === false;
+}
+
 /** Animate only when the user has not asked for reduced motion. */
 export function shouldAnimate(reducedMotion: boolean): boolean {
   return !reducedMotion;

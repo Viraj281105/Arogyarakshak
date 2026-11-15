@@ -1,13 +1,13 @@
-import { AccessibilityInfo } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { readReducedMotion, shouldAnimate } from './logic';
+import { shouldHaptic } from './logic';
+import { reducedMotionStore } from './store';
 
 export type HapticKind = 'light' | 'success' | 'warning';
 
-/** Haptic tap. No-op under reduced motion; swallows errors (devices without a haptic engine). */
+/** Haptic tap. No-op under (or before knowing) reduced motion; swallows errors (no haptic engine). */
 export async function tap(kind: HapticKind): Promise<void> {
+  if (!shouldHaptic(reducedMotionStore.get())) return;
   try {
-    if (!shouldAnimate(await readReducedMotion(AccessibilityInfo))) return;
     if (kind === 'light') {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
