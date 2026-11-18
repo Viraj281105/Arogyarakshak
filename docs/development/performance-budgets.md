@@ -17,23 +17,42 @@ fail from day one. The check instead works as a ratchet over `KNOWN_VIOLATIONS` 
 
 - A route not in the map fails if it is over 170 KB (170 passes, 171 fails).
 - A route in the map fails if it is over its ceiling (it cannot grow).
-- The `/` ceiling (255 KB, measured 254.24 KB) has under 1 KB of headroom and was measured on Windows. If the first Linux CI build differs slightly, record the Linux measurement as the new ceiling here and in `KNOWN_VIOLATIONS`; that is a re-baseline, not a widening.
+- Ceilings have under 1 KB of headroom and were measured on Windows. If the first Linux CI build differs slightly, record the Linux measurement as the new ceiling here and in `KNOWN_VIOLATIONS`; that is a re-baseline, not a widening.
 - A route in the map that is now at or under 170 KB fails with "remove it from KNOWN_VIOLATIONS", so fixes stick.
 - A route in the map that no longer exists in the build fails.
 - A missing `.next` build, or a route without a client reference manifest, throws instead of passing.
 
-Ceilings are the measured gzip size rounded up to the next whole KB (fresh build, 2026-11-15):
+Ceilings are the measured gzip size rounded up to the next whole KB. WS4 (web shell, 2026-11-18, fresh build on
+Windows, Node 24.19.0) ratcheted them down:
 
-| Route | Measured (gzip KB) | Ceiling |
-|---|---|---|
-| `/` | 254.76 | 255 |
-| `/clinical-review` | 202.39 | 203 |
-| `/motion-lab` | 230.70 | 231 |
-| `/_not-found` | 183.31 | 184 |
-| `/_global-error` | 174.57 | 175 |
+| Route | WS0 measured (2026-11-15) | WS4 measured (2026-11-18) | Ceiling |
+|---|---|---|---|
+| `/` | 254.76 | 224.85 | 225 |
+| `/clinical-review` | 202.39 | 190.02 | 191 |
+| `/motion-lab` | 230.70 | not built for production | removed |
+| `/_not-found` | 183.31 | 179.79 | 180 |
+| `/_global-error` | 174.57 | 171.94 | 172 |
 
-These are known violations, not accepted ones. They are shared framework + design-system + motion code; reducing them is a
-follow-up for WS4. Numbers are higher than the WS0 baseline (`/` 253.1 KB) because the motion system was added since.
+What changed (details in `docs/superpowers/specs/2026-11-18-ws4-web-shell-design.md`):
+
+- Code splitting with `next/dynamic` for what is not on screen at first paint: the four inactive module views, the
+  case desk (shown once a case exists), demo controls (demo mode only) and the three reviewer-workspace tabs (after
+  sign-in). BillNyay, the default tab, stays static.
+- `/motion-lab` is a `page.dev.tsx` file; `next.config.ts` adds that page extension only under `next dev`.
+- The 404/error pages use a plain anchor instead of `next/link` (Turbopack duplicated Link into the error,
+  not-found and global-error entry chunks that every route loads).
+- The new app shell (header, drawer, footer, on every route) costs about 6 KB gzip; it avoids the full page
+  dictionary and the shared i18n dictionary (tests enforce this).
+
+Why every route is still above 170 KB: about **167 KB** of each route is framework (polyfills 38.7 KB + React/Next
+runtime 128.4 KB), which leaves ~3 KB for app code. The polyfill chunk is loaded with `noModule`, so modern browsers
+do not download it: in the Browser pane `/` fetched 10 scripts totalling 186.1 KB compressed, which is the measured
+224.85 minus the 38.7 KB polyfill chunk (and shows no lazily split chunk loads at first paint). The measurement keeps
+counting polyfills (conservative). Further cuts need page-content work (Wave 3), e.g. loading the hi/mr dictionaries
+on demand.
+
+`/_not-found` has only 0.21 KB of headroom under its ceiling; if the first Linux CI build measures slightly higher,
+record the Linux value as a re-baseline (as for `/` in WS0), not a widening.
 
 ### Removing a KNOWN_VIOLATIONS entry
 
@@ -64,18 +83,23 @@ Run Lighthouse locally with Node 22.19 or newer.
 
 `@lhci/cli` is a pinned root devDependency.
 
-### Known issue: CLS is close to the limit (follow-up)
+### CLS: fixed in WS4 (was 0.0964)
 
-Local lhci run (Node 24.19.0, 3 runs): CLS 0.0964 each run, limit 0.1; the WS0 baseline recorded CLS 0. Root cause
-(Lighthouse "layout shifts" / CLS culprits): `ul.lp-assurances` in the landing-page hero is pushed down once the web
-fonts load (cause reported for all seven font files: "Web font loaded"). The fonts are the self-hosted `@fontsource-variable`
-families added during WS0; their `@font-face` rules use `font-display: swap`, so the fallback-to-webfont swap changes the
-height of the hero text above the list. Not fixed in this task because a proper fix is not small: it needs size-adjusted
-fallback `@font-face` metrics for Fraunces, Plus Jakarta Sans and Inter (or `font-display: optional`/preloading), and the
-font stacks come from generated design tokens. Follow-up: add metric-matched fallback fonts (or preload the hero fonts) and
-confirm with lhci. The 0.1 limit is not widened. First CI runs may go red on CLS if a runner measures slightly higher.
+Before (lhci, 3 runs, 2026-11-18, unchanged WS0 build): CLS 0.0964 each run, one shift on `ul.lp-assurances`, cause
+"Web font loaded". After (same config, 3 runs, with the WS4 shell): **CLS 0** each run, LCP 905–909 ms; a
+`PerformanceObserver('layout-shift')` check in the Browser pane on `/` (1280 px) recorded no entries.
 
-Final reviewer's analysis: the 0.0964 was measured on Windows, where the pre-swap fallback is Segoe UI. On `ubuntu-latest` the stack falls back to DejaVu Sans, which is wider than Inter, so the font-swap shift may be larger in CI and the Lighthouse CLS step may be red. Plan: open a PR to `main`/`develop` (or run the workflow via `workflow_dispatch` on the branch) once the CI fixes are in, and read the real CI value. If it is red, fix it rather than loosen it: load the two hero families (Fraunces, Plus Jakarta Sans) through `next/font/local` pointing at the woff2 files already in `node_modules/@fontsource-variable/*` (no network) to get preload plus size-adjusted fallbacks (`adjustFontFallback`), and feed the result into the token font stack. Only if that slips, downgrade the CLS assertion to `warn` with a dated exception here that names the measured CI value, with WS4 as owner.
+Fix: `apps/web/app/fonts.ts` loads the latin subset of Fraunces, Plus Jakarta Sans and Inter with `next/font/local`
+from the woff2 files `@fontsource-variable/*` already installs (no network). next/font preloads them and generates
+metric-matched local fallbacks (`adjustFontFallback`: Times New Roman for Fraunces, Arial for the sans families). The
+token font stacks (`packages/design-tokens/tokens.json`) now start with `var(--font-face-display|headline|sans,
+'<Fontsource family>')`; the Fontsource imports still serve latin-ext (the ₹ sign), the other subsets and JetBrains
+Mono, and the Devanagari fallbacks are unchanged. Each hero font file is downloaded once (checked in lhci network
+requests and the Browser pane).
+
+Not verified: the GitHub `ubuntu-latest` runner. There `local(Arial)` / `local(Times New Roman)` may not resolve
+(Liberation fonts may or may not be aliased), so the adjusted fallback may not apply; the preload still makes a
+pre-paint swap likely. Read the first CI value; do not loosen the 0.1 limit.
 
 ## Mobile bundle: 2,900,000 B
 
