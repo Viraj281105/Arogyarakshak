@@ -19,8 +19,12 @@
 }
 
 html {
-  /* Anchor targets (#intake-dropzone, #module-workspace, ...) land below the sticky header. */
-  scroll-padding-top: calc(var(--shell-header-h) + 1rem);
+  /* Anchor targets (#intake-dropzone, #module-workspace, ...) land below the sticky header, which
+     also pads itself by the top safe-area inset. */
+  scroll-padding-top: calc(var(--shell-header-h) + env(safe-area-inset-top) + 1rem);
+  /* Keep the scrollbar's space when the drawer locks scrolling (overflow: hidden below), so the
+     page does not widen and shift. No effect with overlay scrollbars (most phones, macOS default). */
+  scrollbar-gutter: stable;
 }
 
 /* The drawer is modal; keep the page behind it from scrolling. */
@@ -217,9 +221,22 @@ body {
   white-space: nowrap;
 }
 
+/* Anchored to the brand, not centred: a chip appearing in the header slot (right-anchored actions)
+   must not move the nav. */
 .site-nav {
   display: none;
-  margin-inline: auto;
+  margin-left: var(--space-lg);
+  min-width: 0;
+}
+
+.site-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.site-slot:empty {
+  display: none;
 }
 
 .site-nav ul {
@@ -286,8 +303,8 @@ body {
 }
 
 .site-lang-btn {
-  min-height: 38px;
-  min-width: 44px;
+  min-height: var(--min-touch-target);
+  min-width: var(--min-touch-target);
   padding: 0 0.8rem;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
@@ -583,7 +600,7 @@ body {
 .site-footer-list a {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: var(--min-touch-target);
   color: var(--text-secondary);
   text-decoration: none;
 }

@@ -255,3 +255,47 @@ describe('module tabs keyboard model', () => {
     assert.ok(!/\p{Extended_Pictographic}/u.test(src), 'no emoji icons');
   });
 });
+
+describe('shell layout stability and touch targets (WS4 review)', () => {
+  const css = read('shell', 'shell.css');
+  const header = read('shell', 'SiteHeader.tsx');
+  // Body of the first top-level rule whose line is exactly "<selector> {".
+  const rule = (sel: string) => {
+    const at = css.indexOf(`\n${sel} {\n`);
+    assert.ok(at >= 0, `missing rule ${sel}`);
+    const open = css.indexOf('{', at);
+    return css.slice(open + 1, css.indexOf('}', open));
+  };
+
+  test('html reserves the scrollbar gutter, so locking scroll for the drawer does not shift the page', () => {
+    assert.match(rule('html'), /scrollbar-gutter:\s*stable/);
+    assert.match(css, /html:has\(dialog\.site-drawer\[open\]\)\s*\{\s*overflow:\s*hidden/);
+  });
+
+  test('scroll-padding-top includes the safe-area inset the header pads with', () => {
+    assert.match(rule('html'), /scroll-padding-top:\s*calc\(var\(--shell-header-h\)\s*\+\s*env\(safe-area-inset-top\)\s*\+\s*1rem\)/);
+  });
+
+  test('the header slot cannot move the other header controls when it fills', () => {
+    // Actions are right-anchored and the nav is anchored to the brand (not centred), so a chip
+    // appearing in the slot only grows the actions group leftwards.
+    assert.match(rule('.site-actions'), /margin-left:\s*auto/);
+    assert.ok(!/margin-inline:\s*auto/.test(rule('.site-nav')), '.site-nav must not be centred');
+    assert.match(header, /<div className="site-slot">\{slot\}<\/div>\s*<LanguageSwitcher/);
+  });
+
+  test('language buttons and footer links are at least 44 px tall', () => {
+    assert.match(rule('.site-lang-btn'), /min-height:\s*var\(--min-touch-target\)/);
+    assert.match(rule('.site-footer-list a'), /min-height:\s*var\(--min-touch-target\)/);
+  });
+});
+
+describe('drawer and breakpoint', () => {
+  test('the drawer closes when the viewport grows past the compact breakpoint', async () => {
+    const { drawerShouldClose } = await import('../app/shell/headerScroll');
+    assert.equal(drawerShouldClose({ open: true, compact: false }), true);
+    assert.equal(drawerShouldClose({ open: true, compact: true }), false);
+    assert.equal(drawerShouldClose({ open: false, compact: false }), false);
+    assert.match(read('shell', 'SiteHeader.tsx'), /drawerShouldClose\(/);
+  });
+});

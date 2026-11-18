@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { readReducedMotion } from "../motion/useReducedMotion";
-import { nextHeaderState, type HeaderState } from "./headerScroll";
+import { drawerShouldClose, nextHeaderState, type HeaderState } from "./headerScroll";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { MobileNav } from "./MobileNav";
 import { NAV_ITEMS, isActiveHref } from "./nav";
@@ -56,15 +56,22 @@ export function SiteHeader() {
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(update);
     };
+    // The drawer only exists below the desktop breakpoint; close it if the viewport grows past it.
+    const onBreakpoint = () => {
+      if (drawerShouldClose({ open: menuOpenRef.current, compact: compact?.matches ?? false })) {
+        el.querySelector<HTMLDialogElement>("dialog.site-drawer")?.close();
+      }
+      schedule();
+    };
     update();
     window.addEventListener("scroll", schedule, { passive: true });
     el.addEventListener("focusin", schedule);
-    compact?.addEventListener?.("change", schedule);
+    compact?.addEventListener?.("change", onBreakpoint);
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("scroll", schedule);
       el.removeEventListener("focusin", schedule);
-      compact?.removeEventListener?.("change", schedule);
+      compact?.removeEventListener?.("change", onBreakpoint);
     };
   }, []);
 
@@ -119,7 +126,9 @@ export function SiteHeader() {
         </nav>
 
         <div className="site-actions">
-          {slot}
+          {/* Page chips (demo pill, signed-in reviewer). Actions are right-anchored, so filling
+              this never moves the language, theme or menu buttons. */}
+          <div className="site-slot">{slot}</div>
           <LanguageSwitcher className="site-lang-inline" />
           <ThemeToggle />
           <button

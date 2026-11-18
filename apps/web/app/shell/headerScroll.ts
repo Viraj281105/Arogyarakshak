@@ -30,3 +30,8 @@ export function nextHeaderState(prev: HeaderState, s: ScrollInput): HeaderState 
   if (Math.abs(delta) < JITTER) return { elevated, hidden: prev.hidden };
   return { elevated, hidden: delta > 0 };
 }
+
+/** Pure: the drawer is a compact-layout control; close it once the desktop layout applies. */
+export function drawerShouldClose(s: { open: boolean; compact: boolean }): boolean {
+  return s.open && !s.compact;
+}
