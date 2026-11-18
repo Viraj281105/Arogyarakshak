@@ -26,14 +26,14 @@ pads the bottom inset. This keeps screen backgrounds edge-to-edge and the inset 
 Custom `tabBar` for `@react-navigation/bottom-tabs` (no new library):
 - One `motion/Pressable` per tab (press scale + light haptic, both off under reduced motion), `accessibilityRole="tab"`,
   `accessibilityState.selected`, 44 px minimum touch target, one-line labels.
-- A pill **indicator** behind the active tab slides to the new index (`motion/SlidingIndicator`, Reanimated `withTiming`,
-  token duration `base`, standard easing). Under reduced motion (or before the preference is known) it jumps.
+- A pill **indicator** behind the active tab slides to the new index (`motion/SlidingIndicator`, `Animated.timing`,
+  token duration `base`, standard easing, native driver on device). Under reduced motion (or before the preference is known) it jumps.
 - Pure geometry in `src/shell/logic.ts`: `tabWidth`, `indicatorX`, `tabBarHeight(bottomInset)`.
 - Icons stay the existing emoji glyphs (no icon font added to the bundle); the active tab is shown by the pill,
   label colour and weight, not by tinting.
 
-Reanimated may only be imported under `src/motion` (existing test), so new animated primitives
-(`SlidingIndicator`, `Pulse`) are added to the motion system and the shell composes them.
+New animated primitives (`SlidingIndicator`, `Pulse`) are added to the motion system and the shell composes them;
+nothing outside `src/motion` animates directly.
 
 ## 3. Screen transitions
 
@@ -80,13 +80,24 @@ has no web backend, layout uses the browser's text metrics. Platform guards are 
 throw, and are either `Platform.OS === 'web'` branches that leave the native path unchanged or `*.web.ts` files that
 native bundles never include.
 
-## 7. Bundle budget
+## 7. Bundle budget (decision changed during implementation)
 
-Importing `src/motion` from the shell pulls Reanimated into the Android bundle. Measure
-`npx expo export --platform android` before (2,361,153 B at a3fffaa) and after, run `check:mobile-budget`, and record
-both in `performance-budgets.md` (mobile section). `react-native-gesture-handler` stays unimported (no gesture is used;
-it costs about 934 KB). The budget constant is only tightened if the after-size leaves clear margin, with the rationale
-written down; it is never raised.
+Plan: import the Reanimated-based `src/motion` from the shell and measure. Measured (`npx expo export --platform android`):
+
+| State | Hermes bundle | Modules |
+|---|---|---|
+| Before (a3fffaa) | 2,361,153 B | 909 |
+| Shell on Reanimated-based motion | 3,146,268 B (+785,115) | 1,100 |
+| Shell on RN `Animated`-based motion (shipped) | 2,394,806 B (+33,653) | 929 |
+
+Reanimated alone (172 modules) exceeds the 538,847 B headroom, and the budget may not be raised without a ruling. So the
+motion components (`Reveal`, `Pressable`, `SlidingIndicator`, `Pulse`, `Parallax`) keep their props and reduced-motion
+rules but animate with React Native's built-in `Animated` API (already in the bundle; only opacity/transform, so the
+native driver runs them off the JS thread on device). `react-native-reanimated` stays installed (babel-preset-expo
+still applies its plugin) but no app code imports it; a test enforces that. Going back to Reanimated (e.g. for
+gesture-driven or layout animations) needs a budget ruling first. `Parallax` now takes an `Animated.Value` (it had no
+callers). `react-native-gesture-handler` stays unimported. The budget constant is left at 2,900,000 B: tightening it
+now would pre-empt the open Reanimated ruling.
 
 ## 8. Out of scope
 

@@ -44,6 +44,9 @@ Only `/` was measured; `/clinical-review` was not.
 Command: `cd apps/mobile && EXPO_NO_TELEMETRY=1 npx expo export --platform android --output-dir <scratchpad>`.
 
 - Android JS bundle (Hermes bytecode, `AppEntry-*.hbc`): 2,319,176 bytes = **2264.8 KB (2.32 MB)**, 860 modules, 17 assets.
+- Later measurements (same command): 2,361,153 B / 909 modules at the end of WS0 (a3fffaa); 2,394,806 B / 929 modules after
+  WS5-shell (mobile shell, motion on RN `Animated`). A Reanimated-based shell measured 3,146,268 B / 1,100 modules and was
+  not shipped; see `performance-budgets.md` (mobile section).
 
 Cold start: **not measurable in CI** (needs a physical device or emulator running the app). Not measured here.
 Method for later manual measurement: on a release build, `adb shell am start -W -n <package>/<activity>`

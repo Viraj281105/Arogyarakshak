@@ -136,6 +136,26 @@ gesture-using screen (WS5) must add `import 'react-native-gesture-handler'` as t
 `App.tsx` and wrap the root in `GestureHandlerRootView`, and re-measure the bundle. If `npx expo install` fails with
 `EALLOWSCRIPTS`, run `npm install` in `apps/mobile` after it has edited `package.json`.
 
+**WS5-shell update (2026-11-18):** the motion components now animate with React Native's built-in `Animated`
+API, and no app code imports `react-native-reanimated` (it added 785,115 B and broke the mobile bundle budget;
+see `docs/development/performance-budgets.md`). The package stays installed; re-adopting it needs a budget ruling.
+
+### 5.2.1a Mobile browser preview (WS5-shell)
+`apps/mobile` also depends on `react-native-web` (~0.19.13), `react-dom` (18.3.1) and `@expo/metro-runtime`
+(~4.0.1), the versions `npx expo install` selects for SDK 52 (its npm step failed with `EALLOWSCRIPTS`; finished
+with plain `npm install`; official npm registry only). They resolve only for the web platform; the Android bundle
+does not contain them. Run the preview with:
+
+```bash
+cd apps/mobile
+EXPO_NO_TELEMETRY=1 npm run web      # Expo web on Metro, http://localhost:8081
+```
+
+It is a **preview, not a device-faithful run**: no haptics (skipped on web), no native stack/screens behaviour,
+animations run on the JS thread (no native driver), fonts load through `@font-face`, `SecureStore` and
+`FileSystem` have no web backend (the camera/upload flow is not meaningful in the browser), and text metrics come
+from the browser. The app calls `EXPO_PUBLIC_API_URL` (default `http://localhost:8000`) as on device.
+
 ### 5.2.2 Self-hosted fonts (web and mobile, no Google Fonts)
 Fonts are served from npm packages, never from Google at build or runtime:
 - Web (`apps/web`): `@fontsource-variable/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`,

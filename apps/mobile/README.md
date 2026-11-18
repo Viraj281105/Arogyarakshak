@@ -113,9 +113,26 @@ npm run android
 # Run on iOS simulator
 npm run ios
 
-# Run in Web browser
-npm run web
+# Run in Web browser (preview only, see 3.4.1)
+EXPO_NO_TELEMETRY=1 npm run web
 ```
+
+#### 3.4.1 Browser preview (not a device run)
+`npm run web` serves the app through Expo web + Metro (`react-native-web`) at `http://localhost:8081`, so the shell
+can be looked at without a device. Use a phone-sized window (e.g. 375x812). It is **not device-faithful**: no
+haptics, animations run on the JS thread, no native screens/stack behaviour, fonts load via `@font-face`,
+SecureStore/FileSystem have no web backend (do not use it for the camera/upload flow), and browser text metrics
+differ from Android/iOS. The web packages are not part of the native bundles.
+
+#### 3.4.2 Shell and typography
+- Shell: `App.tsx` (themed status bar, token-built navigation theme), `components/Header.tsx` (top safe-area inset,
+  language segmented control, theme toggle), `components/TabBar.tsx` (custom animated tab bar, bottom inset),
+  `components/Skeleton.tsx`, `components/EmptyState.tsx`; pure logic in `src/shell/logic.ts`.
+- Fonts: use `font(role, weight)` or `textStyles.*` from `src/theme` (they return the real Expo family names such as
+  `Inter_600SemiBold`) and do not also set `fontWeight`. The generated `fonts` tokens are CSS stacks for the web only.
+- Motion: `src/motion` (`Reveal`, `Pressable`, `SlidingIndicator`, `Pulse`, `Parallax`, `CountUp`, `tap`) runs on
+  React Native `Animated` and honours the OS reduce-motion setting; do not import `react-native-reanimated`
+  (bundle budget, see `docs/development/performance-budgets.md`).
 
 ### 3.5 First device / emulator run — checklist
 

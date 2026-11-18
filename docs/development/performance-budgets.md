@@ -79,9 +79,27 @@ Final reviewer's analysis: the 0.0964 was measured on Windows, where the pre-swa
 
 ## Mobile bundle: 2,900,000 B
 
-Baseline 2,319,176 B (WS0 baseline) plus about 25% headroom, rounded to 2,900,000 B. Current size is 2,361,153 B. The headroom
-exists because WS5 will import Reanimated. **After WS5, re-measure the bundle and tighten this budget**
-(`MOBILE_BUNDLE_BUDGET_BYTES` in `scripts/build-checks/mobile-bundle-budget.mjs`) to the new size plus a small margin.
+Baseline 2,319,176 B (WS0 baseline) plus about 25% headroom, rounded to 2,900,000 B. The headroom
+was meant for WS5 importing Reanimated.
+
+**WS5-shell re-measurement (2026-11-18, `npx expo export --platform android`, Hermes `.hbc`):**
+
+| State | Bytes | vs budget |
+|---|---|---|
+| Before WS5 (a3fffaa) | 2,361,153 | PASS |
+| Shell using Reanimated-based `src/motion` (not shipped) | 3,146,268 (+785,115; 172 Reanimated modules) | **FAIL** by 246,268 |
+| Shell using RN `Animated`-based `src/motion` (shipped) | 2,394,806 (+33,653) | PASS, 505,194 B margin |
+
+Reanimated does not fit, so the mobile motion system animates with React Native's built-in `Animated` API
+(opacity/transform only, native driver on device) and no app code imports `react-native-reanimated`
+(enforced by `apps/mobile/tests/shell.test.ts`). The web preview packages (`react-native-web`, `react-dom`,
+`@expo/metro-runtime`) are not in the Android bundle (checked in the export's source map).
+
+**Budget not tightened yet (open ruling):** tightening to the new size plus a small margin would make the
+Reanimated option impossible without a later raise. Whoever rules on Reanimated (keep RN `Animated`, or raise
+the budget to roughly 3,200,000 B and adopt Reanimated) should then set `MOBILE_BUNDLE_BUDGET_BYTES` in
+`scripts/build-checks/mobile-bundle-budget.mjs` and update this section. `react-native-gesture-handler` is still
+not imported (about 934 KB).
 
 ## Running the checks locally
 
