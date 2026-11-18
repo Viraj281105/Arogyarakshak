@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme, textStyles, font, fontFor } from '../theme';
+import { useTheme, textStyles, font, textStyleFor } from '../theme';
 import { Language } from '../translations';
 import { Pressable } from '../motion';
 
@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
         <Text
           accessibilityRole="header"
           numberOfLines={1}
-          style={[textStyles.brand, fontFor(title, 'display', '600'), { color: colors.textPrimary }]}
+          style={[textStyleFor(textStyles.brand, title, '600'), { color: colors.textPrimary }]}
         >
           {title}
         </Text>

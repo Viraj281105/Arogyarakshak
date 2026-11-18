@@ -6,6 +6,7 @@ import {
   fontFamily,
   font,
   fontFor,
+  textStyleFor,
   hasDevanagari,
   LOADED_FONT_FAMILIES,
   textStyles,
@@ -101,19 +102,23 @@ test('fontFor: Latin keeps the custom family and no fontWeight (no Android doubl
   assert.deepEqual(fontFor('Home', 'sans', '600'), { fontFamily: 'Inter_600SemiBold' });
 });
 
-test('fontFor: Devanagari clears the custom family and sets a numeric weight (system face keeps hierarchy)', () => {
-  const s = fontFor('होम', 'sans', '700');
-  assert.deepEqual(s, { fontFamily: undefined, fontWeight: '700' });
-  assert.ok('fontFamily' in s, 'fontFamily: undefined must be present to override textStyles');
-  // placed after a textStyles preset, the merged style has no custom family left
-  const merged = { ...textStyles.tab, ...s };
-  assert.equal(merged.fontFamily, undefined);
-  assert.equal(merged.fontWeight, '700');
+test('fontFor: Devanagari gets only a numeric weight (system face keeps hierarchy)', () => {
+  assert.deepEqual(fontFor('होम', 'sans', '700'), { fontWeight: '700' });
 });
 
-test('shell text that may be translated uses fontFor (header title, tab label, Button)', () => {
-  assert.match(read('src', 'components', 'Header.tsx'), /fontFor\(title/);
-  assert.match(read('src', 'components', 'TabBar.tsx'), /fontFor\(label/);
+test('textStyleFor: one object; Devanagari drops the custom family key, Latin keeps the preset', () => {
+  const hi = textStyleFor(textStyles.tab, 'होम', '600');
+  assert.ok(!('fontFamily' in hi), 'fontFamily key must be absent (react-native-web ignores undefined overrides)');
+  assert.equal(hi.fontWeight, '600');
+  assert.equal(hi.fontSize, textStyles.tab.fontSize);
+  const en = textStyleFor(textStyles.tab, 'Home', '600');
+  assert.deepEqual(en, { ...textStyles.tab });
+  assert.ok(!('fontWeight' in en));
+});
+
+test('shell text that may be translated is script-aware (header title, tab label, Button)', () => {
+  assert.match(read('src', 'components', 'Header.tsx'), /textStyleFor\(textStyles\.brand, title/);
+  assert.match(read('src', 'components', 'TabBar.tsx'), /textStyleFor\(textStyles\.tab, label/);
   assert.match(read('src', 'components', 'Button.tsx'), /fontFor\(title/);
 });
 

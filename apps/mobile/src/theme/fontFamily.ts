@@ -50,7 +50,7 @@ export function font(role: FontRole, weight: FontWeight = '400'): { fontFamily: 
   return { fontFamily: fontFamily(role, weight) };
 }
 
-const DEVANAGARI = /[ऀ-ॿ꣠-ꣿ]/;
+const DEVANAGARI = /[\u0900-\u097F\uA8E0-\uA8FF]/;
 
 /** True when the text contains Devanagari (Hindi/Marathi) characters. */
 export function hasDevanagari(text: string | null | undefined): boolean {
@@ -61,17 +61,32 @@ export function hasDevanagari(text: string | null | undefined): boolean {
  * Font style for a piece of (possibly translated) text. The bundled families have no Devanagari
  * glyphs, so Hindi/Marathi falls back to the system face, and because the weight lives in the
  * family name that fallback would render at regular weight, flattening the hierarchy. For
- * Devanagari text this returns `fontFamily: undefined` (clears a custom family set earlier in the
- * style array, e.g. by textStyles) and a numeric fontWeight, so the system face picks a real
- * weight. Latin text keeps the custom family WITHOUT fontWeight: a custom family plus fontWeight
- * can synthesise a double bold on Android. Place it after textStyles in a style array.
+ * Devanagari text this returns only a numeric fontWeight (system face, real weight). Latin text
+ * gets the custom family WITHOUT fontWeight: a custom family plus fontWeight can synthesise a
+ * double bold on Android. Use it only where nothing earlier in the style sets a fontFamily; with a
+ * textStyles preset use textStyleFor().
  */
 export function fontFor(
   text: string | null | undefined,
   role: FontRole,
   weight: FontWeight = '400',
-): { fontFamily: string; fontWeight?: undefined } | { fontFamily: undefined; fontWeight: FontWeight } {
-  return hasDevanagari(text) ? { fontFamily: undefined, fontWeight: weight } : font(role, weight);
+): { fontFamily: string } | { fontWeight: FontWeight } {
+  return hasDevanagari(text) ? { fontWeight: weight } : font(role, weight);
+}
+
+/**
+ * A textStyles preset adapted to the text's script, as ONE object: for Devanagari the custom
+ * fontFamily key is removed (not set to undefined: react-native-web keeps an earlier family when a
+ * later array entry is undefined) and the numeric weight added.
+ */
+export function textStyleFor<P extends { fontFamily: string }>(
+  preset: P,
+  text: string | null | undefined,
+  weight: FontWeight,
+): Omit<P, 'fontFamily'> & { fontFamily?: string; fontWeight?: FontWeight } {
+  if (!hasDevanagari(text)) return { ...preset };
+  const { fontFamily: _family, ...rest } = preset;
+  return { ...rest, fontWeight: weight };
 }
 
 const { sizes, lineHeights } = typography;

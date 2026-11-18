@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useTheme, textStyles, fontFor } from '../theme';
+import { useTheme, textStyles, textStyleFor } from '../theme';
 import { Pressable, SlidingIndicator } from '../motion';
 import {
   indicatorX,
@@ -93,8 +93,7 @@ export function TabBar({ state, descriptors, navigation, insets }: BottomTabBarP
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
                 style={[
-                  textStyles.tab,
-                  fontFor(label, 'sans', '600'),
+                  textStyleFor(textStyles.tab, label, '600'),
                   styles.label,
                   { color, opacity: focused ? 1 : 0.9 },
                 ]}
