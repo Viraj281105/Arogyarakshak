@@ -96,3 +96,17 @@ without running the collector), image digests (tags only), Docker Desktop's flue
 - First live run of the stack and tuning of the collector's log transform.
 - Digest pinning once images are pulled.
 - Optional: authentication for `/metrics` if it is ever exposed beyond loopback/compose.
+
+## Live verification by the controller (2026-11-19, Docker Desktop 29.7.2, project `arogya-obs`)
+
+Verified live against the running stack with the API run on the host (`uvicorn ... --no-access-log`, `OTEL_ENABLED=true`, SQLite):
+- All six pinned images pulled from Docker Hub; prometheus, alertmanager, loki, tempo, grafana healthy; otel-collector running (no healthcheck by design); collector config (including the `transform` statements) loads: "Everything is ready".
+- `promtool check config` valid; `promtool test rules tests/alerts.test.yml` SUCCESS (first live run, no changes needed); 5 rule groups / 22 rules load healthy.
+- Prometheus scrapes the host-run API (`job="api", workflow="host"` UP); the unused compose target is down and `ApiTargetDown` does not fire; `arogya_http_requests_total` has series labelled by route template (`/health`, `<unmatched>`); a Grafana datasource-proxy query to Prometheus works.
+- Traces: collector accepted 168 spans, sent 168, Tempo received 168. Across 20 stored traces there were zero occurrences of the fake case id `CASE-SECRET-123`, `patient=` or `John` (request with a fake case-id path and a query string); database spans carry only `db.name`, `db.operation`, `db.system`.
+- Logs: a JSON log line sent through Docker's `fluentd` log driver arrived in Loki and `service_name` = `arogyarakshak-api`.
+- Grafana health ok, datasources Loki/Prometheus/Tempo and dashboards "API - RED", "Case pipeline", "LLM calls", "SLOs" provisioned.
+
+Found and fixed while verifying: Tempo needs `user: "0:0"` together with `cap_add: DAC_OVERRIDE` under `cap_drop: ALL` (a regression test now pins both).
+
+Still NOT verified live: dashboard panels visually (no screenshots taken), Alertmanager config via `amtool`, the containerised API path (compose `api` service with the fluentd log driver on the real API's logs), the LLM metrics series (empty until WS2's observer is registered), Grafana's outbound behaviour beyond its startup log (no plugin install lines seen).
