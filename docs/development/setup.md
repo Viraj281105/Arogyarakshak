@@ -124,21 +124,22 @@ cd ../..
 ```
 
 ### 5.2.1 Mobile motion system dependencies
-`apps/mobile` uses `react-native-reanimated` (~3.16), `react-native-gesture-handler` (~2.20),
-`@shopify/flash-list` (1.7.x) and `expo-haptics` (~14.0), at the versions Expo SDK 52 pins
-(`npx expo install <names>`; official npm registry only). `babel.config.js` lists only
-`babel-preset-expo`, which adds the Reanimated plugin itself when the package is installed; do
-not add `react-native-reanimated/plugin` as well. Motion patterns (`Reveal`, `Parallax`,
-`Pressable`, `CountUp`, `tap`) live in `apps/mobile/src/motion/` and honour the OS reduce-motion
-setting; Reanimated may only be imported there. `react-native-gesture-handler` is installed but
-unused: importing it from `App.tsx` added about 0.97 MB (+42%) to the Hermes bundle, so the first
-gesture-using screen (WS5) must add `import 'react-native-gesture-handler'` as the first line of
-`App.tsx` and wrap the root in `GestureHandlerRootView`, and re-measure the bundle. If `npx expo install` fails with
-`EALLOWSCRIPTS`, run `npm install` in `apps/mobile` after it has edited `package.json`.
+`apps/mobile` uses `@shopify/flash-list` (1.7.x) and `expo-haptics` (~14.0), at the versions Expo SDK 52 pins
+(`npx expo install <names>`; official npm registry only). Motion patterns (`Reveal`, `Parallax`, `Pressable`,
+`CountUp`, `SlidingIndicator`, `Pulse`, `tap`) live in `apps/mobile/src/motion/`, animate with React Native's
+built-in `Animated` API (native driver on device) and honour the OS reduce-motion setting.
+**Updated 2026-11-18 (WS5-shell, ruling):** `react-native-reanimated` and `react-native-gesture-handler` were removed
+from `apps/mobile/package.json` (unused; Reanimated measured +785,115 B and Gesture Handler about +0.97 MB on the Hermes
+bundle). No app code may import either (tests enforce it); re-adding one needs a concrete screen, a fresh
+measurement and a budget ruling (`docs/development/performance-budgets.md`). `babel.config.js` lists only
+`babel-preset-expo` (if Reanimated ever returns, the preset adds its plugin itself; do not list it again). If
+`npx expo install` fails with `EALLOWSCRIPTS`, run `npm install` in `apps/mobile` after it has edited `package.json`.
 
-**WS5-shell update (2026-11-18):** the motion components now animate with React Native's built-in `Animated`
-API, and no app code imports `react-native-reanimated` (it added 785,115 B and broke the mobile bundle budget;
-see `docs/development/performance-budgets.md`). The package stays installed; re-adopting it needs a budget ruling.
+**Known limitation (Hindi/Marathi text weight):** the bundled font families have no Devanagari glyphs. Shell text
+uses `textStyleFor()` / `fontFor()` (`src/theme/fontFamily.ts`): Devanagari strings get the system face with a
+numeric `fontWeight`, Latin strings keep the custom family without `fontWeight` (a custom family plus `fontWeight`
+can synthesise a double bold on Android). Verified only in the browser preview; not checked on a device. Screen
+text that still uses `fontWeight` directly is unaffected (system font).
 
 ### 5.2.1a Mobile browser preview (WS5-shell)
 `apps/mobile` also depends on `react-native-web` (~0.19.13), `react-dom` (18.3.1) and `@expo/metro-runtime`

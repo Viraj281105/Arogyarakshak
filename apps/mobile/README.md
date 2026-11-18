@@ -129,10 +129,13 @@ differ from Android/iOS. The web packages are not part of the native bundles.
   language segmented control, theme toggle), `components/TabBar.tsx` (custom animated tab bar, bottom inset),
   `components/Skeleton.tsx`, `components/EmptyState.tsx`; pure logic in `src/shell/logic.ts`.
 - Fonts: use `font(role, weight)` or `textStyles.*` from `src/theme` (they return the real Expo family names such as
-  `Inter_600SemiBold`) and do not also set `fontWeight`. The generated `fonts` tokens are CSS stacks for the web only.
+  `Inter_600SemiBold`) and do not also set `fontWeight`. For text that may be Hindi/Marathi use `textStyleFor(preset,
+  text, weight)` or `fontFor(text, role, weight)` (system face + numeric weight for Devanagari). The generated `fonts`
+  tokens are CSS stacks for the web only.
 - Motion: `src/motion` (`Reveal`, `Pressable`, `SlidingIndicator`, `Pulse`, `Parallax`, `CountUp`, `tap`) runs on
-  React Native `Animated` and honours the OS reduce-motion setting; do not import `react-native-reanimated`
-  (bundle budget, see `docs/development/performance-budgets.md`).
+  React Native `Animated` and honours the OS reduce-motion setting. `react-native-reanimated` and
+  `react-native-gesture-handler` are not dependencies (ruling 2026-11-18, bundle budget 2,600,000 B; see
+  `docs/development/performance-budgets.md`).
 
 ### 3.5 First device / emulator run — checklist
 

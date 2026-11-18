@@ -45,7 +45,8 @@ Command: `cd apps/mobile && EXPO_NO_TELEMETRY=1 npx expo export --platform andro
 
 - Android JS bundle (Hermes bytecode, `AppEntry-*.hbc`): 2,319,176 bytes = **2264.8 KB (2.32 MB)**, 860 modules, 17 assets.
 - Later measurements (same command): 2,361,153 B / 909 modules at the end of WS0 (a3fffaa); 2,394,806 B / 929 modules after
-  WS5-shell (mobile shell, motion on RN `Animated`). A Reanimated-based shell measured 3,146,268 B / 1,100 modules and was
+  WS5-shell (mobile shell, motion on RN `Animated`); 2,397,558 B / 929 modules after the WS5 review fixes with Reanimated
+  and Gesture Handler removed from `package.json`. A Reanimated-based shell measured 3,146,268 B / 1,100 modules and was
   not shipped; see `performance-budgets.md` (mobile section).
 
 Cold start: **not measurable in CI** (needs a physical device or emulator running the app). Not measured here.

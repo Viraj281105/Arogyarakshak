@@ -61,13 +61,25 @@ checks every family the helper can return is imported in `useAppFonts.ts` (and v
 
 Used by the shell (header, tab bar, Button, EmptyState). Screen text keeps the system font until each screen is redesigned.
 
+Devanagari (review fix): the families have no Devanagari glyphs, so Hindi/Marathi falls back to the system face and,
+with the weight only in the family name, would render at regular weight. `textStyleFor(preset, text, weight)` and
+`fontFor(text, role, weight)` detect Devanagari and then drop the custom family and set a numeric `fontWeight` (one
+style object: react-native-web ignores a later `fontFamily: undefined`); Latin text keeps the custom family without
+`fontWeight` (no Android double bold). Checked in the web preview only.
+
+Tab bar text scaling (review fix): icon and label cap OS font scaling at 1.2x (`TAB_MAX_FONT_SCALE`), the label shrinks
+to fit its width on device (`adjustsFontSizeToFit`), and the bar uses `minHeight` so it grows instead of clipping;
+`tabContentHeight()` proves the capped content fits the 56 px base.
+
 ## 5. Deferred WS0 fixes (each with a test)
 
 - `useAppFonts`: a timeout (`FONT_LOAD_TIMEOUT_MS`) after which the app renders with system fonts, so the splash can
   never hang; pure `fontGate()` decides. Load errors log through `devWarn` (only in `__DEV__`), no raw `console.warn`.
 - `Pressable`: the caller's `transform` is kept and the press scale is appended (`withPressScale`), not replaced.
 - `Reveal`: animates at most once, and only if motion is allowed on its first run; a late prime (unknown → allowed)
-  does not replay a mounted Reveal (`revealAction()`).
+  does not replay a mounted Reveal (`revealAction()`); a re-run that finds the animation interrupted (Fast Refresh,
+  StrictMode) snaps to the final state.
+- `Card` (review fix): with `reveal` on, layout style keys go to the Reveal wrapper (`splitLayoutStyle`).
 - `App.tsx`: the reduce-motion prime timer is cleared when the prime settles.
 
 ## 6. Browser preview
@@ -76,11 +88,11 @@ Used by the shell (header, tab bar, Button, EmptyState). Screen text keeps the s
 versions Expo SDK 52 pins (`bundledNativeModules.json`). Those packages resolve only for the web platform, so the
 Android/iOS bundles do not change (checked by the Android export size). It is a **preview, not a device run**:
 no haptics, no native stack/screens behaviour, no camera parity, fonts load through `@font-face`, `SecureStore`
-has no web backend, layout uses the browser's text metrics. Platform guards are added only where web would crash or
-throw, and are either `Platform.OS === 'web'` branches that leave the native path unchanged or `*.web.ts` files that
-native bundles never include.
+has no web backend, layout uses the browser's text metrics. The app rendered on web without crashing, so the only
+platform guard added is `hapticsSupported(Platform.OS)` in `tap()` (and `NATIVE_DRIVER` is off on web); no `*.web.ts`
+files were needed.
 
-## 7. Bundle budget (decision changed during implementation)
+## 7. Bundle budget (decision changed during implementation, then ruled)
 
 Plan: import the Reanimated-based `src/motion` from the shell and measure. Measured (`npx expo export --platform android`):
 
@@ -88,16 +100,17 @@ Plan: import the Reanimated-based `src/motion` from the shell and measure. Measu
 |---|---|---|
 | Before (a3fffaa) | 2,361,153 B | 909 |
 | Shell on Reanimated-based motion | 3,146,268 B (+785,115) | 1,100 |
-| Shell on RN `Animated`-based motion (shipped) | 2,394,806 B (+33,653) | 929 |
+| Shell on RN `Animated`-based motion | 2,394,806 B (+33,653) | 929 |
+| Final (review fixes, Reanimated + Gesture Handler removed) | 2,397,558 B | 929 |
 
-Reanimated alone (172 modules) exceeds the 538,847 B headroom, and the budget may not be raised without a ruling. So the
-motion components (`Reveal`, `Pressable`, `SlidingIndicator`, `Pulse`, `Parallax`) keep their props and reduced-motion
-rules but animate with React Native's built-in `Animated` API (already in the bundle; only opacity/transform, so the
-native driver runs them off the JS thread on device). `react-native-reanimated` stays installed (babel-preset-expo
-still applies its plugin) but no app code imports it; a test enforces that. Going back to Reanimated (e.g. for
-gesture-driven or layout animations) needs a budget ruling first. `Parallax` now takes an `Animated.Value` (it had no
-callers). `react-native-gesture-handler` stays unimported. The budget constant is left at 2,900,000 B: tightening it
-now would pre-empt the open Reanimated ruling.
+Reanimated alone (172 modules) exceeded the headroom of the old 2,900,000 B budget, so the motion components
+(`Reveal`, `Pressable`, `SlidingIndicator`, `Pulse`, `Parallax`) keep their props and reduced-motion rules but
+animate with React Native's built-in `Animated` API (only opacity/transform, so the native driver runs them off the
+JS thread on device). `Parallax` now takes an `Animated.Value` (it had no callers).
+
+Ruling 2026-11-18: keep RN `Animated`; remove the unused `react-native-reanimated` and `react-native-gesture-handler`
+dependencies; budget tightened to 2,600,000 B. Re-adding either package needs a concrete screen, a fresh measurement
+and a budget ruling (`performance-budgets.md`).
 
 ## 8. Out of scope
 
