@@ -80,7 +80,8 @@ class LlmRuntime:
         self._rng_lock = threading.Lock()
         self._lock = threading.Lock()
         self._breakers: Dict[str, CircuitBreaker] = {}
-        self.backoff = BackoffPolicy(self.config.backoff_base_s, self.config.backoff_max_s)
+        self.backoff = BackoffPolicy(self.config.backoff_base_s, self.config.backoff_max_s,
+                                     self.config.retry_after_max_s)
         self.cache: Optional[ResponseCache] = (
             ResponseCache(self.config.cache_max_entries, self.config.cache_ttl_s, clock)
             if self.config.cache_enabled else None
@@ -197,7 +198,10 @@ class ResilientLlmClient:
         response = self._run(request, production=True)
         rt = self.runtime
         if rt.shadow is not None and not response.cache_hit:
-            rt.shadow.submit(self.api_key, request, response)
+            try:
+                rt.shadow.submit(self.api_key, request, response)
+            except Exception as exc:  # noqa: BLE001 — a shadow bug must never cost the real answer
+                logger.warning("Shadow submission failed (%s); production response kept.", type(exc).__name__)
         return response
 
     def complete_shadow(self, request: LlmRequest) -> LlmResponse:
@@ -247,11 +251,15 @@ class ResilientLlmClient:
         if fallback:
             models.append(fallback)
 
+        # One overall deadline across every attempt, backoff sleep and the fallback model.
+        deadline = rt.clock() + rt.config.total_deadline_s
         last_exc: Optional[BaseException] = None
         for model in models:
+            if last_exc is not None and rt.clock() >= deadline:
+                break  # no time left for the fallback model: raise the primary's error
             state["model"] = model
             try:
-                text, p_tok, c_tok, total = self._call_model(rt, model, request, state)
+                text, p_tok, c_tok, total = self._call_model(rt, model, request, state, deadline)
             except LlmError as exc:
                 last_exc = exc
                 if model != models[-1]:
@@ -268,7 +276,8 @@ class ResilientLlmClient:
         assert last_exc is not None
         raise last_exc
 
-    def _call_model(self, rt: LlmRuntime, model: str, request: LlmRequest, state: Dict[str, Any]):
+    def _call_model(self, rt: LlmRuntime, model: str, request: LlmRequest, state: Dict[str, Any],
+                    deadline: float):
         breaker = rt.breaker(model)
         payload: Dict[str, Any] = {
             "model": model,
@@ -281,15 +290,20 @@ class ResilientLlmClient:
         }
         if request.json_mode:
             payload["response_format"] = {"type": "json_object"}
-        timeout = request.timeout_s if request.timeout_s is not None else rt.config.timeout_s
+        # min(call site, LLM_TIMEOUT_SECONDS), then never beyond the overall deadline.
+        timeout = rt.config.attempt_timeout(request.timeout_s)
 
         attempt = 0
         while True:
-            if not breaker.allow():
+            remaining = deadline - rt.clock()
+            if remaining <= 0:
+                raise LlmTimeout("overall LLM deadline exhausted")
+            token = breaker.acquire()
+            if token is None:
                 raise LlmCircuitOpen("circuit open for this model")
             try:
                 try:
-                    body = rt.transport(payload, self.api_key, timeout)
+                    body = rt.transport(payload, self.api_key, min(timeout, remaining))
                     result = _parse_completion(body)
                 except LlmError:
                     raise
@@ -297,19 +311,22 @@ class ResilientLlmClient:
                     raise classify_transport_error(raw) from None
             except LlmError as exc:
                 if counts_toward_breaker(exc):
-                    breaker.record_failure()
+                    breaker.record_failure(token)
                 else:
-                    breaker.record_success()  # the provider answered
+                    breaker.record_success(token)  # the provider answered
                 attempt += 1
                 if not is_retryable(exc) or attempt >= rt.config.max_attempts:
                     raise
                 if breaker.state == "open":
                     raise LlmCircuitOpen("circuit opened during retries") from None
                 retry_after = exc.retry_after_s if isinstance(exc, LlmRateLimited) else None
-                rt.sleep(rt.backoff_delay(attempt - 1, retry_after))
+                delay = rt.backoff_delay(attempt - 1, retry_after)
+                if rt.clock() + delay >= deadline:
+                    raise  # never sleep past the deadline: same error as exhausted retries
+                rt.sleep(delay)
                 state["retries"] += 1
                 continue
-            breaker.record_success()
+            breaker.record_success(token)
             return result
 
     def _emit(self, rt, request, model, outcome, started, p_tok, c_tok, cache_hit, retries) -> None:

@@ -47,9 +47,11 @@ _observers: List[Observer] = []
 
 
 def register_llm_observer(fn: Observer) -> Callable[[], None]:
-    """Registers ``fn``; returns a function that unregisters it."""
+    """Registers ``fn`` (idempotent: an observer already registered is not added again, so
+    a repeated startup hook cannot double-count); returns a function that unregisters it."""
     with _lock:
-        _observers.append(fn)
+        if fn not in _observers:
+            _observers.append(fn)
 
     def unregister() -> None:
         with _lock:

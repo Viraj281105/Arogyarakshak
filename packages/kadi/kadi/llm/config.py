@@ -67,13 +67,39 @@ def _model(env: Mapping[str, str], name: str) -> str:
     return model
 
 
+def _positive(env: Mapping[str, str], name: str, default: float, hi: float) -> float:
+    """A strictly positive number; zero, negative or unparsable values are refused
+    (warning + default) rather than clamped, so 'disable' can never be expressed by 0."""
+    raw = _str(env, name)
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        value = -1.0
+    if not value > 0:
+        logger.warning("%s=%r must be a number > 0; using %s.", name, raw, default)
+        return default
+    return min(value, hi)
+
+
+# Used when neither the call site nor LLM_TIMEOUT_SECONDS gives a per-attempt timeout.
+DEFAULT_TIMEOUT_S = 12.0
+
+
 @dataclass(frozen=True)
 class LlmConfig:
     fallback_model: str = ""
-    timeout_s: float = 12.0
+    # Per-attempt timeout ceiling. None (LLM_TIMEOUT_SECONDS unset) = the call site's own
+    # timeout applies; when set, the effective timeout is min(call site, this).
+    timeout_s: Optional[float] = None
+    # Overall wall-clock budget for one complete() across all attempts, backoff sleeps and
+    # the fallback model. Always > 0.
+    total_deadline_s: float = 20.0
     max_attempts: int = 3
     backoff_base_s: float = 0.5
     backoff_max_s: float = 8.0
+    retry_after_max_s: float = 30.0
     breaker_failure_threshold: int = 5
     breaker_recovery_s: float = 30.0
     case_token_budget: int = 0  # 0 = unlimited
@@ -92,9 +118,11 @@ class LlmConfig:
         return cls(
             fallback_model=_model(env, "GROQ_FALLBACK_MODEL"),
             timeout_s=_num(env, "LLM_TIMEOUT_SECONDS", d.timeout_s, float, lo=0.1, hi=120),
+            total_deadline_s=_positive(env, "LLM_TOTAL_DEADLINE_SECONDS", d.total_deadline_s, hi=600),
             max_attempts=_num(env, "LLM_MAX_ATTEMPTS", d.max_attempts, int, lo=1, hi=10),
             backoff_base_s=_num(env, "LLM_BACKOFF_BASE_SECONDS", d.backoff_base_s, float, lo=0, hi=60),
             backoff_max_s=_num(env, "LLM_BACKOFF_MAX_SECONDS", d.backoff_max_s, float, lo=0, hi=120),
+            retry_after_max_s=_num(env, "LLM_RETRY_AFTER_MAX_SECONDS", d.retry_after_max_s, float, lo=0, hi=600),
             breaker_failure_threshold=_num(env, "LLM_BREAKER_FAILURE_THRESHOLD", d.breaker_failure_threshold, int, lo=1),
             breaker_recovery_s=_num(env, "LLM_BREAKER_RECOVERY_SECONDS", d.breaker_recovery_s, float, lo=0),
             case_token_budget=_num(env, "LLM_CASE_TOKEN_BUDGET", d.case_token_budget, int, lo=0),
@@ -106,6 +134,11 @@ class LlmConfig:
             shadow_sample_rate=_num(env, "LLM_SHADOW_SAMPLE_RATE", d.shadow_sample_rate, float, lo=0, hi=1),
             shadow_max_runs=_num(env, "LLM_SHADOW_MAX_RUNS", d.shadow_max_runs, int, lo=0, hi=10_000),
         )
+
+    def attempt_timeout(self, call_site_timeout_s: Optional[float]) -> float:
+        """min(call site, LLM_TIMEOUT_SECONDS) over whichever are set; default 12 s."""
+        candidates = [t for t in (call_site_timeout_s, self.timeout_s) if t is not None]
+        return min(candidates) if candidates else DEFAULT_TIMEOUT_S
 
     def fallback_for(self, primary: str) -> Optional[str]:
         """The fallback model to try after ``primary`` failed, or None."""

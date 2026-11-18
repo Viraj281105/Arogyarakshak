@@ -163,7 +163,9 @@ def test_backoff_schedule_with_seeded_jitter_is_bounded_and_reproducible():
 def test_backoff_honours_retry_after_but_stays_capped():
     policy = BackoffPolicy(base_s=0.5, max_s=8.0)
     assert policy.delay(0, random.Random(1), retry_after_s=3.0) == 3.0
-    assert policy.delay(0, random.Random(1), retry_after_s=60.0) == 8.0
+    # Review fix m3: Retry-After has its own clamp (retry_after_max_s, default 30 s), not
+    # the backoff cap; the client's overall deadline bounds it further.
+    assert policy.delay(0, random.Random(1), retry_after_s=60.0) == 30.0
 
 
 # ---- circuit breaker -------------------------------------------------------------------

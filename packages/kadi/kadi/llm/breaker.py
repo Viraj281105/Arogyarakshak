@@ -2,11 +2,17 @@
 
 Thread-safe: the API's sync LLM code runs on Starlette's threadpool, so several threads
 share one breaker. Every state read-modify-write happens under ``self._lock``.
+
+Generation guard: ``acquire()`` returns the current generation as a token, and every trip
+or close bumps the generation. A result reported with an older token is ignored, so a call
+that started before a trip cannot close an OPEN breaker with its late success, and a late
+failure cannot clear the in-flight half-open probe. ``record_*`` without a token (``None``)
+always applies (backward compatible).
 """
 
 import threading
 import time
-from typing import Callable
+from typing import Callable, Optional
 
 CLOSED = "closed"
 OPEN = "open"
@@ -24,39 +30,53 @@ class CircuitBreaker:
         self._failures = 0
         self._opened_at = 0.0
         self._probe_in_flight = False
+        self._generation = 0
 
     @property
     def state(self) -> str:
         with self._lock:
             return self._state
 
-    def allow(self) -> bool:
-        """May a request go out now? In half_open only one probe is admitted."""
+    def acquire(self) -> Optional[int]:
+        """The generation token if a request may go out now, else None. In half_open only
+        one probe is admitted."""
         with self._lock:
             if self._state == CLOSED:
-                return True
+                return self._generation
             if self._state == OPEN:
                 if self._clock() - self._opened_at >= self.recovery_s:
                     self._state = HALF_OPEN
                     self._probe_in_flight = True
-                    return True
-                return False
+                    return self._generation
+                return None
             # HALF_OPEN
             if self._probe_in_flight:
-                return False
+                return None
             self._probe_in_flight = True
-            return True
+            return self._generation
 
-    def record_success(self) -> None:
+    def allow(self) -> bool:
+        return self.acquire() is not None
+
+    def _stale(self, token: Optional[int]) -> bool:
+        return token is not None and token != self._generation
+
+    def record_success(self, token: Optional[int] = None) -> None:
         """The provider answered (2xx, or a 4xx that proves it is reachable)."""
         with self._lock:
+            if self._stale(token):
+                return
+            if self._state != CLOSED:
+                self._generation += 1
             self._state = CLOSED
             self._failures = 0
             self._probe_in_flight = False
 
-    def record_failure(self) -> None:
+    def record_failure(self, token: Optional[int] = None) -> None:
         """An availability failure (timeout, connection, 429, 5xx)."""
         with self._lock:
+            if self._stale(token):
+                return
             self._probe_in_flight = False
             if self._state == HALF_OPEN:
                 self._trip()
@@ -69,3 +89,4 @@ class CircuitBreaker:
         self._state = OPEN
         self._opened_at = self._clock()
         self._failures = 0
+        self._generation += 1

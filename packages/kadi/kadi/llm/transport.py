@@ -11,6 +11,8 @@ import json
 import socket
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
 
 from kadi.llm.errors import (
@@ -26,28 +28,42 @@ from kadi.llm.errors import (
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
-def _retry_after(headers) -> Optional[float]:
+def _retry_after(headers, now: Optional[datetime] = None) -> Optional[float]:
+    """Seconds from a Retry-After header: delta-seconds or an HTTP-date (RFC 9110). A date
+    in the past means 0; anything unparsable means None (the computed backoff applies)."""
     if headers is None:
         return None
     raw = headers.get("Retry-After")
     if raw is None:
         return None
+    text = str(raw).strip()
     try:
-        value = float(str(raw).strip())
+        value = float(text)
+        return value if value >= 0 else None
     except ValueError:
-        return None  # HTTP-date form: ignored, the computed backoff applies
-    return value if value >= 0 else None
+        pass
+    try:
+        when = parsedate_to_datetime(text)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    return max(0.0, (when - now).total_seconds())
 
 
-def classify_transport_error(exc: BaseException) -> LlmError:
+def classify_transport_error(exc: BaseException, now: Optional[datetime] = None) -> LlmError:
     """Maps a urllib/socket exception to a typed LlmError. Never copies the provider's
-    response body or reason text (either can echo the prompt)."""
+    response body or reason text (either can echo the prompt). ``now`` is injectable for
+    the HTTP-date form of Retry-After."""
     if isinstance(exc, LlmError):
         return exc
     if isinstance(exc, urllib.error.HTTPError):
         code = exc.code
         if code == 429:
-            return LlmRateLimited("HTTP 429", retry_after_s=_retry_after(exc.headers))
+            return LlmRateLimited("HTTP 429", retry_after_s=_retry_after(exc.headers, now))
         if code == 408 or code >= 500:
             return LlmServerError(f"HTTP {code}", status=code)
         return LlmClientError(f"HTTP {code}", status=code)
