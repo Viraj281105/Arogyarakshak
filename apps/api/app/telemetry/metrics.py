@@ -53,6 +53,15 @@ LLM_CACHE_HITS: Counter
 LLM_CIRCUIT: Gauge
 
 
+# (metric name, pool method, help) - rendered only for pools that expose the counters.
+DB_POOL_GAUGES = (
+    ("arogya_db_pool_size", "size", "Configured connection pool size."),
+    ("arogya_db_pool_checked_out", "checkedout", "Connections currently checked out."),
+    ("arogya_db_pool_overflow", "overflow", "Connections in use beyond the pool size."),
+)
+DB_POOL_METRICS = tuple(name for name, _, _ in DB_POOL_GAUGES)
+
+
 class _PoolCollector:
     """Reads the SQLAlchemy pool at scrape time. Pools without counters (SQLite's) report
     nothing rather than failing the scrape."""
@@ -61,11 +70,7 @@ class _PoolCollector:
         pool = getattr(getattr(_db_engine, "sync_engine", None), "pool", None)
         if pool is None:
             return
-        for name, attr, doc in (
-            ("arogya_db_pool_size", "size", "Configured connection pool size."),
-            ("arogya_db_pool_checked_out", "checkedout", "Connections currently checked out."),
-            ("arogya_db_pool_overflow", "overflow", "Connections in use beyond the pool size."),
-        ):
+        for name, attr, doc in DB_POOL_GAUGES:
             fn = getattr(pool, attr, None)
             if not callable(fn):
                 continue

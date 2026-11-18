@@ -17,6 +17,36 @@ processors:
     limit_mib: 200
     spike_limit_mib: 50
   batch: {}
+  # Second scrubbing layer for traces (the API already scrubs in-process, app/telemetry/span_scrub.py):
+  # no raw request target / query / SQL text, no case ids, no exception message or stacktrace
+  # (exception.type is kept). http.route (the template) is kept.
+  transform/scrub_spans:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - delete_key(attributes, "http.target")
+          - delete_key(attributes, "http.url")
+          - delete_key(attributes, "url.full")
+          - delete_key(attributes, "url.path")
+          - delete_key(attributes, "url.query")
+          - delete_key(attributes, "db.statement")
+          - delete_key(attributes, "db.query.text")
+          - replace_all_patterns(attributes, "value", "CASE-[A-Za-z0-9_-]+", "CASE-<redacted>")
+          - replace_pattern(name, "CASE-[A-Za-z0-9_-]+", "CASE-<redacted>")
+          - set(status.message, "")
+      - context: spanevent
+        statements:
+          - delete_key(attributes, "exception.message")
+          - delete_key(attributes, "exception.stacktrace")
+  # Loki's service_name label comes from the resource attribute service.name; Docker's fluentd
+  # driver does not set one, so it would be "unknown_service".
+  transform/service_name:
+    error_mode: ignore
+    log_statements:
+      - context: resource
+        statements:
+          - set(attributes["service.name"], "arogyarakshak-api")
   # The API logs one JSON object per line (LOG_FORMAT=json).
   transform/parse_api_json:
     error_mode: ignore
@@ -53,9 +83,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, transform/scrub_spans, batch]
       exporters: [otlp/tempo]
     logs:
       receivers: [fluentforward]
-      processors: [memory_limiter, transform/parse_api_json, batch]
+      processors: [memory_limiter, transform/service_name, transform/parse_api_json, batch]
       exporters: [otlphttp/loki]

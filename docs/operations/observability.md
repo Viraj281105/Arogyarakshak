@@ -1,7 +1,10 @@
 # Observability
 
 Self-hosted metrics, logs and traces for the API (ADR-023). Nothing is sent outside this
-machine, and nothing here records documents, patient identifiers or case ids.
+machine. Metric labels and log fields never contain documents, patient identifiers or case ids
+(routes are templates). Traces come from standard instrumentation that would otherwise record raw
+paths, SQL text and exception messages, so they are scrubbed twice; see "Privacy rules" for exactly
+what is removed and what remains.
 
 ## What you get
 
@@ -9,7 +12,7 @@ machine, and nothing here records documents, patient identifiers or case ids.
 |---|---|---|
 | Metrics | `GET /metrics` on the API (internal; not in the OpenAPI contract) | Prometheus `http://127.0.0.1:9090`, Grafana dashboards |
 | Logs | API JSON logs on stdout, shipped by Docker's `fluentd` log driver to the OTel Collector, then Loki | Grafana, Explore, datasource Loki: `{service_name="arogyarakshak-api"}` |
-| Traces | OpenTelemetry (FastAPI, httpx, SQLAlchemy) over OTLP/HTTP to the collector, then Tempo | Grafana, Explore, datasource Tempo; the log line's `trace_id` field is the trace id |
+| Traces | OpenTelemetry (FastAPI, httpx, SQLAlchemy) over OTLP/HTTP to the collector, then Tempo; scrubbed in the API and again in the collector | Grafana, Explore, datasource Tempo; the log line's `trace_id` field is the trace id. `/health*` and `/metrics` are not traced; `/api/v1/kadi/metrics/latency/*` is |
 | Alerts | Prometheus rules, delivered to Alertmanager (no outbound receiver) | `http://127.0.0.1:9093`, Grafana dashboard "SLOs" |
 
 The older `/api/v1/kadi/metrics/latency` endpoints still work; the same measurement now also
@@ -86,13 +89,50 @@ a test fails if the JSON and the generator disagree or a panel queries a metric 
 
 ## Privacy rules
 
-No label, log field or span attribute may contain document text, patient identifiers, file names,
-case ids or free text from users. Metric routes are templates; the access log already follows
-the same rule. Add a metric only with a closed or capped label set and extend the fuzz test in
-`apps/api/tests/test_telemetry_metrics.py`.
+- **Metrics and logs:** no label or log field may contain document text, patient identifiers,
+  file names, case ids or user free text. Metric routes are templates; the access log follows the
+  same rule. Add a metric only with a closed or capped label set and extend the fuzz test in
+  `apps/api/tests/test_telemetry_metrics.py`.
+- **Traces:** the standard instrumentations record the raw request target (it contains the case
+  id), the query string, SQL text, and full exception messages (a SQLAlchemy error includes the
+  bound parameters). Two layers remove them:
+  1. In the API, `app/telemetry/span_scrub.py` (an exporter wrapper) drops `http.target`,
+     `http.url`, `url.full`, `url.path`, `url.query`, `db.statement`, `db.query.text`; redacts
+     `CASE-<id>` tokens in remaining string values and the span name; keeps only `exception.type`
+     on exception events (no `exception.message`, no `exception.stacktrace`); drops status
+     descriptions.
+  2. In the collector, `transform/scrub_spans` does the same.
+  What remains on a span: method, route template (`http.route` and the span name), status code,
+  peer address and port, user agent, host name, timings, DB system and database name, exception
+  type. `apps/api/tests/test_telemetry_scrubbing.py` drives a real instrumented request with a
+  case id, a query string and an exception containing a name, and asserts none appears in any
+  exported span.
+- Loki log lines are the API's own access/application log lines, which already follow the log rules.
+
+## Operational notes
+
+- **Two workflows.** API in Compose: Prometheus scrapes job `api` (`api:8000`). API on the host:
+  put `host.docker.internal:8000` in `targets/api-host.yml`; the always-down static `api` target is
+  then ignored by `ApiTargetDown` while `api-host` is up. Run only the observability services in
+  that case.
+- **`METRICS_ENABLED` is forced `true`** for the `api` service by the override, even under
+  `APP_ENV=production`: Prometheus must scrape it and running the override is the opt-in.
+- **`/metrics` is unauthenticated**; network isolation (loopback port, compose network) is the only
+  protection. Scrapes go through the API's rate limiter (a scrape every 15 s is far below the limit).
+- **Logs can be lost.** The `fluentd` driver runs async (`fluentd-async`): lines are dropped if the
+  collector is down or the driver buffer is full, and early API logs may be lost while the collector
+  starts. `docker compose logs api` still has everything.
+- **Loki `service_name`.** The collector sets `service.name=arogyarakshak-api` on log resources so
+  `{service_name="arogyarakshak-api"}` works (Docker's driver sets none).
+- **`arogya_case_processing_seconds` includes failed documents**, so the case-latency SLI counts a
+  failed (usually fast) document as within the target.
+- **Tempo is the only container run as root with an added capability** (`DAC_OVERRIDE`), needed to
+  write its named volume under `cap_drop: ALL`. Acceptable for this loopback-only local demo; for
+  production use a non-root user plus an init step that chowns the volume.
+- If `OTEL_EXPORTER_OTLP_ENDPOINT` points outside this machine / the stack, the API only logs a
+  warning; it does not refuse.
 
 ## What has and has not been verified
 
-See `docs/superpowers/handoff/wave1-ws1-observability.md` for the exact list of what was run
-(unit and configuration tests, a local API serving `/metrics`) versus what was not (starting the
-containers, pulling the images, `promtool`, the Grafana dashboards rendering with data).
+See `docs/superpowers/handoff/wave1-ws1-observability.md` for the exact list of what was run live
+versus what was not.

@@ -198,10 +198,12 @@ def test_dev_default_is_the_same_everywhere(compose):
 
 
 def exported_names():
-    """Sample-name prefixes the API's registry can export, from its # TYPE lines."""
+    """Sample names the API's registry can export: its # TYPE lines plus the pool gauges, which
+    only render when an engine with pool counters is registered (so they are listed explicitly
+    to keep this independent of test order)."""
     from app.telemetry import metrics as m
 
-    names = set()
+    names = set(m.DB_POOL_METRICS)
     for line in m.render().decode().splitlines():
         if line.startswith("# TYPE "):
             _, _, name, kind = line.split(" ", 3)
@@ -349,3 +351,64 @@ def test_new_environment_variables_are_documented():
                 "OTEL_TRACES_SAMPLER_RATIO", "GRAFANA_ADMIN_PASSWORD"):
         assert var in env_example, var
         assert var in docs, var
+
+
+def test_exported_names_do_not_depend_on_a_registered_engine(monkeypatch):
+    from app.telemetry import metrics as m
+
+    monkeypatch.setattr(m, "_db_engine", None)
+    names = exported_names()
+    assert {"arogya_db_pool_size", "arogya_db_pool_checked_out", "arogya_db_pool_overflow"} <= names
+
+
+def test_grafana_makes_no_outbound_calls_and_has_no_gravatar(compose):
+    env = compose["services"]["grafana"]["environment"]
+    expected = {
+        "GF_ANALYTICS_REPORTING_ENABLED": "false",
+        "GF_ANALYTICS_CHECK_FOR_UPDATES": "false",
+        "GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES": "false",
+        "GF_ANALYTICS_FEEDBACK_LINKS_ENABLED": "false",
+        "GF_NEWS_NEWS_FEED_ENABLED": "false",
+        "GF_PLUGINS_PLUGIN_ADMIN_ENABLED": "false",
+        "GF_PLUGINS_PREINSTALL_DISABLED": "true",
+        "GF_SECURITY_DISABLE_GRAVATAR": "true",
+    }
+    for key, value in expected.items():
+        assert env.get(key) == value, key
+
+
+def test_tempo_is_the_only_root_container_and_it_is_documented(compose):
+    privileged = {n: s for n, s in compose["services"].items() if s.get("user") or s.get("cap_add")}
+    assert set(privileged) == {"tempo"}
+    assert privileged["tempo"]["cap_add"] == ["DAC_OVERRIDE"]
+    adr = (ROOT / "docs/architecture/decisions/ADR-023-self-hosted-telemetry.md").read_text(encoding="utf-8")
+    ops = (ROOT / "docs/operations/observability.md").read_text(encoding="utf-8")
+    for doc in (adr, ops, COMPOSE.read_text(encoding="utf-8")):
+        assert "only container run as root" in doc
+
+
+def test_collector_scrubs_traces_a_second_time_and_names_the_log_service():
+    otel = load(OBS / "otel-collector" / "config.yml")
+    pipelines = otel["service"]["pipelines"]
+    assert "transform/scrub_spans" in pipelines["traces"]["processors"]
+    statements = json.dumps(otel["processors"]["transform/scrub_spans"])
+    for needle in ("http.target", "http.url", "url.full", "url.path", "url.query", "db.statement", "db.query.text",
+                   "exception.message", "exception.stacktrace", "CASE-"):
+        assert needle in statements, needle
+    assert "http.route" not in statements
+    assert "transform/service_name" in pipelines["logs"]["processors"]
+    assert "arogyarakshak-api" in json.dumps(otel["processors"]["transform/service_name"])
+
+
+def test_api_target_down_does_not_fire_for_the_host_run_workflow():
+    rules = {r["alert"]: r["expr"] for g in load(OBS / "prometheus/rules/alerts.rules.yml")["groups"] for r in g["rules"] if "alert" in r}
+    expr = rules["ApiTargetDown"]
+    assert 'unless on() (up{job="api-host"} == 1)' in expr
+    assert 'up{job="api-host"} == 0' in expr
+
+
+def test_observability_docs_describe_what_is_scrubbed():
+    ops = (ROOT / "docs/operations/observability.md").read_text(encoding="utf-8")
+    for phrase in ("exception.type", "http.target", "unauthenticated", "fluentd", "METRICS_ENABLED"):
+        assert phrase in ops, phrase
+    assert "nothing here records case ids" not in ops.lower()

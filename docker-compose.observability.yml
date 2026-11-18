@@ -31,6 +31,9 @@ services:
   # The API gains metrics, JSON logs shipped via the fluentd driver, and (opt-out) tracing.
   api:
     environment:
+      # Forced on (even under APP_ENV=production) because Prometheus scrapes /metrics; running
+      # this override is the operator's opt-in. /metrics is unauthenticated: loopback + compose
+      # network are its only protection.
       METRICS_ENABLED: "true"
       LOG_FORMAT: json
       OTEL_ENABLED: ${OTEL_ENABLED:-true}
@@ -118,11 +121,10 @@ services:
     <<: *hardening
     image: grafana/tempo:2.7.2
     command: ["-config.file=/etc/tempo/tempo.yml"]
-    # Root inside the container only so the named volume is writable (the image does not
-    # pre-create /var/tempo for its unprivileged user); all capabilities are still dropped.
-    user: "0:0"
-    # `cap_drop: ALL` also removes CAP_DAC_OVERRIDE, so root cannot write into the named volume,
-    # which Docker initialises owned by the image user. Add back only that one capability.
+    # This is the only container run as root with an added capability (CAP_DAC_OVERRIDE), so the
+    # named volume, which Docker initialises owned by the image user, is writable (`cap_drop: ALL`
+    # removes it from root). Acceptable for this loopback-only local demo; for production run Tempo
+    # as a non-root user and chown the volume with an init step instead.
     cap_add:
       - DAC_OVERRIDE
     volumes:
@@ -190,6 +192,9 @@ services:
       GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: "false"
     ports:
       # 3001: the web dev server owns 3000.
       - "127.0.0.1:3001:3000"

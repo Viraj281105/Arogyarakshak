@@ -146,7 +146,8 @@ def test_llm_event_tolerates_missing_tokens_and_bad_values():
     llm_metrics.record_llm_event(object())  # never raises into the caller
 
 
-def test_pool_gauges_collect_without_error():
+def test_pool_gauges_collect_without_error(monkeypatch):
+    monkeypatch.setattr(m, "_db_engine", None)  # restored afterwards: no leaking fake engine
     class Pool:
         def size(self):
             return 5

@@ -15,7 +15,7 @@ Operator doc: `docs/operations/observability.md`.
 - **Label safety:** routes must be in the OpenAPI path set else `<unmatched>`; methods/status/stage/outcome/reason from closed
   sets; LLM `model` must be a configured model (`GROQ_MODEL` / `GROQ_FALLBACK_MODEL`) else `other`; `kind` is a capped identifier.
   A PHI-looking and random fuzz test checks nothing leaks into any label.
-- **Tracing** (`telemetry/tracing.py`): OTel SDK + OTLP/HTTP, lazy imports, `OTEL_ENABLED=false` default; FastAPI, httpx and
+- **Tracing** (`telemetry/tracing.py`, `span_scrub.py`): OTel SDK + OTLP/HTTP, scrubbed spans, lazy imports, `OTEL_ENABLED=false` default; FastAPI, httpx and
   SQLAlchemy instrumentation; `trace_id` added to JSON logs (null without an active span).
 - **Logs:** Docker `fluentd` driver (async) -> collector `fluentforward` -> Loki OTLP. No docker.sock.
 - **Stack:** `docker-compose.observability.yml` + `infrastructure/observability/**` (Prometheus v3.5.0, Alertmanager v0.28.1,
@@ -42,25 +42,40 @@ Operator doc: `docs/operations/observability.md`.
   `{route="<unmatched>",status="404"}` for the unknown case path (the case id never appeared), and the access log line carried
   `"trace_id": "ae1aec71ce61a73ee1a2e29698edc212"` beside `request_id`. `/metrics` is absent from `/openapi.json`. Server stopped, scratch DB removed.
 
-## NOT verified (stated plainly)
+## Verification status
 
-The user's relayed message authorised pulling the pinned images and running the stack under project `arogya-obs`. The harness blocked
-the `docker compose pull` as an unsanctioned network action (a relayed coordinator message is not direct user consent), so
-**no image was pulled and no container was started** by this stream. Therefore all of these are unverified:
+Verified live by the controller (this stream could not pull images or start containers): the six pinned images were pulled and run;
+Prometheus, Loki, Tempo and Grafana healthy, Alertmanager up after a restart, the collector running (no container healthcheck: the
+image has no shell); Prometheus loaded 5 rule groups / 22 rules, all healthy; Grafana health ok with the Loki, Prometheus and Tempo
+datasources and the 4 provisioned dashboards; a host-run API's `/metrics` showed route templates.
 
-- `docker compose ... config -q` ran (it needs no daemon or network) and passed, but nothing was started;
-- container health, Prometheus `up`/rules loaded, `promtool check rules/config`, `amtool check-config`;
-- that the chosen image tags exist on Docker Hub (they were picked from release history and are unconfirmed; digests not recorded);
-- Grafana provisioning of datasources/dashboards and panels returning data; Browser screenshots of dashboards;
-- Loki ingesting a log line and finding it by LogQL; the collector's `transform` statements and `fluentforward` field handling (the
-  record shape from the Docker driver is an assumption, likely needing adjustment on first run); Tempo receiving and returning a trace;
-- the Tempo healthcheck (`wget` in the image is assumed) and the volume write permission under `user: 0:0`;
-- Windows/Docker Desktop reaching `127.0.0.1:24224` from the daemon for the fluentd driver and `host.docker.internal` for host-run APIs.
+NOT verified live: traces arriving in Tempo, Loki ingestion (and its `service_name` label), dashboard panels returning data,
+`promtool` / `amtool`, screenshots, the collector's new `transform/scrub_spans` and `transform/service_name` statements (OTTL, written
+without running the collector), image digests (tags only), Docker Desktop's fluentd driver path. The static checks are in
+`test_observability_stack_config.py`.
 
-To finish: run the commands in `docs/operations/observability.md` (use `-p arogya-obs`), then `promtool check rules`
-via `docker run --rm --entrypoint promtool -v ...`, and fix whatever the first start reports. Static checks in
-`test_observability_stack_config.py` cover structure, loopback binding, pinning, no socket, the production guard (executed with `sh`),
-alert/dashboard metric names and generator drift.
+## Review-fix pass (after the first handoff)
+
+- **Critical (PHI in traces) fixed.** The first version's docs claimed spans carried only template data; that was false: the
+  instrumentations record `http.target`/`http.url` (case id and query string), SQL text and exception messages (SQLAlchemy includes
+  bound parameters). New `app/telemetry/span_scrub.py` (`ScrubbingExporter`, a copy-rewrite of each `ReadableSpan` because span
+  attributes are immutable after end) plus a collector `transform/scrub_spans` as a second layer. RED evidence before the fix:
+  the in-memory exporter test failed with `'CASE-SECRET-123' leaked in span 'GET /api/v1/kadi/cases/{case_id}/boom'` showing
+  `http.target`, `http.url` (with `?patient=John`) in the attributes; with scrubbing bypassed the exception-event test also fails.
+  GREEN after: no `CASE-SECRET-123`, `John`, `Doe` or `patient=` in any exported span (attributes, events, status, name), for a real
+  instrumented FastAPI app and a real SQLAlchemy error; span name and `http.route` are the template.
+- **Anchored excluded URLs** (the earlier substring match `health,metrics` also silenced `/api/v1/kadi/metrics/latency/*`):
+  `/health`, `/health/...`, `/metrics` are not traced, `/api/v1/kadi/metrics/latency/summary` is (tested).
+- `setup_tracing` now passes its own `tracer_provider` to each instrumentor and `shutdown_tracing` uninstruments httpx/SQLAlchemy
+  (process-wide singletons that ignore a second `instrument()`).
+- Loki `service_name`: collector sets resource `service.name=arogyarakshak-api` (constant; the resource context cannot read the JSON field).
+- Grafana: added `GF_PLUGINS_PREINSTALL_DISABLED`, `GF_SECURITY_DISABLE_GRAVATAR`, `GF_ANALYTICS_FEEDBACK_LINKS_ENABLED` (tested together with the existing outbound-off variables).
+- Tempo root + `cap_add: DAC_OVERRIDE` kept and documented as the only root container (compose comment, ADR-023, observability.md; test enforces).
+- `ApiTargetDown` no longer fires when the API runs on the host: `(up{job="api"} == 0 unless on() (up{job="api-host"} == 1)) or up{job="api-host"} == 0`; structural test only (no promtool).
+- Missing FastAPI instrumentation package logs a WARNING.
+- Order independence: `exported_names()` now includes the DB pool metric names (`metrics.DB_POOL_METRICS`) and the pool test no longer leaves a fake engine registered. The four telemetry/stack test files pass in three file orders, fully reversed and seeded-shuffled test order.
+- Local API re-run (SQLite, `OTEL_ENABLED=true`): `/metrics` showed `route="<unmatched>",status="404"` for `/api/v1/kadi/cases/CASE-SECRET-123/nope?patient=John`; the JSON log lines never contain it. (uvicorn's own plain-text access line does, which is why Compose runs the API with `--no-access-log`; do the same on the host.)
+- Docs now state: the async fluentd driver can drop logs (collector down, buffer full, early startup), `METRICS_ENABLED` is forced `true` by the override even under production, `/metrics` is unauthenticated (network isolation only) and is counted by the rate limiter, `arogya_case_processing_seconds` includes failed documents.
 
 ## Cross-stream interface notes
 
