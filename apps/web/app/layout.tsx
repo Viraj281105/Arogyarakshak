@@ -13,8 +13,9 @@ export const metadata: Metadata = {
   description:
     "Patient-facing forensic bill audit, IRDAI insurance dispute appeals, PM-JAY scheme eligibility & NPPA medicine pricing platform.",
   applicationName: "ArogyaRakshak",
-  // Static files in public/ (not metadata routes): installable shell, deliberately NO service
-  // worker — offline caching of pages or documents would contradict zero document retention.
+  // Static files in public/ (not metadata routes). A web app manifest is present; installability
+  // is NOT verified (SVG-only icons, no PNG 192/512, no apple-touch-icon). Deliberately NO service
+  // worker: offline caching of pages or documents would contradict zero document retention.
   manifest: "/manifest.webmanifest",
   icons: { icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }] },
 };

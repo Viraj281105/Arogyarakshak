@@ -215,7 +215,7 @@ describe('root layout frame', () => {
 });
 
 describe('PWA manifest', () => {
-  test('is installable metadata with SVG any + maskable icons, and there is no service worker', () => {
+  test('web app manifest is present with SVG any + maskable icons (installability not verified), and there is no service worker', () => {
     // A static file, not app/manifest.ts: metadata routes have no client reference manifest,
     // which scripts/measure-baseline.mjs (correctly) refuses to measure.
     const m = JSON.parse(readFileSync(join(webDir, 'public', 'manifest.webmanifest'), 'utf8'));
