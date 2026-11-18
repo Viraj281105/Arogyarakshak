@@ -159,7 +159,8 @@ jobs:
           DATABASE_URL: postgresql://arogyarakshak:arogyarakshak@localhost:5432/arogyarakshak
           MIGRATION_TEST_DATABASE_URL: postgresql://arogyarakshak:arogyarakshak@localhost:5432/migration_test
           GROQ_MODEL: openai/gpt-oss-120b
-          GROQ_API_KEY: mock_test_key_for_ci
+          # No GROQ_API_KEY on purpose: tests never reach the network (the apps/api and
+          # kadi test conftests also clear any key and guard urllib.request.urlopen).
           PYTHONPATH: apps/api
         run: |
           python -m pytest \
