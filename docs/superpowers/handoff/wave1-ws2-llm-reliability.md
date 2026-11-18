@@ -93,6 +93,47 @@ unchanged because the transport still calls `urllib.request.urlopen(req, timeout
 Only addition to shared test infra: an autouse `reset_llm_runtime` fixture in
 `apps/api/tests/conftest.py` and a new `packages/kadi/tests/conftest.py`.
 
+## Review fixes (second pass, same day)
+Shipped (commits 4c746c0, 136d5d6, fde9cdb, 55ee754):
+- **Overall deadline** `LLM_TOTAL_DEADLINE_SECONDS` (default 20, must be > 0; 0/negative/
+  non-numeric → warning + default): checked before every attempt, backoff sleep and model
+  switch; per-attempt timeout capped to the remaining time; no sleep crosses it; fallback
+  model skipped when no time remains; caller gets the same typed error as exhausted retries.
+- **Effective timeout** = `min(call site, LLM_TIMEOUT_SECONDS)` when set; unset → call site.
+- **Retry-After**: HTTP-date parsed (past date → 0); separate clamp
+  `LLM_RETRY_AFTER_MAX_SECONDS` (30), still bounded by the deadline.
+- **Breaker generation tokens**: late results from an older generation are ignored.
+- **Shadow submit guarded** (exception type logged, production response kept);
+  **observer registration idempotent**.
+- **`--only X --check-baseline`** gates harness X only (`compare(..., only=...)`).
+- **Budget wording** made honest everywhere: per BillNyay pipeline run, extraction unbudgeted
+  (follow-up recorded); ADR-024 documents 429-as-availability-failure, non-atomic
+  ensure_fits/charge, and the in-flight insert after `purge()` (lives ≤ one TTL).
+- **No network in tests**: removed `GROQ_API_KEY: mock_test_key_for_ci` from the backend CI
+  job; apps/api conftest adds autouse `no_groq_key` (settings + env cleared) and
+  `network_guard` (urlopen raises "live network calls are forbidden in tests" and records the
+  URL); kadi tests conftest does the same. New `test_no_live_network.py` proves an unpatched
+  appeal draft makes no network attempt. **No existing test relied on the mock key reaching
+  the network** — the full suites passed unchanged with the guard in place.
+- Existing test changed: `test_llm_primitives.py::test_backoff_honours_retry_after_but_stays_capped`
+  (this branch's own test) now expects the 30 s Retry-After clamp instead of 8 s; stale
+  docstring in `test_api.py::test_offline_fallback_never_claims_denial_facts_were_extracted`
+  updated (comment only).
+
+RED→GREEN evidence (this pass, real runs): `test_llm_review_fixes.py` 13 failed / 2 passed
+before the change → 15 passed after; `test_eval_regression.py` new `--only` tests 2 failed →
+pass; `test_no_live_network.py` 3 errored (no `network_guard` fixture) → 4 passed.
+
+Verification after the fixes:
+- `python -m pytest apps/api -q` → **542 passed, 1 skipped** (baseline 499/1).
+- `python -m pytest packages/ -q` → **709 passed, 6 skipped** (baseline 612/6).
+- ci_guardrails exit 0; ruff (E9,F63,F7,F82) all passed; lint-imports 5 kept / 0 broken.
+- `check_eval_regression.py` → PASS (exit 0); degraded baseline → 2 rows REGRESSED (exit 1);
+  `evaluate_phase4.py` exit 0; `--only ocr --check-baseline` exit 0.
+- ci-workflow node test 3 pass / 0 fail; ci.yml YAML parses (8 jobs, backend test-step env
+  now DATABASE_URL, GROQ_MODEL, MIGRATION_TEST_DATABASE_URL, PYTHONPATH); ci-gate `bash -n` OK;
+  `docker compose config --quiet` valid.
+
 ## Not verified
 - No live Groq call: real retry/breaker/429 `Retry-After` behaviour, fallback-model
   behaviour and token usage accounting against the real API are unverified.
