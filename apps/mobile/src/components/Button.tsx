@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  TouchableOpacity,
   Text,
   StyleSheet,
   ActivityIndicator,
@@ -8,7 +7,8 @@ import {
   TextStyle,
   AccessibilityProps,
 } from 'react-native';
-import { useTheme } from '../theme';
+import { useTheme, font } from '../theme';
+import { Pressable } from '../motion';
 
 export interface ButtonProps extends AccessibilityProps {
   title: string;
@@ -96,8 +96,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.75}
+    <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       accessible={true}
@@ -105,7 +104,7 @@ export const Button: React.FC<ButtonProps> = ({
       accessibilityLabel={accessibilityLabel || title}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
-      style={[
+      style={({ pressed }) => [
         styles.buttonBase,
         {
           backgroundColor: getBackgroundColor(),
@@ -116,6 +115,7 @@ export const Button: React.FC<ButtonProps> = ({
           minWidth: spacing.minTouchTarget,
           ...getPadding(),
         },
+        pressed && styles.pressed,
         style,
       ]}
       {...rest}
@@ -135,7 +135,7 @@ export const Button: React.FC<ButtonProps> = ({
               {
                 color: getTextColor(),
                 fontSize: size === 'sm' ? typography.sizes.sm : typography.sizes.md,
-                fontWeight: typography.weights.semibold,
+                ...font('sans', '600'),
                 marginLeft: icon ? spacing.xs : 0,
               },
               textStyle,
@@ -145,7 +145,7 @@ export const Button: React.FC<ButtonProps> = ({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -154,6 +154,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.85,
   },
   spinner: {
     marginVertical: 2,

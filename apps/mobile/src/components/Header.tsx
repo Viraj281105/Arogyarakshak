@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useTheme } from '../theme';
+import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme, textStyles, font } from '../theme';
 import { Language } from '../translations';
-import { Badge } from './Badge';
+import { Pressable } from '../motion';
 
 export interface HeaderProps {
   title?: string;
@@ -10,138 +11,147 @@ export interface HeaderProps {
   onLanguageChange: (lang: Language) => void;
 }
 
+const LANGUAGES: Language[] = ['en', 'hi', 'mr'];
+
+/**
+ * App header: pads the top safe-area inset, brand in the display face with the BYOD marker under
+ * it, an EN/HI/MR segmented control and a theme toggle (all 44px touch targets, motion Pressable).
+ */
 export const Header: React.FC<HeaderProps> = ({
   title = 'ArogyaRakshak',
   currentLanguage,
   onLanguageChange,
 }) => {
-  const { colors, spacing, typography, isDark, toggleTheme } = useTheme();
+  const { colors, spacing, radii, isDark, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <View
+      accessibilityRole="header"
       style={[
-        styles.headerContainer,
+        styles.container,
         {
           backgroundColor: colors.bgSurface,
           borderBottomColor: colors.borderSubtle,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.sm,
+          paddingTop: insets.top + spacing.sm,
+          paddingBottom: spacing.sm,
+          paddingLeft: Math.max(insets.left, spacing.md),
+          paddingRight: Math.max(insets.right, spacing.md),
         },
       ]}
     >
-      <View style={styles.topRow}>
-        <View style={styles.brandGroup}>
-          <Text
-            style={[
-              styles.brandTitle,
-              {
-                color: colors.textPrimary,
-                fontSize: typography.sizes.lg,
-                fontWeight: typography.weights.bold,
-              },
-            ]}
-          >
-            🛡️ {title}
-          </Text>
-          <Badge label="BYOD" variant="brand" style={styles.byodBadge} />
-        </View>
+      <View style={styles.brand}>
+        <Text numberOfLines={1} style={[textStyles.brand, { color: colors.textPrimary }]}>
+          {title}
+        </Text>
+        <Text numberOfLines={1} style={[textStyles.caption, styles.byod, { color: colors.brandEmerald }]}>
+          BYOD
+        </Text>
+      </View>
 
-        <View style={styles.controlsGroup}>
-          {/* Language Toggle Controls */}
-          {(['en', 'hi', 'mr'] as Language[]).map((lang) => {
-            const isActive = currentLanguage === lang;
+      <View style={styles.controls}>
+        <View
+          accessibilityRole="radiogroup"
+          style={[styles.segmented, { borderColor: colors.borderMedium, borderRadius: radii.md }]}
+        >
+          {LANGUAGES.map((lang) => {
+            const active = currentLanguage === lang;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={lang}
                 onPress={() => onLanguageChange(lang)}
-                accessible={true}
-                accessibilityRole="button"
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active, checked: active }}
+                aria-checked={active}
                 accessibilityLabel={`Switch to ${lang}`}
                 style={[
-                  styles.controlButton,
+                  styles.segment,
                   {
-                    backgroundColor: isActive ? colors.brandCyan : 'transparent',
-                    borderColor: isActive ? colors.brandCyan : colors.borderMedium,
-                    minHeight: spacing.minTouchTarget, // 44px touch target
+                    minHeight: spacing.minTouchTarget,
                     minWidth: spacing.minTouchTarget,
+                    borderRadius: radii.md - 2,
+                    backgroundColor: active ? colors.brandForest : 'transparent',
                   },
                 ]}
               >
                 <Text
                   style={[
-                    styles.langText,
-                    {
-                      color: isActive ? '#ffffff' : colors.textSecondary,
-                      fontWeight: isActive ? '700' : '500',
-                      fontSize: typography.sizes.xs,
-                    },
+                    font('sans', active ? '700' : '500'),
+                    styles.segmentText,
+                    { color: active ? '#ffffff' : colors.textSecondary },
                   ]}
                 >
                   {lang.toUpperCase()}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
-
-          {/* Theme Toggle Button */}
-          <TouchableOpacity
-            onPress={toggleTheme}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={[
-              styles.controlButton,
-              {
-                backgroundColor: colors.bgSurfaceElevated,
-                borderColor: colors.borderSubtle,
-                minHeight: spacing.minTouchTarget, // 44px touch target
-                minWidth: spacing.minTouchTarget,
-                marginLeft: spacing.xs,
-              },
-            ]}
-          >
-            <Text style={{ fontSize: typography.sizes.md }}>
-              {isDark ? '☀️' : '🌙'}
-            </Text>
-          </TouchableOpacity>
         </View>
+
+        <Pressable
+          onPress={toggleTheme}
+          accessibilityRole="button"
+          accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={[
+            styles.themeToggle,
+            {
+              minHeight: spacing.minTouchTarget,
+              minWidth: spacing.minTouchTarget,
+              borderRadius: radii.md,
+              backgroundColor: colors.bgSurfaceElevated,
+              borderColor: colors.borderSubtle,
+              marginLeft: spacing.xs,
+            },
+          ]}
+        >
+          <Text style={styles.themeIcon}>{isDark ? '☀️' : '🌙'}</Text>
+        </Pressable>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    borderBottomWidth: 1,
-    width: '100%',
-  },
-  topRow: {
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    width: '100%',
   },
-  brandGroup: {
+  brand: {
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  byod: {
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 0.8,
+  },
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  brandTitle: {
-    letterSpacing: -0.3,
-  },
-  byodBadge: {
-    marginLeft: 8,
-  },
-  controlsGroup: {
+  segmented: {
     flexDirection: 'row',
-    alignItems: 'center',
+    borderWidth: 1,
+    padding: 1,
   },
-  controlButton: {
+  segment: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  segmentText: {
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
+  themeToggle: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderRadius: 8,
-    marginHorizontal: 2,
   },
-  langText: {
-    letterSpacing: 0.5,
+  themeIcon: {
+    fontSize: 18,
   },
 });

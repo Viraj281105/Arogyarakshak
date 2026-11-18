@@ -1,9 +1,13 @@
 import React from 'react';
-import { Text, Platform, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BottomTabParamList } from './types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
+import { TabBar } from '../components/TabBar';
+import { useReducedMotion } from '../motion';
+import { tabTransition } from '../shell/logic';
+import { motion } from '../generated/tokens';
 import {
   HomeScreen,
   BillNyayScreen,
@@ -15,79 +19,48 @@ import {
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
+const icon = (glyph: string) => () => <Text style={styles.icon}>{glyph}</Text>;
+
 export const BottomTabNavigator: React.FC = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors } = useTheme();
   const { t } = useLanguage();
+  const reduced = useReducedMotion();
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.bgSurface,
-          borderTopColor: colors.borderSubtle,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: colors.brandCyan,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarItemStyle: {
-          minHeight: spacing.minTouchTarget, // 44px
-        },
-        tabBarLabelStyle: {
-          fontSize: typography.sizes.xs,
-          fontWeight: '600',
-        },
+        sceneStyle: { backgroundColor: colors.bgBase },
+        animation: tabTransition(reduced),
+        transitionSpec: { animation: 'timing', config: { duration: motion.duration.base } },
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: t.tabs.home,
-          tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>🏠</Text>,
-        }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: t.tabs.home, tabBarIcon: icon('🏠') }} />
       <Tab.Screen
         name="BillNyay"
         component={BillNyayScreen}
-        options={{
-          tabBarLabel: t.tabs.billnyay,
-          tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>⚖️</Text>,
-        }}
+        options={{ tabBarLabel: t.tabs.billnyay, tabBarIcon: icon('⚖️') }}
       />
       <Tab.Screen
         name="DaaviSetu"
         component={DaaviSetuScreen}
-        options={{
-          tabBarLabel: t.tabs.daavisetu,
-          tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>📋</Text>,
-        }}
+        options={{ tabBarLabel: t.tabs.daavisetu, tabBarIcon: icon('📋') }}
       />
       <Tab.Screen
         name="BimaNyay"
         component={BimaNyayScreen}
-        options={{
-          tabBarLabel: t.tabs.bimanyay,
-          tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>🛡️</Text>,
-        }}
+        options={{ tabBarLabel: t.tabs.bimanyay, tabBarIcon: icon('🛡️') }}
       />
       <Tab.Screen
         name="SchemeSetu"
         component={SchemeSetuScreen}
-        options={{
-          tabBarLabel: t.tabs.schemesetu,
-          tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>🏛️</Text>,
-        }}
+        options={{ tabBarLabel: t.tabs.schemesetu, tabBarIcon: icon('🏛️') }}
       />
       <Tab.Screen
         name="DawaCheck"
         component={DawaCheckScreen}
-        options={{
-          tabBarLabel: t.tabs.dawacheck,
-          tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>💊</Text>,
-        }}
+        options={{ tabBarLabel: t.tabs.dawacheck, tabBarIcon: icon('💊') }}
       />
     </Tab.Navigator>
   );
@@ -96,5 +69,6 @@ export const BottomTabNavigator: React.FC = () => {
 const styles = StyleSheet.create({
   icon: {
     fontSize: 20,
+    lineHeight: 24,
   },
 });
