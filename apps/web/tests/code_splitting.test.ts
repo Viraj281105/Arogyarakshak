@@ -17,27 +17,53 @@ function assertLazy(src: string, name: string, from: string) {
 }
 
 describe('home route code splitting', () => {
-  const page = code(read('page.tsx'));
+  // app/page.tsx is a Server Component; the interactive part lives in HomeWorkspace.
+  const page = code(read('components', 'HomeWorkspace.tsx'));
 
   test('inactive module views are dynamic; the default BillNyay view stays static (it renders at first paint)', () => {
-    assertLazy(page, 'BimaNyayView', './components/modules/BimaNyayView');
-    assertLazy(page, 'DaaviSetuView', './components/modules/DaaviSetuView');
-    assertLazy(page, 'SchemeSetuView', './components/modules/SchemeSetuView');
-    assertLazy(page, 'DawaCheckView', './components/modules/DawaCheckView');
-    assert.match(page, /^import \{ BillNyayView \} from "\.\/components\/modules\/BillNyayView";/m);
+    assertLazy(page, 'BimaNyayView', './modules/BimaNyayView');
+    assertLazy(page, 'DaaviSetuView', './modules/DaaviSetuView');
+    assertLazy(page, 'SchemeSetuView', './modules/SchemeSetuView');
+    assertLazy(page, 'DawaCheckView', './modules/DawaCheckView');
+    assert.match(page, /^import \{ BillNyayView \} from "\.\/modules\/BillNyayView";/m);
   });
 
   test('case-desk components that only render once a case exists are dynamic', () => {
-    assertLazy(page, 'AgentStreamVisualizer', './components/AgentStreamVisualizer');
-    assertLazy(page, 'SafetyEscalationBanner', './components/clinical/SafetyEscalationBanner');
-    assertLazy(page, 'EntityResolutionReview', './components/EntityResolutionReview');
-    assertLazy(page, 'ClaimPackPanel', './components/ClaimPackPanel');
-    assertLazy(page, 'CaseTimeline', './components/CaseTimeline');
+    assertLazy(page, 'AgentStreamVisualizer', './AgentStreamVisualizer');
+    assertLazy(page, 'SafetyEscalationBanner', './clinical/SafetyEscalationBanner');
+    assertLazy(page, 'EntityResolutionReview', './EntityResolutionReview');
+    assertLazy(page, 'ClaimPackPanel', './ClaimPackPanel');
+    assertLazy(page, 'CaseTimeline', './CaseTimeline');
   });
 
   test('demo controls load only in demo mode', () => {
-    assertLazy(page, 'DemoControls', './components/demo/DemoControls');
+    assertLazy(page, 'DemoControls', './demo/DemoControls');
     assert.match(page, /demoStatus\?\.demo_mode && <DemoControls/);
+  });
+
+  test('every dynamic() call has a sized, busy loading placeholder', () => {
+    for (const src of [page, code(read('clinical-review', 'page.tsx'))]) {
+      const calls = src.split('dynamic(').length - 1;
+      const withLoading = (src.match(/loading: (moduleLoading|tabLoading|\(\) => <LazyPanel minHeight="[\d.]+rem" \/>)/g) ?? []).length;
+      assert.ok(calls > 0);
+      assert.equal(withLoading, calls, 'each dynamic() needs loading: <LazyPanel minHeight=...>');
+    }
+    const lazy = read('components', 'LazyPanel.tsx');
+    assert.match(lazy, /aria-busy="true"/);
+    assert.match(lazy, /style=\{\{ minHeight \}\}/);
+  });
+});
+
+describe('static landing sections are Server Components (no client JS)', () => {
+  test('hero, journey and reference coverage have no "use client" and are rendered by the server page', () => {
+    for (const f of ['LandingHero.tsx', 'CaseJourney.tsx', 'ReferenceCoverage.tsx', 'HeroIllustration.tsx']) {
+      assert.ok(!/^\s*["']use client["']/.test(read('components', 'landing', f)), `${f} must stay a Server Component`);
+    }
+    const serverPage = read('page.tsx');
+    assert.ok(!/["']use client["']/.test(serverPage));
+    assert.match(serverPage, /hero=\{<LandingHero \/>\} journey=\{<CaseJourney \/>\} coverage=\{<ReferenceCoverage \/>\}/);
+    const landing = read('components', 'landing', 'Landing.tsx');
+    assert.ok(!/import \{ (LandingHero|CaseJourney|ReferenceCoverage) \}/.test(landing), 'Landing must not import them');
   });
 });
 

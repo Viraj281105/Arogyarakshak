@@ -15,12 +15,12 @@ export const WEB_INITIAL_JS_KB = 170;
  * every route was over). Value = ceiling in whole gzip KB (measured size rounded up), so
  * they cannot grow. Fix a route, then DELETE its entry: the check fails on entries that
  * are no longer needed.
- * WS4 ratchet (2026-11-18, fresh build): / 254.24 -> 224.85, /clinical-review 201.87 -> 190.02,
- * /_not-found 182.79 -> 179.79, /_global-error 174.57 -> 171.94; /motion-lab is no longer built
+ * WS4 ratchet (2026-11-18, fresh build): / 254.24 -> 222.26, /clinical-review 201.87 -> 190.32,
+ * /_not-found 182.79 -> 179.84, /_global-error 174.57 -> 171.94; /motion-lab is no longer built
  * for production. About 167 KB of every route is framework (polyfills + React/Next runtime).
  */
 export const KNOWN_VIOLATIONS = {
-  "/": 225,
+  "/": 223,
   "/clinical-review": 191,
   "/_not-found": 180,
   "/_global-error": 172,

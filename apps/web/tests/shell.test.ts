@@ -192,7 +192,7 @@ describe('root layout frame', () => {
     assert.match(layout, /<SiteHeader/);
     assert.match(layout, /<main id="main-content" tabIndex=\{-1\}/);
     assert.match(layout, /<SiteFooter/);
-    for (const f of ['page.tsx', 'clinical-review/page.tsx', 'components/StatusPage.tsx', 'not-found.tsx', 'error.tsx']) {
+    for (const f of ['page.tsx', 'components/HomeWorkspace.tsx', 'clinical-review/page.tsx', 'components/StatusPage.tsx', 'not-found.tsx', 'error.tsx']) {
       const src = read(...f.split('/'));
       // StatusPage keeps a <main> only for global-error, which replaces the root layout.
       const mains = (src.match(/<main\b/g) ?? []).length;
@@ -201,7 +201,7 @@ describe('root layout frame', () => {
   });
 
   test('the pages no longer render their own header or footer', () => {
-    for (const f of ['page.tsx', 'clinical-review/page.tsx']) {
+    for (const f of ['page.tsx', 'components/HomeWorkspace.tsx', 'clinical-review/page.tsx']) {
       const src = read(...f.split('/'));
       assert.ok(!/<Header\b|<Footer\b|className="header-bar"/.test(src), f);
     }
@@ -227,7 +227,7 @@ describe('PWA manifest', () => {
     assert.ok(icons.some((i) => i.type === 'image/svg+xml' && i.purpose === 'maskable'));
     for (const i of icons) assert.ok(existsSync(join(webDir, 'public', i.src)), `${i.src} missing`);
     const all = [
-      ...['layout.tsx', 'page.tsx'].map((f) => read(f)),
+      ...['layout.tsx', 'page.tsx', 'components/HomeWorkspace.tsx'].map((f) => read(...f.split('/'))),
       ...['SiteHeader.tsx', 'ShellProvider.tsx'].map((f) => read('shell', f)),
     ].join('\n');
     assert.ok(!/navigator\.serviceWorker|workbox/i.test(all), 'no service worker (zero retention)');

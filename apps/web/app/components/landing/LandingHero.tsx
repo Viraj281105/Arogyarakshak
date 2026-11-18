@@ -1,8 +1,6 @@
-"use client";
-
-import React, { useRef } from "react";
+import React from "react";
 import { TransitionLink } from "../../shell/TransitionLink";
-import { useScrollProgress } from "../../hooks/useScrollMotion";
+import { ScrollProgressSection } from "./ScrollProgressSection";
 import { HeroIllustration } from "./HeroIllustration";
 
 const ASSURANCES = [
@@ -23,12 +21,10 @@ const ASSURANCES = [
   },
 ];
 
+/** Server Component (WS4): static hero copy; only the scroll-progress wrapper is client code. */
 export const LandingHero: React.FC = () => {
-  const ref = useRef<HTMLElement>(null);
-  useScrollProgress(ref, "--hero-progress");
-
   return (
-    <section ref={ref} className="lp-hero" aria-labelledby="lp-hero-title">
+    <ScrollProgressSection progressVar="--hero-progress" className="lp-hero" labelledBy="lp-hero-title">
       <div className="lp-hero-copy">
         <p className="lp-eyebrow">
           <span className="lp-eyebrow-dot" aria-hidden="true" />
@@ -74,6 +70,6 @@ export const LandingHero: React.FC = () => {
         <HeroIllustration />
         <figcaption>Illustration: a made-up bill, checked against real CGHS reference rates.</figcaption>
       </figure>
-    </section>
+    </ScrollProgressSection>
   );
 };

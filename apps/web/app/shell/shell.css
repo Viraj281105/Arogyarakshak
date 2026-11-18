@@ -699,3 +699,14 @@ body {
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.3);
 }
+
+/* ---------- Loading placeholder for code-split panels (components/LazyPanel.tsx) ---------- */
+
+.lazy-panel {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-md);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}

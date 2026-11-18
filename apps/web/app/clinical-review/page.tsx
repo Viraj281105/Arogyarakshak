@@ -8,13 +8,17 @@ import { StatePanel } from "../components/clinical/StatePanel";
 import { DemoBanner, DemoPill, useDemoStatus } from "../components/demo/DemoBanner";
 import { TONE_CLASS } from "../lib/labels";
 import { SignInPanel } from "./components/SignInPanel";
+import { LazyPanel } from "../components/LazyPanel";
 import { AssignedReview, ReviewerCall, Tab } from "./types";
 import { useHeaderSlot } from "../shell/ShellProvider";
 
 // Code-split (WS4): the tabs render only after sign-in, so they stay out of the initial JS.
-const ReviewsTab = dynamic(() => import("./components/ReviewsTab").then((m) => m.ReviewsTab));
-const TranscriptionTab = dynamic(() => import("./components/TranscriptionTab").then((m) => m.TranscriptionTab));
-const SafetyTab = dynamic(() => import("./components/SafetyTab").then((m) => m.SafetyTab));
+const tabLoading = () => <LazyPanel minHeight="20rem" />;
+const ReviewsTab = dynamic(() => import("./components/ReviewsTab").then((m) => m.ReviewsTab), { loading: tabLoading });
+const TranscriptionTab = dynamic(() => import("./components/TranscriptionTab").then((m) => m.TranscriptionTab), {
+  loading: tabLoading,
+});
+const SafetyTab = dynamic(() => import("./components/SafetyTab").then((m) => m.SafetyTab), { loading: tabLoading });
 
 /** Reviewer workspace: credential + profile, then three tabs (assigned reviews,
  *  transcriptions, safety governance). Each tab owns its own state. */

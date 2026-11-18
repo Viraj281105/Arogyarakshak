@@ -21,7 +21,8 @@ const billNyay = viewSource('BillNyayView');
 const bimaNyay = viewSource('BimaNyayView');
 const daaviSetu = read('app', 'components', 'modules', 'DaaviSetuView.tsx');
 const dawaCheck = read('app', 'components', 'modules', 'DawaCheckView.tsx');
-const page = read('app', 'page.tsx');
+// The home page's interactive part lives in HomeWorkspace (app/page.tsx is a thin Server Component).
+const page = read('app', 'components', 'HomeWorkspace.tsx');
 
 describe('ADR-011 clinical review — web honesty contracts', () => {
   it('never composes "Verified Doctor" anywhere in the clinical UI', () => {
