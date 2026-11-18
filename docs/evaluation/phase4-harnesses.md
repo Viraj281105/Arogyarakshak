@@ -232,3 +232,33 @@ spelling/OCR variants all resolved. The failures:
 4. DawaCheck: match a combination product to a combination entry or refuse; avoid phonetic
    matches that skip the dosage rule. (Touches `reference_data.py` / `checker.py`, which open
    PRs #145/#150 also modify.)
+
+## Regression gate (CI) — added in Wave 1 / WS2 (ADR-024)
+The numbers above are now locked in by a gate. `apps/api/app/evaluation/regression.py`
+extracts 17 headline metrics (BMA accuracy and mapping F1; PEA procedure/medicine/all-item F1
+and total-amount accuracy; anomaly line- and bill-level F1; CRMA, wrongful-denial F1, clause
+and clinical accuracy; OCR corpus WER and CER, where lower is better; DawaCheck accuracy,
+mapping F1 and ceiling accuracy) plus the 7 dataset sizes, and compares them with the
+committed baseline `apps/api/app/evaluation/baseline/phase4_baseline.json`.
+
+```bash
+python scripts/check_eval_regression.py                 # run harnesses, compare (exit 0/1/2)
+python scripts/check_eval_regression.py --current out.json
+python scripts/evaluate_phase4.py --check-baseline      # the usual report, then the gate
+python scripts/check_eval_regression.py --write-baseline apps/api/app/evaluation/baseline/phase4_baseline.json
+```
+
+- **What it measures:** exactly what this document measures — the offline heuristic/rule
+  paths on the synthetic datasets. It is a regression gate, **not** an LLM-accuracy or
+  real-world-accuracy measurement, and it never calls Groq.
+- **Tolerance 0.0 for every metric:** the harnesses are deterministic offline code on fixed
+  data, so a re-run reproduces each figure exactly (1e-9 float slack only). Any drop fails;
+  an improvement passes and is reported so the baseline can be raised. A changed dataset size
+  fails until the baseline is regenerated in a reviewed commit.
+- The committed baseline was generated from `python scripts/evaluate_phase4.py --json` on
+  2026-11-18 (branch `ws2/llm-reliability`, base a3fffaa) and reproduces the figures in the
+  Summary table above (BMA 0.705, PEA procedure F1 0.942, anomaly line F1 0.810, CRMA 0.560,
+  OCR WER/CER 0.381/0.089, DawaCheck 0.865).
+- CI: the `eval-regression-gate` job in `.github/workflows/ci.yml`; `ci-gate` requires it.
+- The LLM extraction path is still unmeasured: there is no labelled LLM dataset and no live
+  run; no live-LLM evaluation script is provided, deliberately, so no unmeasured number exists.

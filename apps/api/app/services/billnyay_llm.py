@@ -10,18 +10,51 @@ from the document. ``llm_client()`` picks the live client when GROQ_API_KEY is s
 
 import json
 import logging
-import urllib.request
+from typing import Optional
 
 from app.config import settings
+from kadi.llm import (
+    LlmRequest,
+    PromptVersion,
+    ResilientLlmClient,
+    TokenBudget,
+    default_runtime,
+    register_prompt_version,
+)
 
 logger = logging.getLogger("arogyarakshak.api.billnyay")
 
+# WS2 (ADR-024): bounded labels for the observer/shadow statistics, one per agent. The
+# agents' system prompts vary per call (language, judge critique), so they carry explicit
+# versions — bump one when that agent's prompt changes meaningfully.
+_AGENT_PROMPTS = {
+    "auditor agent": register_prompt_version(PromptVersion("billnyay.auditor", "1")),
+    "clinician agent": register_prompt_version(PromptVersion("billnyay.clinician", "1")),
+    "barrister agent": register_prompt_version(PromptVersion("billnyay.barrister", "1")),
+}
+_GENERIC_PROMPT = register_prompt_version(PromptVersion("billnyay.generic", "1"))
+
+
+def _prompt_for(system: str) -> PromptVersion:
+    sys_text = (system or "").lower()
+    for marker, version in _AGENT_PROMPTS.items():
+        if marker in sys_text:
+            return version
+    return _GENERIC_PROMPT
+
 
 class GroqClient:
-    """Configured Groq Cloud inference client using settings.groq_model."""
-    def __init__(self, api_key: str, model: str):
+    """Configured Groq Cloud inference client using settings.groq_model.
+
+    The HTTP call goes through ``kadi.llm.ResilientLlmClient`` (timeout, retries, circuit
+    breaker, optional fallback model, observer events). ``token_budget`` is this pipeline
+    run's token budget (``llm_client()`` creates one per run when
+    LLM_CASE_TOKEN_BUDGET > 0)."""
+
+    def __init__(self, api_key: str, model: str, token_budget: Optional[TokenBudget] = None):
         self.api_key = api_key
         self.model = model
+        self.token_budget = token_budget
         # Set when a live call fails and this instance silently served a canned
         # fallback response instead. Callers must check this before claiming any
         # fact drawn from that response was actually extracted from the document.
@@ -32,32 +65,23 @@ class GroqClient:
         # JSON. The Barrister Agent emits prose; forcing json_object on it would make
         # Groq return a JSON envelope instead of an appeal letter.
         json_mode = kwargs.get("json_mode", True)
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system or "You are an expert healthcare auditor."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": kwargs.get("temperature", 0.0),
-            "max_tokens": kwargs.get("max_tokens", 1024),
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
+        version = _prompt_for(system)
+        request = LlmRequest(
+            system=system or "You are an expert healthcare auditor.",
+            prompt=prompt,
+            kind=version.name,
+            prompt_version=version,
+            temperature=kwargs.get("temperature", 0.0),
+            max_tokens=kwargs.get("max_tokens", 1024),
+            json_mode=json_mode,
+            timeout_s=12,
+            budget=self.token_budget,
+        )
         try:
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/chat/completions",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}"
-                },
-                method="POST"
-            )
-            with urllib.request.urlopen(req, timeout=12) as response:
-                res = json.loads(response.read().decode("utf-8"))
-                return res["choices"][0]["message"]["content"]
+            return ResilientLlmClient(api_key=self.api_key, model=self.model).complete(request).text
         except Exception as e:
-            logger.warning(f"[GroqClient] Cloud inference call failed: {e}. Falling back.")
+            # Type only: an exception message can quote provider output or prompt text.
+            logger.warning("[GroqClient] Cloud inference call failed (%s). Falling back.", type(e).__name__)
             self.used_fallback = True
             return GroqClientFallback().generate(prompt, system=system, **kwargs)
 
@@ -237,7 +261,17 @@ class GroqClientFallback:
 
 
 def llm_client():
-    """The live Groq client when GROQ_API_KEY is configured, else the offline fallback."""
+    """The live Groq client when GROQ_API_KEY is configured, else the offline fallback.
+
+    Called once per BillNyay pipeline run (one case), so the token budget created here is
+    the budget shared by every agent in that run — not a lifetime per-case budget
+    (LLM_CASE_TOKEN_BUDGET; 0 or
+    unset = unlimited)."""
     if settings.groq_api_key:
-        return GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
+        limit = default_runtime().config.case_token_budget
+        return GroqClient(
+            api_key=settings.groq_api_key,
+            model=settings.groq_model,
+            token_budget=TokenBudget(limit) if limit > 0 else None,
+        )
     return GroqClientFallback()

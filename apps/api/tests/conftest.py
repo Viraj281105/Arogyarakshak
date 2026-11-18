@@ -75,6 +75,46 @@ def reset_latency_tracker():
 
 
 @pytest.fixture(autouse=True, scope="function")
+def reset_llm_runtime():
+    """Same rationale again for the resilient LLM client's process runtime (ADR-024):
+    its circuit breakers and optional cache must not carry over between tests."""
+    from kadi.llm import reset_default_runtime
+
+    reset_default_runtime()
+    yield
+    reset_default_runtime()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def no_groq_key(monkeypatch):
+    """No test sees a Groq key (AGENTS.md network rule; WS2 review). CI used to set a mock
+    GROQ_API_KEY, which made every unpatched appeal draft send a real request to
+    api.groq.com. A test that needs the live-client code path sets a key itself with
+    monkeypatch (which overrides this) AND patches the transport."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "groq_api_key", "")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True, scope="function")
+def network_guard(monkeypatch):
+    """Second layer: ``urllib.request.urlopen`` — the only outbound HTTP path the API and
+    kadi.llm use — records the attempt and raises. A test that patches urlopen itself
+    overrides this. Request this fixture by name to assert on the recorded URLs."""
+    import urllib.request
+
+    attempts = []
+
+    def guarded_urlopen(req, *args, **kwargs):
+        attempts.append(getattr(req, "full_url", req))
+        raise RuntimeError("live network calls are forbidden in tests")
+
+    monkeypatch.setattr(urllib.request, "urlopen", guarded_urlopen)
+    return attempts
+
+
+@pytest.fixture(autouse=True, scope="function")
 def setup_database():
     """Fixture to create all tables before each test and drop them after."""
     import asyncio
