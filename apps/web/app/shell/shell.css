@@ -139,6 +139,7 @@ body {
 }
 
 .site-header-inner {
+  position: relative;
   height: var(--shell-header-h);
   display: flex;
   align-items: center;
@@ -229,14 +230,38 @@ body {
   min-width: 0;
 }
 
+/* Page chips (demo pill, signed-in reviewer) arrive after the first paint, so the slot takes no
+   space in the row. Measured: in flow it moved .site-actions and, at 1280 px, the nav; beside the
+   actions there are only 16-48 px free at 1024-1440 px, so it hangs just below the header row,
+   aligned with the content's right edge (and moves with the header when it hides). */
 .site-slot {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: max(var(--shell-gutter), env(safe-area-inset-right));
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  white-space: nowrap;
 }
 
-.site-slot:empty {
-  display: none;
+.site-slot > * {
+  background: var(--bg-surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* Phones: globals.css already pins .demo-pill under the emblem (absolute to the header), so the
+   slot itself must not create a box there. */
+@media (max-width: 560px) {
+  .site-slot {
+    display: contents;
+  }
+}
+
+/* The signed-in chip is also on the reviewer profile card; in the header only where it fits. */
+@media (max-width: 1439.98px) {
+  .site-slot .rv-signed-chip {
+    display: none;
+  }
 }
 
 .site-nav ul {

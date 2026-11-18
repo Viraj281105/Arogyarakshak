@@ -282,6 +282,15 @@ describe('shell layout stability and touch targets (WS4 review)', () => {
     assert.match(rule('.site-actions'), /margin-left:\s*auto/);
     assert.ok(!/margin-inline:\s*auto/.test(rule('.site-nav')), '.site-nav must not be centred');
     assert.match(header, /<div className="site-slot">\{slot\}<\/div>\s*<LanguageSwitcher/);
+    // The slot takes no space in the flex row at any width (measured: an in-flow slot moved
+    // .site-actions and, at 1280 px, the nav when the demo pill arrived).
+    // Measured: beside the actions there are only 16-48 px between nav and actions at 1024-1440 px,
+    // so the slot hangs below the header row's right edge instead (no overlap, no shift).
+    assert.match(rule('.site-header-inner'), /position:\s*relative/);
+    const slot = rule('.site-slot');
+    assert.match(slot, /position:\s*absolute/);
+    assert.match(slot, /top:\s*calc\(100% \+ var\(--space-xs\)\)/);
+    assert.match(css, /@media \(max-width: 560px\)\s*\{\s*\.site-slot\s*\{\s*display:\s*contents;/);
   });
 
   test('language buttons and footer links are at least 44 px tall', () => {
