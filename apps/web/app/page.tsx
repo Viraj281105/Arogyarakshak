@@ -81,15 +81,18 @@ export default function Home() {
 
   // Shell deep links (#module-<id>, from the header drawer or another page) open that check.
   useEffect(() => {
-    const apply = () => {
+    // On load the jump is instant, like native hash navigation; later hash changes follow the CSS
+    // scroll-behavior (smooth, or instant under reduced motion).
+    const apply = (initial: boolean) => {
       const tab = moduleFromHash(window.location.hash);
       if (!tab) return;
       setActiveTab(tab);
-      document.getElementById("module-workspace")?.scrollIntoView({ block: "start" });
+      document.getElementById("module-workspace")?.scrollIntoView({ block: "start", behavior: initial ? "instant" : undefined });
     };
-    apply();
-    window.addEventListener("hashchange", apply);
-    return () => window.removeEventListener("hashchange", apply);
+    const onHashChange = () => apply(false);
+    apply(true);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   // When a document starts processing, bring the case workspace into view.

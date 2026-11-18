@@ -270,6 +270,24 @@ describe('navigateWithTransition', () => {
     assert.equal(calls, 1);
   });
 
+  test('calls go() directly in a hidden document (a transition would wait for a frame that never comes)', () => {
+    let started = 0;
+    let calls = 0;
+    g.document = {
+      visibilityState: 'hidden',
+      startViewTransition() {
+        started++;
+      },
+    };
+    try {
+      navigateWithTransition(() => calls++);
+    } finally {
+      restore();
+    }
+    assert.equal(started, 0);
+    assert.equal(calls, 1);
+  });
+
   test('passes the promise returned by go() to startViewTransition, so the new page is what gets snapshotted', async () => {
     let returned: unknown;
     let finished = false;

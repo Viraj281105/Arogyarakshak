@@ -1,6 +1,6 @@
 import { readReducedMotion } from "./useReducedMotion";
 
-type DocWithTransition = { startViewTransition?: (cb: () => unknown) => unknown };
+type DocWithTransition = { startViewTransition?: (cb: () => unknown) => unknown; visibilityState?: string };
 
 /**
  * Runs `go` (e.g. `router.push`) inside a View Transition when the browser supports it and the
@@ -12,7 +12,9 @@ type DocWithTransition = { startViewTransition?: (cb: () => unknown) => unknown 
  */
 export function navigateWithTransition(go: () => unknown): void {
   const doc = typeof document === "undefined" ? undefined : (document as unknown as DocWithTransition);
-  if (!doc || typeof doc.startViewTransition !== "function" || readReducedMotion()) {
+  // A hidden (background) document gets no rendering opportunity, so a transition there would
+  // hold the navigation until the tab is shown again.
+  if (!doc || typeof doc.startViewTransition !== "function" || doc.visibilityState === "hidden" || readReducedMotion()) {
     void go();
     return;
   }

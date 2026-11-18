@@ -1044,7 +1044,6 @@ tbody tr:hover {
 /* Demo kit (shown only when the API reports demo mode). Not sticky: it used to slide under
    the sticky header and cover content on phones; the header's .demo-pill stays visible instead. */
 .demo-banner {
-  scroll-margin-top: 88px;
   margin: 1rem 0 0.5rem;
   padding: 0.75rem 1rem;
   border: 1px dashed var(--status-warning);
@@ -1442,11 +1441,7 @@ tbody tr:hover {
     radial-gradient(38rem 28rem at -8% 38%, var(--accent-gold-soft), transparent 64%);
 }
 
-#intake-dropzone,
-#lp-example,
-#module-workspace {
-  scroll-margin-top: 96px;
-}
+/* Anchor offsets under the sticky header come from html { scroll-padding-top } in shell/shell.css. */
 
 .module-workspace-head {
   padding-top: 1rem;
@@ -2625,7 +2620,6 @@ tbody tr:hover {
 }
 
 .case-desk {
-  scroll-margin-top: 88px;
   margin: 0 0 clamp(2.5rem, 6vw, 4rem);
   padding: clamp(1.25rem, 3vw, 2rem);
   border-radius: var(--radius-xl);
