@@ -2,17 +2,20 @@
 
 import React, { useCallback, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ReviewerProfile, clinicalPaths, clinicalRequest } from "../lib/clinical";
 import { ReviewerAttribution } from "../components/clinical/Attribution";
 import { StatePanel } from "../components/clinical/StatePanel";
 import { DemoBanner, DemoPill, useDemoStatus } from "../components/demo/DemoBanner";
 import { TONE_CLASS } from "../lib/labels";
-import { ReviewsTab } from "./components/ReviewsTab";
-import { SafetyTab } from "./components/SafetyTab";
 import { SignInPanel } from "./components/SignInPanel";
-import { TranscriptionTab } from "./components/TranscriptionTab";
 import { AssignedReview, ReviewerCall, Tab } from "./types";
 import { useTheme } from "../hooks/useTheme";
+
+// Code-split (WS4): the tabs render only after sign-in, so they stay out of the initial JS.
+const ReviewsTab = dynamic(() => import("./components/ReviewsTab").then((m) => m.ReviewsTab));
+const TranscriptionTab = dynamic(() => import("./components/TranscriptionTab").then((m) => m.TranscriptionTab));
+const SafetyTab = dynamic(() => import("./components/SafetyTab").then((m) => m.SafetyTab));
 
 /** Reviewer workspace: credential + profile, then three tabs (assigned reviews,
  *  transcriptions, safety governance). Each tab owns its own state. */

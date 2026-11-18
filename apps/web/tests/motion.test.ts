@@ -217,7 +217,7 @@ describe('SmoothScroll (Lenis) accessibility', () => {
   });
   test('is not mounted in the root layout; /motion-lab mounts it locally', () => {
     assert.ok(!/SmoothScroll/.test(read(join(appDir, 'layout.tsx'))));
-    assert.match(read(join(appDir, '(dev)', 'motion-lab', 'page.tsx')), /<SmoothScroll\s*\/>/);
+    assert.match(read(join(appDir, '(dev)', 'motion-lab', 'page.dev.tsx')), /<SmoothScroll\s*\/>/);
   });
 });
 

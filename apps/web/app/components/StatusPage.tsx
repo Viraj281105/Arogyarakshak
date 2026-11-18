@@ -1,9 +1,11 @@
-import Link from "next/link";
 import React from "react";
+import { DocumentLink } from "./DocumentLink";
 
 /**
  * Shared layout for the not-found and error pages. No hooks, so it renders from Server
  * and Client Components alike, including global-error, which replaces the root layout.
+ * Plain anchors, not next/link: a full load after a 404 or an error is fine (and more robust),
+ * and it keeps the Link module out of the error/not-found chunks that every route loads.
  */
 export const StatusPage: React.FC<{
   code: string;
@@ -16,12 +18,12 @@ export const StatusPage: React.FC<{
     <div className="lp-backdrop" aria-hidden="true" />
     <header className="header-bar">
       <div className="container header-inner">
-        <Link href="/" className="rv-back">
+        <DocumentLink href="/" className="rv-back">
           <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
             <path d="M19 12H5M11 6l-6 6 6 6" />
           </svg>
           ArogyaRakshak
-        </Link>
+        </DocumentLink>
       </div>
     </header>
     <main className="container status-main">

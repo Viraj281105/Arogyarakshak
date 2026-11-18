@@ -1,26 +1,37 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { DOCUMENT_ACCEPT, DocumentUploader } from "./components/DocumentUploader";
 import { DemoBanner, DemoPill, useDemoStatus } from "./components/demo/DemoBanner";
-import { DemoControls } from "./components/demo/DemoControls";
-import { CaseTimeline } from "./components/CaseTimeline";
 import { SimpleLanguageToggle } from "./components/SimpleLanguageToggle";
-import { ClaimPackPanel } from "./components/ClaimPackPanel";
 import type { DemoScenario, DemoScenarioResult } from "./lib/demo";
-import { AgentStreamVisualizer } from "./components/AgentStreamVisualizer";
-import { EntityResolutionReview } from "./components/EntityResolutionReview";
 import { ModuleTab, ModuleTabs } from "./components/ModuleTabs";
-import { SafetyEscalationBanner } from "./components/clinical/SafetyEscalationBanner";
 import { StatePanel } from "./components/clinical/StatePanel";
 import { BillNyayView } from "./components/modules/BillNyayView";
-import { BimaNyayView } from "./components/modules/BimaNyayView";
-import { DaaviSetuView } from "./components/modules/DaaviSetuView";
-import { SchemeSetuView } from "./components/modules/SchemeSetuView";
-import { DawaCheckView } from "./components/modules/DawaCheckView";
 import { useCaseSession } from "./hooks/useCaseSession";
+
+// Code-split (WS4): none of these is on screen at first paint. Inactive module tabs load when
+// opened; the case desk loads once a case exists; demo controls load only in demo mode.
+// BillNyayView stays static because it is the default tab and renders immediately.
+const BimaNyayView = dynamic(() => import("./components/modules/BimaNyayView").then((m) => m.BimaNyayView));
+const DaaviSetuView = dynamic(() => import("./components/modules/DaaviSetuView").then((m) => m.DaaviSetuView));
+const SchemeSetuView = dynamic(() => import("./components/modules/SchemeSetuView").then((m) => m.SchemeSetuView));
+const DawaCheckView = dynamic(() => import("./components/modules/DawaCheckView").then((m) => m.DawaCheckView));
+const AgentStreamVisualizer = dynamic(() =>
+  import("./components/AgentStreamVisualizer").then((m) => m.AgentStreamVisualizer)
+);
+const SafetyEscalationBanner = dynamic(() =>
+  import("./components/clinical/SafetyEscalationBanner").then((m) => m.SafetyEscalationBanner)
+);
+const EntityResolutionReview = dynamic(() =>
+  import("./components/EntityResolutionReview").then((m) => m.EntityResolutionReview)
+);
+const ClaimPackPanel = dynamic(() => import("./components/ClaimPackPanel").then((m) => m.ClaimPackPanel));
+const CaseTimeline = dynamic(() => import("./components/CaseTimeline").then((m) => m.CaseTimeline));
+const DemoControls = dynamic(() => import("./components/demo/DemoControls").then((m) => m.DemoControls));
 import { useTheme } from "./hooks/useTheme";
 import { Language, translations } from "./translations";
 import { Landing } from "./components/landing/Landing";
@@ -99,7 +110,7 @@ export default function Home() {
 
         <Landing t={t} onOpenModule={openModule} />
 
-        <DemoControls status={demoStatus} onScenarioLoaded={onScenarioLoaded} onReset={resetCaseView} />
+        {demoStatus?.demo_mode && <DemoControls status={demoStatus} onScenarioLoaded={onScenarioLoaded} onReset={resetCaseView} />}
 
         {/* BYOD Document Intake Dropzone */}
         <div id="intake-dropzone" className="lp-intake">
