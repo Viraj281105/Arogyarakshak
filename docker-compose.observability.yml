@@ -125,6 +125,7 @@ services:
     # named volume, which Docker initialises owned by the image user, is writable (`cap_drop: ALL`
     # removes it from root). Acceptable for this loopback-only local demo; for production run Tempo
     # as a non-root user and chown the volume with an init step instead.
+    user: "0:0"
     cap_add:
       - DAC_OVERRIDE
     volumes:
