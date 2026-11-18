@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./motion/motion.css";
+import { fontVariables } from "./fonts";
 
 export const metadata: Metadata = {
   title: "ArogyaRakshak (आरोग्यरक्षक) — Healthcare Cost & Rights Intelligence",
@@ -24,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={fontVariables} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
