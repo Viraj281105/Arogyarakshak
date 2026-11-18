@@ -7,9 +7,10 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-// Baseline (Task 1) 2,319,176 B + 25% headroom, rounded. The headroom exists because WS5 will
-// import Reanimated. Re-measure and tighten after WS5 (see docs/development/performance-budgets.md).
-export const MOBILE_BUNDLE_BUDGET_BYTES = 2_900_000;
+// WS5-shell measured 2,394,806 B; budget = that + about 8%, rounded (ruling 2026-11-18; was
+// 2,900,000). Raising it needs a concrete screen, a fresh measurement and a documented ruling
+// (see docs/development/performance-budgets.md, mobile section).
+export const MOBILE_BUNDLE_BUDGET_BYTES = 2_600_000;
 
 const fmt = (n) => n.toLocaleString("en-US");
 

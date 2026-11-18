@@ -68,8 +68,8 @@ test("mobile bundle over budget fails with the size delta in the message", () =>
 
 test("mobile bundle at or under budget passes", () => {
   assert.equal(evaluateMobileBudget(MOBILE_BUNDLE_BUDGET_BYTES), null);
-  assert.equal(evaluateMobileBudget(2_361_153), null);
-  assert.equal(MOBILE_BUNDLE_BUDGET_BYTES, 2_900_000);
+  assert.equal(evaluateMobileBudget(2_394_806), null); // WS5-shell measurement
+  assert.equal(MOBILE_BUNDLE_BUDGET_BYTES, 2_600_000);
 });
 
 test("findHermesBundle returns the single .hbc and throws on none or many", () => {
