@@ -735,3 +735,47 @@ body {
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
 }
+
+/* ---------- Demo banner: a fixed strip at the bottom of the viewport ---------- */
+
+/* The banner (components/demo/DemoBanner.tsx) appears only after the demo-status request answers.
+   In flow, above the page content, its arrival shifted the page (CLS 0.17 at 375 px, 0.11 at
+   768 px, measured with a CDP probe and a faked demo_mode response). Fixed, it takes no space, so
+   nothing moves; non-demo deployments reserve nothing. Overrides the in-flow rule in globals.css. */
+.demo-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  margin: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: none;
+  padding: 0.6rem max(var(--shell-gutter), env(safe-area-inset-right)) max(0.6rem, env(safe-area-inset-bottom))
+    max(var(--shell-gutter), env(safe-area-inset-left));
+  background:
+    repeating-linear-gradient(135deg, rgba(229, 168, 75, 0.07) 0 10px, transparent 10px 20px),
+    linear-gradient(var(--bg-surface), var(--bg-surface)),
+    var(--bg-base);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* Room after the footer so the strip never covers the end of the page. Only when it exists. */
+body:has(.demo-banner) .site-footer {
+  padding-bottom: calc(max(var(--space-xl), env(safe-area-inset-bottom)) + 7rem);
+}
+
+@media (min-width: 768px) {
+  body:has(.demo-banner) .site-footer {
+    padding-bottom: calc(max(var(--space-xl), env(safe-area-inset-bottom)) + 4.5rem);
+  }
+}
+
+@media print {
+  .demo-banner {
+    position: static;
+  }
+}

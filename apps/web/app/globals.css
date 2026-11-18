@@ -1041,8 +1041,9 @@ tbody tr:hover {
   }
 }
 
-/* Demo kit (shown only when the API reports demo mode). Not sticky: it used to slide under
-   the sticky header and cover content on phones; the header's .demo-pill stays visible instead. */
+/* Demo kit (shown only when the API reports demo mode). Not sticky under the header (it used to
+   cover content on phones); WS4 turns the banner into a fixed strip at the bottom of the viewport
+   in shell/shell.css so its late arrival cannot shift the page. */
 .demo-banner {
   margin: 1rem 0 0.5rem;
   padding: 0.75rem 1rem;

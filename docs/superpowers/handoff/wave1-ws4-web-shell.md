@@ -64,10 +64,19 @@ chunk 9.67 incl. ~6.2 for the shell, boundaries 3.08, route chunks: `/` 42.42, `
   LCP 1058–1063 ms. The LCP increase follows the latin-ext fix (Inter and Fraunces latin-ext now download for ₹);
   still under the 1500 ms warning and 2000 ms error.
 - CDP probe (headless Chrome, trusted input, 375/768/1024/1280): `/` 0, `/clinical-review` 0, Hindi 0, Marathi 0
-  (switch reflow only, flagged as recent input). Demo mode (status faked `demo_mode: true`): the shell/slot causes no
-  shift, but the **pre-existing DemoBanner** inserted at the top of the content shifts the page: `/` 0.17 / 0.11 /
-  0.08 / 0.07 and `/clinical-review` 0.16 / 0.11 / 0.08 / 0.06 (375/768/1024/1280). Demo deployments only;
-  page-content follow-up for Wave 3 (demo page). Not fixed here.
+  (switch reflow only, flagged as recent input). Demo mode (status faked `demo_mode: true`), CLS:
+
+  | Route | 375 | 768 | 1024 | 1280 |
+  |---|---|---|---|---|
+  | `/` before (banner in flow) | 0.17 | 0.11 | 0.08 | 0.07 |
+  | `/` after | 0 | 0 | 0 | 0 |
+  | `/clinical-review` before | 0.16 | 0.11 | 0.08 | 0.06 |
+  | `/clinical-review` after | 0 | 0 | 0 | 0 |
+
+  Fix: the DemoBanner is a fixed strip at the bottom of the viewport (content and "What is simulated?" unchanged,
+  max 70vh, scrolls); the footer gets extra bottom padding only while a banner exists, so non-demo pages reserve
+  nothing. Screenshots looked at: demo state at 375 and 1280 (opaque strip at the bottom, pill under the emblem /
+  below the header's right edge). Not looked at: the expanded "What is simulated?" panel inside the strip.
 - The Browser pane's tab had `requestAnimationFrame` throttled for this round (pane hidden / shared with other
   streams), so its PerformanceObserver readings were not used; the CDP probe replaced them.
 
@@ -79,11 +88,10 @@ chunk 9.67 incl. ~6.2 for the shell, boundaries 3.08, route chunks: `/` 42.42, `
   `docs/development/performance-budgets.md`. No new dependencies; no env vars.
 
 ## Verification (final run on the last commit)
-Web `npm test` 232/232, lint 0, `tsc` clean, build OK; root `check:web-budget` PASS,
+Web `npm test` 233/233, lint 0, `tsc` clean, build OK; root `check:web-budget` PASS,
 `check:generated` 3/3, `npm test` 61/61; lhci as above; `/motion-lab` 200 under `next dev` (curl).
 Screenshots looked at (headless Chrome via CDP, final build): `/` at 375, 768 and 1280 in light and dark — header per
-breakpoint as designed, server-rendered hero intact, no horizontal scroll; demo-pill placement at 375 (under the
-emblem) and 1280 (below the header's right edge). Earlier in the pane (first round): drawer keyboard flow (Enter
+breakpoint as designed, server-rendered hero intact, no horizontal scroll; demo-pill and banner-strip placement at 375 and 1280. Earlier in the pane (first round): drawer keyboard flow (Enter
 opens, focus inside, Escape closes, focus returns), Hindi drawer rendering, `/clinical-review` and 404 frames, client
 navigation. All servers started (3123 lhci, 3124 next start, 3125 next dev, headless Chrome) are stopped.
 
@@ -93,7 +101,6 @@ navigation. All servers started (3123 lhci, 3124 next start, 3125 next dev, head
 - View Transition visuals; reduced motion under OS emulation; screen reader; contrast with a tool; PWA install.
 - Linux CI: CLS and the local fallbacks (`local(Arial)`/`local(Times New Roman)`) unmeasured; `/_not-found` (0.16 KB)
   and `/clinical-review` (0.68 KB) headroom is small; record a Linux re-baseline if needed (documented).
-- DemoBanner CLS in demo mode (above).
 - New hi/mr shell strings need native-speaker review.
 - Next.js upgrade notice: `next build`/`next dev` sometimes stopped with a "SecurityFatalError" text and passed on
   re-run. It comes from Next's own agent-upgrade nudge (`node_modules/next/dist/lib/upgrade/nudge.js`): Next checks

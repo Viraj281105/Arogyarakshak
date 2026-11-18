@@ -123,10 +123,13 @@ explicit Fontsource families (539.9, 574.7, 505.2 px); after, they are identical
 Other CLS measurements (WS4, headless Chrome driven over CDP with trusted input, viewport 375/768/1024/1280 px):
 - `/` and `/clinical-review` load: CLS 0, no layout-shift entries.
 - Switching to Hindi or Marathi: CLS 0 (the only shifts are the switch's own reflow, flagged `hadRecentInput`).
-- Demo mode (demo-status response faked as `demo_mode: true`): the header slot causes no shift (the demo pill is out
-  of flow), but the existing **DemoBanner** that appears at the top of the page content after the fetch shifts the
-  page: CLS 0.17 (375), 0.11 (768), 0.08 (1024), 0.07 (1280) on `/`, similar on `/clinical-review`. This predates
-  WS4, only happens on demo deployments (no API, so not in lhci) and is page-content work (Wave 3, demo page).
+- Demo mode (demo-status response faked as `demo_mode: true`): first measured with the DemoBanner in flow above the
+  page content, it shifted the page when the response arrived: CLS 0.17 (375), 0.11 (768), 0.08 (1024), 0.07 (1280)
+  on `/`, similar on `/clinical-review`. Fix (shell chrome, `shell/shell.css`): the banner is a fixed strip at the
+  bottom of the viewport (same content and "What is simulated?" panel, max 70vh, scrolls), and the footer gets extra
+  bottom padding only while a banner exists (`body:has(.demo-banner)`), so non-demo deployments reserve nothing.
+  After: **CLS 0 with no layout-shift entries** on `/` and `/clinical-review` at 375, 768, 1024 and 1280 px; the
+  header demo pill is also out of flow (no shift, no overlap).
 
 Not verified: the GitHub `ubuntu-latest` runner. There `local(Arial)` / `local(Times New Roman)` may not resolve
 (Liberation fonts may or may not be aliased), so the adjusted fallback may not apply; the preload still makes a

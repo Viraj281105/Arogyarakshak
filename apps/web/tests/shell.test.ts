@@ -308,3 +308,19 @@ describe('drawer and breakpoint', () => {
     assert.match(read('shell', 'SiteHeader.tsx'), /drawerShouldClose\(/);
   });
 });
+
+describe('demo banner does not shift the page when the demo status arrives', () => {
+  const css = read('shell', 'shell.css');
+  test('it is a fixed strip at the bottom of the viewport (out of flow), with room reserved after the footer only when present', () => {
+    // Measured before (CDP probe, faked demo_mode): CLS 0.17 at 375 px, 0.11 at 768 px from the
+    // in-flow banner inserted above the page content after the fetch.
+    const block = css.slice(css.indexOf('.demo-banner {'));
+    const body = block.slice(0, block.indexOf('}'));
+    assert.match(body, /position:\s*fixed/);
+    assert.match(body, /bottom:\s*0/);
+    assert.match(body, /max-height:/);
+    assert.match(css, /body:has\(\.demo-banner\) \.site-footer\s*\{[^}]*padding-bottom:/);
+    // No band is reserved on non-demo deployments: the only reservation is conditional on the banner.
+    assert.ok(!/demo-banner-space|min-height:\s*var\(--demo/.test(css));
+  });
+});
