@@ -12,3 +12,11 @@ alembic==1.14.0
 python-multipart==0.0.32
 aiosqlite==0.20.0
 reportlab>=4.0.0
+# Observability (WS1, ADR-023): Prometheus metrics, and optional OpenTelemetry tracing that
+# is imported only when OTEL_ENABLED=true. OTLP over HTTP (no grpcio wheel).
+prometheus-client==0.26.0
+opentelemetry-sdk==1.45.2
+opentelemetry-exporter-otlp-proto-http==1.45.2
+opentelemetry-instrumentation-fastapi==0.66b2
+opentelemetry-instrumentation-httpx==0.66b2
+opentelemetry-instrumentation-sqlalchemy==0.66b2

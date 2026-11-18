@@ -225,3 +225,9 @@ npm run check:generated
 cd apps/web && npm test && npm run lint && cd ../..
 cd apps/mobile && npm run type-check && npm test && cd ../..
 ```
+
+---
+
+## Observability dependencies (WS1)
+
+`apps/api/requirements.txt` now includes `prometheus-client` and the OpenTelemetry SDK, OTLP/HTTP exporter and FastAPI/httpx/SQLAlchemy instrumentations (all from PyPI). Tracing code is imported only when `OTEL_ENABLED=true`. To run the optional local stack see `docs/operations/observability.md`.

@@ -1,0 +1,230 @@
+# ──────────────────────────────────────────────────────────────────────
+# ArogyaRakshak — self-hosted observability stack (WS1, ADR-023)
+# ──────────────────────────────────────────────────────────────────────
+# An override: always combine it with the base file.
+#
+#   python scripts/observability_preflight.py
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#
+# Prometheus (metrics) · Alertmanager (alerts) · Loki (logs) · Tempo (traces) ·
+# OpenTelemetry Collector (receives OTLP traces and Docker `fluentd` log-driver output,
+# forwards to Tempo / Loki) · Grafana (dashboards).
+#
+# Rules this file keeps (tests/test_observability_stack_config.py enforces them):
+#   - every published port is bound to 127.0.0.1;
+#   - images are pinned by tag (digests are not recorded);
+#   - the Docker socket is never mounted: logs reach the collector through Docker's built-in
+#     `fluentd` logging driver, not through a log scraper that needs /var/run/docker.sock;
+#   - nothing here sends telemetry anywhere outside this machine;
+#   - Grafana has no anonymous access, and refuses to start under APP_ENV=production with
+#     the development admin password.
+# ──────────────────────────────────────────────────────────────────────
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  # The API gains metrics, JSON logs shipped via the fluentd driver, and (opt-out) tracing.
+  api:
+    environment:
+      # Forced on (even under APP_ENV=production) because Prometheus scrapes /metrics; running
+      # this override is the operator's opt-in. /metrics is unauthenticated: loopback + compose
+      # network are its only protection.
+      METRICS_ENABLED: "true"
+      LOG_FORMAT: json
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-arogyarakshak-api}
+      OTEL_TRACES_SAMPLER_RATIO: ${OTEL_TRACES_SAMPLER_RATIO:-1.0}
+    logging:
+      driver: fluentd
+      options:
+        # The daemon (not the container) connects, so this is the collector's published port.
+        fluentd-address: 127.0.0.1:24224
+        # Never block or fail the API because the collector is down.
+        fluentd-async: "true"
+        tag: arogya.api
+
+  prometheus:
+    <<: *hardening
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./infrastructure/observability/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      # Lets Prometheus scrape an API started on the host (job `api` in prometheus.yml).
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  alertmanager:
+    <<: *hardening
+    image: prom/alertmanager:v0.28.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./infrastructure/observability/alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9093/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  loki:
+    <<: *hardening
+    image: grafana/loki:3.5.0
+    command: ["-config.file=/etc/loki/loki.yml"]
+    # No published port: only the collector and Grafana reach Loki, on the compose network.
+    volumes:
+      - ./infrastructure/observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  tempo:
+    <<: *hardening
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    # This is the only container run as root with an added capability (CAP_DAC_OVERRIDE), so the
+    # named volume, which Docker initialises owned by the image user, is writable (`cap_drop: ALL`
+    # removes it from root). Acceptable for this loopback-only local demo; for production run Tempo
+    # as a non-root user and chown the volume with an init step instead.
+    user: "0:0"
+    cap_add:
+      - DAC_OVERRIDE
+    volumes:
+      - ./infrastructure/observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  otel-collector:
+    <<: *hardening
+    image: otel/opentelemetry-collector-contrib:0.128.0
+    command: ["--config=/etc/otelcol/config.yml"]
+    ports:
+      # OTLP/HTTP from an API running on the host, and Docker's fluentd log driver.
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:24224:24224"
+    volumes:
+      - ./infrastructure/observability/otel-collector/config.yml:/etc/otelcol/config.yml:ro
+    # The image contains only the collector binary (no shell or wget), so there is no
+    # container healthcheck; its health_check extension (:13133) and its own metrics
+    # (scraped by Prometheus, job `otel-collector`) are the liveness signals.
+    depends_on:
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  grafana:
+    <<: *hardening
+    image: grafana/grafana:12.0.2
+    # Refuse to start with the development admin password under APP_ENV=production
+    # ($$ so Compose does not interpolate); mirrors scripts/observability_preflight.py.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ "$${APP_ENV}" = "production" ] && { [ "$${GF_SECURITY_ADMIN_PASSWORD}" = "arogyarakshak-dev-only" ] || [ "$${#GF_SECURITY_ADMIN_PASSWORD}" -lt 12 ]; }; then
+          echo "Refusing to start Grafana under APP_ENV=production: set GRAFANA_ADMIN_PASSWORD to a unique value of 12+ characters." >&2
+          exit 1
+        fi
+        exec /run.sh
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-arogyarakshak-dev-only}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # No outbound calls: no update checks, no news feed, no usage reporting, no plugin catalogue.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: "false"
+    ports:
+      # 3001: the web dev server owns 3000.
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  loki-data:
+  tempo-data:
+  grafana-data:

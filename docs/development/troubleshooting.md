@@ -268,3 +268,21 @@ This document catalogs known failure modes, error messages, and verified solutio
 ### A test fails with `RuntimeError: live network calls are forbidden in tests`
 - **Cause**: `apps/api/tests/conftest.py` and `packages/kadi/tests/conftest.py` clear `GROQ_API_KEY` and replace `urllib.request.urlopen` with a guard for every test (AGENTS.md network rule). The LLM client turns the guard's error into an offline fallback, so usually the visible symptom is a fallback where the test expected live output.
 - **Remedy**: give the test a fake transport — `kadi.llm.set_default_runtime(LlmRuntime(config=..., transport=fake))` — or patch `urllib.request.urlopen` in the test, and set a key with `monkeypatch` if the code path requires one. Never set a real key for tests.
+---
+
+## Observability stack (WS1, ADR-023)
+
+### `GET /metrics` returns 404
+`METRICS_ENABLED` is unset under `APP_ENV=production` (off by default there) or set to `false`. Set `METRICS_ENABLED=true` (and keep the port on loopback / the compose network).
+
+### Prometheus target `api` is down
+The API container must run with `METRICS_ENABLED=true` (the observability override sets it). For an API started on the host, nothing needs editing: the `api` job also targets `host.docker.internal:8000` (the other target shows as down in the Targets page, which is expected and does not alert).
+
+### Grafana container exits immediately under `APP_ENV=production`
+Intended: `GRAFANA_ADMIN_PASSWORD` is the development default or shorter than 12 characters. Set a unique value (`python scripts/observability_preflight.py` shows the same check).
+
+### No logs in Loki
+Logs are shipped only from containers using the `fluentd` driver (the `api` service in the override); a host-run uvicorn is not covered. The Docker daemon connects to `127.0.0.1:24224`, so the collector must be up (the driver is async, so the API still starts without it, and `docker compose logs` keeps working).
+
+### Traces missing
+`OTEL_ENABLED` must be `true` and `OTEL_EXPORTER_OTLP_ENDPOINT` must reach the collector's OTLP/HTTP port (`http://otel-collector:4318` in Compose, `http://127.0.0.1:4318` from the host). The log line `OpenTelemetry tracing enabled` confirms the setup; `trace_id` is `null` in JSON logs when no span is active.

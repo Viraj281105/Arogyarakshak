@@ -1,0 +1,46 @@
+# Unit tests for alerts.rules.yml. Run (no local promtool needed), from the repository root:
+#   docker run --rm --entrypoint promtool \
+#     -v "$PWD/infrastructure/observability/prometheus:/p:ro" prom/prometheus:v3.5.0 \
+#     test rules /p/tests/alerts.test.yml
+rule_files:
+  - ../rules/alerts.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      # The host target in the in-compose workflow: never up. Must not alert.
+      - series: 'up{job="api", instance="host.docker.internal:8000"}'
+        values: '0x40'
+      # The compose target: up for 10 minutes, then an outage. Must alert after 2 minutes down.
+      - series: 'up{job="api", instance="api:8000"}'
+        values: '1x10 0x30'
+    alert_rule_test:
+      # still up: nothing fires
+      - eval_time: 5m
+        alertname: ApiTargetDown
+        exp_alerts: []
+      # outage began at minute 11, the 2m `for` has elapsed: only the compose target fires
+      - eval_time: 20m
+        alertname: ApiTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: api
+              instance: "api:8000"
+            exp_annotations:
+              summary: Prometheus cannot scrape the API
+              description: An API target that was up in the last 7 days has been down for 2 minutes, or METRICS_ENABLED is off.
+
+  - interval: 1m
+    input_series:
+      # Host-run workflow: the compose target never exists as up, the host target is healthy.
+      - series: 'up{job="api", instance="api:8000"}'
+        values: '0x40'
+      - series: 'up{job="api", instance="host.docker.internal:8000"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ApiTargetDown
+        exp_alerts: []
