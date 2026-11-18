@@ -5,6 +5,8 @@ DawaCheck price mapping).
     python scripts/evaluate_phase4.py                  # all harnesses, summary tables
     python scripts/evaluate_phase4.py --only bma       # one harness
     python scripts/evaluate_phase4.py --json out.json  # full reports (incl. every failure)
+    python scripts/evaluate_phase4.py --check-baseline # also gate against the committed
+                                                       # baseline (exit 1 on regression)
 
 Offline and deterministic: no Groq key and no network needed. Every dataset in
 data/evaluation/ is SYNTHETIC and hand-written; the numbers describe behaviour on those
@@ -19,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "apps" / "api"))
 
+from app.evaluation.regression import BASELINE_PATH, compare, load_baseline  # noqa: E402
 from app.evaluation.runner import DATASETS, run_all  # noqa: E402
 
 
@@ -26,11 +29,14 @@ def _f(v):
     return "n/a" if v is None else f"{v:.3f}"
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--only", choices=sorted(DATASETS))
     parser.add_argument("--json", type=Path)
-    args = parser.parse_args()
+    parser.add_argument("--check-baseline", nargs="?", const=BASELINE_PATH, type=Path, metavar="PATH",
+                        help="compare with a regression baseline (default: the committed one); "
+                             "exit 1 on regression, 2 on a structural problem")
+    args = parser.parse_args(argv)
 
     reports = run_all(args.only)
     for name, r in reports.items():
@@ -71,6 +77,16 @@ def main() -> int:
 
     if args.json:
         args.json.write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if args.check_baseline:
+        result = compare(load_baseline(args.check_baseline), reports)
+        print("\n## regression gate (offline paths, SYNTHETIC data — not LLM accuracy)")
+        print(result.format_table())
+        for err in result.errors:
+            print(f"ERROR: {err}")
+        if result.errors:
+            return 2
+        return 0 if result.ok else 1
     return 0
 
 
