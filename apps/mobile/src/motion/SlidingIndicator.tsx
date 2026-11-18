@@ -1,11 +1,9 @@
-import React, { useEffect } from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleProp, ViewStyle } from 'react-native';
 import { motion } from '../generated/tokens';
-import { STANDARD_BEZIER, shouldAnimate } from './logic';
+import { shouldAnimate } from './logic';
+import { NATIVE_DRIVER, STANDARD_EASING } from './driver';
 import { useReducedMotion } from './useReducedMotion';
-
-const EASE = Easing.bezier(...STANDARD_BEZIER);
 
 /**
  * Absolutely positioned element that slides horizontally to `x` (e.g. the active-tab pill).
@@ -21,20 +19,28 @@ export function SlidingIndicator({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  const tx = useSharedValue(x);
+  const tx = useRef(new Animated.Value(x)).current;
 
   useEffect(() => {
-    tx.value = shouldAnimate(reduced)
-      ? withTiming(x, { duration: motion.duration.base, easing: EASE })
-      : x;
+    if (!shouldAnimate(reduced)) {
+      tx.stopAnimation();
+      tx.setValue(x);
+      return;
+    }
+    const anim = Animated.timing(tx, {
+      toValue: x,
+      duration: motion.duration.base,
+      easing: STANDARD_EASING,
+      useNativeDriver: NATIVE_DRIVER,
+    });
+    anim.start();
+    return () => anim.stop();
   }, [x, reduced, tx]);
-
-  const animated = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
 
   return (
     <Animated.View
       pointerEvents="none"
-      style={[{ position: 'absolute', left: 0, width }, style, animated]}
+      style={[{ position: 'absolute', left: 0, width }, style, { transform: [{ translateX: tx }] }]}
     />
   );
 }

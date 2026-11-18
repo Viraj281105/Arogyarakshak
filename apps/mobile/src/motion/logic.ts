@@ -1,4 +1,5 @@
 // Pure motion logic: no react-native / reanimated imports, so it is unit-testable under tsx.
+// (The motion components use React Native's Animated API, see driver.ts for why not Reanimated.)
 import { motion } from '../generated/tokens';
 
 export interface AccessibilityInfoLike {
@@ -106,9 +107,8 @@ export function splitTransform<S extends { transform?: unknown }>(
   return { transform: transform as TransformEntry[], rest };
 }
 
-/** Caller transform followed by the press scale. Runs inside a Reanimated worklet. */
-export function withPressScale(base: TransformEntry[] | undefined, scale: number): TransformEntry[] {
-  'worklet';
+/** Caller transform followed by the press scale (a number or an Animated value). */
+export function withPressScale<T>(base: TransformEntry[] | undefined, scale: T): TransformEntry[] {
   return [...(base ?? []), { scale }];
 }
 

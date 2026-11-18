@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   fontFamily,
@@ -26,6 +26,11 @@ import { spacing } from '../src/theme/spacing';
 
 const ROOT = process.cwd();
 const read = (...p: string[]) => readFileSync(join(ROOT, ...p), 'utf-8');
+const walk = (dir: string): string[] =>
+  readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f);
+    return statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(p) ? [p] : [];
+  });
 
 // ---------- typography helper ----------
 
@@ -186,6 +191,25 @@ test('App clears the reduce-motion prime timer once the prime settles', () => {
   assert.match(app, /clearTimeout\(timer\)/);
   const done = /const done = \(\) => \{([\s\S]*?)\};/.exec(app);
   assert.ok(done && /clearTimeout\(timer\)/.test(done[1]), 'done() must clear the timer');
+});
+
+// ---------- bundle budget contracts ----------
+
+test('no app source imports react-native-reanimated (measured +785,115 B, over the budget)', () => {
+  const files = ['App.tsx', ...walk(join(ROOT, 'src'))];
+  for (const f of files) {
+    const src = readFileSync(f.startsWith(ROOT) ? f : join(ROOT, f), 'utf-8');
+    assert.ok(!/['"]react-native-reanimated['"]/.test(src), `${f} imports reanimated`);
+  }
+});
+
+test('animated motion primitives use the Animated native driver flag and reduced motion', () => {
+  for (const f of ['Reveal', 'Pressable', 'SlidingIndicator', 'Pulse']) {
+    const src = read('src', 'motion', `${f}.tsx`);
+    assert.match(src, /NATIVE_DRIVER/, `${f} must use NATIVE_DRIVER`);
+    assert.match(src, /useReducedMotion/, `${f} must branch on reduced motion`);
+  }
+  assert.match(read('src', 'motion', 'driver.ts'), /Platform\.OS !== 'web'/);
 });
 
 // ---------- shell wiring contracts ----------

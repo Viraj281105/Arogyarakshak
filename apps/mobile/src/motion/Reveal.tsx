@@ -1,18 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
+import { Animated, StyleProp, ViewStyle } from 'react-native';
 import { motion } from '../generated/tokens';
-import { STANDARD_BEZIER, revealAction, shouldAnimate } from './logic';
+import { revealAction, shouldAnimate } from './logic';
+import { NATIVE_DRIVER, STANDARD_EASING } from './driver';
 import { useReducedMotion } from './useReducedMotion';
 
 const OFFSET_Y = 12;
-const EASE = Easing.bezier(...STANDARD_BEZIER);
 
 /**
  * Fade + 12px rise on mount, at most once. Final state immediately under reduced motion (or while
@@ -29,23 +22,29 @@ export function Reveal({
 }) {
   const reduced = useReducedMotion();
   const started = useRef(false);
-  const progress = useSharedValue(shouldAnimate(reduced) ? 0 : 1);
+  const progress = useRef(new Animated.Value(shouldAnimate(reduced) ? 0 : 1)).current;
 
   useEffect(() => {
     const action = revealAction(started.current, reduced);
     started.current = true;
     if (action === 'final') {
-      progress.value = 1;
+      progress.stopAnimation();
+      progress.setValue(1);
     } else if (action === 'animate') {
-      progress.value = 0;
-      progress.value = withDelay(delay, withTiming(1, { duration: motion.duration.base, easing: EASE }));
+      progress.setValue(0);
+      Animated.timing(progress, {
+        toValue: 1,
+        delay,
+        duration: motion.duration.base,
+        easing: STANDARD_EASING,
+        useNativeDriver: NATIVE_DRIVER,
+      }).start();
     }
   }, [reduced, delay, progress]);
 
-  const animated = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * OFFSET_Y }],
-  }));
+  useEffect(() => () => progress.stopAnimation(), [progress]);
 
-  return <Animated.View style={[style, animated]}>{children}</Animated.View>;
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [OFFSET_Y, 0] });
+
+  return <Animated.View style={[style, { opacity: progress, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
