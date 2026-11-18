@@ -30,6 +30,12 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `DEMO_DOCUMENTS_DIR` | No | *(auto)* | Where the demo scenario loaders read the synthetic documents. Empty = the repository's `demo/documents` (local runs) or `/app/demo/documents` (the API image copies them there). Inert outside demo mode. |
 | `OCR_LOW_CONFIDENCE_THRESHOLD` | No | `0.5` | EasyOCR segments below this confidence become human transcription tasks instead of trusted text (ADR-011). |
 | `SAFETY_RULE_REQUIRED_APPROVALS` | No | `1` | Independent safety-board approvals needed before a rule can be activated. The proposer's own approval never counts. |
+| `METRICS_ENABLED` | No | *(unset: on in development, off under `APP_ENV=production`)* | Serves Prometheus metrics at `GET /metrics` (not in the OpenAPI contract; internal only: the API's host port is bound to `127.0.0.1` and Prometheus scrapes it over the compose network). Labels are route templates, never raw paths or case ids. When off, `/metrics` is `404`. WS1, ADR-023. |
+| `OTEL_ENABLED` | No | `false` | Turns on OpenTelemetry tracing (FastAPI, httpx, SQLAlchemy). Off: nothing from the OpenTelemetry SDK is imported. `docker-compose.observability.yml` sets it to `true` for the `api` service. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | `http://127.0.0.1:4318` | OTLP/HTTP base URL of the collector (`/v1/traces` is appended). Keep it on this machine or the compose stack (`otel-collector`); a warning is logged for any other host. |
+| `OTEL_SERVICE_NAME` | No | `arogyarakshak-api` | `service.name` resource attribute on spans. |
+| `OTEL_TRACES_SAMPLER_RATIO` | No | `1.0` | Head sampling ratio between 0 and 1 (parent-based). |
+| `GRAFANA_ADMIN_PASSWORD` | Production: **Yes** (when the stack is used) | `arogyarakshak-dev-only` | Grafana admin password for the observability stack. The Grafana container refuses to start under `APP_ENV=production` while this is the development default or shorter than 12 characters; `python scripts/observability_preflight.py` performs the same check first. Anonymous access is always off. |
 
 > **Note on CORS:** when `CORS_ORIGINS` is a wildcard (the default), credentialed cross-origin
 > requests are disabled automatically — a wildcard origin combined with credentials would let
