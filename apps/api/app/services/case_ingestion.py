@@ -47,6 +47,7 @@ from app.models import (
 )
 from app.services import document_jobs
 from app.services.ingestion_mentions import build_mentions
+from app.telemetry.metrics import stage_timer
 
 logger = logging.getLogger("arogyarakshak.api.kadi")
 
@@ -189,7 +190,8 @@ async def _run_pipeline(
             processing_status[case_id].append({"status": "demo_fixture", "progress": 35, "log": DEMO_REPLAY_LOG})
         else:
             replayed_extraction = None
-            parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
+            with stage_timer("ocr"):
+                parsed = await run_in_threadpool(parse_document, file_bytes=file_bytes, filename=filename)
 
         # A parse failure must stop the pipeline. Previously the parser substituted a
         # placeholder sentence, so the stream reported "processed successfully" and the
@@ -217,9 +219,10 @@ async def _run_pipeline(
         if replayed_extraction is not None:
             extracted = replayed_extraction
         else:
-            extracted = await run_in_threadpool(
-                extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
-            )
+            with stage_timer("extraction"):
+                extracted = await run_in_threadpool(
+                    extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
+                )
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
@@ -249,7 +252,8 @@ async def _run_pipeline(
 
             mentions, total_cost = build_mentions(line_items, extracted, text, filename)
 
-            summary = await resolve_and_attach(session, case, mentions, source="upload")
+            with stage_timer("entity_resolution"):
+                summary = await resolve_and_attach(session, case, mentions, source="upload")
             processing_status[case_id].append({
                 "status": "entity_resolution",
                 "progress": 85,
@@ -280,15 +284,17 @@ async def _run_pipeline(
                 )
             )
             session.add(case)
-            await session.commit()
+            with stage_timer("database_write"):
+                await session.commit()
 
             processing_status[case_id].append({
                 "status": "module_checks",
                 "progress": 90,
                 "log": "Checking which modules have enough context to run automatically...",
             })
-            insights = await run_auto_triggers(session, case_id, trigger="document_processed")
-            await session.commit()
+            with stage_timer("module_checks"):
+                insights = await run_auto_triggers(session, case_id, trigger="document_processed")
+                await session.commit()
 
         completion = "Document processed successfully. Entities extracted."
         if insights:

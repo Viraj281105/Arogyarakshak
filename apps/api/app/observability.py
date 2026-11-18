@@ -25,7 +25,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.telemetry import metrics as telemetry_metrics
+from app.telemetry.tracing import current_trace_id
+
 REQUEST_ID_HEADER = "X-Request-ID"
+METRICS_PATH = "/metrics"
 _VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 
 request_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("request_id", default=None)
@@ -67,6 +71,8 @@ class JsonFormatter(logging.Formatter):
             "service": self.service,
             "environment": self.environment,
             "request_id": getattr(record, "request_id", None) or request_id_var.get(),
+            # Joins a log line to its trace in Grafana (null unless OTEL_ENABLED and a span is active).
+            "trace_id": current_trace_id(),
         }
         for key in ("method", "route", "status_code", "duration_ms"):
             if hasattr(record, key):
@@ -145,6 +151,10 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             status_code = response.status_code
         finally:
             template = route_template(request)
+            if request.url.path != METRICS_PATH:
+                duration = time.perf_counter() - started
+                telemetry_metrics.record_http_request(request.method, template, status_code, duration)
+                telemetry_metrics.record_upload_rejection_from_response(request.method, template, status_code)
             if template != "/health":
                 access_logger.info(
                     "%s %s %s",
