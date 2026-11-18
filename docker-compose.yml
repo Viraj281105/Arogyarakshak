@@ -71,6 +71,23 @@ services:
       APP_ENV: ${APP_ENV:-development}
       OCR_LOW_CONFIDENCE_THRESHOLD: ${OCR_LOW_CONFIDENCE_THRESHOLD:-0.5}
       SAFETY_RULE_REQUIRED_APPROVALS: ${SAFETY_RULE_REQUIRED_APPROVALS:-1}
+      # LLM reliability (ADR-024), read by kadi.llm from the process environment. Empty or
+      # unset values fall back to the built-in defaults (cache and shadow runs off).
+      GROQ_FALLBACK_MODEL: ${GROQ_FALLBACK_MODEL:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-}
+      LLM_MAX_ATTEMPTS: ${LLM_MAX_ATTEMPTS:-}
+      LLM_BACKOFF_BASE_SECONDS: ${LLM_BACKOFF_BASE_SECONDS:-}
+      LLM_BACKOFF_MAX_SECONDS: ${LLM_BACKOFF_MAX_SECONDS:-}
+      LLM_BREAKER_FAILURE_THRESHOLD: ${LLM_BREAKER_FAILURE_THRESHOLD:-}
+      LLM_BREAKER_RECOVERY_SECONDS: ${LLM_BREAKER_RECOVERY_SECONDS:-}
+      LLM_CASE_TOKEN_BUDGET: ${LLM_CASE_TOKEN_BUDGET:-}
+      LLM_CACHE_ENABLED: ${LLM_CACHE_ENABLED:-false}
+      LLM_CACHE_MAX_ENTRIES: ${LLM_CACHE_MAX_ENTRIES:-}
+      LLM_CACHE_TTL_SECONDS: ${LLM_CACHE_TTL_SECONDS:-}
+      LLM_SHADOW_ENABLED: ${LLM_SHADOW_ENABLED:-false}
+      LLM_SHADOW_MODEL: ${LLM_SHADOW_MODEL:-}
+      LLM_SHADOW_SAMPLE_RATE: ${LLM_SHADOW_SAMPLE_RATE:-}
+      LLM_SHADOW_MAX_RUNS: ${LLM_SHADOW_MAX_RUNS:-}
     volumes:
       # Model weights only (never documents), so the download survives container rebuilds.
       # Must match HF_HOME in apps/api/Dockerfile, which the non-root app user owns.

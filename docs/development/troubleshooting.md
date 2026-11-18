@@ -246,3 +246,21 @@ This document catalogs known failure modes, error messages, and verified solutio
 ### `node --test packages/...` finds no tests on Windows, or `npm test` at the root runs nothing
 - **Cause**: on Windows `node --test <directory>` and glob arguments do not expand the way they do on Linux.
 - **Remedy**: run the root `npm test`, which discovers `scripts/tests/*.test.*` and `packages/*/tests/*.test.*` itself, or pass explicit file paths (`node --import tsx --test packages/i18n/tests/parity.test.ts`).
+
+## 8. LLM Reliability & Evaluation Gate (ADR-024)
+
+### Appeals/extraction suddenly all use the offline fallback although `GROQ_API_KEY` is set
+- **Cause**: the model's circuit breaker is open after `LLM_BREAKER_FAILURE_THRESHOLD` consecutive timeouts, connection errors, 429s or 5xx responses; calls then fail fast to `GroqClientFallback` / the heuristic extractor for `LLM_BREAKER_RECOVERY_SECONDS` before one probe is let through. An exhausted `LLM_CASE_TOKEN_BUDGET` has the same visible effect for the rest of that BillNyay run. 401/400/404 responses do not open the breaker (check the key and `GROQ_MODEL` instead).
+- **Remedy**: look for `Cloud inference call failed (LlmCircuitOpen)` / `(BudgetExceeded)` warnings in the API log (only the exception type is logged, never text). Fix connectivity or the Groq quota; the breaker closes on the first successful probe. Restarting the API also resets it. Optionally set `GROQ_FALLBACK_MODEL`.
+
+### `LLM_*` settings in `.env` have no effect in a local (non-Docker) run
+- **Cause**: `kadi.llm` reads the process environment, not the API's `.env` file.
+- **Remedy**: export them, or start the API with `uvicorn app.main:app --env-file ../../.env`. Docker Compose forwards them already.
+
+### Requests take much longer before falling back than they used to
+- **Cause**: transient failures are now retried (`LLM_MAX_ATTEMPTS`, default 3, with backoff up to `LLM_BACKOFF_MAX_SECONDS`).
+- **Remedy**: lower `LLM_MAX_ATTEMPTS` (1 restores the old single attempt) or `LLM_TIMEOUT_SECONDS`; the breaker already stops retries while Groq is down.
+
+### `eval-regression-gate` CI job (or `python scripts/check_eval_regression.py`) fails
+- **Cause**: a headline metric of the offline Phase-4 harnesses dropped below `apps/api/app/evaluation/baseline/phase4_baseline.json`, or a dataset in `data/evaluation/` changed size (exit 1); or the baseline/report is structurally broken, e.g. a missing harness or a dataset without `"synthetic": true` (exit 2). The printed table shows each metric's baseline, current value and delta.
+- **Remedy**: fix the regression. If the drop is an accepted, reviewed trade-off (or the dataset changed on purpose), regenerate the baseline with `python scripts/check_eval_regression.py --write-baseline apps/api/app/evaluation/baseline/phase4_baseline.json` and commit it with the reason. Improvements pass and are reported; raise the baseline the same way so they are locked in.
