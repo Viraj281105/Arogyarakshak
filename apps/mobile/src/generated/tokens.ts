@@ -137,8 +137,8 @@ export const zIndex = {
 } as const;
 
 export const fonts = {
-  display: "'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', 'Noto Sans Devanagari', 'Nirmala UI', Mangal, serif",
-  headline: "'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif",
-  sans: "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif",
+  display: "var(--font-face-display, 'Fraunces Variable'), 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', 'Noto Sans Devanagari', 'Nirmala UI', Mangal, serif",
+  headline: "var(--font-face-headline, 'Plus Jakarta Sans Variable'), 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif",
+  sans: "var(--font-face-sans, 'Inter Variable'), 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, sans-serif",
   mono: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, 'Noto Sans Devanagari', 'Nirmala UI', Mangal, monospace",
 } as const;

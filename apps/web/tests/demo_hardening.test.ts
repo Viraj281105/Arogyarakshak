@@ -44,7 +44,7 @@ describe('Provenance / verification stay visually distinct', () => {
 
 describe('Demo-hardening UI contracts', () => {
   it('module views get the case only after processing completes; a stalled stream offers Refresh status', () => {
-    const page = code(read('app', 'page.tsx') + read('app', 'hooks', 'useCaseSession.ts'));
+    const page = code(read('app', 'components', 'HomeWorkspace.tsx') + read('app', 'hooks', 'useCaseSession.ts'));
     assert.ok(/caseReady = !!caseId && pipelineStep === 4 && !isProcessing/.test(page));
     assert.ok(/caseId=\{readyCaseId\}/.test(page));
     assert.ok(/retryLabel="Refresh status"/.test(page));

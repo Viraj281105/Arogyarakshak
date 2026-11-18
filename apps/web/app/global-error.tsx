@@ -21,6 +21,7 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
       </head>
       <body>
         <StatusPage
+          standalone
           code="Something went wrong"
           title="ArogyaRakshak could not load."
           variant="error"
