@@ -1,4 +1,4 @@
-import { describe, test } from 'node:test';
+import { describe, mock, test } from 'node:test';
 import assert from 'node:assert';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -6,7 +6,7 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { nextHeaderState, type HeaderState } from '../app/shell/headerScroll';
 import { isActiveHref, moduleFromHash, moduleHash, NAV_ITEMS, MODULE_ORDER } from '../app/shell/nav';
-import { routeCommitted, shouldTransition, waitForRouteCommit } from '../app/shell/routeTransition';
+import { ROUTE_COMMIT_TIMEOUT_MS, routeCommitted, shouldTransition, waitForRouteCommit } from '../app/shell/routeTransition';
 import { shellCopy, HTML_LANG } from '../app/shell/shellCopy';
 import { PageContainer, PageSection } from '../app/shell/Page';
 import { translations } from '../app/translations';
@@ -93,13 +93,38 @@ describe('route transitions', () => {
     assert.equal(shouldTransition(click(), '/#module-dawacheck', 'http://localhost:3000/clinical-review'), true);
   });
 
-  test('waitForRouteCommit resolves when the route commits, and on its own after the timeout', async () => {
-    const committed = waitForRouteCommit(5000);
-    routeCommitted();
-    await committed;
-    const t0 = Date.now();
-    await waitForRouteCommit(20);
-    assert.ok(Date.now() - t0 >= 15);
+  test('a link to the SAME pathname (search- or hash-only change) never starts a transition', () => {
+    // The transition waits for the pathname to change; these links would never change it.
+    assert.equal(shouldTransition(click(), '/?module=x', here), false);
+    assert.equal(shouldTransition(click(), '/clinical-review?tab=safety', 'http://localhost:3000/clinical-review'), false);
+    assert.equal(shouldTransition(click(), '/', here), false);
+  });
+
+  test('the wait is capped at 400 ms', () => {
+    assert.equal(ROUTE_COMMIT_TIMEOUT_MS, 400);
+  });
+
+  test('fake timers: a commit before the cap resolves at once; without a commit it resolves exactly at the cap', async () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    try {
+      let early = false;
+      const a = waitForRouteCommit().then(() => (early = true));
+      mock.timers.tick(100);
+      routeCommitted();
+      await a;
+      assert.equal(early, true);
+
+      let done = false;
+      const b = waitForRouteCommit().then(() => (done = true));
+      mock.timers.tick(ROUTE_COMMIT_TIMEOUT_MS - 1);
+      await Promise.resolve();
+      assert.equal(done, false, 'still waiting 1 ms before the cap');
+      mock.timers.tick(1);
+      await b;
+      assert.equal(done, true);
+    } finally {
+      mock.timers.reset();
+    }
   });
 
   test('a second navigation settles the first one (no transition waits forever)', async () => {

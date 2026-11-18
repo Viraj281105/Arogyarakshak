@@ -12,12 +12,16 @@ function settle(): void {
   resolve();
 }
 
+/** Longest a View Transition waits for the new route before it finishes anyway. */
+export const ROUTE_COMMIT_TIMEOUT_MS = 400;
+
 /**
- * Resolves when the next route commits, or after `timeoutMs` (a navigation that fails or is
- * cancelled must never freeze the page on the transition snapshot). A newer call settles the
- * previous one first.
+ * Resolves when the next route commits, or after `timeoutMs` at the latest: the page is frozen on
+ * the transition snapshot while this is pending, so a slow, failed or cancelled navigation must
+ * not hold it. On timeout the transition finishes and the navigation simply continues without it.
+ * A newer call settles the previous one first.
  */
-export function waitForRouteCommit(timeoutMs = 1500): Promise<void> {
+export function waitForRouteCommit(timeoutMs = ROUTE_COMMIT_TIMEOUT_MS): Promise<void> {
   settle();
   return new Promise<void>((resolve) => {
     pending = { resolve, timer: setTimeout(settle, timeoutMs) };
@@ -40,7 +44,7 @@ export interface ClickLike {
 
 /**
  * Pure: should this click become a client navigation inside a View Transition? Only a plain
- * primary click to another page of this origin. Modified clicks (new tab/window), other
+ * primary click to another pathname of this origin. Modified clicks (new tab/window), other
  * targets, external URLs and same-page hash links keep the browser's native behaviour.
  */
 export function shouldTransition(e: ClickLike, href: string, currentUrl: string, target?: string | null): boolean {
@@ -55,5 +59,7 @@ export function shouldTransition(e: ClickLike, href: string, currentUrl: string,
     return false;
   }
   if (to.origin !== from.origin) return false;
-  return to.pathname !== from.pathname || to.search !== from.search;
+  // Only a pathname change commits a new route (the shell resolves the wait on pathname); search-
+  // or hash-only links navigate natively instead of holding a transition until the timeout.
+  return to.pathname !== from.pathname;
 }
