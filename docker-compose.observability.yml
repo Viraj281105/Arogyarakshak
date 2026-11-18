@@ -121,6 +121,10 @@ services:
     # Root inside the container only so the named volume is writable (the image does not
     # pre-create /var/tempo for its unprivileged user); all capabilities are still dropped.
     user: "0:0"
+    # `cap_drop: ALL` also removes CAP_DAC_OVERRIDE, so root cannot write into the named volume,
+    # which Docker initialises owned by the image user. Add back only that one capability.
+    cap_add:
+      - DAC_OVERRIDE
     volumes:
       - ./infrastructure/observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
       - tempo-data:/var/tempo
