@@ -1,12 +1,16 @@
+import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { shouldHaptic } from './logic';
+import { hapticsSupported, shouldHaptic } from './logic';
 import { reducedMotionStore } from './store';
 
 export type HapticKind = 'light' | 'success' | 'warning';
 
-/** Haptic tap. No-op under (or before knowing) reduced motion; swallows errors (no haptic engine). */
+/**
+ * Haptic tap. No-op under (or before knowing) reduced motion and in the browser preview;
+ * swallows errors (no haptic engine).
+ */
 export async function tap(kind: HapticKind): Promise<void> {
-  if (!shouldHaptic(reducedMotionStore.get())) return;
+  if (!hapticsSupported(Platform.OS) || !shouldHaptic(reducedMotionStore.get())) return;
   try {
     if (kind === 'light') {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -55,6 +55,7 @@ reveal-on-scroll, parallax layer, magnetic hover, shared-element transition, cou
 
 - **Web:** native CSS scroll-driven animations (`animation-timeline: view()`) as the base; Lenis smooth scroll (~3 KB); Motion via `LazyMotion` for interactive pieces; View Transitions between routes. Hero visuals are SVG/canvas. No WebGL.
 - **Mobile:** Reanimated 3 + Gesture Handler; FlashList for long lists; haptics on key interactions.
+  *Superseded 2026-11-18: RN Animated with the native driver; see performance-budgets.md.* (Reanimated and Gesture Handler were removed from `apps/mobile` in WS5-shell.)
 - Each pattern ships with a reduced-motion variant. A lint rule rejects animation code that bypasses the shared patterns.
 
 ### 5.5 Fonts

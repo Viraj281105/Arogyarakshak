@@ -8,7 +8,7 @@ are in [`performance-baseline.md`](performance-baseline.md).
 | Web (`apps/web`) | Initial JS per route, gzip | **170 KB**, with a ratchet for known violations (below) | `scripts/build-checks/web-bundle-budget.mjs`, `web-ci` job |
 | Web `/` (mobile profile, 4x CPU, slow 4G) | Largest Contentful Paint | **2000 ms** (error; the spec target). Warning at 1500 ms | Lighthouse CI, `apps/web/lighthouserc.json` |
 | Web `/` | Cumulative Layout Shift | **0.1** (error) | Lighthouse CI |
-| Mobile (`apps/mobile`) | Android Hermes `.hbc` bundle | **2,900,000 B** | `scripts/build-checks/mobile-bundle-budget.mjs`, `mobile-ci` job |
+| Mobile (`apps/mobile`) | Android Hermes `.hbc` bundle | **2,600,000 B** (was 2,900,000 until 2026-11-18) | `scripts/build-checks/mobile-bundle-budget.mjs`, `mobile-ci` job |
 
 ## Web initial JS: 170 KB budget and the KNOWN_VIOLATIONS ratchet
 
@@ -135,11 +135,32 @@ Not verified: the GitHub `ubuntu-latest` runner. There `local(Arial)` / `local(T
 (Liberation fonts may or may not be aliased), so the adjusted fallback may not apply; the preload still makes a
 pre-paint swap likely. Read the first CI value; do not loosen the 0.1 limit.
 
-## Mobile bundle: 2,900,000 B
+## Mobile bundle: 2,600,000 B
 
-Baseline 2,319,176 B (WS0 baseline) plus about 25% headroom, rounded to 2,900,000 B. Current size is 2,361,153 B. The headroom
-exists because WS5 will import Reanimated. **After WS5, re-measure the bundle and tighten this budget**
-(`MOBILE_BUNDLE_BUDGET_BYTES` in `scripts/build-checks/mobile-bundle-budget.mjs`) to the new size plus a small margin.
+History: WS0 set 2,900,000 B (baseline 2,319,176 B plus about 25% headroom, meant for WS5 importing Reanimated).
+Ruling 2026-11-18 (Wave 1 controller): budget **2,600,000 B** = the WS5-shell size 2,394,806 B plus about 8%, rounded.
+
+**WS5-shell measurements (2026-11-18, `npx expo export --platform android`, Hermes `.hbc`, plain export):**
+
+| State | Bytes | Modules | vs budget |
+|---|---|---|---|
+| Before WS5 (a3fffaa) | 2,361,153 | 909 | PASS |
+| Shell using Reanimated-based `src/motion` (not shipped) | 3,146,268 (+785,115; 172 Reanimated modules) | 1,100 | FAIL vs the old 2,900,000 |
+| Shell using RN `Animated`-based `src/motion` | 2,394,806 (+33,653) | 929 | PASS |
+| After the review fixes and removing Reanimated + Gesture Handler from `package.json` (final) | 2,397,558 | 929 | PASS vs 2,600,000 (202,442 B margin) |
+
+Rulings (2026-11-18):
+- The mobile motion system uses React Native's built-in `Animated` with the native driver (opacity/transform only).
+- `react-native-reanimated` and `react-native-gesture-handler` are **not dependencies** of `apps/mobile` any more
+  (they were unused; `apps/mobile/tests/shell.test.ts` fails if either is re-added to `package.json` or imported in any
+  form). Re-adding either needs a concrete screen that requires it, a fresh measurement and a documented budget ruling
+  here. For scale: Reanimated measured +785,115 B and Gesture Handler about +934 KB (WS0) of JS, so adopting both
+  costs roughly +1.7 MB and would put the budget around 4.2 MB. Their native libraries also grow the APK/AAB, which this
+  JS budget does not capture.
+- The web preview packages (`react-native-web`, `react-dom`, `@expo/metro-runtime`) are not in the Android bundle
+  (checked in the export's source map).
+- Measure with a plain export (no `--source-maps`): that flag moves debug info out of the `.hbc` and makes it smaller
+  (the same bundle measured 1,432,824 B with it), so it is not comparable with the budget.
 
 ## Running the checks locally
 

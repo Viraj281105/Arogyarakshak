@@ -1,4 +1,5 @@
 // Pure motion logic: no react-native / reanimated imports, so it is unit-testable under tsx.
+// (The motion components use React Native's Animated API, see driver.ts for why not Reanimated.)
 import { motion } from '../generated/tokens';
 
 export interface AccessibilityInfoLike {
@@ -78,6 +79,54 @@ export function motionMode(value: boolean | undefined): 'animate' | 'final' {
 /** Haptics fire only when the preference is known to allow motion (no bridge call per press). */
 export function shouldHaptic(value: boolean | undefined): boolean {
   return value === false;
+}
+
+/** Skeleton pulse range; reduced motion shows the max (static, readable) value. */
+export const PULSE_MIN_OPACITY = 0.45;
+export const PULSE_MAX_OPACITY = 1;
+
+/** Haptics exist only on device platforms (the browser preview has no haptic engine). */
+export function hapticsSupported(os: string): boolean {
+  return os === 'ios' || os === 'android';
+}
+
+// RN transform entries are single-key objects ({ rotate: '5deg' }, { scale: 2 }, ...).
+export type TransformEntry = Record<string, unknown>;
+
+/**
+ * Splits a flattened style into its array transform and everything else, so the press scale can
+ * be appended to the caller's transform instead of replacing it. A non-array transform (string
+ * form) is left on `rest` untouched.
+ */
+export function splitTransform<S extends { transform?: unknown }>(
+  style: S | null | undefined,
+): { transform: TransformEntry[]; rest: Omit<S, 'transform'> | Record<string, never> } {
+  if (!style) return { transform: [], rest: {} };
+  if (!Array.isArray(style.transform)) return { transform: [], rest: style };
+  const { transform, ...rest } = style;
+  return { transform: transform as TransformEntry[], rest };
+}
+
+/** Caller transform followed by the press scale (a number or an Animated value). */
+export function withPressScale<T>(base: TransformEntry[] | undefined, scale: T): TransformEntry[] {
+  return [...(base ?? []), { scale }];
+}
+
+/**
+ * What a Reveal does when its effect runs. It animates at most once, and only if motion is
+ * allowed the first time; a later change (e.g. a late reduce-motion prime, unknown -> allowed)
+ * never replays it. Turning reduced motion on jumps to the final state, and so does a re-run that
+ * finds the first animation interrupted before it completed (Fast Refresh / StrictMode stop it),
+ * so content is never left partly transparent.
+ */
+export function revealAction(
+  started: boolean,
+  reduced: boolean,
+  completed: boolean,
+): 'animate' | 'final' | 'none' {
+  if (reduced) return 'final';
+  if (!started) return 'animate';
+  return completed ? 'none' : 'final';
 }
 
 /** Animate only when the user has not asked for reduced motion. */
