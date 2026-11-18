@@ -28,7 +28,9 @@ from app.observability import RequestContextMiddleware, configure_logging, route
 from app.rate_limit import limiter, resolve_client_ip
 from app import schema
 from app.services import document_jobs
+from kadi.llm.observer import register_llm_observer
 from app.telemetry import metrics as telemetry_metrics
+from app.telemetry.llm_metrics import record_llm_event
 from app.telemetry.settings import telemetry_settings
 from app.telemetry.tracing import setup_tracing
 
@@ -373,6 +375,10 @@ async def health_ready(db: AsyncSession = Depends(get_db)):
 telemetry_metrics.set_known_routes(app.openapi().get("paths", {}))
 telemetry_metrics.register_db_pool(engine)
 setup_tracing(app, telemetry_settings, engine)
+
+# WS2 -> WS1 glue: every resilient-LLM-client event updates the Prometheus LLM metrics. The recorder is
+# duck-typed and never raises; registration is idempotent.
+register_llm_observer(record_llm_event)
 
 
 @app.get("/metrics", include_in_schema=False)
