@@ -31,8 +31,14 @@ so every route — including 404 and the error boundary — gets the same frame 
   so the View Transition snapshots the new page instead of the old one (fixes the WS0 deferred minor "does not await").
   Reduced motion, unsupported browsers, modified clicks and same-page hash links fall back to normal navigation.
   `TransitionLink` replaces `next/link` in the shell, which also drops the duplicated Link module from several entry chunks.
-- **PWA:** `app/manifest.ts` (served as `/manifest.webmanifest`) with SVG `any` and `maskable` icons in `public/icons/`.
-  **No service worker** (offline caching of documents would contradict zero document retention).
+- **PWA:** a static `public/manifest.webmanifest` (linked from the layout metadata) with SVG `any` and `maskable` icons
+  in `public/icons/`. Not `app/manifest.ts`: metadata routes have no client reference manifest, which the budget
+  measurement rightly refuses. A manifest is present; installability is **not** verified (SVG-only icons, no PNG
+  192/512, no apple-touch-icon). **No service worker** (offline caching of documents would contradict zero retention).
+- **Header slot (revised after review):** page chips arrive after the demo-status fetch, so the slot is out of flow:
+  it hangs below the header row's right content edge (phones: the pill sits under the emblem). Measured: an in-flow
+  slot moved `.site-actions` and, at 1280 px, the nav; beside the actions only 16–48 px are free at 1024–1440 px.
+  The nav is anchored to the brand, not centred.
 
 ## 2. Navigation at three breakpoints
 
@@ -58,7 +64,11 @@ Rule used: split only what is **not rendered on first paint**, so the measured n
 during hydration anyway.
 - `/`: the four inactive module views (only BillNyay renders initially); the case-desk components (stream visualizer,
   safety banner, entity review, claim pack, case timeline) that render only once a case exists; demo controls that
-  render only in demo mode.
+  render only in demo mode. Each `dynamic()` has a sized `aria-busy` placeholder (`LazyPanel`).
+- `/` landing (revised after review): the static sections (hero, journey, reference coverage) are not split with
+  `next/dynamic` (with SSR their chunks would still load at hydration) but made **Server Components**, rendered by
+  `app/page.tsx` and passed into the client `HomeWorkspace` as slots; only a small `ScrollProgressSection` wrapper
+  is client code. The worked example (interactive) and module cards (language, tab opening) stay client.
 - `/clinical-review`: the three workspace tabs (they render only after sign-in).
 - `/motion-lab`: a dev-only gallery that already 404s in production; it is excluded from production builds via a
   dev-only page extension (`page.dev.tsx`), so its 230 KB of client chunks are no longer shipped.
@@ -77,11 +87,21 @@ fallbacks), and put the resulting CSS variable first in the token font stacks
 other subsets (latin-ext carries ₹) and for JetBrains Mono; the Devanagari fallbacks stay in every stack. Measure after with
 lhci and a `PerformanceObserver('layout-shift')` run in the Browser pane. The 0.1 limit is not changed.
 
+Revised after review: next/font's generated fallback face has no `unicode-range`, so glyphs outside the latin face
+(₹, ā, š) were drawn by the size-adjusted local fallback before the Fontsource family could supply them. Each family
+now also has a latin-ext face under the same family name (on demand, no fallback); verified by text-width comparison
+in the browser. CLS was also measured for `/clinical-review`, Hindi, Marathi and demo mode with a CDP probe (results
+in `docs/development/performance-budgets.md`).
+
 ## 5. Budget targets
 
 Ratchet `KNOWN_VIOLATIONS` down to the new measured values rounded up to the next whole KB; delete `/motion-lab`.
 Targets: `/` ≤ 215, `/clinical-review` ≤ 190, `/_not-found` and `/_global-error` at or below today. The shell itself must
 not raise `/_not-found` above its current ceiling.
+
+**Result: the `/` and `/clinical-review` targets were missed.** Final: `/` 222.26 (target 215), `/clinical-review`
+190.32 (target 190; the loading placeholders added 0.30), `/_not-found` 179.84 and `/_global-error` 171.94 (both below
+their start values). Ceilings: 223 / 191 / 180 / 172; `/motion-lab` removed.
 
 ## 6. Accessibility decisions
 
