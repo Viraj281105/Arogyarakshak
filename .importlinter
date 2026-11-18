@@ -79,6 +79,7 @@ source_modules =
     app.observability
     app.schema
     app.rate_limit
+    app.telemetry
 forbidden_modules =
     app.api
     app.main

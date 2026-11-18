@@ -246,3 +246,22 @@ This document catalogs known failure modes, error messages, and verified solutio
 ### `node --test packages/...` finds no tests on Windows, or `npm test` at the root runs nothing
 - **Cause**: on Windows `node --test <directory>` and glob arguments do not expand the way they do on Linux.
 - **Remedy**: run the root `npm test`, which discovers `scripts/tests/*.test.*` and `packages/*/tests/*.test.*` itself, or pass explicit file paths (`node --import tsx --test packages/i18n/tests/parity.test.ts`).
+
+---
+
+## Observability stack (WS1, ADR-023)
+
+### `GET /metrics` returns 404
+`METRICS_ENABLED` is unset under `APP_ENV=production` (off by default there) or set to `false`. Set `METRICS_ENABLED=true` (and keep the port on loopback / the compose network).
+
+### Prometheus target `api` is down
+The API container must run with `METRICS_ENABLED=true` (the observability override sets it). For an API started on the host, add `host.docker.internal:8000` to `infrastructure/observability/prometheus/targets/api-host.yml`; the `api` job will stay down because there is no `api` container.
+
+### Grafana container exits immediately under `APP_ENV=production`
+Intended: `GRAFANA_ADMIN_PASSWORD` is the development default or shorter than 12 characters. Set a unique value (`python scripts/observability_preflight.py` shows the same check).
+
+### No logs in Loki
+Logs are shipped only from containers using the `fluentd` driver (the `api` service in the override); a host-run uvicorn is not covered. The Docker daemon connects to `127.0.0.1:24224`, so the collector must be up (the driver is async, so the API still starts without it, and `docker compose logs` keeps working).
+
+### Traces missing
+`OTEL_ENABLED` must be `true` and `OTEL_EXPORTER_OTLP_ENDPOINT` must reach the collector's OTLP/HTTP port (`http://otel-collector:4318` in Compose, `http://127.0.0.1:4318` from the host). The log line `OpenTelemetry tracing enabled` confirms the setup; `trace_id` is `null` in JSON logs when no span is active.

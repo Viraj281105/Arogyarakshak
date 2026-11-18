@@ -52,7 +52,10 @@ def test_setup_tracing_enabled_installs_provider_without_network():
     from fastapi import FastAPI
 
     s = TelemetrySettings(otel_enabled=True, otel_exporter_otlp_endpoint="http://127.0.0.1:1")
-    assert tracing.setup_tracing(FastAPI(), s) is True
+    app = FastAPI()
+    assert tracing.setup_tracing(app, s) is True
+    # the FastAPI instrumentation really attached (a wrong keyword used to be swallowed)
+    assert getattr(app, "_is_instrumented_by_opentelemetry", False) is True
     tracing.shutdown_tracing()
 
 

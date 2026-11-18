@@ -60,7 +60,7 @@ def setup_tracing(app, settings: TelemetrySettings, engine=None) -> bool:
     _provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
     trace.set_tracer_provider(_provider)
 
-    _instrument("opentelemetry.instrumentation.fastapi", "FastAPIInstrumentor", "instrument_app", app, exclude_urls="health,metrics")
+    _instrument("opentelemetry.instrumentation.fastapi", "FastAPIInstrumentor", "instrument_app", app, excluded_urls="health,metrics")
     _instrument("opentelemetry.instrumentation.httpx", "HTTPXClientInstrumentor", "instrument")
     if engine is not None:
         _instrument(
