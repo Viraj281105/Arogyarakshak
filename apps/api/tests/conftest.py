@@ -75,6 +75,17 @@ def reset_latency_tracker():
 
 
 @pytest.fixture(autouse=True, scope="function")
+def reset_llm_runtime():
+    """Same rationale again for the resilient LLM client's process runtime (ADR-024):
+    its circuit breakers and optional cache must not carry over between tests."""
+    from kadi.llm import reset_default_runtime
+
+    reset_default_runtime()
+    yield
+    reset_default_runtime()
+
+
+@pytest.fixture(autouse=True, scope="function")
 def setup_database():
     """Fixture to create all tables before each test and drop them after."""
     import asyncio
