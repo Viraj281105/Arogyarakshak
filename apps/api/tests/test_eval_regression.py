@@ -195,7 +195,6 @@ def test_evaluate_phase4_check_baseline_flag(tmp_path):
     spec = importlib.util.spec_from_file_location("evaluate_phase4", ROOT / "scripts" / "evaluate_phase4.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    assert mod.main(["--only", "ocr", "--check-baseline"]) == 2  # one harness: the others are missing
     from app.evaluation.runner import run_all
 
     full = build_baseline(run_all())
@@ -204,3 +203,27 @@ def test_evaluate_phase4_check_baseline_flag(tmp_path):
     path.write_text(json.dumps(full), encoding="utf-8")
     assert mod.main(["--check-baseline", str(path)]) == 1
     assert mod.main(["--check-baseline"]) == 0
+
+
+def test_only_checks_just_the_selected_harness(tmp_path):
+    """--only X --check-baseline gates harness X alone (the others were not run)."""
+    spec = importlib.util.spec_from_file_location("evaluate_phase4", ROOT / "scripts" / "evaluate_phase4.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.main(["--only", "ocr", "--check-baseline"]) == 0
+
+    degraded = load_baseline(BASELINE_PATH)
+    degraded["metrics"]["ocr.corpus_wer"]["value"] = 0.1
+    path = tmp_path / "b.json"
+    path.write_text(json.dumps(degraded), encoding="utf-8")
+    assert mod.main(["--only", "ocr", "--check-baseline", str(path)]) == 1
+    assert mod.main(["--only", "bma", "--check-baseline", str(path)]) == 0  # ocr not selected
+
+
+def test_compare_restricted_to_selected_harnesses():
+    base = build_baseline(_reports())
+    only_ocr = {"ocr": _reports()["ocr"]}
+    result = compare(base, only_ocr, only={"ocr"})
+    assert result.ok and not result.errors
+    assert {r.name.split(".")[0] for r in result.rows} == {"ocr"}
+    assert not compare(base, only_ocr).ok  # without the restriction the rest is missing

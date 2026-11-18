@@ -79,8 +79,11 @@ def main(argv=None) -> int:
         args.json.write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
 
     if args.check_baseline:
-        result = compare(load_baseline(args.check_baseline), reports)
-        print("\n## regression gate (offline paths, SYNTHETIC data — not LLM accuracy)")
+        # With --only, gate just the harness that was run (the others are not required).
+        result = compare(load_baseline(args.check_baseline), reports,
+                         only=[args.only] if args.only else None)
+        scope = f" — harness {args.only} only" if args.only else ""
+        print(f"\n## regression gate (offline paths, SYNTHETIC data — not LLM accuracy){scope}")
         print(result.format_table())
         for err in result.errors:
             print(f"ERROR: {err}")

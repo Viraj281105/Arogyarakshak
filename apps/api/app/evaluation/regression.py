@@ -16,7 +16,7 @@ explicit, reviewed edit of the committed baseline file.
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 BASELINE_PATH = Path(__file__).resolve().parent / "baseline" / "phase4_baseline.json"
 FLOAT_SLACK = 1e-9
@@ -157,8 +157,17 @@ def _classify(base: Optional[float], cur: Optional[float], direction: str, toler
     return delta, "ok"
 
 
-def compare(baseline: Dict[str, Any], reports: Dict[str, Any]) -> RegressionReport:
+def compare(baseline: Dict[str, Any], reports: Dict[str, Any],
+            only: Optional[Iterable[str]] = None) -> RegressionReport:
+    """Gate ``reports`` against ``baseline``. ``only`` restricts the check to those
+    harnesses (``evaluate_phase4.py --only X --check-baseline``); the others are then
+    neither required nor compared."""
     result = RegressionReport()
+    selected = set(only) if only else None
+
+    def wanted(path: str) -> bool:
+        return selected is None or path.split(".")[0] in selected
+
     metrics = baseline.get("metrics") if isinstance(baseline, dict) else None
     counts = baseline.get("counts") if isinstance(baseline, dict) else None
     if not isinstance(metrics, dict) or not isinstance(counts, dict):
@@ -170,11 +179,17 @@ def compare(baseline: Dict[str, Any], reports: Dict[str, Any]) -> RegressionRepo
             result.errors.append(f"{name}: dataset is not flagged synthetic; refusing to gate on it")
 
     harnesses = {m.path.split(".")[0] for m in HEADLINE_METRICS}
+    if selected is not None:
+        for h in sorted(selected - harnesses):
+            result.errors.append(f"{h}: not a gated harness")
+        harnesses &= selected
     for h in sorted(harnesses - set(reports)):
         result.errors.append(f"{h}: harness missing from the current report")
 
     current = extract_metrics(reports)
     for spec in HEADLINE_METRICS:
+        if not wanted(spec.path):
+            continue
         entry = metrics.get(spec.path)
         if not isinstance(entry, dict) or "value" not in entry:
             result.errors.append(f"{spec.path}: missing from the baseline")
@@ -190,6 +205,8 @@ def compare(baseline: Dict[str, Any], reports: Dict[str, Any]) -> RegressionRepo
                                        tolerance, direction, status))
 
     for path in COUNT_METRICS:
+        if not wanted(path):
+            continue
         if path not in counts:
             result.errors.append(f"{path}: missing from the baseline")
             continue
