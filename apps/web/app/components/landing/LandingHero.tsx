@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import Link from "next/link";
+import { TransitionLink } from "../../shell/TransitionLink";
 import { useScrollProgress } from "../../hooks/useScrollMotion";
 import { HeroIllustration } from "./HeroIllustration";
 
@@ -67,7 +67,7 @@ export const LandingHero: React.FC = () => {
         </ul>
         <p className="lp-reviewer-note">
           Reviewing cases as a clinician?{" "}
-          <Link href="/clinical-review">Open the reviewer workspace →</Link>
+          <TransitionLink href="/clinical-review">Open the reviewer workspace →</TransitionLink>
         </p>
       </div>
       <figure className="lp-hero-figure">

@@ -1,5 +1,6 @@
 import type { Language } from "./shared/i18n/types";
 import { common as sharedCommon } from "./shared/i18n/common";
+import { shellCopy } from "./shell/shellCopy";
 
 // Single definition lives in packages/i18n; re-exported so existing import paths keep working.
 export type { Language };
@@ -183,16 +184,10 @@ export interface Translations {
 export const translations: Record<Language, Translations> = {
   en: {
     appName: sharedCommon.en.appName,
-    tagline: "Statutory Healthcare Cost & Insurance Rights Intelligence",
-    byodBadge: "BYOD: Zero Document Retention",
-    byodDescription: "Files are parsed in transient RAM memory and purged immediately after extraction.",
-    tabs: {
-      billnyay: "BillNyay (Bill Audit)",
-      bimanyay: "BimaNyay (Claim Denials)",
-      daavisetu: "DaaviSetu (Pre-Auth)",
-      schemesetu: "SchemeSetu (Schemes)",
-      dawacheck: "DawaCheck (Medicine Ceiling)",
-    },
+    tagline: shellCopy.en.tagline,
+    byodBadge: shellCopy.en.byodBadge,
+    byodDescription: shellCopy.en.byodDescription,
+    tabs: shellCopy.en.tabs,
     upload: {
       title: "Add a document to check",
       subtitle: "A hospital bill, discharge summary, insurer letter or prescription — one file at a time.",
@@ -331,27 +326,14 @@ export const translations: Record<Language, Translations> = {
         recognizedBadge: "Recognized",
       },
     },
-    footer: {
-      disclaimer: "ArogyaRakshak provides statutory auditing intelligence based on public regulatory frameworks (CGHS, NPPA, IRDAI).",
-      statutoryNote:
-        "Reference prices come from curated subsets of public data (CGHS, NPPA). A case's extracted details are kept until you delete the case or it expires (90 days by default); your original file is never kept.",
-      cghsRef: "CGHS OM 2024 Tariffs",
-      irdaiRef: "IRDAI Master Circular May 2024",
-      nppaRef: "NPPA DPCO Schedule-I",
-    },
+    footer: shellCopy.en.footer,
   },
   hi: {
     appName: sharedCommon.hi.appName,
-    tagline: "संवैधानिक स्वास्थ्य खर्च और बीमा अधिकार विश्लेषण",
-    byodBadge: "BYOD: शून्य दस्तावेज़ संचयन नीति",
-    byodDescription: "दस्तावेज़ केवल अस्थायी रैम (RAM) में प्रोसेस होते हैं और निष्कर्षण के तुरंत बाद हटा दिए जाते हैं।",
-    tabs: {
-      billnyay: "बिलन्याय (बिल ऑडिट)",
-      bimanyay: "बीमान्याय (बीमा दावे)",
-      daavisetu: "दावेसेतु (प्री-ऑथ फॉर्म)",
-      schemesetu: "योजनासेतु (सरकारी योजनाएं)",
-      dawacheck: "दवाचेक (दवा मूल्य सीमा)",
-    },
+    tagline: shellCopy.hi.tagline,
+    byodBadge: shellCopy.hi.byodBadge,
+    byodDescription: shellCopy.hi.byodDescription,
+    tabs: shellCopy.hi.tabs,
     upload: {
       title: "अस्थायी दस्तावेज़ अपलोड",
       subtitle: "अस्पताल बिल, डिस्चार्ज सारांश या बीमा दावा अस्वीकृति पत्र अपलोड करें",
@@ -490,28 +472,14 @@ export const translations: Record<Language, Translations> = {
         recognizedBadge: "पहचाना गया",
       },
     },
-    footer: {
-      disclaimer: "आरोग्यरक्षक सार्वजनिक विनियामक नियमों (CGHS, NPPA, IRDAI) के आधार पर सूचनात्मक विश्लेषण प्रदान करता है।",
-      // NEEDS NATIVE-SPEAKER QA (the previous copy wrongly said nothing is kept after the session).
-      statutoryNote:
-        "संदर्भ मूल्य सार्वजनिक डेटा (CGHS, NPPA) के चुने हुए अंशों से लिए गए हैं। केस की निकाली गई जानकारी तब तक रखी जाती है जब तक आप केस हटा नहीं देते या वह समाप्त नहीं हो जाता (डिफ़ॉल्ट 90 दिन); आपकी मूल फ़ाइल कभी नहीं रखी जाती।",
-      cghsRef: "CGHS दरें 2024",
-      irdaiRef: "IRDAI मास्टर सर्कुलर मई 2024",
-      nppaRef: "NPPA DPCO शेड्यूल-I",
-    },
+    footer: shellCopy.hi.footer,
   },
   mr: {
     appName: sharedCommon.mr.appName,
-    tagline: "वैधानिक आरोग्य खर्च व विमा हक्क मार्गदर्शन",
-    byodBadge: "BYOD: शून्य दस्तऐवज संचयन",
-    byodDescription: "दस्तऐवज फक्त तात्पुरत्या रॅम (RAM) मध्ये तपासले जातात आणि लगेच नष्ट केले जातात.",
-    tabs: {
-      billnyay: "बिलन्याय (बिल ऑडिट)",
-      bimanyay: "बीमान्याय (विमा दावे)",
-      daavisetu: "दावेसेतु (प्री-ऑथ फॉर्म)",
-      schemesetu: "योजनासेतु (सरकारी योजना)",
-      dawacheck: "दवाचेक (औषध कमाल किंमत)",
-    },
+    tagline: shellCopy.mr.tagline,
+    byodBadge: shellCopy.mr.byodBadge,
+    byodDescription: shellCopy.mr.byodDescription,
+    tabs: shellCopy.mr.tabs,
     upload: {
       title: "तात्पुरते दस्तऐवज अपलोड",
       subtitle: "हॉस्पिटल बिल, डिस्चार्ज सारांश किंवा विमा नकार पत्र अपलोड करा",
@@ -650,14 +618,6 @@ export const translations: Record<Language, Translations> = {
         recognizedBadge: "ओळखले गेले",
       },
     },
-    footer: {
-      disclaimer: "आरोग्यरक्षक सार्वजनिक विनियामक नियमांवर (CGHS, NPPA, IRDAI) आधारित माहितीपर विश्लेषण प्रदान करते.",
-      // NEEDS NATIVE-SPEAKER QA (the previous copy wrongly said no personal data is kept after use).
-      statutoryNote:
-        "संदर्भ किमती सार्वजनिक डेटाच्या (CGHS, NPPA) निवडक भागांतून घेतल्या आहेत. केसमधून काढलेली माहिती तुम्ही केस हटवेपर्यंत किंवा ती कालबाह्य होईपर्यंत (डीफॉल्ट 90 दिवस) ठेवली जाते; तुमची मूळ फाइल कधीही ठेवली जात नाही.",
-      cghsRef: "CGHS दर 2024",
-      irdaiRef: "IRDAI मास्टर सर्क्युलर मे 2024",
-      nppaRef: "NPPA DPCO शेड्यूल-I",
-    },
+    footer: shellCopy.mr.footer,
   },
 };

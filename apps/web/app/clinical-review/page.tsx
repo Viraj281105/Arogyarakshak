@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
-import Link from "next/link";
+import React, { useCallback, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { ReviewerProfile, clinicalPaths, clinicalRequest } from "../lib/clinical";
 import { ReviewerAttribution } from "../components/clinical/Attribution";
@@ -10,7 +9,7 @@ import { DemoBanner, DemoPill, useDemoStatus } from "../components/demo/DemoBann
 import { TONE_CLASS } from "../lib/labels";
 import { SignInPanel } from "./components/SignInPanel";
 import { AssignedReview, ReviewerCall, Tab } from "./types";
-import { useTheme } from "../hooks/useTheme";
+import { useHeaderSlot } from "../shell/ShellProvider";
 
 // Code-split (WS4): the tabs render only after sign-in, so they stay out of the initial JS.
 const ReviewsTab = dynamic(() => import("./components/ReviewsTab").then((m) => m.ReviewsTab));
@@ -22,7 +21,6 @@ const SafetyTab = dynamic(() => import("./components/SafetyTab").then((m) => m.S
 export default function ClinicalReviewWorkspace() {
   // Held in memory only: the credential is a bearer secret and is never written to
   // localStorage. Reloading the page means pasting it again.
-  const { theme, toggleTheme } = useTheme();
   const demoStatus = useDemoStatus();
   const [token, setToken] = useState("");
   const [me, setMe] = useState<ReviewerProfile | null>(null);
@@ -31,6 +29,24 @@ export default function ClinicalReviewWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [queue, setQueue] = useState<AssignedReview[]>([]);
+
+  // Page-specific chips in the shared header: demo mode and the signed-in reviewer.
+  useHeaderSlot(
+    useMemo(
+      () => (
+        <>
+          <DemoPill status={demoStatus} />
+          {me && (
+            <span className="rv-signed-chip" title={`Signed in as ${me.name}`}>
+              <span className="reviewer-status-dot" aria-hidden="true" />
+              {me.name}
+            </span>
+          )}
+        </>
+      ),
+      [demoStatus, me]
+    )
+  );
 
   const call = useCallback(
     async <T,>(path: string, method: "GET" | "POST" | "PUT" = "GET", body?: unknown): Promise<T> =>
@@ -81,45 +97,8 @@ export default function ClinicalReviewWorkspace() {
     <div className="rv-page">
       <div className="lp-backdrop" aria-hidden="true" />
 
-      <header className="header-bar">
-        <div className="container header-inner">
-          <Link href="/" className="rv-back">
-            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
-              <path d="M19 12H5M11 6l-6 6 6 6" />
-            </svg>
-            ArogyaRakshak
-          </Link>
-          <div className="nav-actions">
-            <DemoPill status={demoStatus} />
-            {me && (
-              <span className="rv-signed-chip" title={`Signed in as ${me.name}`}>
-                <span className="reviewer-status-dot" aria-hidden="true" />
-                {me.name}
-              </span>
-            )}
-            <button
-              type="button"
-              className="theme-toggle-btn"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-              title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
-                {theme === "dark" ? (
-                  <>
-                    <circle cx="12" cy="12" r="4" />
-                    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-                  </>
-                ) : (
-                  <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
-                )}
-              </svg>
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <main className="container rv-main">
+      <div className="container rv-main">
         <DemoBanner status={demoStatus} />
 
         <section className="rv-hero" aria-labelledby="rv-title">
@@ -208,7 +187,7 @@ export default function ClinicalReviewWorkspace() {
             </div>
           </>
         )}
-      </main>
+      </div>
     </div>
   );
 }

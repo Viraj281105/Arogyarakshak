@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Header } from "./components/Header";
-import { Footer } from "./components/Footer";
 import { DOCUMENT_ACCEPT, DocumentUploader } from "./components/DocumentUploader";
 import { DemoBanner, DemoPill, useDemoStatus } from "./components/demo/DemoBanner";
 import { SimpleLanguageToggle } from "./components/SimpleLanguageToggle";
@@ -32,18 +30,19 @@ const EntityResolutionReview = dynamic(() =>
 const ClaimPackPanel = dynamic(() => import("./components/ClaimPackPanel").then((m) => m.ClaimPackPanel));
 const CaseTimeline = dynamic(() => import("./components/CaseTimeline").then((m) => m.CaseTimeline));
 const DemoControls = dynamic(() => import("./components/demo/DemoControls").then((m) => m.DemoControls));
-import { useTheme } from "./hooks/useTheme";
-import { Language, translations } from "./translations";
+import { translations } from "./translations";
+import { useHeaderSlot, useLanguage } from "./shell/ShellProvider";
+import { moduleFromHash } from "./shell/nav";
 import { Landing } from "./components/landing/Landing";
 
 // The module each demo scenario starts in.
 const SCENARIO_TAB: Record<DemoScenario["id"], ModuleTab> = { A: "billnyay", B: "daavisetu", C: "dawacheck", D: "bimanyay", E: "daavisetu" };
 
 export default function Home() {
-  const [currentLang, setCurrentLang] = useState<Language>("en");
-  const { theme, toggleTheme } = useTheme();
+  const [currentLang] = useLanguage();
   const [activeTab, setActiveTab] = useState<ModuleTab>("billnyay");
   const demoStatus = useDemoStatus();
+  useHeaderSlot(useMemo(() => <DemoPill status={demoStatus} />, [demoStatus]));
   const addDocInput = useRef<HTMLInputElement | null>(null);
 
   const t = translations[currentLang];
@@ -73,16 +72,30 @@ export default function Home() {
     setActiveTab(SCENARIO_TAB[scenario.id]);
   };
 
-  // A landing-page module card opens that tab and brings the workspace into view.
+  // A landing-page module card opens that tab and brings the workspace into view. No explicit
+  // `behavior`: the CSS scroll-behavior decides, which is instant under reduced motion.
   const openModule = (tab: ModuleTab) => {
     setActiveTab(tab);
-    document.getElementById("module-workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("module-workspace")?.scrollIntoView({ block: "start" });
   };
+
+  // Shell deep links (#module-<id>, from the header drawer or another page) open that check.
+  useEffect(() => {
+    const apply = () => {
+      const tab = moduleFromHash(window.location.hash);
+      if (!tab) return;
+      setActiveTab(tab);
+      document.getElementById("module-workspace")?.scrollIntoView({ block: "start" });
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
 
   // When a document starts processing, bring the case workspace into view.
   const processingStarted = pipelineStep === 1 && isProcessing;
   React.useEffect(() => {
-    if (processingStarted) document.getElementById("case-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (processingStarted) document.getElementById("case-desk")?.scrollIntoView({ block: "start" });
   }, [processingStarted]);
 
   const onAddDocument = async (file: File | undefined) => {
@@ -94,18 +107,10 @@ export default function Home() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
+    <>
       <div className="lp-backdrop" aria-hidden="true" />
 
-      <Header
-        currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
-        currentTheme={theme}
-        onThemeToggle={toggleTheme}
-        demoBadge={<DemoPill status={demoStatus} />}
-      />
-
-      <main className="container" style={{ flex: 1 }}>
+      <div className="container">
         <DemoBanner status={demoStatus} />
 
         <Landing t={t} onOpenModule={openModule} />
@@ -251,7 +256,7 @@ export default function Home() {
         </div>
 
         {/* Active Module Panel */}
-        <div role="tabpanel" id={`panel-${activeTab}`}>
+        <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0}>
           {/* Module views receive the case only once extraction has finished, so nothing is
               computed (or shown as "empty") from a half-built case. */}
           {caseId && !caseReady && (
@@ -265,9 +270,7 @@ export default function Home() {
           {activeTab === "schemesetu" && <SchemeSetuView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
           {activeTab === "dawacheck" && <DawaCheckView currentLang={currentLang} caseId={readyCaseId} caseToken={caseToken} />}
         </div>
-      </main>
-
-      <Footer currentLang={currentLang} />
-    </div>
+      </div>
+    </>
   );
 }

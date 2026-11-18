@@ -269,6 +269,32 @@ describe('navigateWithTransition', () => {
     assert.equal(started, 1);
     assert.equal(calls, 1);
   });
+
+  test('passes the promise returned by go() to startViewTransition, so the new page is what gets snapshotted', async () => {
+    let returned: unknown;
+    let finished = false;
+    g.document = {
+      startViewTransition(cb: () => unknown) {
+        returned = cb();
+      },
+    };
+    try {
+      navigateWithTransition(
+        () =>
+          new Promise<void>((r) =>
+            setTimeout(() => {
+              finished = true;
+              r();
+            }, 5),
+          ),
+      );
+    } finally {
+      restore();
+    }
+    assert.ok(returned instanceof Promise, 'the update callback must return the navigation promise');
+    await returned;
+    assert.equal(finished, true);
+  });
 });
 
 describe('startSmoothScroll lifecycle', () => {

@@ -1,0 +1,15 @@
+{
+  "name": "ArogyaRakshak (आरोग्यरक्षक)",
+  "short_name": "ArogyaRakshak",
+  "description": "Check hospital bills, insurer letters and prescriptions against public CGHS, NPPA and IRDAI references.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7F6F2",
+  "theme_color": "#244C3A",
+  "lang": "en",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
