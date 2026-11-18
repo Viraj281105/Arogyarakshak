@@ -16,6 +16,8 @@ const baseline = JSON.parse(readFileSync(join(here, "fixtures", "globals-vars.ba
 // NOTE: the baseline fixture is a historical snapshot of globals.css. Task 6 (self-hosted fonts)
 // intentionally changed the four --font-* stacks (Fontsource variable family names plus a Devanagari-
 // capable fallback), so ONLY those four fixture entries were updated; every other entry is unchanged.
+// WS4 (CLS fix) prefixed --font-display/-headline/-sans with var(--font-face-*, '<family>') for the
+// preloaded next/font faces; again ONLY those three entries changed.
 
 // Generated variables not in the baseline are only allowed with these prefixes.
 const ALLOWED_EXTRA = ["--space-", "--radius-", "--motion-", "--z-"];
