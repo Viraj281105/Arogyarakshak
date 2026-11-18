@@ -115,11 +115,18 @@ export function withPressScale<T>(base: TransformEntry[] | undefined, scale: T):
 /**
  * What a Reveal does when its effect runs. It animates at most once, and only if motion is
  * allowed the first time; a later change (e.g. a late reduce-motion prime, unknown -> allowed)
- * never replays it. Turning reduced motion on jumps to the final state.
+ * never replays it. Turning reduced motion on jumps to the final state, and so does a re-run that
+ * finds the first animation interrupted before it completed (Fast Refresh / StrictMode stop it),
+ * so content is never left partly transparent.
  */
-export function revealAction(started: boolean, reduced: boolean): 'animate' | 'final' | 'none' {
+export function revealAction(
+  started: boolean,
+  reduced: boolean,
+  completed: boolean,
+): 'animate' | 'final' | 'none' {
   if (reduced) return 'final';
-  return started ? 'none' : 'animate';
+  if (!started) return 'animate';
+  return completed ? 'none' : 'final';
 }
 
 /** Animate only when the user has not asked for reduced motion. */

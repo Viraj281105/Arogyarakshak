@@ -50,6 +50,30 @@ export function font(role: FontRole, weight: FontWeight = '400'): { fontFamily: 
   return { fontFamily: fontFamily(role, weight) };
 }
 
+const DEVANAGARI = /[ऀ-ॿ꣠-ꣿ]/;
+
+/** True when the text contains Devanagari (Hindi/Marathi) characters. */
+export function hasDevanagari(text: string | null | undefined): boolean {
+  return !!text && DEVANAGARI.test(text);
+}
+
+/**
+ * Font style for a piece of (possibly translated) text. The bundled families have no Devanagari
+ * glyphs, so Hindi/Marathi falls back to the system face, and because the weight lives in the
+ * family name that fallback would render at regular weight, flattening the hierarchy. For
+ * Devanagari text this returns `fontFamily: undefined` (clears a custom family set earlier in the
+ * style array, e.g. by textStyles) and a numeric fontWeight, so the system face picks a real
+ * weight. Latin text keeps the custom family WITHOUT fontWeight: a custom family plus fontWeight
+ * can synthesise a double bold on Android. Place it after textStyles in a style array.
+ */
+export function fontFor(
+  text: string | null | undefined,
+  role: FontRole,
+  weight: FontWeight = '400',
+): { fontFamily: string; fontWeight?: undefined } | { fontFamily: undefined; fontWeight: FontWeight } {
+  return hasDevanagari(text) ? { fontFamily: undefined, fontWeight: weight } : font(role, weight);
+}
+
 const { sizes, lineHeights } = typography;
 
 /** Shell type ramp: family + size + line height (Devanagari-safe line heights from the scale). */

@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import {
   fontFamily,
   font,
+  fontFor,
+  hasDevanagari,
   LOADED_FONT_FAMILIES,
   textStyles,
   type FontRole,
@@ -17,6 +19,10 @@ import {
   stackTransition,
   navigationTheme,
   TAB_BAR_BASE_HEIGHT,
+  TAB_MAX_FONT_SCALE,
+  tabContentHeight,
+  splitLayoutStyle,
+  LAYOUT_STYLE_KEYS,
 } from '../src/shell/logic';
 import { withPressScale, splitTransform, revealAction } from '../src/motion/logic';
 import { fontGate, FONT_LOAD_TIMEOUT_MS } from '../src/hooks/fontGate';
@@ -31,6 +37,10 @@ const walk = (dir: string): string[] =>
     const p = join(dir, f);
     return statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(p) ? [p] : [];
   });
+
+// Static import / re-export / side-effect import / dynamic import / require of either package or a subpath.
+const BANNED_IMPORT =
+  /(from\s+|import\s+|import\s*\(\s*|require\s*\(\s*)['"]react-native-(reanimated|gesture-handler)(\/[^'"]*)?['"]/;
 
 // ---------- typography helper ----------
 
@@ -79,7 +89,84 @@ test('fontFamily.ts is pure (no react-native import, so it is testable and share
   assert.ok(!/from\s+['"]react-native/.test(read('src', 'theme', 'fontFamily.ts')));
 });
 
+test('hasDevanagari detects Hindi/Marathi text only', () => {
+  assert.equal(hasDevanagari('आरोग्यरक्षक'), true);
+  assert.equal(hasDevanagari('ArogyaRakshak | आरोग्यरक्षक'), true);
+  assert.equal(hasDevanagari('ArogyaRakshak'), false);
+  assert.equal(hasDevanagari(''), false);
+  assert.equal(hasDevanagari(undefined), false);
+});
+
+test('fontFor: Latin keeps the custom family and no fontWeight (no Android double bold)', () => {
+  assert.deepEqual(fontFor('Home', 'sans', '600'), { fontFamily: 'Inter_600SemiBold' });
+});
+
+test('fontFor: Devanagari clears the custom family and sets a numeric weight (system face keeps hierarchy)', () => {
+  const s = fontFor('होम', 'sans', '700');
+  assert.deepEqual(s, { fontFamily: undefined, fontWeight: '700' });
+  assert.ok('fontFamily' in s, 'fontFamily: undefined must be present to override textStyles');
+  // placed after a textStyles preset, the merged style has no custom family left
+  const merged = { ...textStyles.tab, ...s };
+  assert.equal(merged.fontFamily, undefined);
+  assert.equal(merged.fontWeight, '700');
+});
+
+test('shell text that may be translated uses fontFor (header title, tab label, Button)', () => {
+  assert.match(read('src', 'components', 'Header.tsx'), /fontFor\(title/);
+  assert.match(read('src', 'components', 'TabBar.tsx'), /fontFor\(label/);
+  assert.match(read('src', 'components', 'Button.tsx'), /fontFor\(title/);
+});
+
 // ---------- tab bar / transitions ----------
+
+test('tab content fits the base bar height at the capped font scale; larger scales are capped', () => {
+  const label = textStyles.tab.lineHeight;
+  assert.ok(tabContentHeight(TAB_MAX_FONT_SCALE, label) <= TAB_BAR_BASE_HEIGHT);
+  assert.equal(tabContentHeight(2, label), tabContentHeight(TAB_MAX_FONT_SCALE, label));
+  assert.ok(tabContentHeight(1, label) < tabContentHeight(TAB_MAX_FONT_SCALE, label));
+  assert.ok(TAB_MAX_FONT_SCALE > 1 && TAB_MAX_FONT_SCALE <= 1.3);
+});
+
+test('tab icon and label cap OS font scaling and the bar grows (minHeight) instead of clipping', () => {
+  const bar = read('src', 'components', 'TabBar.tsx');
+  assert.match(bar, /maxFontSizeMultiplier=\{TAB_MAX_FONT_SCALE\}/);
+  assert.match(bar, /adjustsFontSizeToFit/);
+  assert.match(bar, /minHeight: tabBarHeight\(/);
+  assert.ok(!/\bheight: TAB_BAR_BASE_HEIGHT/.test(bar));
+  assert.match(read('src', 'navigation', 'BottomTabNavigator.tsx'), /maxFontSizeMultiplier=\{TAB_MAX_FONT_SCALE\}/);
+});
+
+test('splitLayoutStyle sends layout keys to the wrapper and the rest to the card', () => {
+  const { outer, inner } = splitLayoutStyle({
+    flex: 1,
+    width: '50%',
+    alignSelf: 'center',
+    marginBottom: 8,
+    marginVertical: 6,
+    position: 'absolute',
+    top: 0,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+  });
+  assert.deepEqual(outer, { flex: 1, width: '50%', alignSelf: 'center', marginBottom: 8, marginVertical: 6, position: 'absolute', top: 0 });
+  assert.deepEqual(inner, { padding: 16, backgroundColor: '#fff', borderRadius: 16, flexGrow: 1 });
+});
+
+test('splitLayoutStyle: inner only grows when the wrapper gets a vertical size; empty input is safe', () => {
+  assert.deepEqual(splitLayoutStyle({ width: 100, padding: 4 }), { outer: { width: 100 }, inner: { padding: 4 } });
+  assert.deepEqual(splitLayoutStyle({ height: 80 }).inner, { flexGrow: 1 });
+  assert.deepEqual(splitLayoutStyle(undefined), { outer: {}, inner: {} });
+  for (const k of ['flexGrow', 'flexShrink', 'flexBasis', 'minWidth', 'maxWidth', 'marginTop', 'left', 'right', 'bottom']) {
+    assert.ok((LAYOUT_STYLE_KEYS as readonly string[]).includes(k), k);
+  }
+});
+
+test('Card forwards layout keys to the Reveal wrapper', () => {
+  const card = read('src', 'components', 'Card.tsx');
+  assert.match(card, /splitLayoutStyle\(/);
+  assert.match(card, /<Reveal delay=\{revealDelay\} style=\{outer/);
+});
 
 test('tab geometry: equal widths, indicator at index * width, guarded inputs', () => {
   assert.equal(tabWidth(360, 6), 60);
@@ -144,19 +231,25 @@ test('Pressable uses splitTransform + withPressScale', () => {
 
 test('revealAction: animates at most once, never replays after a late prime', () => {
   // first run, preference unknown/reduced -> final; a late prime (reduced -> allowed) must not replay
-  assert.equal(revealAction(false, true), 'final');
-  assert.equal(revealAction(true, false), 'none');
+  assert.equal(revealAction(false, true, false), 'final');
+  assert.equal(revealAction(true, false, true), 'none');
   // first run with motion allowed -> animate once; later runs never animate again
-  assert.equal(revealAction(false, false), 'animate');
-  assert.equal(revealAction(true, false), 'none');
+  assert.equal(revealAction(false, false, false), 'animate');
+  assert.equal(revealAction(true, false, true), 'none');
   // switching reduce-motion on mid-way jumps to the final state
-  assert.equal(revealAction(true, true), 'final');
+  assert.equal(revealAction(true, true, false), 'final');
+});
+
+test('revealAction: a re-run after an interrupted animation snaps to the final state', () => {
+  // Fast Refresh / StrictMode stop the 250 ms animation, then re-run the effect: never stay half-transparent
+  assert.equal(revealAction(true, false, false), 'final');
 });
 
 test('Reveal uses revealAction and a started ref', () => {
   const src = read('src', 'motion', 'Reveal.tsx');
   assert.match(src, /revealAction\(/);
   assert.match(src, /useRef/);
+  assert.match(src, /completed\.current = true/);
 });
 
 // ---------- fonts gate + dev logger ----------
@@ -195,11 +288,27 @@ test('App clears the reduce-motion prime timer once the prime settles', () => {
 
 // ---------- bundle budget contracts ----------
 
-test('no app source imports react-native-reanimated (measured +785,115 B, over the budget)', () => {
-  const files = ['App.tsx', ...walk(join(ROOT, 'src'))];
+test('no app source imports react-native-reanimated or gesture-handler (incl. subpaths and require)', () => {
+  const files = [join(ROOT, 'App.tsx'), join(ROOT, 'babel.config.js'), ...walk(join(ROOT, 'src'))];
   for (const f of files) {
-    const src = readFileSync(f.startsWith(ROOT) ? f : join(ROOT, f), 'utf-8');
-    assert.ok(!/['"]react-native-reanimated['"]/.test(src), `${f} imports reanimated`);
+    assert.ok(!BANNED_IMPORT.test(readFileSync(f, 'utf-8')), `${f} imports reanimated/gesture-handler`);
+  }
+  // the detector itself catches the forms it must
+  for (const sample of [
+    "import Animated from 'react-native-reanimated';",
+    "import 'react-native-gesture-handler';",
+    "const r = require('react-native-reanimated/plugin');",
+    "await import('react-native-reanimated');",
+    "export { x } from 'react-native-gesture-handler/lib/x';",
+  ]) assert.ok(BANNED_IMPORT.test(sample), sample);
+});
+
+test('react-native-reanimated and react-native-gesture-handler are not dependencies (ruling 2026-11-18)', () => {
+  const pkg = JSON.parse(read('package.json'));
+  for (const dep of ['react-native-reanimated', 'react-native-gesture-handler']) {
+    for (const section of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+      assert.ok(!(pkg[section] ?? {})[dep], `${dep} must not be in ${section}`);
+    }
   }
 });
 

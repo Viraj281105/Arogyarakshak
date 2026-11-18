@@ -2,9 +2,15 @@ import React, { ReactNode } from 'react';
 import { View, StyleSheet, ViewStyle, AccessibilityProps } from 'react-native';
 import { useTheme } from '../theme';
 import { Pressable, Reveal } from '../motion';
+import { splitLayoutStyle } from '../shell/logic';
 
 export interface CardProps extends AccessibilityProps {
   children: ReactNode;
+  /**
+   * Card style. With `reveal` on, layout keys (flex*, width/height and their min/max, alignSelf,
+   * margin*, position and offsets, zIndex: see LAYOUT_STYLE_KEYS) are applied to the Reveal wrapper
+   * so the card positions exactly as an unwrapped View would; everything else styles the card.
+   */
   style?: ViewStyle;
   elevated?: boolean;
   /** Fade + rise on mount via the motion system (once; static under reduced motion). Default true. */
@@ -26,7 +32,7 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const { colors, spacing, radii, isDark } = useTheme();
 
-  const cardStyle = [
+  const flat = (StyleSheet.flatten([
     styles.cardBase,
     {
       backgroundColor: elevated ? colors.bgSurfaceElevated : colors.bgSurface,
@@ -40,7 +46,10 @@ export const Card: React.FC<CardProps> = ({
       elevation: isDark ? 4 : 2,
     },
     style,
-  ];
+  ]) ?? {}) as Record<string, unknown>;
+
+  const { outer, inner } = reveal ? splitLayoutStyle(flat) : { outer: {}, inner: flat };
+  const cardStyle = inner as ViewStyle;
 
   const body = onPress ? (
     <Pressable onPress={onPress} accessibilityRole="button" {...a11y} style={cardStyle}>
@@ -52,7 +61,13 @@ export const Card: React.FC<CardProps> = ({
     </View>
   );
 
-  return reveal ? <Reveal delay={revealDelay}>{body}</Reveal> : body;
+  return reveal ? (
+    <Reveal delay={revealDelay} style={outer as ViewStyle}>
+      {body}
+    </Reveal>
+  ) : (
+    body
+  );
 };
 
 const styles = StyleSheet.create({

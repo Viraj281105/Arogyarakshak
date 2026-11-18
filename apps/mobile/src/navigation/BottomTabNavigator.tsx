@@ -6,7 +6,7 @@ import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { TabBar } from '../components/TabBar';
 import { useReducedMotion } from '../motion';
-import { tabTransition } from '../shell/logic';
+import { tabTransition, TAB_ICON, TAB_MAX_FONT_SCALE } from '../shell/logic';
 import { motion } from '../generated/tokens';
 import {
   HomeScreen,
@@ -19,7 +19,11 @@ import {
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
-const icon = (glyph: string) => () => <Text style={styles.icon}>{glyph}</Text>;
+const icon = (glyph: string) => () => (
+  <Text maxFontSizeMultiplier={TAB_MAX_FONT_SCALE} style={styles.icon}>
+    {glyph}
+  </Text>
+);
 
 export const BottomTabNavigator: React.FC = () => {
   const { colors } = useTheme();
@@ -67,8 +71,5 @@ export const BottomTabNavigator: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  icon: {
-    fontSize: 20,
-    lineHeight: 24,
-  },
+  icon: TAB_ICON,
 });

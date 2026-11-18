@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useTheme, textStyles } from '../theme';
+import { useTheme, textStyles, fontFor } from '../theme';
 import { Pressable, SlidingIndicator } from '../motion';
-import { indicatorX, tabBarHeight, tabWidth, TAB_BAR_BASE_HEIGHT } from '../shell/logic';
+import {
+  indicatorX,
+  tabBarHeight,
+  tabWidth,
+  TAB_BAR_BASE_HEIGHT,
+  TAB_LABEL_GAP,
+  TAB_MAX_FONT_SCALE,
+} from '../shell/logic';
 
 const PILL_INSET = 4;
 
@@ -26,7 +33,7 @@ export function TabBar({ state, descriptors, navigation, insets }: BottomTabBarP
       style={[
         styles.bar,
         {
-          height: tabBarHeight(insets.bottom),
+          minHeight: tabBarHeight(insets.bottom),
           paddingBottom: Math.max(insets.bottom, spacing.sm),
           paddingLeft: insets.left,
           paddingRight: insets.right,
@@ -82,7 +89,15 @@ export function TabBar({ state, descriptors, navigation, insets }: BottomTabBarP
               </View>
               <Text
                 numberOfLines={1}
-                style={[textStyles.tab, styles.label, { color, opacity: focused ? 1 : 0.9 }]}
+                maxFontSizeMultiplier={TAB_MAX_FONT_SCALE}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={[
+                  textStyles.tab,
+                  fontFor(label, 'sans', '600'),
+                  styles.label,
+                  { color, opacity: focused ? 1 : 0.9 },
+                ]}
               >
                 {label}
               </Text>
@@ -100,7 +115,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    height: TAB_BAR_BASE_HEIGHT,
+    minHeight: TAB_BAR_BASE_HEIGHT,
   },
   tab: {
     flex: 1,
@@ -108,7 +123,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    marginTop: 2,
+    marginTop: TAB_LABEL_GAP,
     textAlign: 'center',
   },
 });

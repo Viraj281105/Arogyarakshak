@@ -22,14 +22,16 @@ export function Reveal({
 }) {
   const reduced = useReducedMotion();
   const started = useRef(false);
+  const completed = useRef(false);
   const progress = useRef(new Animated.Value(shouldAnimate(reduced) ? 0 : 1)).current;
 
   useEffect(() => {
-    const action = revealAction(started.current, reduced);
+    const action = revealAction(started.current, reduced, completed.current);
     started.current = true;
     if (action === 'final') {
       progress.stopAnimation();
       progress.setValue(1);
+      completed.current = true;
     } else if (action === 'animate') {
       progress.setValue(0);
       Animated.timing(progress, {
@@ -38,7 +40,9 @@ export function Reveal({
         duration: motion.duration.base,
         easing: STANDARD_EASING,
         useNativeDriver: NATIVE_DRIVER,
-      }).start();
+      }).start(({ finished }) => {
+        if (finished) completed.current = true;
+      });
     }
   }, [reduced, delay, progress]);
 

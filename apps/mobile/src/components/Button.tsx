@@ -7,7 +7,7 @@ import {
   TextStyle,
   AccessibilityProps,
 } from 'react-native';
-import { useTheme, font } from '../theme';
+import { useTheme, fontFor } from '../theme';
 import { Pressable } from '../motion';
 
 export interface ButtonProps extends AccessibilityProps {
@@ -135,7 +135,7 @@ export const Button: React.FC<ButtonProps> = ({
               {
                 color: getTextColor(),
                 fontSize: size === 'sm' ? typography.sizes.sm : typography.sizes.md,
-                ...font('sans', '600'),
+                ...fontFor(title, 'sans', '600'),
                 marginLeft: icon ? spacing.xs : 0,
               },
               textStyle,
