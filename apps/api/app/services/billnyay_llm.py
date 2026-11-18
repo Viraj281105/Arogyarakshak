@@ -48,7 +48,7 @@ class GroqClient:
 
     The HTTP call goes through ``kadi.llm.ResilientLlmClient`` (timeout, retries, circuit
     breaker, optional fallback model, observer events). ``token_budget`` is this pipeline
-    run's per-case budget (``llm_client()`` creates one per run when
+    run's token budget (``llm_client()`` creates one per run when
     LLM_CASE_TOKEN_BUDGET > 0)."""
 
     def __init__(self, api_key: str, model: str, token_budget: Optional[TokenBudget] = None):
@@ -264,7 +264,8 @@ def llm_client():
     """The live Groq client when GROQ_API_KEY is configured, else the offline fallback.
 
     Called once per BillNyay pipeline run (one case), so the token budget created here is
-    the per-case budget shared by every agent in that run (LLM_CASE_TOKEN_BUDGET; 0 or
+    the budget shared by every agent in that run — not a lifetime per-case budget
+    (LLM_CASE_TOKEN_BUDGET; 0 or
     unset = unlimited)."""
     if settings.groq_api_key:
         limit = default_runtime().config.case_token_budget

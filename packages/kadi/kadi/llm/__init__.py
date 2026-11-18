@@ -1,7 +1,7 @@
 """Kadi resilient LLM client (WS2, ADR-024).
 
 The one place that performs Groq chat calls: timeouts, jittered retries, a per-model
-circuit breaker, an optional fallback model (GROQ_FALLBACK_MODEL), a per-case token budget,
+circuit breaker, an optional fallback model (GROQ_FALLBACK_MODEL), a per-pipeline-run token budget,
 an opt-in in-memory response cache, an observer hook (no text) and opt-in shadow runs.
 """
 

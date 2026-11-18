@@ -2,7 +2,7 @@
 
 One place performs every Groq chat call: timeout, jittered exponential retries on
 transient failures, a per-model circuit breaker, an optional fallback model, an optional
-per-case token budget, an optional in-memory response cache (off by default), an observer
+per-pipeline-run token budget, an optional in-memory response cache (off by default), an observer
 event per call, and optional shadow runs. ``complete()`` either returns a real model
 response or raises a typed ``LlmError``; it never invents text. Call sites keep their own
 offline fallbacks by catching the exception exactly as they did before.

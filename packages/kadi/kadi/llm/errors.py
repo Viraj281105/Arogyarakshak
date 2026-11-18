@@ -56,4 +56,4 @@ class LlmCircuitOpen(LlmError):
 
 
 class BudgetExceeded(LlmError):
-    """The per-case token budget cannot fit this call; no request was sent."""
+    """The pipeline run's token budget cannot fit this call; no request was sent."""

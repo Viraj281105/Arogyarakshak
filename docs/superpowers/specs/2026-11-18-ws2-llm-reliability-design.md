@@ -162,3 +162,16 @@ planted in prompts and responses never appear in any event.
 - The CI job itself has not run on GitHub; it is validated by YAML parse, the ci-workflow
   Node test and by running the same commands locally.
 - Shadow-run agreement metrics have never been produced on real traffic.
+
+## 12. Addendum — review fixes (same day)
+Supersedes the corresponding parts above; ADR-024 is the current record.
+- Overall deadline `LLM_TOTAL_DEADLINE_SECONDS` (default 20 s, > 0) across all attempts,
+  sleeps and the fallback model; per-attempt timeout capped to the remaining time.
+- Per-attempt timeout = `min(call site, LLM_TIMEOUT_SECONDS)` when set; unset = call site.
+- `Retry-After` HTTP-date parsed; separate clamp `LLM_RETRY_AFTER_MAX_SECONDS` (30 s).
+- Breaker generation tokens (late results from older generations ignored).
+- Budget wording: per BillNyay pipeline run, not per case; extraction unbudgeted (follow-up).
+- Shadow submission guarded; observer registration idempotent; `--only X --check-baseline`
+  gates harness X only.
+- Tests never reach the network: CI's mock `GROQ_API_KEY` removed; test conftests clear the
+  key and guard `urllib.request.urlopen`.

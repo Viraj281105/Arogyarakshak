@@ -1,4 +1,4 @@
-"""Per-case token budget (ADR-024).
+"""Token budget per pipeline run (ADR-024) — not a lifetime per-case budget.
 
 One ``TokenBudget`` per pipeline run for one case (BillNyay creates it in ``llm_client()``),
 shared by every agent call in that run. It holds counts only — no case id, no text.

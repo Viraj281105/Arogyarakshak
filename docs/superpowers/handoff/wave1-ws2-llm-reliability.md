@@ -8,7 +8,7 @@
    per-attempt timeout; equal-jitter exponential retries on timeout / connection / 429
    (numeric `Retry-After` honoured, capped) / 408 / 5xx; per-model process-wide circuit
    breaker (closed/open/half-open, one probe, lock-protected, injectable clock); optional
-   `GROQ_FALLBACK_MODEL` (deprecated ADR-004 names and "same as primary" refused); per-case
+   `GROQ_FALLBACK_MODEL` (deprecated ADR-004 names and "same as primary" refused); per-pipeline-run
    `TokenBudget` (`BudgetExceeded` before any network call); opt-in in-memory cache
    (off by default, LRU + TTL, SHA-256 keys only, only `temperature == 0` inputs that
    `redact_pii` leaves unchanged, `purge()`); typed errors, never invented text. Settings:
@@ -53,8 +53,10 @@
    one invariant line in `docs/architecture/repository-structure.md`.
 
 ## Env vars (all optional; defaults keep old behaviour except retries + breaker)
-`GROQ_FALLBACK_MODEL`, `LLM_TIMEOUT_SECONDS` (12), `LLM_MAX_ATTEMPTS` (3),
+`GROQ_FALLBACK_MODEL`, `LLM_TIMEOUT_SECONDS` (unset = call-site timeout; set = min(call
+site, value)), `LLM_TOTAL_DEADLINE_SECONDS` (20, > 0), `LLM_MAX_ATTEMPTS` (3),
 `LLM_BACKOFF_BASE_SECONDS` (0.5), `LLM_BACKOFF_MAX_SECONDS` (8),
+`LLM_RETRY_AFTER_MAX_SECONDS` (30),
 `LLM_BREAKER_FAILURE_THRESHOLD` (5), `LLM_BREAKER_RECOVERY_SECONDS` (30),
 `LLM_CASE_TOKEN_BUDGET` (0 = unlimited), `LLM_CACHE_ENABLED` (false), `LLM_CACHE_MAX_ENTRIES`
 (256), `LLM_CACHE_TTL_SECONDS` (300), `LLM_SHADOW_ENABLED` (false), `LLM_SHADOW_MODEL` (""),
@@ -109,16 +111,18 @@ Only addition to shared test infra: an autouse `reset_llm_runtime` fixture in
   end; if WS1 also adds a job, both condition lines need ` && \` continuations.
 - `docker-compose.yml` (not in the conflict map) gained 15 `api.environment` passthrough
   lines after `SAFETY_RULE_REQUIRED_APPROVALS`.
-- CI backend job sets `GROQ_API_KEY: mock_test_key_for_ci`, so any test that drafts an appeal
-  without monkeypatching the key makes a real request to api.groq.com (401 → fallback).
-  Pre-existing; with WS2 a 401 is not retried, but in a network-less runner connection errors
-  would now be retried (adds ~1–2 s per such call until the breaker opens). Consider unsetting
-  that key in CI (integrator ruling).
-- Worst-case latency before a fallback grows to ~3 × timeout + backoff; `LLM_MAX_ATTEMPTS=1`
-  restores the old behaviour.
+- CI backend job no longer sets `GROQ_API_KEY` (review ruling); test conftests clear the key
+  and guard `urllib.request.urlopen` (see "Review fixes").
+- Worst-case latency before a fallback is bounded per call by `LLM_TOTAL_DEADLINE_SECONDS`
+  (default 20 s); `LLM_MAX_ATTEMPTS=1` restores the old single attempt.
+- `docker-compose.yml` passthrough lines are now 17 (added `LLM_TOTAL_DEADLINE_SECONDS`,
+  `LLM_RETRY_AFTER_MAX_SECONDS`).
 - `PROJECT_CONTEXT.md` / `CHANGELOG.md` not edited (per plan); fold this note in.
 
 ## Follow-ups
+- Token budget is per BillNyay pipeline run, not a lifetime per-case budget, and Kadi
+  extraction is unbudgeted (review ruling: documented, not keyed by case id). A true per-case
+  budget needs a fingerprint-keyed design.
 - Wire `runtime.shadow.snapshot()` into WS1 metrics if shadow runs are ever enabled.
 - Pre-existing: `kadi.extraction` logs matched prompt-injection phrases (document text
   fragments) at WARNING — outside this stream's scope, worth revisiting under the PHI-in-logs rule.
