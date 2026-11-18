@@ -3,6 +3,8 @@ export { Reveal } from './Reveal';
 export { Parallax } from './Parallax';
 export { Pressable } from './Pressable';
 export { CountUp } from './CountUp';
+export { SlidingIndicator } from './SlidingIndicator';
+export { Pulse } from './Pulse';
 export { tap } from './haptics';
 export type { HapticKind } from './haptics';
 export { countUpValue, shouldAnimate } from './logic';

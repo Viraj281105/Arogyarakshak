@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 // Deep imports so only the weights we use are bundled (the package root pulls in every weight).
 import { Fraunces_400Regular } from '@expo-google-fonts/fraunces/400Regular';
@@ -16,13 +16,16 @@ import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400R
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono/500Medium';
 import { JetBrainsMono_600SemiBold } from '@expo-google-fonts/jetbrains-mono/600SemiBold';
 import { JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono/700Bold';
+import { devWarn } from '../logging';
+import { FONT_LOAD_TIMEOUT_MS, fontGate } from './fontGate';
 
 /**
  * Loads the bundled font files (Fraunces, Plus Jakarta Sans, Inter, JetBrains Mono).
  * The files ship inside the app binary — nothing is fetched at runtime.
  *
- * Returns true once the app may render: fonts loaded, OR loading failed (in which case
- * the app proceeds with system fonts rather than hanging on the splash screen forever).
+ * Returns true once the app may render: fonts loaded, loading failed, or FONT_LOAD_TIMEOUT_MS
+ * passed (a never-settling load must not hold the splash screen forever). In the last two cases
+ * the app proceeds with system fonts. Use `font()` / `textStyles` from src/theme to apply them.
  */
 export function useAppFonts(): boolean {
   const [loaded, error] = useFonts({
@@ -42,12 +45,24 @@ export function useAppFonts(): boolean {
     JetBrainsMono_600SemiBold,
     JetBrainsMono_700Bold,
   });
+  const [timedOut, setTimedOut] = useState(false);
+  const settled = loaded || error != null;
 
   useEffect(() => {
-    if (error) {
-      console.warn('[useAppFonts] Font load failed, continuing with system fonts:', error);
-    }
-  }, [error]);
+    if (settled) return;
+    const timer = setTimeout(() => setTimedOut(true), FONT_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [settled]);
 
-  return loaded || error != null;
+  const gate = fontGate({ loaded, error, timedOut });
+
+  useEffect(() => {
+    if (gate.reason === 'error') {
+      devWarn('[useAppFonts] Font load failed, continuing with system fonts:', error);
+    } else if (gate.reason === 'timeout') {
+      devWarn(`[useAppFonts] Fonts not ready after ${FONT_LOAD_TIMEOUT_MS} ms, continuing with system fonts.`);
+    }
+  }, [gate.reason, error]);
+
+  return gate.ready;
 }
