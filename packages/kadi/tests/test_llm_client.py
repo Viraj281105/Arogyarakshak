@@ -413,3 +413,12 @@ def test_default_runtime_reads_the_environment_lazily(monkeypatch):
     rt = default_runtime()
     assert rt.config.cache_enabled is True and rt.config.max_attempts == 4
     assert default_runtime() is rt
+
+
+def test_a_cache_hit_spends_no_budget_even_when_the_budget_is_exhausted():
+    h = Harness(FakeTransport(default=completion("ok", 30, 20)), cache_enabled=True)
+    budget = TokenBudget(limit=80)
+    h.client().complete(req(max_tokens=64, budget=budget))  # fits (estimate 74), charged 50
+    hit = h.client().complete(req(max_tokens=64, budget=budget))  # 50 + 74 > 80, but cached
+    assert hit.cache_hit is True and budget.used == 50
+    assert len(h.transport.calls) == 1

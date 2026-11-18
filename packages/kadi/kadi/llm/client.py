@@ -226,11 +226,6 @@ class ResilientLlmClient:
         if not self.api_key:
             raise LlmNotConfigured("no API key configured")
 
-        budget = request.budget if production else None
-        estimate = estimate_tokens(request.system, request.prompt, request.max_tokens)
-        if budget is not None:
-            budget.ensure_fits(estimate)
-
         key = None
         if (production and rt.cache is not None
                 and is_cache_eligible(request.system, request.prompt, request.temperature)):
@@ -238,9 +233,14 @@ class ResilientLlmClient:
             key = cache_key(self.model, pv, request.system, request.prompt, request.temperature,
                             request.max_tokens, request.json_mode)
             hit = rt.cache.get(key)
-            if hit is not None:
+            if hit is not None:  # spends no tokens, so the budget is neither checked nor charged
                 return LlmResponse(text=hit, model=self.model, prompt_tokens=None,
                                    completion_tokens=None, cache_hit=True)
+
+        budget = request.budget if production else None
+        estimate = estimate_tokens(request.system, request.prompt, request.max_tokens)
+        if budget is not None:
+            budget.ensure_fits(estimate)
 
         models = [self.model]
         fallback = rt.config.fallback_for(self.model) if production else None
