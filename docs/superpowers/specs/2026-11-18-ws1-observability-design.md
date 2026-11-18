@@ -29,3 +29,7 @@
 ## Not verified here (unless the handoff says otherwise)
 
 Whatever the handoff note lists as not run live. The SLO numbers above are targets, not observations.
+
+## Prometheus targets
+
+One `api` job with two static targets (compose `api:8000`, host `host.docker.internal:8000`) so the host-run workflow works without editing files and dashboards/rules need no job switch. `ApiTargetDown` requires the target to have been up in the last 7 days, so the unused target never pages. Decided after a live run showed the earlier file_sd approach scraped nothing.

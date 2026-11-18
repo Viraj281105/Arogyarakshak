@@ -67,10 +67,12 @@ URLs (loopback only): Grafana `http://127.0.0.1:3001` (user `admin`, password
 port; use Grafana. The collector's OTLP/HTTP (`4318`) and fluentd (`24224`) ports are published
 on loopback for a host-run API and for the Docker daemon's log driver.
 
-**API on the host instead of in Compose.** Put `host.docker.internal:8000` in
-`infrastructure/observability/prometheus/targets/api-host.yml` (instructions in the file), run
+**API on the host instead of in Compose.** Nothing to edit: Prometheus's `api` job already lists
+`host.docker.internal:8000` (resolved through the prometheus service's `extra_hosts`). Start the
+observability services only, then run (`--no-access-log` because uvicorn's own access line prints
+the raw path, unlike the API's template-only access log)
 `OTEL_ENABLED=true OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 LOG_FORMAT=json uvicorn
-app.main:app --port 8000`. Host-run logs are not shipped (the Docker log driver only covers
+app.main:app --port 8000 --no-access-log`. Host-run logs are not shipped (the Docker log driver only covers
 containers); pipe them through a container if needed, or read them from the terminal.
 
 Production: `APP_ENV=production` requires a unique `GRAFANA_ADMIN_PASSWORD` (12+ characters),
@@ -111,10 +113,17 @@ a test fails if the JSON and the generator disagree or a panel queries a metric 
 
 ## Operational notes
 
-- **Two workflows.** API in Compose: Prometheus scrapes job `api` (`api:8000`). API on the host:
-  put `host.docker.internal:8000` in `targets/api-host.yml`; the always-down static `api` target is
-  then ignored by `ApiTargetDown` while `api-host` is up. Run only the observability services in
-  that case.
+- **Two workflows, one job.** The Prometheus job `api` has two static targets: `api:8000` (the
+  Compose container, label `workflow=compose`) and `host.docker.internal:8000` (an API started on
+  the host, `workflow=host`). The one not running is a never-up target; dashboards and rules use no
+  job or workflow filter, so both workflows show data. `ApiTargetDown` is
+  `up{job="api"} == 0 and max_over_time(up{job="api"}[7d]) == 1`: it fires only for a target that
+  was up within the last 7 days and has been down for 2 minutes, so the other workflow's target never
+  pages. (After 7 days of continuous outage it stops firing.) The Prometheus UI's Targets page will
+  still show the unused target as down; that is expected. Unit tests for this rule:
+  `infrastructure/observability/prometheus/tests/alerts.test.yml`, run with
+  `docker run --rm --entrypoint promtool -v "$PWD/infrastructure/observability/prometheus:/p:ro"
+  prom/prometheus:v3.5.0 test rules /p/tests/alerts.test.yml`.
 - **`METRICS_ENABLED` is forced `true`** for the `api` service by the override, even under
   `APP_ENV=production`: Prometheus must scrape it and running the override is the opt-in.
 - **`/metrics` is unauthenticated**; network isolation (loopback port, compose network) is the only

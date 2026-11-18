@@ -227,15 +227,26 @@ def referenced(expr):
     return set(re.findall(r"\barogya[_:][A-Za-z0-9_:]*", expr))
 
 
-def test_prometheus_config_scrapes_the_api_and_loads_rules():
+def test_prometheus_config_scrapes_both_api_workflows_under_one_job_and_loads_rules():
     cfg = load(OBS / "prometheus" / "prometheus.yml")
     jobs = {j["job_name"]: j for j in cfg["scrape_configs"]}
-    assert jobs["api"]["static_configs"][0]["targets"] == ["api:8000"]
     assert jobs["api"]["metrics_path"] == "/metrics"
-    assert {"prometheus", "alertmanager", "loki", "tempo", "otel-collector", "api-host"} <= set(jobs)
+    targets = [t for sc in jobs["api"]["static_configs"] for t in sc["targets"]]
+    # in-compose API and an API started on the host (works without editing any file)
+    assert set(targets) == {"api:8000", "host.docker.internal:8000"}
+    assert "file_sd_configs" not in jobs["api"]
+    assert "api-host" not in jobs, "dashboards and rules assume a single `api` job"
+    assert {"prometheus", "alertmanager", "loki", "tempo", "otel-collector"} <= set(jobs)
     assert cfg["alerting"]["alertmanagers"][0]["static_configs"][0]["targets"] == ["alertmanager:9093"]
     assert list((OBS / "prometheus" / "rules").glob("*.rules.yml"))
-    assert load(OBS / "prometheus" / "targets" / "api-host.yml") == []
+    prom = load(COMPOSE)["services"]["prometheus"]
+    assert "host.docker.internal:host-gateway" in prom["extra_hosts"]
+
+
+def test_tempo_runs_as_root_with_dac_override_so_its_volume_is_writable():
+    tempo = load(COMPOSE)["services"]["tempo"]
+    assert tempo["user"] == "0:0"  # dropping this made Tempo crash-loop: mkdir /var/tempo/wal/blocks denied
+    assert tempo["cap_add"] == ["DAC_OVERRIDE"]
 
 
 def test_alert_rules_are_well_formed_and_reference_real_metrics():
@@ -400,11 +411,40 @@ def test_collector_scrubs_traces_a_second_time_and_names_the_log_service():
     assert "arogyarakshak-api" in json.dumps(otel["processors"]["transform/service_name"])
 
 
-def test_api_target_down_does_not_fire_for_the_host_run_workflow():
-    rules = {r["alert"]: r["expr"] for g in load(OBS / "prometheus/rules/alerts.rules.yml")["groups"] for r in g["rules"] if "alert" in r}
-    expr = rules["ApiTargetDown"]
-    assert 'unless on() (up{job="api-host"} == 1)' in expr
-    assert 'up{job="api-host"} == 0' in expr
+def _alert_rules():
+    return {r["alert"]: r for g in load(OBS / "prometheus/rules/alerts.rules.yml")["groups"] for r in g["rules"] if "alert" in r}
+
+
+def test_api_target_down_only_fires_for_a_target_that_was_up():
+    expr = _alert_rules()["ApiTargetDown"]["expr"]
+    # a never-up target (the other workflow's) has max_over_time(up) == 0 and must not page
+    assert expr == 'up{job="api"} == 0 and max_over_time(up{job="api"}[7d]) == 1'
+
+
+def test_promtool_unit_test_file_covers_api_target_down_and_matches_the_rule():
+    spec = load(OBS / "prometheus" / "tests" / "alerts.test.yml")
+    assert spec["rule_files"] == ["../rules/alerts.rules.yml"]
+    rule = _alert_rules()["ApiTargetDown"]
+    cases = spec["tests"][0]["alert_rule_test"]
+    fired = [c for c in cases if c["exp_alerts"]]
+    quiet = [c for c in cases if not c["exp_alerts"]]
+    assert fired and quiet
+    for case in cases:
+        assert case["alertname"] == "ApiTargetDown"
+    expected = fired[0]["exp_alerts"][0]
+    assert expected["exp_annotations"] == rule["annotations"]
+    assert expected["exp_labels"]["severity"] == "page"
+    series = {x["series"]: x["values"] for x in spec["tests"][0]["input_series"]}
+    assert any(v.startswith("0x") for v in series.values()), "needs a never-up series"
+    assert any(v.startswith("1x") for v in series.values()), "needs a was-up-then-down series"
+
+
+def test_promtool_runs_the_unit_tests_when_available():
+    promtool = shutil.which("promtool")
+    if not promtool:
+        pytest.skip("promtool not installed; run: docker run --rm --entrypoint promtool -v <repo>/infrastructure/observability/prometheus:/p prom/prometheus:v3.5.0 test rules /p/tests/alerts.test.yml")
+    result = subprocess.run([promtool, "test", "rules", str(OBS / "prometheus" / "tests" / "alerts.test.yml")], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_observability_docs_describe_what_is_scrubbed():

@@ -62,7 +62,7 @@ services:
       - ./infrastructure/observability/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
     extra_hosts:
-      # Lets Prometheus scrape an API started on the host (see targets/api-host.yml).
+      # Lets Prometheus scrape an API started on the host (job `api` in prometheus.yml).
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/ready"]

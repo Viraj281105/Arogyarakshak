@@ -14,18 +14,19 @@ alerting:
         - targets: ["alertmanager:9093"]
 
 scrape_configs:
-  # The API container of the compose project. /metrics is internal-only (ADR-023).
+  # One job for both workflows, so rules and dashboards need no workflow switch:
+  #   api:8000                    the API container of this compose project
+  #   host.docker.internal:8000   an API started on the host (uvicorn); resolves through the
+  #                               prometheus service's extra_hosts entry
+  # Whichever is not running is a never-up target; ApiTargetDown ignores targets that were never up.
+  # /metrics is internal-only (ADR-023).
   - job_name: api
     metrics_path: /metrics
     static_configs:
       - targets: ["api:8000"]
-
-  # An API started on the host (uvicorn). Empty by default: list its address in
-  # targets/api-host.yml (docs/operations/observability.md). Prometheus re-reads the file.
-  - job_name: api-host
-    metrics_path: /metrics
-    file_sd_configs:
-      - files: ["/etc/prometheus/targets/*.yml"]
+        labels: {workflow: compose}
+      - targets: ["host.docker.internal:8000"]
+        labels: {workflow: host}
 
   - job_name: prometheus
     static_configs:

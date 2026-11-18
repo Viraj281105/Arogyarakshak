@@ -70,16 +70,17 @@ groups:
 
   - name: arogya-health
     rules:
-      # Two workflows: API in Compose (job "api") or API on the host (job "api-host", listed in
-      # targets/api-host.yml). The static "api" target is always down in the host workflow, so it
-      # only alerts when the host target is not up; and the host target only exists when configured.
+      # The api job has two targets (compose container and host process); only one runs at a time.
+      # A target that has not been up at any point in the last 7 days (max_over_time == 0) is the
+      # other workflow's and never alerts; one that was up and now is not does. After 7 days of
+      # continuous outage the alert stops (window limit; Prometheus keeps 15 days).
       - alert: ApiTargetDown
-        expr: (up{job="api"} == 0 unless on() (up{job="api-host"} == 1)) or up{job="api-host"} == 0
+        expr: up{job="api"} == 0 and max_over_time(up{job="api"}[7d]) == 1
         for: 2m
         labels: {severity: page}
         annotations:
           summary: Prometheus cannot scrape the API
-          description: The API target has been down for 2 minutes, or METRICS_ENABLED is off. In the host-run workflow the compose "api" target is ignored while api-host is up.
+          description: An API target that was up in the last 7 days has been down for 2 minutes, or METRICS_ENABLED is off.
       - alert: ObservabilityComponentDown
         expr: up{job=~"prometheus|alertmanager|loki|tempo|otel-collector"} == 0
         for: 5m

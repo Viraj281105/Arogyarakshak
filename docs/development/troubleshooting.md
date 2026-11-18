@@ -255,7 +255,7 @@ This document catalogs known failure modes, error messages, and verified solutio
 `METRICS_ENABLED` is unset under `APP_ENV=production` (off by default there) or set to `false`. Set `METRICS_ENABLED=true` (and keep the port on loopback / the compose network).
 
 ### Prometheus target `api` is down
-The API container must run with `METRICS_ENABLED=true` (the observability override sets it). For an API started on the host, add `host.docker.internal:8000` to `infrastructure/observability/prometheus/targets/api-host.yml`; the `api` job will stay down because there is no `api` container.
+The API container must run with `METRICS_ENABLED=true` (the observability override sets it). For an API started on the host, nothing needs editing: the `api` job also targets `host.docker.internal:8000` (the other target shows as down in the Targets page, which is expected and does not alert).
 
 ### Grafana container exits immediately under `APP_ENV=production`
 Intended: `GRAFANA_ADMIN_PASSWORD` is the development default or shorter than 12 characters. Set a unique value (`python scripts/observability_preflight.py` shows the same check).

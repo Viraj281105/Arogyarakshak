@@ -1,6 +1,0 @@
-# Scrape targets for an API running on the host. Empty by default.
-# To use, replace the "[]" below with:
-#   - targets: ["host.docker.internal:8000"]
-#     labels: {instance: api-host}
-# Prometheus re-reads this file; no restart needed.
-[]
