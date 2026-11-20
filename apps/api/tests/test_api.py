@@ -417,7 +417,7 @@ def test_dawacheck_case_benchmark_persists_generic_mapping():
     from sqlalchemy import select as _select
 
     from app.models import DawaCheckGenericMapping
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id, _ = _audited_case()
     res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
@@ -465,6 +465,7 @@ def test_cghs_rates_loaded_from_json():
     assert "laparoscopic appendectomy" in CGHS_RATES
 
 
+@pytest.mark.allows_model_download
 def test_real_image_ocr_upload_and_persistence():
     """Verifies that uploading a real image document executes EasyOCR, extracts entities, and persists them."""
     import io
@@ -1013,7 +1014,7 @@ def test_daavisetu_claim_is_persisted_not_just_echoed():
     from sqlalchemy import select as _select
 
     from app.models import DaaviSetuClaim
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id, package = _case_with_submitted_claim()
 
@@ -1056,7 +1057,7 @@ def test_daavisetu_resubmission_updates_the_same_claim():
     from sqlalchemy import func, select as _select
 
     from app.models import DaaviSetuClaim
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id, first = _case_with_submitted_claim()
 

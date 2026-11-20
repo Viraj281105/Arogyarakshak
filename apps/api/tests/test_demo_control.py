@@ -185,7 +185,7 @@ def test_reset_restores_a_demo_rule_retired_during_the_demo(demo):
 def test_concurrent_resets_do_not_interleave(demo):
     """Two resets fired together (a double click) run one after the other: both succeed
     and the demo ends with exactly one ACTIVE copy of each demo rule."""
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     _load("D")
 

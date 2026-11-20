@@ -98,13 +98,19 @@ def no_groq_key(monkeypatch):
 
 
 @pytest.fixture(autouse=True, scope="function")
-def network_guard(monkeypatch):
+def network_guard(monkeypatch, request):
     """Second layer: ``urllib.request.urlopen`` — the only outbound HTTP path the API and
     kadi.llm use — records the attempt and raises. A test that patches urlopen itself
-    overrides this. Request this fixture by name to assert on the recorded URLs."""
+    overrides this. Request this fixture by name to assert on the recorded URLs.
+
+    Exception: a test marked ``allows_model_download`` runs the real EasyOCR reader, which
+    downloads its model weights on first use (no Groq or patient data involved), so the
+    guard is not installed for that one test. Every other test stays blocked."""
     import urllib.request
 
     attempts = []
+    if request.node.get_closest_marker("allows_model_download"):
+        return attempts
 
     def guarded_urlopen(req, *args, **kwargs):
         attempts.append(getattr(req, "full_url", req))
