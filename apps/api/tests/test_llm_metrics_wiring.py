@@ -1,9 +1,37 @@
 """WS2 -> WS1 glue: the app registers the Prometheus recorder as an LLM-client observer."""
 
-from kadi.llm.observer import LlmCallEvent, emit_llm_event
+import os
+import subprocess
+import sys
 
-import app.main  # noqa: F401  (importing the app performs the registration)
+import pytest
+from kadi.llm.observer import LlmCallEvent, emit_llm_event, register_llm_observer
+
+import app.main  # noqa: F401
 from app.telemetry import llm_metrics, metrics as telemetry_metrics
+
+
+@pytest.fixture(autouse=True)
+def _recorder_registered():
+    """Other tests call ``clear_llm_observers()``, which wipes the registration that
+    ``app.main`` makes once at import. Re-register (idempotent) so these tests do not
+    depend on test order; the import-time registration itself is checked in a fresh
+    process by ``test_importing_the_app_registers_the_recorder``."""
+    unregister = register_llm_observer(llm_metrics.record_llm_event)
+    yield
+    unregister()
+
+
+def test_importing_the_app_registers_the_recorder():
+    code = (
+        "import app.main\n"
+        "from kadi.llm import observer\n"
+        "from app.telemetry.llm_metrics import record_llm_event\n"
+        "print(record_llm_event in observer._observers)"
+    )
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(p for p in sys.path if p)}
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, check=True)
+    assert out.stdout.strip().splitlines()[-1] == "True"
 
 
 def test_resilient_client_events_reach_prometheus_llm_metrics():
