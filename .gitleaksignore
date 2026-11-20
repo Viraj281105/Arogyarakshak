@@ -1,0 +1,6 @@
+# Gitleaks false positives, one fingerprint per line (gitleaks-action reads this file).
+# Format: <commit>:<file>:<rule>:<line>
+#
+# A fake value in a test that checks production refuses the Grafana dev default
+# ("a-long-unique-secret-123"). Not a credential.
+fab1f23165cd9650e25c0abb60b58c1786a217c4:apps/api/tests/test_telemetry_tracing.py:generic-api-key:83

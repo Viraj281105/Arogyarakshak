@@ -83,4 +83,4 @@ def test_grafana_dev_password_refused_in_production():
     assert errs and "GRAFANA_ADMIN_PASSWORD" in errs[0]
     assert dev not in errs[0]
     assert TelemetrySettings(app_env="development").production_errors() == []
-    assert TelemetrySettings(app_env="production", grafana_admin_password="a-long-unique-secret-123").production_errors() == []
+    assert TelemetrySettings(app_env="production", grafana_admin_password="a-long-unique-secret-123").production_errors() == []  # gitleaks:allow (fake test value)
