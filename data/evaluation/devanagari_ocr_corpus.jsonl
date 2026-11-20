@@ -1,0 +1,25 @@
+{"_meta": {"name": "devanagari_ocr_corpus_v1", "synthetic": true, "reviewed": false, "provenance": "24 invented Hindi and Marathi reference lines (hospital header, bill lines, medicine lines, letter lines, a patient name, Devanagari-digit dates, conjunct-heavy words, mixed Devanagari/Latin clinical values). Written by the engineering team, not reviewed by a native speaker. Ground-truth TEXT only: there are no images and no OCR output in this repository for it. No real patient, hospital, policy or document is involved.", "description": "Reference transcriptions for a Devanagari OCR benchmark (#35). error_kind is the line category, so evaluate_ocr(rows, hypotheses={id: ocr_text}) reports WER/CER per category. Rendering shaped Devanagari images from these lines needs a shaping engine (Raqm/HarfBuzz, a browser or a print-to-image path), and the current Kadi OCR reader is English-only (see docs/evaluation/multilingual-qa.md)."}}
+{"id": "DEVOCR-001", "language": "hi", "error_kind": "header", "reference": "सिटी मल्टीस्पेशालिटी अस्पताल, पुणे"}
+{"id": "DEVOCR-002", "language": "hi", "error_kind": "bill_line", "reference": "कमरे का किराया (3 दिन) ₹4,500.00"}
+{"id": "DEVOCR-003", "language": "hi", "error_kind": "bill_line", "reference": "रक्त जाँच (CBC) ₹350.00"}
+{"id": "DEVOCR-004", "language": "hi", "error_kind": "bill_line", "reference": "कुल राशि: ₹ 23,850.00"}
+{"id": "DEVOCR-005", "language": "hi", "error_kind": "medicine_line", "reference": "टैब. डोलो 650 मि.ग्रा. दिन में तीन बार, 5 दिन"}
+{"id": "DEVOCR-006", "language": "hi", "error_kind": "medicine_line", "reference": "सिरप कफ़ 5 मि.ली. रात को"}
+{"id": "DEVOCR-007", "language": "hi", "error_kind": "letter_line", "reference": "आपका दावा पॉलिसी की शर्त के अनुसार अस्वीकृत किया गया है।"}
+{"id": "DEVOCR-008", "language": "hi", "error_kind": "letter_line", "reference": "कृपया 15 दिनों के भीतर पुनः जाँच करें।"}
+{"id": "DEVOCR-009", "language": "hi", "error_kind": "names", "reference": "रोगी का नाम: सुनील कुमार शर्मा"}
+{"id": "DEVOCR-010", "language": "hi", "error_kind": "digits_dates", "reference": "भर्ती की तारीख: १४/०३/२०२४ पॉलिसी क्र. ४५६७८९"}
+{"id": "DEVOCR-011", "language": "hi", "error_kind": "conjunct_heavy", "reference": "क्षतिपूर्ति शल्यक्रिया प्रस्तुत प्रमाणपत्र"}
+{"id": "DEVOCR-012", "language": "hi", "error_kind": "mixed_script", "reference": "Hb 11.2 ग्राम/डेसीलीटर, BP 130/80 मि.मी."}
+{"id": "DEVOCR-013", "language": "mr", "error_kind": "header", "reference": "सिटी मल्टीस्पेशालिटी रुग्णालय, पुणे"}
+{"id": "DEVOCR-014", "language": "mr", "error_kind": "bill_line", "reference": "खोलीचे भाडे (३ दिवस) ₹4,500.00"}
+{"id": "DEVOCR-015", "language": "mr", "error_kind": "bill_line", "reference": "रक्त तपासणी (CBC) ₹350.00"}
+{"id": "DEVOCR-016", "language": "mr", "error_kind": "bill_line", "reference": "एकूण रक्कम: ₹ 23,850.00"}
+{"id": "DEVOCR-017", "language": "mr", "error_kind": "medicine_line", "reference": "गोळी डोलो 650 मि.ग्रॅ. दिवसातून तीन वेळा, 5 दिवस"}
+{"id": "DEVOCR-018", "language": "mr", "error_kind": "medicine_line", "reference": "सिरप कफ 5 मि.ली. रात्री"}
+{"id": "DEVOCR-019", "language": "mr", "error_kind": "letter_line", "reference": "आपला दावा पॉलिसीच्या अटींनुसार नाकारण्यात आला आहे."}
+{"id": "DEVOCR-020", "language": "mr", "error_kind": "letter_line", "reference": "कृपया 15 दिवसांच्या आत पुन्हा तपासणी करावी."}
+{"id": "DEVOCR-021", "language": "mr", "error_kind": "names", "reference": "रुग्णाचे नाव: सुनील कुमार शर्मा"}
+{"id": "DEVOCR-022", "language": "mr", "error_kind": "digits_dates", "reference": "दाखल दिनांक: १४/०३/२०२४ पॉलिसी क्र. ४५६७८९"}
+{"id": "DEVOCR-023", "language": "mr", "error_kind": "conjunct_heavy", "reference": "नुकसानभरपाई शस्त्रक्रिया सादर प्रमाणपत्र"}
+{"id": "DEVOCR-024", "language": "mr", "error_kind": "mixed_script", "reference": "Hb 11.2 ग्रॅम/डेसीलीटर, BP 130/80 मि.मी."}

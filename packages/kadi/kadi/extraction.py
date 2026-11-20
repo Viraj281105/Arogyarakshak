@@ -11,6 +11,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
+from kadi.injection import ALL_MARKER_PATTERNS as _ALL_MARKER_PATTERNS
+from kadi.injection import detect_injection_markers, hidden_character_count, sanitise_for_prompt
 from kadi.line_items import extract_total_amount, looks_like_medicine, parse_line_items
 from kadi.llm import LlmRequest, PromptVersion, ResilientLlmClient, register_prompt_version
 
@@ -47,36 +49,17 @@ class ExtractedEntities(BaseModel):
 # (ExtractedEntities), the system prompt below refuses to treat document content as
 # instructions, and total_amount is cross-checked against a deterministic parse of the
 # same text.
-_INJECTION_MARKER_PATTERNS = [
-    re.compile(p, re.IGNORECASE)
-    for p in [
-        r"ignore (all |the )?(previous|prior|above|preceding) instructions",
-        # Requires "instructions/prompt/rules/directions" to follow — "disregard
-        # previous medication" (a genuine, common clinical phrase) must not match on
-        # "disregard previous" alone.
-        r"disregard (all |the )?(previous|prior|above|preceding)\s+(instructions?|prompts?|rules?|directions?)",
-        r"forget (everything|all) (you were told|above|prior)",
-        r"new instructions\s*:",
-        r"system prompt",
-        r"you are now\b",
-        r"act as (a|an)\b",
-        r"\bDAN\b.{0,20}\bmode\b",
-        r"output the following instead",
-        r"do not (extract|follow|use) (the|your) (schema|instructions|rules)",
-    ]
-]
+# English patterns plus Hindi, Marathi and romanised-Hindi phrases (#94) live in
+# kadi.injection, which also folds hidden characters and Devanagari spelling variants before
+# matching. Kept as a name here because tests import it.
+_INJECTION_MARKER_PATTERNS = _ALL_MARKER_PATTERNS
 
 
 def _detect_injection_markers(text: str) -> List[str]:
     """Best-effort scan for common prompt-injection phrasing in untrusted document text.
     Returns the matched phrases verbatim (truncated) for disclosure — never used to
     silently alter extraction behaviour, only to flag the result as warranting review."""
-    found = []
-    for pattern in _INJECTION_MARKER_PATTERNS:
-        match = pattern.search(text)
-        if match:
-            found.append(match.group(0)[:80])
-    return found
+    return detect_injection_markers(text)
 
 
 # Module-level so the prompt version can be derived from the exact template text
@@ -136,7 +119,12 @@ def extract_entities_from_text(text: str, api_key: Optional[str] = None, model: 
     # the patient uploaded, which anyone who can get a document in front of this system
     # (including the patient themselves, adversarially) fully controls the content of.
     # It must never be able to redirect the model away from the extraction task.
-    truncated_text = text[:6000]
+    # #94: invisible / reordering characters are removed before the text reaches the model
+    # (ZWJ/ZWNJ inside Devanagari words are kept). Only a count is logged, never the text.
+    truncated_text = sanitise_for_prompt(text[:6000])
+    hidden = hidden_character_count(text[:6000])
+    if hidden:
+        logger.info("Removed %d invisible/format characters from document text before extraction.", hidden)
     injection_markers = _detect_injection_markers(truncated_text)
     if injection_markers:
         logger.warning(

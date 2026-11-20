@@ -49,6 +49,18 @@ packages/kadi/
 
 ---
 
+## Prompt-injection hygiene (`kadi/injection.py`, #94)
+Document text is untrusted. `sanitise_for_prompt` removes invisible and reordering characters
+(zero-width space, BOM, soft hyphen, bidi controls, Unicode tag characters, C0 controls) before
+text reaches a model; ZWJ/ZWNJ are kept only between two Devanagari characters, where they
+change how conjuncts render. `detect_injection_markers` scans a normalised view of the text
+(NFKC, hidden characters removed, nukta/chandrabindu and Devanagari digits folded) with English,
+Hindi, Marathi and romanised-Hindi phrase patterns. Used by `kadi.extraction` and by BillNyay's
+`wrap_untrusted`; a hit is disclosed (`extraction_warnings`, or a log line carrying a count, never
+the text) and never silently changes extraction. **Heuristics, not a guarantee:** reworded or
+translated attacks and homoglyph substitution are not caught, and the Hindi/Marathi phrase
+lists are engineering-team written and **not yet reviewed by a native speaker** (#37).
+
 ## Installation & Testing
 
 ```bash
