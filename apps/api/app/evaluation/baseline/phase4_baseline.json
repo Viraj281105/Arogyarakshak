@@ -91,6 +91,46 @@
       "value": 0.9666666666666667,
       "direction": "higher",
       "tolerance": 0.0
+    },
+    "appeal.mean_score": {
+      "value": 0.8879999999999988,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.per_category.clauses": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.per_category.justification": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.per_category.references": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "grounding.production.grounding_score": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "grounding.production.hallucination_rate": {
+      "value": 0.0,
+      "direction": "lower",
+      "tolerance": 0.0
+    },
+    "grounding.detector.precision": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "grounding.detector.recall": {
+      "value": 0.8823529411764706,
+      "direction": "higher",
+      "tolerance": 0.0
     }
   },
   "counts": {
@@ -100,6 +140,9 @@
     "anomaly.lines": 70,
     "crma.scenarios": 25,
     "ocr.rows_total": 15,
-    "dawacheck.rows": 52
+    "dawacheck.rows": 52,
+    "appeal.letters": 75,
+    "grounding.detector_rows": 18,
+    "grounding.production.letters": 225
   }
 }

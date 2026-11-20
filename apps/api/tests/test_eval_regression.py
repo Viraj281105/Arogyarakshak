@@ -36,6 +36,11 @@ def _reports():
         "ocr": {"dataset": ds, "rows_total": 15, "corpus_wer": 0.38, "corpus_cer": 0.09},
         "dawacheck": {"dataset": ds, "rows": 52, "accuracy": 0.86, "mapping": {"f1": 0.88},
                       "ceiling_accuracy": 0.97},
+        "appeal": {"dataset": ds, "letters": 75, "mean_score": 0.89,
+                   "per_category": {"clauses": 1.0, "justification": 1.0, "references": 1.0}},
+        "grounding": {"dataset": ds, "detector_rows": 18,
+                      "detector": {"precision": 1.0, "recall": 0.88},
+                      "production": {"letters": 225, "grounding_score": 1.0, "hallucination_rate": 0.0}},
     }
 
 

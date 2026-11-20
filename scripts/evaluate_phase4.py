@@ -1,6 +1,6 @@
 """
 Run the Phase-4 evaluation harnesses (BMA, PEA, billing-anomaly P/R/F1, CRMA, OCR WER/CER,
-DawaCheck price mapping).
+DawaCheck price mapping, appeal completeness, letter grounding / hallucination rate).
 
     python scripts/evaluate_phase4.py                  # all harnesses, summary tables
     python scripts/evaluate_phase4.py --only bma       # one harness
@@ -69,7 +69,27 @@ def main(argv=None) -> int:
         elif name == "dawacheck":
             print(f"rows {r['rows']}  accuracy {_f(r['accuracy'])}  outcomes {r['outcomes']}  ceiling acc "
                   f"{_f(r['ceiling_accuracy'])} ({r['ceiling_checked']} checked)  methods {r['match_methods_returned']}")
-        if "per_category" in r:
+        elif name == "appeal":
+            print(f"scenarios {r['scenarios']}  letters {r['letters']}  mean score {_f(r['mean_score'])}  "
+                  f"fully complete {_f(r['fully_complete_share'])}  unverified clause citations "
+                  f"{r['unverified_clause_citations']}")
+            print(f"  per category {{{', '.join(f'{k}: {_f(v)}' for k, v in r['per_category'].items())}}}")
+            print(f"  per language {{{', '.join(f'{k}: {_f(v)}' for k, v in r['per_language'].items())}}}")
+            print(f"  failed checks {r['failed_check_counts']}")
+        elif name == "grounding":
+            d, p = r["detector"], r["production"]
+            print(f"detector: {d['rows']} labelled letters  tp {d['tp']} fp {d['fp']} fn {d['fn']}  "
+                  f"P/R/F1 {_f(d['precision'])}/{_f(d['recall'])}/{_f(d['f1'])}")
+            for m in d["missed"]:
+                print("  MISSED", json.dumps(m, ensure_ascii=False))
+            for m in d["spurious"]:
+                print("  SPURIOUS", json.dumps(m, ensure_ascii=False))
+            print(f"production: {p['letters']} letters, {p['claims']} claims, ungrounded {p['ungrounded_claims']}  "
+                  f"grounding {_f(p['grounding_score'])}  hallucination {_f(p['hallucination_rate'])}  "
+                  f"letters with an ungrounded claim {_f(p['letters_with_ungrounded'])}")
+            for k, v in p["by_kind"].items():
+                print(f"  - {k}: {v}")
+        if "per_category" in r and name != "appeal":
             for c, v in r["per_category"].items():
                 print(f"  - {c}: {v}")
         for fail in r.get("failures", []):

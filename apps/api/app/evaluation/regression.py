@@ -51,12 +51,21 @@ HEADLINE_METRICS: Tuple[MetricSpec, ...] = (
     MetricSpec("dawacheck.accuracy", "higher"),
     MetricSpec("dawacheck.mapping.f1", "higher"),
     MetricSpec("dawacheck.ceiling_accuracy", "higher"),
+    MetricSpec("appeal.mean_score", "higher"),
+    MetricSpec("appeal.per_category.clauses", "higher"),
+    MetricSpec("appeal.per_category.justification", "higher"),
+    MetricSpec("appeal.per_category.references", "higher"),
+    MetricSpec("grounding.production.grounding_score", "higher"),
+    MetricSpec("grounding.production.hallucination_rate", "lower"),
+    MetricSpec("grounding.detector.precision", "higher"),
+    MetricSpec("grounding.detector.recall", "higher"),
 )
 
 # Dataset sizes: a change means the dataset changed, which needs a reviewed baseline update.
 COUNT_METRICS: Tuple[str, ...] = (
     "bma.rows", "pea.bills", "anomaly.bills", "anomaly.lines", "crma.scenarios",
-    "ocr.rows_total", "dawacheck.rows",
+    "ocr.rows_total", "dawacheck.rows", "appeal.letters", "grounding.detector_rows",
+    "grounding.production.letters",
 )
 
 _MISSING = object()
