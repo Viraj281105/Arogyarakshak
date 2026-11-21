@@ -1,7 +1,7 @@
 "use client"; // Error boundaries must be Client Components
 
-import Link from "next/link";
 import { useEffect } from "react";
+import { DocumentLink } from "./components/DocumentLink";
 import { StatusPage } from "./components/StatusPage";
 
 /** Error boundary for every route under the root layout (Next 16 passes `retry`). */
@@ -25,9 +25,9 @@ export default function RouteError({ error, retry }: { error: unknown; retry: ()
           <button type="button" className="btn btn-primary btn-lg" onClick={() => retry()}>
             Try again
           </button>
-          <Link href="/" className="btn btn-ghost btn-lg">
+          <DocumentLink href="/" className="btn btn-ghost btn-lg">
             Go to the home page
-          </Link>
+          </DocumentLink>
         </>
       }
     >

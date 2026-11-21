@@ -30,6 +30,12 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `DEMO_DOCUMENTS_DIR` | No | *(auto)* | Where the demo scenario loaders read the synthetic documents. Empty = the repository's `demo/documents` (local runs) or `/app/demo/documents` (the API image copies them there). Inert outside demo mode. |
 | `OCR_LOW_CONFIDENCE_THRESHOLD` | No | `0.5` | EasyOCR segments below this confidence become human transcription tasks instead of trusted text (ADR-011). |
 | `SAFETY_RULE_REQUIRED_APPROVALS` | No | `1` | Independent safety-board approvals needed before a rule can be activated. The proposer's own approval never counts. |
+| `METRICS_ENABLED` | No | *(unset: on in development, off under `APP_ENV=production`)* | Serves Prometheus metrics at `GET /metrics` (not in the OpenAPI contract; internal only: the API's host port is bound to `127.0.0.1` and Prometheus scrapes it over the compose network). Labels are route templates, never raw paths or case ids. When off, `/metrics` is `404`. WS1, ADR-023. |
+| `OTEL_ENABLED` | No | `false` | Turns on OpenTelemetry tracing (FastAPI, httpx, SQLAlchemy). Off: nothing from the OpenTelemetry SDK is imported. `docker-compose.observability.yml` sets it to `true` for the `api` service. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | `http://127.0.0.1:4318` | OTLP/HTTP base URL of the collector (`/v1/traces` is appended). Keep it on this machine or the compose stack (`otel-collector`); a warning is logged for any other host. |
+| `OTEL_SERVICE_NAME` | No | `arogyarakshak-api` | `service.name` resource attribute on spans. |
+| `OTEL_TRACES_SAMPLER_RATIO` | No | `1.0` | Head sampling ratio between 0 and 1 (parent-based). |
+| `GRAFANA_ADMIN_PASSWORD` | Production: **Yes** (when the stack is used) | `arogyarakshak-dev-only` | Grafana admin password for the observability stack. The Grafana container refuses to start under `APP_ENV=production` while this is the development default or shorter than 12 characters; `python scripts/observability_preflight.py` performs the same check first. Anonymous access is always off. |
 
 > **Note on CORS:** when `CORS_ORIGINS` is a wildcard (the default), credentialed cross-origin
 > requests are disabled automatically — a wildcard origin combined with credentials would let
@@ -71,3 +77,30 @@ environment:
 1. **Never commit `.env`**: `.env` is explicitly ignored in `.gitignore`.
 2. **Never log secrets**: API keys and database passwords must never appear in `logger.info()` or exception stack traces.
 3. **Automated Secret Scanning**: Commits containing API keys matching patterns like `gsk_*` are automatically rejected by pre-commit hooks and GitHub secret scanning.
+
+---
+
+## 4. LLM reliability settings (WS2, ADR-024)
+
+Read by `packages/kadi/kadi/llm/config.py` (`LlmConfig.from_env`) from the **process
+environment** — Kadi cannot use the API's pydantic Settings, so these are not read from a
+`.env` file by the API itself. Docker Compose forwards them to the `api` service; for a local
+`uvicorn` run, export them or start it with `uvicorn app.main:app --env-file ../../.env`.
+Every default keeps the pre-WS2 behaviour except retries and the circuit breaker.
+
+| Variable | Default | Description |
+|---|---|---|
+| `GROQ_FALLBACK_MODEL` | `""` (none) | Second Groq model tried when the primary (`GROQ_MODEL`) fails, including when its circuit is open. Deprecated models (ADR-004) and a value equal to `GROQ_MODEL` are ignored with a warning. |
+| `LLM_TIMEOUT_SECONDS` | unset | Per-attempt timeout ceiling. **Unset:** each call site's own timeout applies (BillNyay 12 s, Kadi extraction 10 s). **Set:** the effective timeout is `min(call-site timeout, LLM_TIMEOUT_SECONDS)` — it can lower a call site's timeout, never raise it. A call without its own timeout uses this value, else 12 s. |
+| `LLM_TOTAL_DEADLINE_SECONDS` | `20` | Overall wall-clock limit for one LLM call across **all** attempts, backoff sleeps and the fallback model. Each attempt's timeout is capped to the time left, no backoff sleep crosses it, and the fallback model is skipped when no time is left; the caller then uses its offline fallback. Must be > 0 (0, negative or non-numeric values are refused with a warning and the default is used); maximum 600. |
+| `LLM_MAX_ATTEMPTS` | `3` | Attempts per model for timeouts, connection errors, 429, 408 and 5xx. `1` = no retries (the old behaviour). |
+| `LLM_BACKOFF_BASE_SECONDS` / `LLM_BACKOFF_MAX_SECONDS` | `0.5` / `8` | Equal-jitter exponential backoff: retry *n* waits between half and all of `min(max, base·2ⁿ)`; a 429's `Retry-After` (seconds or HTTP-date) raises the wait, clamped by `LLM_RETRY_AFTER_MAX_SECONDS`. |
+| `LLM_RETRY_AFTER_MAX_SECONDS` | `30` | Upper bound on a honoured `Retry-After`; the overall deadline still applies on top. |
+| `LLM_BREAKER_FAILURE_THRESHOLD` | `5` | Consecutive availability failures that open a model's circuit (calls then fail fast to the offline fallback). |
+| `LLM_BREAKER_RECOVERY_SECONDS` | `30` | How long a circuit stays open before one probe call is allowed. |
+| `LLM_CASE_TOKEN_BUDGET` | `0` (unlimited) | Token budget **per BillNyay pipeline run** (one appeal or grievance draft), not a lifetime budget per case: drafting again for the same case starts a new budget, and Kadi extraction is not budgeted. A call that does not fit uses the canned offline fallback instead of calling Groq. |
+| `LLM_CACHE_ENABLED` | `false` | In-memory response cache. Only deterministic requests with no detected identifiers are cached; see ADR-024 for the residual risk before enabling it. |
+| `LLM_CACHE_MAX_ENTRIES` / `LLM_CACHE_TTL_SECONDS` | `256` / `300` | Cache bound and time-to-live (TTL capped at 3600 s). Case erasure empties the cache. |
+| `LLM_SHADOW_ENABLED` | `false` | Opt-in shadow runs of a candidate model next to production (agreement counters only, no content). |
+| `LLM_SHADOW_MODEL` | `""` | Candidate model for shadow runs; shadowing stays off while empty. Deprecated models are refused. |
+| `LLM_SHADOW_SAMPLE_RATE` / `LLM_SHADOW_MAX_RUNS` | `0.1` / `50` | Fraction of eligible calls shadowed, and the per-process cap on shadow calls (cost bound). |

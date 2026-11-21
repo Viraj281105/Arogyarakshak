@@ -8,10 +8,12 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.evaluation.anomaly import evaluate_anomaly
+from app.evaluation.appeal_completeness import evaluate_appeal_completeness
 from app.evaluation.bma import evaluate_bma
 from app.evaluation.crma import evaluate_crma
 from app.evaluation.datasets import DATA_DIR, load_dataset
 from app.evaluation.dawacheck_mapping import evaluate_dawacheck_mapping
+from app.evaluation.grounding import evaluate_grounding
 from app.evaluation.ocr_wer import evaluate_ocr
 from app.evaluation.pea import evaluate_pea
 
@@ -24,6 +26,9 @@ DATASETS = {
     "crma": "crma_synthetic.jsonl",
     "ocr": "ocr_wer_synthetic.jsonl",
     "dawacheck": "dawacheck_mapping_synthetic.jsonl",
+    # appeal reuses the CRMA scenario inputs (no new labels: its checks are against each draft's own facts)
+    "appeal": "crma_synthetic.jsonl",
+    "grounding": "letter_grounding_synthetic.jsonl",
 }
 
 
@@ -72,7 +77,49 @@ def _dawacheck(rows):
     return evaluate_dawacheck_mapping(rows, lambda q: benchmark_medicine(q, 1.0))
 
 
-_RUNNERS = {"bma": _bma, "pea": _pea, "anomaly": _anomaly, "crma": _crma, "ocr": _ocr, "dawacheck": _dawacheck}
+def _bimanyay_documents(payload: Dict[str, Any], language: str):
+    """Runs BimaNyay's real drafting path and returns (result, the facts the drafts came from)."""
+    from bimanyay import ClaimDenialInput, analyze_insurance_denial
+
+    data = ClaimDenialInput(**payload)
+    result = analyze_insurance_denial(data, language=language)
+    facts = {
+        "policy_number": data.policy_number,
+        "insurer_name": data.insurer_name,
+        "diagnosis": data.diagnosis,
+        "claimed_amount": data.claimed_amount,
+        "denied_amount": data.denied_or_deducted_amount,
+        "denial_reason": data.denial_reason_raw,
+        "grounds": result.primary_dispute_grounds,
+        "violations": [v.model_dump() for v in result.regulatory_violations],
+    }
+    return result, facts
+
+
+def _appeal(rows):
+    def drafter(payload: Dict[str, Any], language: str):
+        result, facts = _bimanyay_documents(payload, language)
+        return result.level_1_gro_appeal, facts
+
+    return evaluate_appeal_completeness(rows, drafter)
+
+
+def _grounding(rows):
+    _meta, scenarios = load_dataset(DATA_DIR / DATASETS["appeal"])
+
+    def generator(payload: Dict[str, Any], language: str):
+        result, facts = _bimanyay_documents(payload, language)
+        return [
+            ("gro_appeal", result.level_1_gro_appeal, facts),
+            ("bimabharosa_summary", result.level_2_bimabharosa_text, facts),
+            ("ombudsman_statement", result.level_3_ombudsman_grounds, facts),
+        ]
+
+    return evaluate_grounding(rows, scenarios, generator)
+
+
+_RUNNERS = {"bma": _bma, "pea": _pea, "anomaly": _anomaly, "crma": _crma, "ocr": _ocr,
+            "dawacheck": _dawacheck, "appeal": _appeal, "grounding": _grounding}
 
 
 def run_all(only: Optional[str] = None) -> Dict[str, Any]:

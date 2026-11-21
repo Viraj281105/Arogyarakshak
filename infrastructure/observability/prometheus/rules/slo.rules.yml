@@ -1,0 +1,34 @@
+# SLI recording rules (see docs/operations/observability.md for the SLO definitions).
+groups:
+  - name: arogya-sli
+    interval: 30s
+    rules:
+      # --- availability: share of requests answered with 5xx ---
+      - record: arogya:http_error_ratio:rate5m
+        expr: sum(rate(arogya_http_requests_total{status=~"5.."}[5m])) / sum(rate(arogya_http_requests_total[5m]))
+      - record: arogya:http_error_ratio:rate30m
+        expr: sum(rate(arogya_http_requests_total{status=~"5.."}[30m])) / sum(rate(arogya_http_requests_total[30m]))
+      - record: arogya:http_error_ratio:rate1h
+        expr: sum(rate(arogya_http_requests_total{status=~"5.."}[1h])) / sum(rate(arogya_http_requests_total[1h]))
+      - record: arogya:http_error_ratio:rate6h
+        expr: sum(rate(arogya_http_requests_total{status=~"5.."}[6h])) / sum(rate(arogya_http_requests_total[6h]))
+
+      # --- case processing latency: share of cases slower than the 10 s target ---
+      - record: arogya:case_slow_ratio:rate5m
+        expr: 1 - (sum(rate(arogya_case_processing_seconds_bucket{le="10.0"}[5m])) / sum(rate(arogya_case_processing_seconds_count[5m])))
+      - record: arogya:case_slow_ratio:rate30m
+        expr: 1 - (sum(rate(arogya_case_processing_seconds_bucket{le="10.0"}[30m])) / sum(rate(arogya_case_processing_seconds_count[30m])))
+      - record: arogya:case_slow_ratio:rate1h
+        expr: 1 - (sum(rate(arogya_case_processing_seconds_bucket{le="10.0"}[1h])) / sum(rate(arogya_case_processing_seconds_count[1h])))
+      - record: arogya:case_slow_ratio:rate6h
+        expr: 1 - (sum(rate(arogya_case_processing_seconds_bucket{le="10.0"}[6h])) / sum(rate(arogya_case_processing_seconds_count[6h])))
+
+      # --- LLM calls that did not end ok/fallback ---
+      - record: arogya:llm_error_ratio:rate5m
+        expr: sum(rate(arogya_llm_calls_total{outcome=~"error|timeout|rate_limited|circuit_open|budget_exceeded"}[5m])) / sum(rate(arogya_llm_calls_total[5m]))
+      - record: arogya:llm_error_ratio:rate30m
+        expr: sum(rate(arogya_llm_calls_total{outcome=~"error|timeout|rate_limited|circuit_open|budget_exceeded"}[30m])) / sum(rate(arogya_llm_calls_total[30m]))
+      - record: arogya:llm_error_ratio:rate1h
+        expr: sum(rate(arogya_llm_calls_total{outcome=~"error|timeout|rate_limited|circuit_open|budget_exceeded"}[1h])) / sum(rate(arogya_llm_calls_total[1h]))
+      - record: arogya:llm_error_ratio:rate6h
+        expr: sum(rate(arogya_llm_calls_total{outcome=~"error|timeout|rate_limited|circuit_open|budget_exceeded"}[6h])) / sum(rate(arogya_llm_calls_total[6h]))

@@ -1,36 +1,54 @@
-import React, { useEffect } from 'react';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleProp, ViewStyle } from 'react-native';
 import { motion } from '../generated/tokens';
-import { STANDARD_BEZIER, shouldAnimate } from './logic';
+import { revealAction, shouldAnimate } from './logic';
+import { NATIVE_DRIVER, STANDARD_EASING } from './driver';
 import { useReducedMotion } from './useReducedMotion';
 
 const OFFSET_Y = 12;
-const EASE = Easing.bezier(...STANDARD_BEZIER);
 
-/** Fade + 12px rise on mount. Final state immediately under reduced motion. */
-export function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+/**
+ * Fade + 12px rise on mount, at most once. Final state immediately under reduced motion (or while
+ * the preference is unknown); a late prime of the preference does not replay a mounted Reveal.
+ */
+export function Reveal({
+  children,
+  delay = 0,
+  style,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const reduced = useReducedMotion();
-  const progress = useSharedValue(shouldAnimate(reduced) ? 0 : 1);
+  const started = useRef(false);
+  const completed = useRef(false);
+  const progress = useRef(new Animated.Value(shouldAnimate(reduced) ? 0 : 1)).current;
 
   useEffect(() => {
-    if (!shouldAnimate(reduced)) {
-      progress.value = 1;
-      return;
+    const action = revealAction(started.current, reduced, completed.current);
+    started.current = true;
+    if (action === 'final') {
+      progress.stopAnimation();
+      progress.setValue(1);
+      completed.current = true;
+    } else if (action === 'animate') {
+      progress.setValue(0);
+      Animated.timing(progress, {
+        toValue: 1,
+        delay,
+        duration: motion.duration.base,
+        easing: STANDARD_EASING,
+        useNativeDriver: NATIVE_DRIVER,
+      }).start(({ finished }) => {
+        if (finished) completed.current = true;
+      });
     }
-    progress.value = 0;
-    progress.value = withDelay(delay, withTiming(1, { duration: motion.duration.base, easing: EASE }));
   }, [reduced, delay, progress]);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * OFFSET_Y }],
-  }));
+  useEffect(() => () => progress.stopAnimation(), [progress]);
 
-  return <Animated.View style={style}>{children}</Animated.View>;
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [OFFSET_Y, 0] });
+
+  return <Animated.View style={[style, { opacity: progress, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }

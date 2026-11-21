@@ -1,0 +1,425 @@
+{
+  "_meta": {
+    "status": "UNREVIEWED",
+    "written_by": "engineering team, not a native speaker or a translator",
+    "purpose": "Input to apps/api/app/evaluation/terminology.py (#37). 'variants' are terms the audit looks for, not recommendations: a concept used with two or more variants in the same language is reported for a reviewer to settle. Matching is a substring match on a spelling-folded form (nukta, chandrabindu and nasal-conjunct variants are treated as equal).",
+    "how_to_review": "A native Hindi and a native Marathi reviewer should (1) add terms that are missing, (2) strike terms that are wrong, (3) mark which variant is preferred for each concept in 'preferred', then re-run scripts/terminology_audit.py."
+  },
+  "concepts": {
+    "claim": {
+      "en": "claim",
+      "hi": [
+        "दावा",
+        "क्लेम"
+      ],
+      "mr": [
+        "दावा",
+        "क्लेम"
+      ]
+    },
+    "insurer": {
+      "en": "insurer / insurance company",
+      "hi": [
+        "बीमाकर्ता",
+        "बीमा कंपनी"
+      ],
+      "mr": [
+        "विमा कंपनी",
+        "विमाकर्ता",
+        "विमा कर्ता"
+      ]
+    },
+    "insurance": {
+      "en": "insurance",
+      "hi": [
+        "बीमा"
+      ],
+      "mr": [
+        "विमा",
+        "बीमा"
+      ]
+    },
+    "policy": {
+      "en": "policy",
+      "hi": [
+        "पॉलिसी",
+        "बीमा पत्र"
+      ],
+      "mr": [
+        "पॉलिसी",
+        "विमा पत्र"
+      ]
+    },
+    "rejection": {
+      "en": "rejection / denial of a claim",
+      "hi": [
+        "अस्वीकृति",
+        "अस्वीकार",
+        "निरस्त",
+        "खारिज",
+        "इनकार"
+      ],
+      "mr": [
+        "नकार",
+        "नाकार",
+        "अस्वीकृती",
+        "फेटाळ",
+        "अमान्य"
+      ]
+    },
+    "appeal": {
+      "en": "appeal",
+      "hi": [
+        "अपील",
+        "अभ्यावेदन"
+      ],
+      "mr": [
+        "अपील",
+        "अर्ज"
+      ]
+    },
+    "grievance": {
+      "en": "grievance / complaint",
+      "hi": [
+        "शिकायत",
+        "परिवाद"
+      ],
+      "mr": [
+        "तक्रार"
+      ]
+    },
+    "ombudsman": {
+      "en": "insurance ombudsman",
+      "hi": [
+        "लोकपाल"
+      ],
+      "mr": [
+        "लोकपाल"
+      ]
+    },
+    "penal_interest": {
+      "en": "penal interest",
+      "hi": [
+        "दंडात्मक ब्याज",
+        "दंड ब्याज",
+        "दंडात्मक व्याज"
+      ],
+      "mr": [
+        "दंडात्मक व्याज",
+        "दंड व्याज",
+        "दंडात्मक ब्याज"
+      ]
+    },
+    "statutory": {
+      "en": "statutory / legal",
+      "hi": [
+        "सांविधिक",
+        "वैधानिक",
+        "कानूनी",
+        "विधिक"
+      ],
+      "mr": [
+        "वैधानिक",
+        "कायदेशीर",
+        "सांविधिक"
+      ]
+    },
+    "government": {
+      "en": "government",
+      "hi": [
+        "सरकारी",
+        "शासकीय"
+      ],
+      "mr": [
+        "सरकारी",
+        "शासकीय"
+      ]
+    },
+    "hospital": {
+      "en": "hospital",
+      "hi": [
+        "अस्पताल",
+        "चिकित्सालय",
+        "हॉस्पिटल"
+      ],
+      "mr": [
+        "रुग्णालय",
+        "हॉस्पिटल",
+        "दवाखाना",
+        "अस्पताल"
+      ]
+    },
+    "patient": {
+      "en": "patient",
+      "hi": [
+        "रोगी",
+        "मरीज"
+      ],
+      "mr": [
+        "रुग्ण",
+        "रोगी",
+        "पेशंट"
+      ]
+    },
+    "medicine": {
+      "en": "medicine",
+      "hi": [
+        "दवा",
+        "दवाई",
+        "औषधि",
+        "औषध"
+      ],
+      "mr": [
+        "औषध",
+        "दवा",
+        "गोळ्या"
+      ]
+    },
+    "bill": {
+      "en": "bill",
+      "hi": [
+        "बिल",
+        "देयक"
+      ],
+      "mr": [
+        "बिल",
+        "देयक"
+      ]
+    },
+    "document": {
+      "en": "document",
+      "hi": [
+        "दस्तावेज",
+        "कागजात"
+      ],
+      "mr": [
+        "दस्तऐवज",
+        "दस्तावेज",
+        "कागदपत्र"
+      ]
+    },
+    "eligibility": {
+      "en": "eligibility",
+      "hi": [
+        "पात्रता"
+      ],
+      "mr": [
+        "पात्रता"
+      ]
+    },
+    "scheme": {
+      "en": "scheme",
+      "hi": [
+        "योजना"
+      ],
+      "mr": [
+        "योजना"
+      ]
+    },
+    "price": {
+      "en": "price / rate",
+      "hi": [
+        "मूल्य",
+        "कीमत",
+        "दर"
+      ],
+      "mr": [
+        "किंमत",
+        "दर",
+        "मूल्य"
+      ]
+    },
+    "limit": {
+      "en": "limit / ceiling",
+      "hi": [
+        "सीमा",
+        "अधिकतम"
+      ],
+      "mr": [
+        "मर्यादा",
+        "कमाल"
+      ]
+    },
+    "verification": {
+      "en": "verification / confirmation",
+      "hi": [
+        "पुष्टि",
+        "सत्यापन",
+        "पड़ताल"
+      ],
+      "mr": [
+        "पडताळणी",
+        "पुष्टी",
+        "सत्यापन"
+      ]
+    },
+    "check": {
+      "en": "check / inspection",
+      "hi": [
+        "जाँच",
+        "जांच"
+      ],
+      "mr": [
+        "तपासणी",
+        "तपासा",
+        "तपास"
+      ]
+    },
+    "case": {
+      "en": "case",
+      "hi": [
+        "केस",
+        "मामला",
+        "प्रकरण"
+      ],
+      "mr": [
+        "केस",
+        "प्रकरण"
+      ]
+    },
+    "audit": {
+      "en": "audit",
+      "hi": [
+        "ऑडिट",
+        "अंकेक्षण",
+        "लेखा परीक्षा"
+      ],
+      "mr": [
+        "ऑडिट",
+        "लेखापरीक्षण"
+      ]
+    },
+    "estimate": {
+      "en": "estimate",
+      "hi": [
+        "अनुमान",
+        "अंदाज"
+      ],
+      "mr": [
+        "अंदाज",
+        "अनुमान"
+      ]
+    }
+  },
+  "leakage_markers": {
+    "hindi_only": [
+      "है",
+      "हैं",
+      "नहीं",
+      "लिए",
+      "करें",
+      "किया",
+      "गया",
+      "गए",
+      "गई",
+      "और",
+      "सकते",
+      "सकता",
+      "सकती",
+      "होगा",
+      "कोई",
+      "क्या"
+    ],
+    "marathi_only": [
+      "आहे",
+      "आहेत",
+      "नाही",
+      "नाहीत",
+      "आणि",
+      "करा",
+      "किंवा",
+      "तुमच्या",
+      "आपल्या",
+      "फक्त",
+      "होईल",
+      "नका",
+      "साठी",
+      "मध्ये"
+    ]
+  },
+  "english_allowlist": [
+    "ABDM",
+    "AI",
+    "API",
+    "arenc",
+    "ArogyaRakshak",
+    "ASHA",
+    "Aushadhi",
+    "AWH",
+    "AWW",
+    "BD",
+    "BillNyay",
+    "BimaNyay",
+    "BYOD",
+    "CGHS",
+    "CIO",
+    "CRC",
+    "CT",
+    "DaaviSetu",
+    "DawaCheck",
+    "Dolo",
+    "DPCO",
+    "DPDP",
+    "DRG",
+    "EN",
+    "FAQ",
+    "FHIR",
+    "Fi",
+    "Form",
+    "GRO",
+    "GST",
+    "HbA1c",
+    "HS",
+    "HTTP",
+    "ICD",
+    "ICU",
+    "ID",
+    "IGMS",
+    "INR",
+    "IPD",
+    "IRDAI",
+    "Jan",
+    "JAY",
+    "JSON",
+    "Kadi",
+    "KYC",
+    "Ltd",
+    "mcg",
+    "mg",
+    "MIT",
+    "MJPJAY",
+    "ml",
+    "MRI",
+    "MRP",
+    "NOC",
+    "NPPA",
+    "OCR",
+    "OD",
+    "OPD",
+    "OTP",
+    "PDF",
+    "PHI",
+    "PM",
+    "PM-JAY",
+    "PMJAY",
+    "QHS",
+    "RAM",
+    "Rs",
+    "SchemeSetu",
+    "SECC",
+    "SECC-2011",
+    "SLA",
+    "SMS",
+    "SOS",
+    "SYN-0001",
+    "TDS",
+    "TPA",
+    "UPI",
+    "URL",
+    "USG",
+    "VI",
+    "Wi",
+    "ZIP"
+  ],
+  "identical_allowlist": []
+}

@@ -1,4 +1,4 @@
-# Phase-4 Evaluation Harnesses — BMA, PEA, Billing-Anomaly, CRMA, OCR WER/CER, DawaCheck Mapping
+# Phase-4 Evaluation Harnesses — BMA, PEA, Billing-Anomaly, CRMA, OCR WER/CER, DawaCheck Mapping, Appeal Completeness, Letter Grounding
 
 > **Read this first.** Every number below comes from **SYNTHETIC, hand-written** datasets in
 > `data/evaluation/`. They were written by the team, the labels were assigned *before* the
@@ -17,10 +17,10 @@ All harnesses run offline and deterministically — no Groq key, no network. PEA
 ## Reproduce
 
 ```bash
-python scripts/evaluate_phase4.py                    # all six, summary + every failure
-python scripts/evaluate_phase4.py --only bma         # bma|pea|anomaly|crma|ocr|dawacheck
+python scripts/evaluate_phase4.py                    # all eight, summary + every failure
+python scripts/evaluate_phase4.py --only bma         # bma|pea|anomaly|crma|ocr|dawacheck|appeal|grounding
 python scripts/evaluate_phase4.py --json out.json    # full reports
-python -m pytest apps/api/tests/test_evaluation_harness.py
+python -m pytest apps/api/tests/test_evaluation_harness.py apps/api/tests/test_evaluation_appeal_grounding.py
 ```
 
 Code: `apps/api/app/evaluation/` (`metrics.py` pure metric functions, one module per metric,
@@ -37,6 +37,8 @@ hand-computed expected values. Measured on 2026-10-19 on the `main` code at 16e2
 | **CRMA** (scenario → dispute outcome) | 25 scenarios | fully-correct share | **0.560** (14/25) |
 | **OCR WER/CER** | 15 reference/hypothesis pairs | corpus WER / CER | 0.381 / 0.089 — **utility check only, see below** |
 | **DawaCheck mapping** | 52 queries vs a 7-drug table | mapping accuracy | **0.865** (45/52); mapping P/R/F1 0.909 / 0.857 / 0.882 |
+| **Appeal completeness** (#107) | the 25 CRMA scenarios x en/hi/mr = 75 BimaNyay GRO letters | weighted checklist score | **0.888** mean (max reachable 0.900, see section 7); 0/75 fully complete |
+| **Letter grounding** (#115) | 18 labelled letters (detector) + 225 BimaNyay drafts | hallucination rate / grounding score | drafts **0 / 1,484 claims ungrounded** (template check, see section 8); detector P/R 1.000 / 0.882 |
 
 ## 1. BMA — Benchmark Mapping Accuracy
 Scored on the production matcher (`_match_cghs_key` in the BillNyay endpoint — the same
@@ -211,6 +213,78 @@ spelling/OCR variants all resolved. The failures:
 - *Dolo 500* maps to the 650 mg entry through the phonetic path without strength scaling
   (ceiling ₹2.30 vs ₹1.77 if scaled), so the dosage rule does not run on this path.
 
+## 7. Appeal completeness (#107)
+`appeal_completeness.py` scores the BimaNyay Level-1 GRO appeal letter (`analyze_insurance_denial`,
+the production drafting path) on the issue's weighted checklist — Patient Details 15 %,
+Policy Info 20 %, Clauses 30 %, Justification 25 %, References 10 % — for the 25 CRMA scenario
+inputs in English, Hindi and Marathi (75 letters; no new labels, each check is made against the
+facts the draft was built from). Inside a category every applicable check weighs the same; a
+category with nothing applicable (`clauses` when the audit cites no violation) is dropped and
+the remaining weights renormalised, so a letter is not penalised for a citation that does not exist.
+
+| Category | Checks | Pass rate |
+|---|---|---|
+| patient (15 %) | diagnosis stated, both amounts stated, policyholder name filled | 0.667 |
+| policy (20 %) | policy number, insurer named, claim reference filled, insurer's reason quoted | 0.750 |
+| clauses (30 %) | each audit violation's clause **and** statute appear in the letter | 1.000 |
+| justification (25 %) | grounds stated, relief amount restated, 15-day window demanded | 1.000 |
+| references (10 %) | Master Circular cited, its date cited, Bima Bharosa **and** Ombudsman named | 1.000 |
+
+**Mean score 0.888; the score is identical across the three languages.**
+
+**Findings.**
+1. **Two checks fail on all 75 letters, by design:** the templates leave `[POLICYHOLDER NAME]`
+   (and its Hindi/Marathi equivalents) unfilled — the app is bring-your-own-document and does
+   not collect the name — and carry no claim number (`Claim No. [CLAIM_NO]` in English; no claim
+   number field at all in Hindi/Marathi, because `ClaimDenialInput` has no such field). The best
+   score a letter can reach today is therefore **0.900**, and `fully_complete_share` is 0.0. This is
+   a disclosed gap (the patient must fill these before sending), not a template bug.
+2. **6 letters cite an `UNVERIFIED` clause** (the two room-rent scenarios x 3 languages). They
+   score full marks on `clauses` because the auditor *does* put its citation in the letter, but
+   the citation says "UNVERIFIED — no primary-source citation". Completeness is not correctness;
+   the harness reports the count (`unverified_clause_citations`) rather than hiding it.
+
+**What this does not measure:** legal correctness, tone, whether a cited provision supports the
+ground, Hindi/Marathi language quality, the Ombudsman and Bima Bharosa drafts (only the GRO
+letter is scored), or the BillNyay (Groq) appeal letter.
+
+## 8. Hallucination rate and grounding score (#115)
+`grounding.py` extracts **checkable claims** from a letter — amounts (₹/INR/Rs), the policy number,
+clause/section/rule references, percentages, day counts, dates (English, Hindi and Marathi
+months; Devanagari digits), and clinician assertions ("Dr. X", "the treating physician certified")
+— and checks each against an allowed set built from the facts of the letter's own case (denial
+input and audit result) plus a small static reference (`STATIC_REFERENCE`: the Master Circular date,
+Bank Rate + 2 %, the 15-day window, Rule 14(1)(b)). A clinician claim can never be grounded
+(ADR-011: the system never supplies a named clinician's opinion).
+
+    grounding score    = grounded claims / extracted claims
+    hallucination rate = ungrounded claims / extracted claims        (= 1 - grounding score)
+
+"Ungrounded" means **not in the source**, not "false": a real statute such as Section 45 is
+ungrounded in a letter whose facts do not cite it (dataset row LG-05). The static reference is the
+team's own statement of what the templates assert, **not independently verified law**.
+
+**(a) The BimaNyay drafts: 0 ungrounded of 1,484 claims** (225 documents = 25 scenarios x en/hi/mr
+x GRO letter, Bima Bharosa summary, Ombudsman statement; 525 amounts, 300 policy numbers, 96
+clauses, 206 percentages, 168 day counts, 189 dates). Hallucination rate 0.000 and grounding score
+1.000 meet the issue's targets (< 2 %, > 95 %). **Read this carefully:** these letters are
+filled templates, so a clean result is close to guaranteed. It is a regression check — a template
+edit that changes a deadline, rate or date, or a field wired to the wrong value, makes it fail
+(unit-tested) — **not** evidence about LLM-written letters.
+
+**(b) The detector, validated on 18 hand-written letters with injected hallucinations**
+(`letter_grounding_synthetic.jsonl`; wrong amount, wrong policy number, invented/real-but-unsourced
+clause, wrong percentage, deadline and date, a clinician assertion, Hindi and Marathi cases,
+repeated claims, clean traps): **precision 1.000, recall 0.882 (tp 15, fp 0, fn 2)**. The two misses
+are documented limits, kept in the dataset on purpose: an amount written in words (LG-17) and a
+case-law citation (LG-18). Four clean letters, including Indian digit grouping and a figure quoted
+from the insurer's own reason, produce no false alarm.
+
+**What this does not measure:** the Groq-written letter path (the barrister agent is not run
+offline, there is no labelled LLM output, and no live run exists — so **no hallucination figure
+exists for LLM letters**); claims the extractor cannot see (words, case law, free-text assertions
+of fact); legal correctness. To score an LLM letter, call `ground_letter(text, facts)` on it.
+
 ## Limitations (all datasets)
 - Synthetic, small (15–78 rows), written by the same team that wrote the code; hard cases are
   over-represented. These are development-set figures, not estimates of production accuracy.
@@ -220,7 +294,8 @@ spelling/OCR variants all resolved. The failures:
 - No confidence intervals; with n this small a single row moves a rate by 1–4 points.
 - PEA covers only the heuristic extractor; BMA/anomaly only the 27-entry CGHS table; DawaCheck
   only 7 formulations; CRMA labels are unverified legal reading; OCR numbers are simulated.
-- Not covered: LLM-path extraction quality, real scanned documents, real OCR WER/CER, CFMA.
+- Not covered: LLM-path extraction quality, real scanned documents, real OCR WER/CER, CFMA, LLM-written letters (no hallucination figure for them).
+- Not built because the system has nothing to score: #105 (policy-clause retrieval), #110 (MRR) and #111 (RAG precision/recall) assume retrieval or ranking; SchemeSetu is rule-based (no RAG, no ranking) and DaaviSetu has no retrieval step. #112 (CRR/DPR) needs a definition of a "context request" first.
 
 ## Follow-ups surfaced by the measurements (not done here)
 1. BillNyay matcher: whole-word matching (fixes `ppe`⊂appendectomy, `icu`⊂particular) and a
@@ -232,3 +307,33 @@ spelling/OCR variants all resolved. The failures:
 4. DawaCheck: match a combination product to a combination entry or refuse; avoid phonetic
    matches that skip the dosage rule. (Touches `reference_data.py` / `checker.py`, which open
    PRs #145/#150 also modify.)
+
+## Regression gate (CI) — added in Wave 1 / WS2 (ADR-024)
+The numbers above are now locked in by a gate. `apps/api/app/evaluation/regression.py`
+extracts 25 headline metrics (BMA accuracy and mapping F1; PEA procedure/medicine/all-item F1
+and total-amount accuracy; anomaly line- and bill-level F1; CRMA, wrongful-denial F1, clause
+and clinical accuracy; OCR corpus WER and CER, where lower is better; DawaCheck accuracy,
+mapping F1 and ceiling accuracy; appeal mean score and the clauses / justification / references pass rates; grounding score, hallucination rate and detector precision/recall) plus the 10 dataset sizes, and compares them with the
+committed baseline `apps/api/app/evaluation/baseline/phase4_baseline.json`.
+
+```bash
+python scripts/check_eval_regression.py                 # run harnesses, compare (exit 0/1/2)
+python scripts/check_eval_regression.py --current out.json
+python scripts/evaluate_phase4.py --check-baseline      # the usual report, then the gate
+python scripts/check_eval_regression.py --write-baseline apps/api/app/evaluation/baseline/phase4_baseline.json
+```
+
+- **What it measures:** exactly what this document measures — the offline heuristic/rule
+  paths on the synthetic datasets. It is a regression gate, **not** an LLM-accuracy or
+  real-world-accuracy measurement, and it never calls Groq.
+- **Tolerance 0.0 for every metric:** the harnesses are deterministic offline code on fixed
+  data, so a re-run reproduces each figure exactly (1e-9 float slack only). Any drop fails;
+  an improvement passes and is reported so the baseline can be raised. A changed dataset size
+  fails until the baseline is regenerated in a reviewed commit.
+- The committed baseline was generated from `python scripts/evaluate_phase4.py --json` on
+  2026-11-18 (branch `ws2/llm-reliability`, base a3fffaa) and reproduces the figures in the
+  Summary table above (BMA 0.705, PEA procedure F1 0.942, anomaly line F1 0.810, CRMA 0.560,
+  OCR WER/CER 0.381/0.089, DawaCheck 0.865).
+- CI: the `eval-regression-gate` job in `.github/workflows/ci.yml`; `ci-gate` requires it.
+- The LLM extraction path is still unmeasured: there is no labelled LLM dataset and no live
+  run; no live-LLM evaluation script is provided, deliberately, so no unmeasured number exists.

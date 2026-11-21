@@ -12,6 +12,8 @@ import logging
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kadi.llm import purge_default_cache
+
 from app.clinical.purge import purge_clinical_records_for_case
 from app.models import (
     BillNyayAppeal,
@@ -67,6 +69,10 @@ async def purge_case(db: AsyncSession, case_id: str) -> None:
     # their audit trail. Global reviewer/rule/playbook records are kept.
     await purge_clinical_records_for_case(db, case_id)
     await db.execute(delete(KadiCase).where(KadiCase.id == case_id))
+    # ADR-024: the opt-in in-memory LLM response cache holds no case id, so it cannot be
+    # purged per case; erasing any case empties it (a no-op when the cache is disabled).
+    # Done even if the caller later rolls back — over-purging a cache is harmless.
+    purge_default_cache()
 
 
 async def _purge_bimanyay_records_for_case(db: AsyncSession, case_id: str) -> None:

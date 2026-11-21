@@ -1,0 +1,148 @@
+{
+  "_meta": {
+    "description": "Committed baseline for scripts/check_eval_regression.py (WS2, ADR-024).",
+    "synthetic": true,
+    "note": "Offline heuristic/rule code paths scored on SYNTHETIC hand-written datasets (docs/evaluation/phase4-harnesses.md). A regression gate, not LLM accuracy and not real-world accuracy.",
+    "regenerate": "python scripts/check_eval_regression.py --write-baseline apps/api/app/evaluation/baseline/phase4_baseline.json",
+    "tolerance_rationale": "Deterministic offline harnesses on fixed data: 0.0 for every metric (1e-9 float slack). Any drop fails."
+  },
+  "metrics": {
+    "bma.accuracy": {
+      "value": 0.7051282051282052,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "bma.mapping.f1": {
+      "value": 0.7735849056603773,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "pea.procedures.f1": {
+      "value": 0.9421487603305784,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "pea.medicines.f1": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "pea.all_items.f1": {
+      "value": 0.951048951048951,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "pea.total_amount_accuracy": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "anomaly.line_level.f1": {
+      "value": 0.8095238095238095,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "anomaly.bill_level.f1": {
+      "value": 0.7777777777777777,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "crma.crma": {
+      "value": 0.56,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "crma.wrongful.f1": {
+      "value": 0.6857142857142857,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "crma.clause_accuracy": {
+      "value": 0.8333333333333334,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "crma.clinical_accuracy": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "ocr.corpus_wer": {
+      "value": 0.38095238095238093,
+      "direction": "lower",
+      "tolerance": 0.0
+    },
+    "ocr.corpus_cer": {
+      "value": 0.08947368421052632,
+      "direction": "lower",
+      "tolerance": 0.0
+    },
+    "dawacheck.accuracy": {
+      "value": 0.8653846153846154,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "dawacheck.mapping.f1": {
+      "value": 0.8823529411764706,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "dawacheck.ceiling_accuracy": {
+      "value": 0.9666666666666667,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.mean_score": {
+      "value": 0.8879999999999988,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.per_category.clauses": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.per_category.justification": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "appeal.per_category.references": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "grounding.production.grounding_score": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "grounding.production.hallucination_rate": {
+      "value": 0.0,
+      "direction": "lower",
+      "tolerance": 0.0
+    },
+    "grounding.detector.precision": {
+      "value": 1.0,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "grounding.detector.recall": {
+      "value": 0.8823529411764706,
+      "direction": "higher",
+      "tolerance": 0.0
+    }
+  },
+  "counts": {
+    "bma.rows": 78,
+    "pea.bills": 28,
+    "anomaly.bills": 39,
+    "anomaly.lines": 70,
+    "crma.scenarios": 25,
+    "ocr.rows_total": 15,
+    "dawacheck.rows": 52,
+    "appeal.letters": 75,
+    "grounding.detector_rows": 18,
+    "grounding.production.letters": 225
+  }
+}

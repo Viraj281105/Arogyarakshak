@@ -19,7 +19,7 @@ from tests.clinical_helpers import (
 
 
 def _audit_count(case_id, event_type):
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
     import asyncio
     from sqlalchemy import func, select
 
@@ -120,7 +120,7 @@ def test_the_same_document_ingested_twice_adds_nothing_the_second_time():
     import asyncio
 
     from app.api.v1.endpoints.kadi import ingest_document_now
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id = make_case(doc=None)
     doc = b"Consultation: 700\nTab Pan 40 (Strip of 15): 60\nTotal: 760\n"
@@ -147,7 +147,7 @@ def test_the_test_database_enforces_foreign_keys_like_postgres():
 
     from sqlalchemy import text
 
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     async def pragma():
         async with TestingSessionLocal() as s:

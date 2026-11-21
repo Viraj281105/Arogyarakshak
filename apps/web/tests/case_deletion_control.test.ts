@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 describe('SEC-03: web UI exposes explicit case deletion, not just server-side expiry', () => {
   // The page renders the control; the case-session hook it uses performs the request.
-  const pageSrc = ['app/page.tsx', 'app/hooks/useCaseSession.ts']
+  const pageSrc = ['app/components/HomeWorkspace.tsx', 'app/hooks/useCaseSession.ts']
     .map((f) => readFileSync(join(process.cwd(), f), 'utf-8'))
     .join('\n');
 

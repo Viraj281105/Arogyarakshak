@@ -417,7 +417,7 @@ def test_dawacheck_case_benchmark_persists_generic_mapping():
     from sqlalchemy import select as _select
 
     from app.models import DawaCheckGenericMapping
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id, _ = _audited_case()
     res = client.get(f"/api/v1/dawacheck/cases/{case_id}/benchmark")
@@ -465,6 +465,7 @@ def test_cghs_rates_loaded_from_json():
     assert "laparoscopic appendectomy" in CGHS_RATES
 
 
+@pytest.mark.allows_model_download
 def test_real_image_ocr_upload_and_persistence():
     """Verifies that uploading a real image document executes EasyOCR, extracts entities, and persists them."""
     import io
@@ -1013,7 +1014,7 @@ def test_daavisetu_claim_is_persisted_not_just_echoed():
     from sqlalchemy import select as _select
 
     from app.models import DaaviSetuClaim
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id, package = _case_with_submitted_claim()
 
@@ -1056,7 +1057,7 @@ def test_daavisetu_resubmission_updates_the_same_claim():
     from sqlalchemy import func, select as _select
 
     from app.models import DaaviSetuClaim
-    from conftest import TestingSessionLocal
+    from tests.conftest import TestingSessionLocal
 
     case_id, first = _case_with_submitted_claim()
 
@@ -1574,12 +1575,12 @@ def test_appeal_letter_contains_no_fake_denial_code():
 def test_offline_fallback_never_claims_denial_facts_were_extracted():
     """Regression: the offline Auditor fallback (DEN-999 / confidence 0.95) always
     parses into a valid StructuredDenial, so `denial is not None` alone can't tell a
-    templated response apart from a real extraction. No test environment has a live,
-    valid GROQ_API_KEY — locally it's unset, and in CI it's a mock string that Groq
-    rejects with 403 — so every /appeal call here runs on the canned template
-    (confirmed by GroqClientFallback's "Returning fallback denial JSON block" log),
-    regardless of whether a key string happens to be configured. denial_facts_extracted
-    must reflect that rather than reporting True on fabricated facts."""
+    templated response apart from a real extraction. No test sees a GROQ_API_KEY:
+    conftest.py clears it (settings and environment) for every test and guards
+    urllib.request.urlopen, so every /appeal call here runs on the canned template
+    (GroqClientFallback's "Returning fallback denial JSON block" log) without any network
+    call. denial_facts_extracted must reflect that rather than reporting True on
+    fabricated facts."""
     case_id = _case_with_document()
     data = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal").json()
     assert data["denial_facts_extracted"] is False

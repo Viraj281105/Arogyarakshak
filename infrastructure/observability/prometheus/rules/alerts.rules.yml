@@ -1,0 +1,90 @@
+# Multi-window burn-rate alerts. Error budgets: availability 0.5 % (SLO 99.5 %), case latency
+# 5 % (SLO 95 % within 10 s), LLM 5 % (SLO 95 % ok/fallback). Fast burn = 14.4x budget over
+# 1 h and 5 m (page); slow burn = 6x over 6 h and 30 m (ticket). Thresholds below are
+# burn * budget (14.4 * 0.005 = 0.072, 6 * 0.005 = 0.03, 14.4 * 0.05 = 0.72, 6 * 0.05 = 0.3).
+groups:
+  - name: arogya-slo-availability
+    rules:
+      - alert: ApiErrorBudgetBurnFast
+        expr: arogya:http_error_ratio:rate1h > 0.072 and arogya:http_error_ratio:rate5m > 0.072
+        for: 2m
+        labels: {severity: page, slo: availability}
+        annotations:
+          summary: API 5xx rate is burning the 30-day availability budget 14.4x too fast
+          description: More than 7.2 % of requests were 5xx over the last hour and the last 5 minutes. Check the API RED dashboard and the logs by request id.
+      - alert: ApiErrorBudgetBurnSlow
+        expr: arogya:http_error_ratio:rate6h > 0.03 and arogya:http_error_ratio:rate30m > 0.03
+        for: 15m
+        labels: {severity: ticket, slo: availability}
+        annotations:
+          summary: API 5xx rate is burning the availability budget 6x too fast
+          description: More than 3 % of requests were 5xx over 6 hours and 30 minutes.
+
+  - name: arogya-slo-case-latency
+    rules:
+      - alert: CaseLatencyBudgetBurnFast
+        expr: arogya:case_slow_ratio:rate1h > 0.72 and arogya:case_slow_ratio:rate5m > 0.72
+        for: 2m
+        labels: {severity: page, slo: case_latency}
+        annotations:
+          summary: Nearly all documents are taking longer than the 10 s processing target
+          description: Over 72 % of processed documents exceeded 10 s in the last hour and the last 5 minutes (OCR, Groq or the database are the usual causes; see the pipeline stage panel).
+      - alert: CaseLatencyBudgetBurnSlow
+        expr: arogya:case_slow_ratio:rate6h > 0.3 and arogya:case_slow_ratio:rate30m > 0.3
+        for: 15m
+        labels: {severity: ticket, slo: case_latency}
+        annotations:
+          summary: A large share of documents exceed the 10 s processing target
+          description: Over 30 % of processed documents exceeded 10 s over 6 hours and 30 minutes.
+      - alert: CaseLatencyP95AboveTarget
+        expr: histogram_quantile(0.95, sum by (le) (rate(arogya_case_processing_seconds_bucket[15m]))) > 10
+        for: 15m
+        labels: {severity: ticket, slo: case_latency}
+        annotations:
+          summary: p95 end-to-end case processing time is above 10 s
+          description: The 95th percentile of upload-to-terminal-event time has been above the 10 s target for 15 minutes.
+
+  - name: arogya-slo-llm
+    rules:
+      - alert: LlmErrorBudgetBurnFast
+        expr: arogya:llm_error_ratio:rate1h > 0.72 and arogya:llm_error_ratio:rate5m > 0.72
+        for: 2m
+        labels: {severity: page, slo: llm}
+        annotations:
+          summary: Most LLM calls are failing
+          description: Over 72 % of LLM calls ended in error, timeout, rate limit, open circuit or exhausted budget over the last hour and 5 minutes. Extraction and drafting are running on offline fallbacks.
+      - alert: LlmErrorBudgetBurnSlow
+        expr: arogya:llm_error_ratio:rate6h > 0.3 and arogya:llm_error_ratio:rate30m > 0.3
+        for: 15m
+        labels: {severity: ticket, slo: llm}
+        annotations:
+          summary: A large share of LLM calls are failing
+          description: Over 30 % of LLM calls failed over 6 hours and 30 minutes.
+      - alert: LlmCircuitOpen
+        expr: max by (model) (arogya_llm_circuit_state) == 2
+        for: 2m
+        labels: {severity: page, slo: llm}
+        annotations:
+          summary: The LLM circuit breaker has been open for 2 minutes
+          description: Calls to the model are being short-circuited to the offline fallbacks until the breaker half-opens.
+
+  - name: arogya-health
+    rules:
+      # The api job has two targets (compose container and host process); only one runs at a time.
+      # A target that has not been up at any point in the last 7 days (max_over_time == 0) is the
+      # other workflow's and never alerts; one that was up and now is not does. After 7 days of
+      # continuous outage the alert stops (window limit; Prometheus keeps 15 days).
+      - alert: ApiTargetDown
+        expr: up{job="api"} == 0 and max_over_time(up{job="api"}[7d]) == 1
+        for: 2m
+        labels: {severity: page}
+        annotations:
+          summary: Prometheus cannot scrape the API
+          description: An API target that was up in the last 7 days has been down for 2 minutes, or METRICS_ENABLED is off.
+      - alert: ObservabilityComponentDown
+        expr: up{job=~"prometheus|alertmanager|loki|tempo|otel-collector"} == 0
+        for: 5m
+        labels: {severity: ticket}
+        annotations:
+          summary: An observability component is not answering scrapes
+          description: Check docker compose ps for the stack.

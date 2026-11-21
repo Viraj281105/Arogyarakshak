@@ -8,7 +8,7 @@ are in [`performance-baseline.md`](performance-baseline.md).
 | Web (`apps/web`) | Initial JS per route, gzip | **170 KB**, with a ratchet for known violations (below) | `scripts/build-checks/web-bundle-budget.mjs`, `web-ci` job |
 | Web `/` (mobile profile, 4x CPU, slow 4G) | Largest Contentful Paint | **2000 ms** (error; the spec target). Warning at 1500 ms | Lighthouse CI, `apps/web/lighthouserc.json` |
 | Web `/` | Cumulative Layout Shift | **0.1** (error) | Lighthouse CI |
-| Mobile (`apps/mobile`) | Android Hermes `.hbc` bundle | **2,900,000 B** | `scripts/build-checks/mobile-bundle-budget.mjs`, `mobile-ci` job |
+| Mobile (`apps/mobile`) | Android Hermes `.hbc` bundle | **2,600,000 B** (was 2,900,000 until 2026-11-18) | `scripts/build-checks/mobile-bundle-budget.mjs`, `mobile-ci` job |
 
 ## Web initial JS: 170 KB budget and the KNOWN_VIOLATIONS ratchet
 
@@ -17,23 +17,59 @@ fail from day one. The check instead works as a ratchet over `KNOWN_VIOLATIONS` 
 
 - A route not in the map fails if it is over 170 KB (170 passes, 171 fails).
 - A route in the map fails if it is over its ceiling (it cannot grow).
-- The `/` ceiling (255 KB, measured 254.24 KB) has under 1 KB of headroom and was measured on Windows. If the first Linux CI build differs slightly, record the Linux measurement as the new ceiling here and in `KNOWN_VIOLATIONS`; that is a re-baseline, not a widening.
+- Ceilings have under 1 KB of headroom and were measured on Windows. If the first Linux CI build differs slightly, record the Linux measurement as the new ceiling here and in `KNOWN_VIOLATIONS`; that is a re-baseline, not a widening.
 - A route in the map that is now at or under 170 KB fails with "remove it from KNOWN_VIOLATIONS", so fixes stick.
 - A route in the map that no longer exists in the build fails.
 - A missing `.next` build, or a route without a client reference manifest, throws instead of passing.
 
-Ceilings are the measured gzip size rounded up to the next whole KB (fresh build, 2026-11-15):
+Ceilings are the measured gzip size rounded up to the next whole KB. WS4 (web shell, 2026-11-18, fresh builds on
+Windows, Node 24.19.0) ratcheted them down:
 
-| Route | Measured (gzip KB) | Ceiling |
-|---|---|---|
-| `/` | 254.76 | 255 |
-| `/clinical-review` | 202.39 | 203 |
-| `/motion-lab` | 230.70 | 231 |
-| `/_not-found` | 183.31 | 184 |
-| `/_global-error` | 174.57 | 175 |
+| Route | WS0 measured (2026-11-15) | WS4 start (a3fffaa) | WS4 final | Ceiling |
+|---|---|---|---|---|
+| `/` | 254.76 | 254.24 | 222.26 | 223 (was 255) |
+| `/clinical-review` | 202.39 | 201.87 | 190.32 | 191 (was 203) |
+| `/motion-lab` | 230.70 | 230.63 | not built for production | removed (was 231) |
+| `/_not-found` | 183.31 | 182.79 | 179.84 | 180 (was 184) |
+| `/_global-error` | 174.57 | 174.57 | 171.94 | 172 (was 175) |
 
-These are known violations, not accepted ones. They are shared framework + design-system + motion code; reducing them is a
-follow-up for WS4. Numbers are higher than the WS0 baseline (`/` 253.1 KB) because the motion system was added since.
+What changed (details in `docs/superpowers/specs/2026-11-18-ws4-web-shell-design.md`):
+
+- Code splitting with `next/dynamic` for what is not on screen at first paint: the four inactive module views, the
+  case desk (shown once a case exists), demo controls (demo mode only) and the three reviewer-workspace tabs (after
+  sign-in), each with a sized `aria-busy` placeholder. BillNyay, the default tab, stays static.
+- The static landing sections (hero, journey, reference coverage) are Server Components rendered by `app/page.tsx`
+  and passed into the client `HomeWorkspace` as slots: their content ships no JS at all (moving them into a
+  `next/dynamic` chunk would only have shifted the same bytes to hydration time).
+- `/motion-lab` is a `page.dev.tsx` file; `next.config.ts` adds that page extension only under `next dev`.
+- The 404/error pages use a plain anchor instead of `next/link` (Turbopack duplicated Link into the error,
+  not-found and global-error entry chunks that every route loads).
+- The app shell (header, drawer, footer on every route) costs about 6.2 KB gzip (layout chunk 3.43 KB before the
+  shell, 9.67 KB after); it avoids the page dictionary and the shared i18n dictionary (tests enforce this).
+
+### Where the bytes are (WS4 final build, gzip KB)
+
+| Route | Polyfills (`noModule`) | React + Next runtime | Layout chunk (Next layout router + shell) | Error / global-error boundaries | Route chunks (app + libraries) | Total |
+|---|---|---|---|---|---|---|
+| `/` | 38.70 | 128.39 | 9.67 | 3.08 | 42.42 | 222.26 |
+| `/clinical-review` | 38.70 | 128.39 | 9.67 | 3.08 | 10.49 | 190.32 |
+| `/_not-found` | 38.70 | 128.39 | 9.67 | 3.08 | — | 179.84 |
+| `/_global-error` | 38.70 | 128.39 | — | 4.85 (its own chunk) | — | 171.94 |
+
+- Polyfills and the React/Next runtime are the same 167.09 KB for every route. On this measurement a route meets
+  170 KB only with about 3 KB of its own client code; `/` carries about 55 KB above that floor (layout/shell 9.67,
+  boundaries 3.08, route chunks 42.42) and `/clinical-review` about 23 KB.
+- The 38.70 KB polyfill chunk is loaded with `noModule`, so module-capable browsers do not download it. In the
+  Browser pane `/` fetched 10 scripts totalling 186.1 KB compressed (earlier WS4 build at 224.85 KB measured), i.e.
+  the measured value minus the polyfills; no split chunk loaded at first paint. The measurement keeps counting
+  polyfills (conservative); that choice is unchanged.
+- The largest pieces left in the `/` route chunks: the full trilingual page dictionary (`translations.ts` including
+  the shared i18n strings, ~11.2 KB), the read-aloud copy for three languages (`listenCopy.ts`, ~5.9 KB), the upload
+  form + BillNyay view (~12.7 KB) and the explanation strings (~2.4 KB). Loading the hi/mr dictionaries only when
+  chosen is the next lever (page-content work, Wave 3).
+
+`/_not-found` has 0.16 KB of headroom under its ceiling and `/clinical-review` 0.68 KB; if the first Linux CI build
+measures slightly higher, record the Linux value as a re-baseline (as for `/` in WS0), not a widening.
 
 ### Removing a KNOWN_VIOLATIONS entry
 
@@ -64,24 +100,67 @@ Run Lighthouse locally with Node 22.19 or newer.
 
 `@lhci/cli` is a pinned root devDependency.
 
-### Known issue: CLS is close to the limit (follow-up)
+### CLS: fixed in WS4 (was 0.0964)
 
-Local lhci run (Node 24.19.0, 3 runs): CLS 0.0964 each run, limit 0.1; the WS0 baseline recorded CLS 0. Root cause
-(Lighthouse "layout shifts" / CLS culprits): `ul.lp-assurances` in the landing-page hero is pushed down once the web
-fonts load (cause reported for all seven font files: "Web font loaded"). The fonts are the self-hosted `@fontsource-variable`
-families added during WS0; their `@font-face` rules use `font-display: swap`, so the fallback-to-webfont swap changes the
-height of the hero text above the list. Not fixed in this task because a proper fix is not small: it needs size-adjusted
-fallback `@font-face` metrics for Fraunces, Plus Jakarta Sans and Inter (or `font-display: optional`/preloading), and the
-font stacks come from generated design tokens. Follow-up: add metric-matched fallback fonts (or preload the hero fonts) and
-confirm with lhci. The 0.1 limit is not widened. First CI runs may go red on CLS if a runner measures slightly higher.
+Before (lhci, 3 runs, 2026-11-18, unchanged WS0 build): CLS 0.0964 each run, one shift on `ul.lp-assurances`, cause
+"Web font loaded". After (same config, 3 runs, final WS4 build): **CLS 0** each run, LCP 1058–1063 ms (it was
+905–909 ms before the latin-ext fix below: the Inter and Fraunces latin-ext files, which carry the ₹ sign, are now
+downloaded instead of ₹ being drawn by a local fallback font).
 
-Final reviewer's analysis: the 0.0964 was measured on Windows, where the pre-swap fallback is Segoe UI. On `ubuntu-latest` the stack falls back to DejaVu Sans, which is wider than Inter, so the font-swap shift may be larger in CI and the Lighthouse CLS step may be red. Plan: open a PR to `main`/`develop` (or run the workflow via `workflow_dispatch` on the branch) once the CI fixes are in, and read the real CI value. If it is red, fix it rather than loosen it: load the two hero families (Fraunces, Plus Jakarta Sans) through `next/font/local` pointing at the woff2 files already in `node_modules/@fontsource-variable/*` (no network) to get preload plus size-adjusted fallbacks (`adjustFontFallback`), and feed the result into the token font stack. Only if that slips, downgrade the CLS assertion to `warn` with a dated exception here that names the measured CI value, with WS4 as owner.
+Fix: `apps/web/app/fonts.ts` loads Fraunces, Plus Jakarta Sans and Inter with `next/font/local` from the woff2 files
+`@fontsource-variable/*` already installs (no network). Each is one CSS family with two faces: latin (preloaded, with
+next/font's metric-matched local fallback, `adjustFontFallback` Times New Roman / Arial) and latin-ext (same family
+name, loaded on demand, no fallback). The token font stacks (`packages/design-tokens/tokens.json`) start with
+`var(--font-face-display|headline|sans, '<Fontsource family>')`; the Fontsource imports remain for the other subsets
+and JetBrains Mono, and the Devanagari fallbacks are unchanged.
 
-## Mobile bundle: 2,900,000 B
+Why latin-ext is in the same family: next/font's generated `<family> Fallback` face (`src: local(Arial)` /
+`local(Times New Roman)`) has no `unicode-range`, so any glyph not in the first family (₹, ā, š) was drawn by that
+size-adjusted fallback before the Fontsource family later in the stack could supply it. Measured in the browser
+("₹ ā š" ×10 at 32 px): before, the role stack widths (sans 562.3, headline 551.3, display 546.0 px) differed from the
+explicit Fontsource families (539.9, 574.7, 505.2 px); after, they are identical.
 
-Baseline 2,319,176 B (WS0 baseline) plus about 25% headroom, rounded to 2,900,000 B. Current size is 2,361,153 B. The headroom
-exists because WS5 will import Reanimated. **After WS5, re-measure the bundle and tighten this budget**
-(`MOBILE_BUNDLE_BUDGET_BYTES` in `scripts/build-checks/mobile-bundle-budget.mjs`) to the new size plus a small margin.
+Other CLS measurements (WS4, headless Chrome driven over CDP with trusted input, viewport 375/768/1024/1280 px):
+- `/` and `/clinical-review` load: CLS 0, no layout-shift entries.
+- Switching to Hindi or Marathi: CLS 0 (the only shifts are the switch's own reflow, flagged `hadRecentInput`).
+- Demo mode (demo-status response faked as `demo_mode: true`): first measured with the DemoBanner in flow above the
+  page content, it shifted the page when the response arrived: CLS 0.17 (375), 0.11 (768), 0.08 (1024), 0.07 (1280)
+  on `/`, similar on `/clinical-review`. Fix (shell chrome, `shell/shell.css`): the banner is a fixed strip at the
+  bottom of the viewport (same content and "What is simulated?" panel, max 70vh, scrolls), and the footer gets extra
+  bottom padding only while a banner exists (`body:has(.demo-banner)`), so non-demo deployments reserve nothing.
+  After: **CLS 0 with no layout-shift entries** on `/` and `/clinical-review` at 375, 768, 1024 and 1280 px; the
+  header demo pill is also out of flow (no shift, no overlap).
+
+Not verified: the GitHub `ubuntu-latest` runner. There `local(Arial)` / `local(Times New Roman)` may not resolve
+(Liberation fonts may or may not be aliased), so the adjusted fallback may not apply; the preload still makes a
+pre-paint swap likely. Read the first CI value; do not loosen the 0.1 limit.
+
+## Mobile bundle: 2,600,000 B
+
+History: WS0 set 2,900,000 B (baseline 2,319,176 B plus about 25% headroom, meant for WS5 importing Reanimated).
+Ruling 2026-11-18 (Wave 1 controller): budget **2,600,000 B** = the WS5-shell size 2,394,806 B plus about 8%, rounded.
+
+**WS5-shell measurements (2026-11-18, `npx expo export --platform android`, Hermes `.hbc`, plain export):**
+
+| State | Bytes | Modules | vs budget |
+|---|---|---|---|
+| Before WS5 (a3fffaa) | 2,361,153 | 909 | PASS |
+| Shell using Reanimated-based `src/motion` (not shipped) | 3,146,268 (+785,115; 172 Reanimated modules) | 1,100 | FAIL vs the old 2,900,000 |
+| Shell using RN `Animated`-based `src/motion` | 2,394,806 (+33,653) | 929 | PASS |
+| After the review fixes and removing Reanimated + Gesture Handler from `package.json` (final) | 2,397,558 | 929 | PASS vs 2,600,000 (202,442 B margin) |
+
+Rulings (2026-11-18):
+- The mobile motion system uses React Native's built-in `Animated` with the native driver (opacity/transform only).
+- `react-native-reanimated` and `react-native-gesture-handler` are **not dependencies** of `apps/mobile` any more
+  (they were unused; `apps/mobile/tests/shell.test.ts` fails if either is re-added to `package.json` or imported in any
+  form). Re-adding either needs a concrete screen that requires it, a fresh measurement and a documented budget ruling
+  here. For scale: Reanimated measured +785,115 B and Gesture Handler about +934 KB (WS0) of JS, so adopting both
+  costs roughly +1.7 MB and would put the budget around 4.2 MB. Their native libraries also grow the APK/AAB, which this
+  JS budget does not capture.
+- The web preview packages (`react-native-web`, `react-dom`, `@expo/metro-runtime`) are not in the Android bundle
+  (checked in the export's source map).
+- Measure with a plain export (no `--source-maps`): that flag moves debug info out of the `.hbc` and makes it smaller
+  (the same bundle measured 1,432,824 B with it), so it is not comparable with the budget.
 
 ## Running the checks locally
 

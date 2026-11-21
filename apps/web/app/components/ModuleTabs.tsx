@@ -1,47 +1,77 @@
 "use client";
 
-import React from "react";
-import { Translations } from "../translations";
+import React, { useRef } from "react";
+import type { Translations } from "../translations";
+import { MODULE_META, MODULE_ORDER, moduleHash, type ModuleTab } from "../shell/nav";
 
-export type ModuleTab = "billnyay" | "bimanyay" | "daavisetu" | "schemesetu" | "dawacheck";
+export type { ModuleTab };
 
-const TABS: { id: ModuleTab; icon: string; badge: string }[] = [
-  { id: "billnyay", icon: "📊", badge: "CGHS" },
-  { id: "daavisetu", icon: "📋", badge: "Pre-Auth" },
-  { id: "bimanyay", icon: "🛡️", badge: "IRDAI" },
-  { id: "schemesetu", icon: "🏛️", badge: "PMJAY" },
-  { id: "dawacheck", icon: "💊", badge: "NPPA" },
-];
+/** Pure: which tab a key press moves to (WAI-ARIA tabs pattern, automatic activation). */
+export function nextTabForKey(current: ModuleTab, key: string, order: readonly ModuleTab[] = MODULE_ORDER): ModuleTab | null {
+  const i = order.indexOf(current);
+  switch (key) {
+    case "ArrowRight":
+      return order[(i + 1) % order.length];
+    case "ArrowLeft":
+      return order[(i - 1 + order.length) % order.length];
+    case "Home":
+      return order[0];
+    case "End":
+      return order[order.length - 1];
+    default:
+      return null;
+  }
+}
 
-/** Module tab navigation (mobile touch-friendly scroll). */
+/**
+ * The five checks as a tablist (scrolls sideways on phones). Arrow keys/Home/End move between
+ * tabs (roving tabindex); the selected check is mirrored into the URL hash (#module-<id>) with
+ * replaceState, so the address can be shared and the shell's drawer links land on the same tab.
+ */
 export function ModuleTabs({ active, onSelect, t }: { active: ModuleTab; onSelect: (tab: ModuleTab) => void; t: Translations }) {
+  const refs = useRef<Partial<Record<ModuleTab, HTMLButtonElement | null>>>({});
+
+  const select = (id: ModuleTab, focus = false) => {
+    onSelect(id);
+    try {
+      window.history.replaceState(window.history.state, "", moduleHash(id));
+    } catch {
+      // The hash is a convenience only.
+    }
+    if (focus) refs.current[id]?.focus();
+  };
+
   return (
-    <nav className="module-tabs" role="tablist" aria-label="Feature Modules">
-      {TABS.map(({ id, icon, badge }) => (
+    <div className="module-tabs" role="tablist" aria-label="Feature Modules">
+      {MODULE_ORDER.map((id) => (
         <button
           key={id}
+          ref={(el) => {
+            refs.current[id] = el;
+          }}
           type="button"
           role="tab"
+          id={`tab-${id}`}
           aria-selected={active === id}
+          // Only the selected panel is in the DOM, so only its tab points at it.
+          aria-controls={active === id ? `panel-${id}` : undefined}
+          tabIndex={active === id ? 0 : -1}
           className={`tab-btn ${active === id ? "active" : ""}`}
-          onClick={() => onSelect(id)}
+          onClick={() => select(id)}
+          onKeyDown={(e) => {
+            const next = nextTabForKey(id, e.key);
+            if (!next) return;
+            e.preventDefault();
+            select(next, true);
+          }}
         >
-          <span>{icon} {t.tabs[id]}</span>
-          <span
-            style={{
-              fontSize: "0.65rem",
-              fontFamily: "var(--font-mono)",
-              padding: "0.15rem 0.45rem",
-              borderRadius: "var(--radius-full)",
-              background: active === id ? "rgba(255, 255, 255, 0.2)" : "var(--bg-surface-elevated)",
-              color: active === id ? "#FFFFFF" : "var(--text-muted)",
-              border: active === id ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid var(--border-subtle)"
-            }}
-          >
-            {badge}
-          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="site-icon">
+            <path d={MODULE_META[id].icon} />
+          </svg>
+          <span>{t.tabs[id]}</span>
+          <span className="tab-badge">{MODULE_META[id].badge}</span>
         </button>
       ))}
-    </nav>
+    </div>
   );
 }

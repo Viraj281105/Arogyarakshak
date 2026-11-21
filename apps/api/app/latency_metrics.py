@@ -20,6 +20,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from app.telemetry import metrics as telemetry_metrics
+
 # The stated E2E processing time target (issue #116).
 TARGET_LATENCY_SECONDS = 10.0
 
@@ -96,6 +98,8 @@ class LatencyTracker:
         self._samples.clear()
 
     def record(self, case_id: str, duration_seconds: float, outcome: str) -> None:
+        # Same measurement also feeds Prometheus (WS1): outcome only, never the case id.
+        telemetry_metrics.record_case_processing(duration_seconds, outcome)
         if len(self._samples) >= _MAX_SAMPLES:
             self._samples.pop(0)
         self._samples.append(

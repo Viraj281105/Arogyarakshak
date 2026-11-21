@@ -217,7 +217,7 @@ describe('SmoothScroll (Lenis) accessibility', () => {
   });
   test('is not mounted in the root layout; /motion-lab mounts it locally', () => {
     assert.ok(!/SmoothScroll/.test(read(join(appDir, 'layout.tsx'))));
-    assert.match(read(join(appDir, '(dev)', 'motion-lab', 'page.tsx')), /<SmoothScroll\s*\/>/);
+    assert.match(read(join(appDir, '(dev)', 'motion-lab', 'page.dev.tsx')), /<SmoothScroll\s*\/>/);
   });
 });
 
@@ -268,6 +268,50 @@ describe('navigateWithTransition', () => {
     }
     assert.equal(started, 1);
     assert.equal(calls, 1);
+  });
+
+  test('calls go() directly in a hidden document (a transition would wait for a frame that never comes)', () => {
+    let started = 0;
+    let calls = 0;
+    g.document = {
+      visibilityState: 'hidden',
+      startViewTransition() {
+        started++;
+      },
+    };
+    try {
+      navigateWithTransition(() => calls++);
+    } finally {
+      restore();
+    }
+    assert.equal(started, 0);
+    assert.equal(calls, 1);
+  });
+
+  test('passes the promise returned by go() to startViewTransition, so the new page is what gets snapshotted', async () => {
+    let returned: unknown;
+    let finished = false;
+    g.document = {
+      startViewTransition(cb: () => unknown) {
+        returned = cb();
+      },
+    };
+    try {
+      navigateWithTransition(
+        () =>
+          new Promise<void>((r) =>
+            setTimeout(() => {
+              finished = true;
+              r();
+            }, 5),
+          ),
+      );
+    } finally {
+      restore();
+    }
+    assert.ok(returned instanceof Promise, 'the update callback must return the navigation promise');
+    await returned;
+    assert.equal(finished, true);
   });
 });
 

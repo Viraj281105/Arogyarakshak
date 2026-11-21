@@ -102,6 +102,7 @@ PostgreSQL / pgvector + Groq API (FAISS: planned, unwired)
 1. **Kadi Exclusivity**: OCR parsing lives strictly in `packages/kadi`. Cross-script matching (rule-based romanization and phonetic keys) and the optional cross-lingual embeddings (`IndicSBERT`) are scoped exclusively to `packages/kadi/kadi/resolution`; IndicXlit is not used (ADR-006). No domain module may implement its own private OCR or embedding layer.
 2. **Zero Document Retention (BYOD)**: Uploaded hospital bills and insurance letters are processed purely in transient memory and expunged after entity extraction. No raw documents are persisted to disk.
 3. **Structured Pydantic Models**: Communication across agents and API boundaries uses strictly typed Pydantic models.
+4. **One LLM client**: every Groq chat call goes through `packages/kadi/kadi/llm` (`ResilientLlmClient`: retries, circuit breaker, optional fallback model, per-case budget, observer events; ADR-024). Call sites keep their own offline fallbacks; no module opens its own HTTP connection to Groq.
 
 ---
 

@@ -96,13 +96,13 @@ test('shouldAnimate truth table', () => {
   assert.equal(shouldAnimate(true), false);
 });
 
-test('react-native-reanimated is imported only under src/motion', () => {
+// Ruling 2026-11-18: the motion system runs on React Native Animated; no app code (src/motion
+// included) may import react-native-reanimated, in any form. See also tests/shell.test.ts.
+test('react-native-reanimated is not imported anywhere under src (incl. subpaths and require)', () => {
+  const banned = /(from\s+|import\s+|import\s*\(\s*|require\s*\(\s*)['"]react-native-reanimated(\/[^'"]*)?['"]/;
   for (const file of walk(SRC)) {
-    if (!/\.tsx?$/.test(file) || file.startsWith(MOTION)) continue;
-    assert.ok(
-      !/from\s+['"]react-native-reanimated['"]/.test(readFileSync(file, 'utf-8')),
-      `reanimated imported outside src/motion: ${file}`,
-    );
+    if (!/\.tsx?$/.test(file)) continue;
+    assert.ok(!banned.test(readFileSync(file, 'utf-8')), `reanimated imported: ${file}`);
   }
 });
 

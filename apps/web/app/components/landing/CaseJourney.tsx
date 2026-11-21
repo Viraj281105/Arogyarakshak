@@ -1,7 +1,5 @@
-"use client";
-
-import React, { useRef } from "react";
-import { useScrollProgress } from "../../hooks/useScrollMotion";
+import React from "react";
+import { ScrollProgressSection } from "./ScrollProgressSection";
 
 // What actually happens to a document, in order. Each claim here is backed by code:
 // the 10 MB limit (apps/api config max_upload_bytes), English OCR (kadi/ocr), identifier
@@ -34,12 +32,10 @@ const STEPS = [
   },
 ];
 
+/** Server Component (WS4): static content; only the scroll-progress wrapper is client code. */
 export const CaseJourney: React.FC = () => {
-  const ref = useRef<HTMLElement>(null);
-  useScrollProgress(ref, "--journey-progress");
-
   return (
-    <section ref={ref} className="lp-section lp-journey" aria-labelledby="lp-journey-title">
+    <ScrollProgressSection progressVar="--journey-progress" className="lp-section lp-journey" labelledBy="lp-journey-title">
       <header className="lp-section-head" data-reveal>
         <p className="lp-kicker">How a case moves</p>
         <h2 id="lp-journey-title" className="lp-heading">From a folded bill to a clear next step.</h2>
@@ -68,6 +64,6 @@ export const CaseJourney: React.FC = () => {
           ))}
         </ol>
       </div>
-    </section>
+    </ScrollProgressSection>
   );
 };
