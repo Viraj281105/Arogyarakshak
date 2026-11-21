@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import KadiCase, KadiEntity
-from app.services.context_requests import note_context_request
+from app.services.case_context import load_case_entities
 from schemesetu.agent import EligibilityRequest, SchemeResult, check_eligibility
 
 
@@ -21,15 +21,12 @@ class CaseMedicalNeedMissing(Exception):
 
 
 async def case_medical_need(case_id: str, db: AsyncSession) -> Optional[str]:
-    entities_result = await db.execute(
-        select(KadiEntity)
-        .join(KadiCase.entities)
-        .where(KadiCase.id == case_id, KadiEntity.type.in_(["diagnosis", "procedure"]))
+    entities = await load_case_entities(
+        db, case_id, ["diagnosis", "procedure"], module="schemesetu", context="entities"
     )
     # De-duplicated, order-preserving: a case can carry the same procedure name from more
     # than one source document.
-    names = list(dict.fromkeys(e.name for e in entities_result.scalars().all() if e.name))
-    await note_context_request(db, case_id, module="schemesetu", context="entities", items=len(names))
+    names = list(dict.fromkeys(e.name for e in entities if e.name))
     return "; ".join(names) if names else None
 
 

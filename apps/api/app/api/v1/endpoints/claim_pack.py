@@ -28,6 +28,7 @@ from app.models import (
     KadiCase,
     KadiEntity,
 )
+from app.services.case_context import load_case_entities
 from app.services.billnyay_audit import build_case_audit
 from app.services.daavisetu_claims import claim_data_from_record
 from app.services.dawacheck_benchmarks import build_case_medicine_benchmarks
@@ -106,14 +107,9 @@ async def download_claim_pack(
         )
 
     # 3. BillNyay audit: deterministic CGHS comparison over stored billing lines (no LLM).
-    has_billing = (
-        await db.execute(
-            select(KadiEntity.id)
-            .join(KadiCase.entities)
-            .where(KadiCase.id == case_id, KadiEntity.type == "billing_item")
-            .limit(1)
-        )
-    ).first() is not None
+    has_billing = bool(
+        await load_case_entities(db, case_id, ["billing_item"], module="kadi", context="line_items")
+    )
     audit = (await build_case_audit(case_id, db)).model_dump() if has_billing else None
 
     # 4. Appeal draft only if one was already generated and stored.

@@ -25,7 +25,8 @@ from kadi.clinical_review.safety import (
     sort_escalations,
 )
 
-from app.models import KadiCase, KadiEntity, KadiSafetyRule, KadiSafetyScanResult
+from app.models import KadiCase, KadiSafetyRule, KadiSafetyScanResult
+from app.services.case_context import load_case_entities
 
 logger = logging.getLogger("arogyarakshak.clinical.context")
 
@@ -36,9 +37,7 @@ NO_ACTIVE_RULES_NOTE = (
 
 
 async def load_entity_records(db: AsyncSession, case_id: str) -> List[EntityRecord]:
-    rows = await db.execute(
-        select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id)
-    )
+    entities = await load_case_entities(db, case_id, module="kadi", context="entities")
     return [
         EntityRecord(
             id=e.id,
@@ -47,7 +46,7 @@ async def load_entity_records(db: AsyncSession, case_id: str) -> List[EntityReco
             value=e.value,
             meta=e.meta if isinstance(e.meta, dict) else {},
         )
-        for e in rows.scalars().all()
+        for e in entities
     ]
 
 

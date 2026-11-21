@@ -1,75 +1,74 @@
-# Context reuse: CRR and DPR (#112)
+# Context hit rate and duplicate-processing reduction (#112)
 
-**What this measures:** instrumented counts on the five SYNTHETIC demo scenarios (A-E), n = 5
-scenarios and 14 context requests. It is **not production traffic** and says nothing about
-extraction quality. The baseline is **modelled** (counted), not executed: see "Honest limits".
+**What this measures:** counts collected from the instrumented pipeline on the five SYNTHETIC
+demo scenarios (A-E): n = 5 scenarios, 20 context reads. It is **not production traffic** and
+says nothing about extraction quality. The headline covers only the instrumented readers listed
+below, and the DPR is a **modelled** figure.
 
-## Definitions (decided before measuring, Phase 4 decision D8)
+## Definitions (Phase 4 decision D8; the earlier "CRR / reused" wording was dropped)
 
-- **Context request**: a module asking Kadi's stored case context for entities, line items or the
-  timeline. Hook: `note_context_request` (`apps/api/app/services/context_requests.py`).
-- **Outcome**: `reused` when the case already held context that answered the request (at least one
-  stored item); `fresh` when it held nothing usable, or when reuse is switched off.
-- **CRR** = `reused` requests / all context requests.
-- **Work units**: one OCR unit and one extraction unit per document pass. `ingest` is the one pass
-  done when a document is taken in; `repeat` is the pass a module would have to redo without a
-  shared context.
-- **DPR** = (baseline work - current work) / baseline work. Baseline = the same flow with
-  `CONTEXT_REUSE_ENABLED=false`, where every request repeats OCR + extraction over each document
-  the case holds at that moment.
+- **Context request**: a read of a case's stored context (entities, line items, timeline). Every
+  read goes through one function, `load_case_entities` (`apps/api/app/services/case_context.py`),
+  which runs the shared query and records one event. It issues no SQL of its own.
+- **Outcome**: `served` when the read returned at least one stored item; `empty` when the case held
+  nothing for it.
+- **Context hit rate** = served / all requests. This measures **non-emptiness, not reuse**:
+  modules never re-extract, so a read of a populated case is served by construction and the rate
+  is about 1. It is reported for transparency and **must not be gated**. No observable notion of
+  "reuse" (a read after an earlier consumer read the same context) is defined here, so the word
+  is not used.
+- **DPR** = (baseline work - current work) / baseline work, **modelled, not measured**:
+  `current = ingest work` (OCR + extraction passes actually done) and
+  `baseline = ingest work + requests x documents x 2` (a design in which every read re-runs OCR and
+  extraction over each document). Nothing is re-run: documents are not retained after ingestion,
+  so the document count is passed to the scorer as data (`app/evaluation/context_reuse.py`).
+  DPR therefore grows with reads per case and documents per case; it is a property of the counting
+  model, not evidence of measured time or cost saved. LLM calls are not counted.
 
-## Where requests are instrumented
+## Instrumented readers (the only reads in the headline)
 
-| Hook | Module label | Context |
+| Reader | `module` | `context` |
 |---|---|---|
-| `build_case_audit` (billing items) | `billnyay` | line_items |
-| `build_case_icd_audit` (diagnosis + procedures) | `billnyay` | entities |
-| `case_document_text` (appeal and grievance) | `billnyay` | entities |
-| `build_case_medicine_benchmarks` | `dawacheck` | entities |
-| `case_medical_need` (eligibility) | `schemesetu` | entities |
+| BillNyay CGHS audit (`build_case_audit`) | billnyay | line_items |
+| BillNyay ICD audit, appeal/grievance document text | billnyay | entities |
+| DawaCheck case benchmark | dawacheck | entities |
+| SchemeSetu case medical need | schemesetu | entities |
+| DaaviSetu claim form and claim summary text | daavisetu | entities |
+| Clinical review context, auto-trigger readiness snapshot, case details | kadi | entities |
+| Case timeline | kadi | timeline |
+| Claim pack billing check | kadi | line_items |
 
-Upload-time auto-triggers call the same service functions, so they are counted as requests too.
-Ingestion work is counted in `case_ingestion._run_pipeline` (`arogya_context_work_total{phase="ingest"}`).
+`tests/test_architecture.py` fails if `KadiEntity` is selected anywhere else, except
+`clinical/transcription_service.py` (a single-entity lookup on a write path). `module` and
+`context` are `Literal` types and a test checks every call site's values, so a typo is a red test.
+Ingestion work is counted in `case_ingestion._run_pipeline`.
 
-Metrics (`app/telemetry/context_metrics.py`, on the existing private registry): 
-`arogya_context_requests_total{module,outcome}` and `arogya_context_work_total{kind,phase}`.
-Labels come from closed sets, anything else collapses to `other`; no case id or text is ever a
-label (PHI-fuzz test in `tests/test_context_metrics.py`).
+Metrics (`app/telemetry/context_metrics.py`): `arogya_context_requests_total{module,context,outcome}`
+and `arogya_context_ingest_work_total{kind}`; closed label sets, PHI-fuzz test.
 
-## Result (synthetic scenarios A-E, reuse on versus `CONTEXT_REUSE_ENABLED=false`)
+## Result (synthetic scenarios A-E)
 
-| Scenario | Requests | Reused | CRR | Current work | Baseline work | DPR |
-|---|---|---|---|---|---|---|
-| A bill + discharge summary, audit, ICD audit, appeal | 7 | 7 | 1.00 | 4 | 28 | 0.857 |
-| B pre-authorisation request (upload-time checks) | 2 | 2 | 1.00 | 2 | 6 | 0.667 |
-| C prescription image, DawaCheck benchmark | 2 | 2 | 1.00 | 2 | 6 | 0.667 |
-| D denial letter, appeal | 1 | 1 | 1.00 | 2 | 4 | 0.500 |
-| E diabetes admission note (upload-time checks) | 2 | 2 | 1.00 | 2 | 6 | 0.667 |
-| **Pooled** | **14** | **14** | **1.00** | **12** | **50** | **0.76** |
+| Scenario | Reads | Served | Current work | Baseline work | DPR |
+|---|---|---|---|---|---|
+| A bill + discharge summary, audit, ICD audit, appeal | 9 | 9 | 4 | 40 | 0.900 |
+| B pre-authorisation request (upload-time checks) | 3 | 3 | 2 | 8 | 0.750 |
+| C prescription image, DawaCheck benchmark | 3 | 3 | 2 | 8 | 0.750 |
+| D denial letter, appeal | 2 | 2 | 2 | 6 | 0.667 |
+| E diabetes admission note (upload-time checks) | 3 | 3 | 2 | 8 | 0.750 |
+| **Pooled** | **20** | **20** | **12** | **70** | **0.829** |
 
-Dataset: `data/evaluation/context_reuse_synthetic.jsonl` (first line `_meta`, `synthetic: true`).
-`apps/api/tests/test_context_scenarios.py` re-runs the scenarios through the real upload pipeline
-and fails if the dataset differs from the observed counts (regenerate with
-`CONTEXT_REUSE_REGEN=1`). `evaluate_context_reuse` (`app/evaluation/context_reuse.py`) is pure and
-unit-tested with hand-computed expectations; a mutation check (changed DPR formula, CRR
-denominator, reused/fresh swap) was caught by those tests.
+Hit rate 1.00 (20/20). The dataset `data/evaluation/context_reuse_synthetic.jsonl` is produced by
+`python scripts/generate_context_reuse_dataset.py`; `tests/test_context_scenarios.py` only
+compares a fresh run with it. The scorer is unit-tested with hand-computed expectations and was
+mutation-checked (baseline without the document factor, inverted DPR, served/empty swap; also the
+reader without its record call and a raw `select(KadiEntity)` for the architecture test).
 
 ## Honest limits
 
-- **CRR of 1.00 is close to true by construction**: modules already read Kadi's stored entities and
-  never re-extract, so every request that finds stored context is a reuse. The figure shows the
-  instrumentation works and that no module bypasses the shared context in these flows. It would
-  fall below 1 only when a module asks for context the case does not hold (the unit test
-  `test_a_request_for_context_the_case_does_not_hold_is_fresh` shows that path).
-- **The baseline is modelled, not executed.** With reuse off nothing is re-run (zero document
-  retention: the document is gone after ingestion). The repeat work is the count of OCR and
-  extraction passes a re-extracting design would do, one per document per request. DPR therefore
-  grows with the number of requests per case and is a property of the counting model; a real
-  re-extraction would also repeat LLM calls, which are not counted here.
-- Scenario C's OCR and extraction are a recorded replay (demo mode); the pipeline stages are
-  counted as for any upload.
-- Not instrumented yet (outside the files this stream owned): DaaviSetu readiness and claim
-  routes (`apps/api/app/clinical/context.py`, `api/v1/endpoints/daavisetu/claims.py`), the case
-  timeline (`app/case_timeline.py`), claim pack, and Kadi's own reads. Scenarios B and E exercise
-  DaaviSetu readiness in their scripts, so their counts come only from the upload-time module checks.
-- Request counts depend on which module calls the flow makes (listed per row in the dataset).
+- Hit rate 1.00 is a consequence of the design, not a result about reuse.
+- DPR is the output of a counting model over synthetic flows; the baseline is not executed.
+- Scenario C's OCR and extraction are a recorded replay (demo mode); the stages are counted as
+  for any upload.
+- DaaviSetu readiness (scenarios B and E scripts) is not a separate read here: readiness uses the
+  clinical context reader, but only the upload-time auto-trigger reads are in these flows.
+- Call lists per scenario are in the dataset (`module_calls`); they decide the read counts.

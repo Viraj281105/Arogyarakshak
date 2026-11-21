@@ -7,6 +7,7 @@ new route module must be added to the matching contract, or it silently escapes 
 
 import configparser
 import pathlib
+import re
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 APP = REPO / "apps" / "api" / "app"
@@ -68,3 +69,27 @@ def test_route_modules_do_not_define_shared_use_cases_used_elsewhere():
         if "from app.api" in text or "import app.api" in text:
             offenders.append(str(path.relative_to(REPO)))
     assert not offenders, f"These modules import the HTTP layer: {offenders}"
+
+
+# Files that may select KadiEntity without going through the instrumented reader
+# (app.services.case_context.load_case_entities, #112), each with the reason.
+KADI_ENTITY_SELECT_ALLOWED = {
+    "services/case_context.py": "the reader itself",
+    "clinical/transcription_service.py": "looks up ONE entity by id to attach a human transcription (a write path), not a read of case context",
+}
+
+
+def test_case_context_is_read_only_through_the_instrumented_reader():
+    pattern = re.compile(r"select\(\s*KadiEntity\b")
+    offenders = []
+    for path in sorted(APP.rglob("*.py")):
+        rel = path.relative_to(APP).as_posix()
+        if rel.startswith("models/") or rel in KADI_ENTITY_SELECT_ALLOWED:
+            continue
+        if pattern.search(path.read_text(encoding="utf-8")):
+            offenders.append(rel)
+    assert not offenders, (
+        f"{offenders} select KadiEntity directly. Read case context with "
+        "app.services.case_context.load_case_entities so the read is counted (#112), "
+        "or add the file to KADI_ENTITY_SELECT_ALLOWED with a reason."
+    )
