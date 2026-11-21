@@ -19,6 +19,7 @@ from sqlalchemy.exc import OperationalError
 
 # Re-exported so pytest registers them in each chaos test module (autouse fixtures).
 from tests.conftest import (  # noqa: F401
+    TEST_DB_FILE,
     TestingSessionLocal,
     cleanup_test_database_session,
     network_guard,
@@ -50,7 +51,7 @@ TEXT_BILL = b"Hospital bill\nConsultation 500\nX-Ray 400\nTotal: 900\n"
 client = AuthAwareTestClient(app, raise_server_exceptions=False)
 
 __all__ = [
-    "K", "LEAK_MARKERS", "SECRET_CONNECTION", "SECRET_DOCUMENT", "TEXT_BILL", "TestingSessionLocal",
+    "TEST_DB_FILE", "K", "LEAK_MARKERS", "SECRET_CONNECTION", "SECRET_DOCUMENT", "TEXT_BILL", "TestingSessionLocal",
     "client", "main_module", "new_case", "upload", "stream_events", "jobs", "assert_no_leak",
     "database_unavailable", "db_down", "ready_schema", "cleanup_test_database_session",
     "network_guard", "no_groq_key", "reset_latency_tracker", "reset_llm_runtime",
@@ -63,8 +64,10 @@ class UnavailableSession:
     the error a lost Postgres connection produces, and the message carries credentials."""
 
     is_active = True
+    failures = 0  # how many statements failed: proves the injected fault really fired
 
     def _fail(self):
+        UnavailableSession.failures += 1
         raise OperationalError("SELECT 1", {}, ConnectionRefusedError(f"could not connect to {SECRET_CONNECTION}"))
 
     async def execute(self, *args, **kwargs):
@@ -101,11 +104,15 @@ def database_unavailable():
     try:
         yield
     finally:
-        app.dependency_overrides[get_db] = previous
+        if previous is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = previous
 
 
 @pytest.fixture
 def db_down():
+    UnavailableSession.failures = 0
     with database_unavailable():
         yield
 

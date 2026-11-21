@@ -5,6 +5,7 @@ transport must not be hammered once the circuit is open, the API key must never 
 response, and nothing here may touch the network (the transport is a stub).
 """
 
+import logging
 import random
 
 import pytest
@@ -70,9 +71,13 @@ def test_an_open_circuit_stops_calling_the_provider(groq_configured):
 
 
 def test_the_api_key_is_never_in_a_response_or_a_log(groq_configured, caplog):
-    install(Transport(LlmServerError(f"upstream rejected key {API_KEY}", 401)))
+    caplog.set_level(logging.DEBUG)
+    transport = Transport(LlmServerError(f"upstream rejected key {API_KEY}", 401))
+    install(transport)
     case_id = new_case()
     res = upload(case_id)
+    assert transport.calls >= 1, "the failing provider path was really exercised"
+    assert caplog.records, "debug logging was captured"
     assert API_KEY not in res.text
     assert API_KEY not in str(stream_events(case_id))
     # Logs name the exception type only (kadi.extraction): the provider message is not logged.
