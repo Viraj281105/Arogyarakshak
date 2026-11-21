@@ -77,7 +77,7 @@ def test_rego_files_are_structurally_sound(name, package):
     assert f"\npackage {package}\n" in text
     assert "import rego.v1" in text
     # Balanced delimiters outside comments and strings (a cheap parse; opa itself is not run here).
-    code = re.sub(r'"(?:\\.|[^"\\])*"', '""', "\n".join(l.split("#", 1)[0] for l in text.splitlines()))
+    code = re.sub(r'"(?:\\.|[^"\\])*"', '""', "\n".join(ln.split("#", 1)[0] for ln in text.splitlines()))
     for open_, close in ("{}", "[]", "()"):
         assert code.count(open_) == code.count(close), f"unbalanced {open_}{close} in {name}"
     assert "deny contains msg if {" in text
