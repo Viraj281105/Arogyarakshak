@@ -1,0 +1,21 @@
+"""Clause retrieval for Kadi: deterministic BM25 over per-case in-memory chunks.
+
+Retrieval surfaces cited, verbatim quotes and returns an empty list when nothing scores
+above the floor. It never decides eligibility, a verdict or a citation's correctness.
+"""
+
+from kadi.retrieval.bm25 import DEFAULT_MIN_SCORE, Bm25Index, Hit
+from kadi.retrieval.case_index import CaseRetrievalIndex
+from kadi.retrieval.chunking import Chunk, chunk_document
+from kadi.retrieval.tokens import fold, tokenize
+
+__all__ = [
+    "Bm25Index",
+    "CaseRetrievalIndex",
+    "Chunk",
+    "DEFAULT_MIN_SCORE",
+    "Hit",
+    "chunk_document",
+    "fold",
+    "tokenize",
+]
