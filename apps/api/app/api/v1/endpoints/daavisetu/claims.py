@@ -16,6 +16,7 @@ from app.config import settings
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import DaaviSetuClaim, KadiCase, KadiEntity
+from app.services.case_context import load_case_entities
 from app.services.daavisetu_claims import _claim_data_from_record
 from daavisetu.readiness import render_readiness_text
 # Import daavisetu packages
@@ -74,10 +75,7 @@ async def generate_pre_auth_form(
     case = require_case_consent(case)
 
     # 2. Gather entities extracted from this case's uploaded documents.
-    entities_result = await db.execute(
-        select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id)
-    )
-    entities = entities_result.scalars().all()
+    entities = await load_case_entities(db, case_id, module="daavisetu", context="entities")
     
     # Resolve each field: caller-supplied value, else an entity actually extracted from
     # the uploaded document. There is no third tier — a pre-authorization form is filed
@@ -217,12 +215,10 @@ async def download_claim_package(
     claim_input = _claim_data_from_record(claim_record)
     pdf_bytes = generate_preauth_pdf(claim_id=claim_record.id, claim_input=claim_input)
 
-    text_entity_result = await db.execute(
-        select(KadiEntity)
-        .join(KadiCase.entities)
-        .where(KadiCase.id == case_id, KadiEntity.type == "document_text")
+    text_entities = await load_case_entities(
+        db, case_id, ["document_text"], module="daavisetu", context="entities"
     )
-    text_entity = text_entity_result.scalars().first()
+    text_entity = text_entities[0] if text_entities else None
     case_summary_text = text_entity.value if text_entity else None
 
     # ADR-011: the generic readiness checklist, reflecting only clinical facts a named

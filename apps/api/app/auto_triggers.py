@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.background import get_background_session
 from app.models import KadiCase, KadiEntity, KadiModuleInsight, SchemeSetuCaseProfile
 from app.services.billnyay_audit import build_case_audit, build_case_icd_audit
+from app.services.case_context import load_case_entities
 from app.services.dawacheck_benchmarks import build_case_medicine_benchmarks
 from app.services.schemesetu_eligibility import build_case_eligibility
 from kadi.triggers import (
@@ -48,13 +49,11 @@ CATEGORY_NOT_PROVIDED = "not provided"
 
 
 async def context_snapshot(session: AsyncSession, case: KadiCase) -> ContextSnapshot:
-    rows = await session.execute(
-        select(KadiEntity.type).join(KadiCase.entities).where(KadiCase.id == case.id)
-    )
+    entities = await load_case_entities(session, case.id, module="kadi", context="entities")
     profile = await session.get(SchemeSetuCaseProfile, case.id)
     return ContextSnapshot(
         consent_opt_in=bool(case.consent_opt_in),
-        entity_counts=count_entity_types(t for (t,) in rows.all()),
+        entity_counts=count_entity_types(e.type for e in entities),
         has_income_profile=profile is not None,
     )
 
