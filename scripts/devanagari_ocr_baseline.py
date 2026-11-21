@@ -231,6 +231,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(
+        "NOTE: confidence is the engine's own score, NOT accuracy; there is no reference "
+        "transcription, so no WER/CER or correctness is reported."
+    )
     for run in report["runs"]:
         pages = run["pages"]
         total = sum(p["latency_s"] for p in pages)

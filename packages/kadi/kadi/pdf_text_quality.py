@@ -4,8 +4,8 @@ Kadi: quality gate for a PDF page's embedded text layer.
 Many Indian government PDFs store Devanagari through legacy fonts (Kruti/Chanakya-style
 Latin look-alike codes) or through a glyph map that does not match Unicode. PyMuPDF then returns
 text that *looks* like text but is unreadable (``jftLVªh``, ``विस्तावरत`` for ``विस्तारित``). Feeding
-that to extraction produces confident nonsense, so a page whose layer fails this gate must be
-rasterised and OCR'd instead of trusted.
+that to extraction produces confident nonsense, so a page whose layer fails this gate must not be
+trusted: it is OCR'd (or skipped and reported), never used as extracted.
 
 ``assess_text_layer`` is a pure, deterministic heuristic over one page's text. It returns ratios
 and a verdict only: the result never carries any of the document text, so it is safe to log.
@@ -13,11 +13,13 @@ and a verdict only: the result never carries any of the document text, so it is 
 Verdicts:
     ``clean``           Devanagari text that passes every check; the text layer can be used.
     ``corrupted``       The layer shows a legacy-font signature, malformed Devanagari, glyph
-                        substitution, or almost no recognisable words; OCR it.
+                        substitution, or (on long prose pages) almost no recognisable words.
     ``not_devanagari``  Latin-script or empty/near-empty text; nothing for this gate to reject.
 
-Limits (measured, not hidden): this is a heuristic. It can miss corruption that happens to produce
-valid-looking Devanagari, and its word list is small. See docs/evaluation/devanagari-ocr.md.
+Known limits (see docs/evaluation/devanagari-ocr.md): short corrupted cover pages, a page that
+mixes clean and corrupted regions, corruption that yields valid-looking words, and Latin legacy
+encodings on pages dominated by English-looking codes are not reliably caught. The thresholds
+were tuned on six real public PDFs and hand-written unit cases only.
 """
 
 from __future__ import annotations
@@ -33,14 +35,24 @@ Verdict = Literal["clean", "corrupted", "not_devanagari"]
 MIN_DEVANAGARI_TOKENS = 5
 # Below this share of letters, a page is Latin/other content, not a Devanagari page.
 MIN_DEVANAGARI_RATIO = 0.05
-# The known-word check needs enough tokens to be meaningful.
-MIN_TOKENS_FOR_WORD_CHECK = 40
-MIN_KNOWN_WORD_RATIO = 0.12
+# Known-word check: only on long prose pages (short pages and tables have too few function
+# words to judge), and only for prose-like line structure.
+MIN_TOKENS_FOR_WORD_CHECK = 100
+MIN_KNOWN_WORD_RATIO = 0.10
+MIN_PROSE_LINE_RATIO = 0.5
+PROSE_LINE_MIN_TOKENS = 6
 MAX_MALFORMED_TOKEN_RATIO = 0.03
 MAX_MIXED_TOKEN_RATIO = 0.05
 MAX_STRAY_SCRIPT_RATIO = 0.02
 MAX_GARBLED_LATIN_RATIO = 0.05
 MIN_GARBLED_LATIN_TOKENS = 3
+# A Latin legacy encoding with no Devanagari: most Latin tokens are vowel-less codes.
+MIN_LATIN_TOKENS_FOR_CODE_CHECK = 8
+MIN_CODE_TOKEN_RATIO = 0.5
+CODE_TOKEN_MAX_VOWEL_SHARE = 0.2
+# A page whose Latin tokens are mostly common English words is English, whatever its codes.
+MIN_LATIN_TOKENS_FOR_ENGLISH = 8
+MIN_ENGLISH_WORD_RATIO = 0.25
 
 # High-frequency Hindi and Marathi function words and a few domain terms. Small on purpose:
 # the ratio only has to separate prose from glyph soup. UNREVIEWED: NEEDS NATIVE-SPEAKER QA.
@@ -58,9 +70,44 @@ KNOWN_WORDS = frozenset(
     प्रमाणे वरील खालील सर्व एक दोन तीन
     """.split()
 )
+# Common Marathi/Hindi case endings; a token is "known" if it is a known word plus one of these.
+_SUFFIXES = tuple(
+    sorted(
+        """चा ची चे च्या ने ला ना त तील मध्ये ात ाचा ाची ाचे ाच्या ाने ाला ास ांना ांच्या ांचे ांनी
+        ाकडे कडून ेत ेचा ेची ेचे ेच्या ेने ेला ामुळे ें ों""".split(),
+        key=len,
+        reverse=True,
+    )
+)
+
+# Small common-English list (billing, prescription and general words) used only to recognise an
+# English page, never to judge Devanagari.
+COMMON_ENGLISH = frozenset(
+    """
+    the and of to in for is on at by with from as or an be are was were this that it not no nil
+    total amount patient room bed day days charges charge bill bills invoice cash card pay paid
+    payable discount waiver date name age sex male female doctor dr tab tablet tablets cap capsule
+    mg ml daily once twice after before food take syrup rent nursing admitted discharged hospital
+    insurance insurer policy claim form please attach original schedule per all any not has have
+    had will shall may must can your you we our us their they he she his her uses use app email id
+    road street city state pin phone mobile number no address receipt tax gst service services
+    fee fees test tests report reports medicine medicines drug drugs dose dosage advice follow
+    review visit ward icu ot surgery procedure consultation visits room rent diet notes note
+    signature stamp authorised authorized signed official copy page of balance due advance
+    deposit refund net gross subtotal sub items item qty rate price unit units one two three four
+    five six seven eight nine ten if then than when which who whom what where how why also only
+    other such these those there here into over under between within without
+    """.split()
+)
 
 _DEV_START, _DEV_END = 0x0900, 0x097F
 _PUNCT_TO_STRIP = "।॥,.;:()[]{}\"'‘’“”-–—_?!/\\|*<>=+"
+
+# Scripts that legacy-font corruption actually lands in (the glyph map falls into unrelated
+# blocks: Balinese, Sundanese, Batak, Lepcha, Ol Chiki, Cyrillic Extended-C, Georgian Extended,
+# Vedic Extensions, Devanagari Extended). Legitimate Indic scripts (Tamil, Gujarati, Bengali,
+# Telugu, Kannada, Malayalam, Gurmukhi, ...) and Greek (mu in ug/mL) are NOT in this set.
+_STRAY_RANGES = ((0x1B00, 0x1CFF), (0xA8E0, 0xA8FF))
 
 # Dependent vowel signs (matras) U+093E..U+094C; U+0901..0903 are candrabindu/anusvara/visarga.
 _MATRA = "ा-ौ"
@@ -75,12 +122,15 @@ _MIXED_TOKEN = re.compile(
     r"[ऀ-ॿ][A-Za-z]|[A-Za-z][ऀ-ॿ]"
     r"|[ऀ-ॿ][0-9$'\"&;<>=@^*+|~`?#%][ऀ-ॿ]"
 )
-# Latin tokens that are legacy-font glyph codes: internal capitals, Latin-1 accented glyphs
-# inside the word, or ``/ ] [ ` ;`` between letters (``vlk/kj.k``, ``jftLVªh``, ``c`gLifrokj``).
-_GARBLED_LATIN = re.compile(
-    r"[a-z][A-Z]|[A-Za-z][¡-¿À-ÿ]|[a-z][/\]\[`;][a-z]"
-)
-_LATIN_TOKEN = re.compile(r"[A-Za-z][A-Za-z¡-ÿ/\]\[`;'.&-]{3,}")
+
+# Latin legacy-font glyph codes. Strong signature: Latin-1 glyphs that legacy Devanagari fonts
+# use but English never does, directly between letters (``jftLVªh``). Accented Latin letters
+# (é ï ç), the degree/micro/plus-minus signs and Greek letters are legitimate and not listed.
+_LEGACY_GLYPHS = "ªº¥ÐÝÞþðýöõ¨¯¿¡¢¤¦"
+_GLYPH_TOKEN = re.compile(rf"[A-Za-z][{_LEGACY_GLYPHS}]|[{_LEGACY_GLYPHS}][A-Za-z]")
+_LATIN_TOKEN = re.compile(r"[A-Za-z][A-Za-z¡-ÿ/\]\[`;'.&-]{2,}")
+_VOWELS = frozenset("aeiouAEIOU")
+_LIGATURES = {"ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl"}
 
 
 @dataclass(frozen=True)
@@ -105,14 +155,9 @@ def _is_dev_letter(ch: str) -> bool:
     return _is_devanagari(ch) and ch not in "।॥" and not ("०" <= ch <= "९")
 
 
-def _is_stray_script_letter(ch: str) -> bool:
-    """A letter that is neither Devanagari nor Latin: the output of a font whose glyph map
-    lands in unrelated Unicode blocks (Sundanese, Ol Chiki, Vedic extensions, ...)."""
-    return (
-        ord(ch) > 0x24F
-        and not _is_devanagari(ch)
-        and (ch.isalpha() or unicodedata.category(ch).startswith("M"))
-    )
+def _is_stray_script(ch: str) -> bool:
+    code = ord(ch)
+    return any(lo <= code <= hi for lo, hi in _STRAY_RANGES)
 
 
 def _tokens_of_devanagari(text: str) -> list[str]:
@@ -127,30 +172,87 @@ def _tokens_of_devanagari(text: str) -> list[str]:
     return tokens
 
 
+def _is_known(token: str) -> bool:
+    if token in KNOWN_WORDS:
+        return True
+    for suffix in _SUFFIXES:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 2 and token[: -len(suffix)] in KNOWN_WORDS:
+            return True
+    return False
+
+
+def _vowel_share(token: str) -> float:
+    letters = [c for c in token if c.isalpha()]
+    if not letters:
+        return 1.0
+    return sum(1 for c in letters if c in _VOWELS) / len(letters)
+
+
+def _garbled_shape(token: str) -> bool:
+    """A Latin token shaped like a legacy-font code rather than English."""
+    # ``vlk/kj.k``: a slash joins segments and one of them has no vowel (and/or, bed/day pass).
+    if "/" in token:
+        parts = [p for p in re.split(r"[/.]", token) if len(p) >= 2 and p.isalpha()]
+        if any(_vowel_share(p) == 0 for p in parts):
+            return True
+    # ``c`gLifrokj``: a backtick between letters.
+    if re.search(r"[A-Za-z]`[A-Za-z]", token):
+        return True
+    # ``fnYyh]`` : a closing bracket glued to letters with no opening bracket in the token.
+    if re.search(r"[A-Za-z]\]", token) and "[" not in token:
+        return True
+    # ``jftLVh``: a vowel-less lowercase run of 2+ letters followed by a capital.
+    match = re.match(r"^([a-z]{2,})[A-Z]", token)
+    if match and _vowel_share(match.group(1)) == 0:
+        return True
+    return False
+
+
 def assess_text_layer(text: str) -> TextLayerAssessment:
     """Classify one page's extracted text as ``clean``, ``corrupted`` or ``not_devanagari``."""
     text = text or ""
+    for lig, plain in _LIGATURES.items():
+        text = text.replace(lig, plain)
+    text = unicodedata.normalize("NFC", text)
+
     dev = latin = stray = 0
     for ch in text:
         if _is_dev_letter(ch):
             dev += 1
-        elif ch.isascii():
-            if ch.isalpha():
-                latin += 1
-        elif _is_stray_script_letter(ch):
+        elif _is_stray_script(ch) and (ch.isalpha() or unicodedata.category(ch).startswith("M")):
             stray += 1
-        elif ch.isalpha():  # Latin-1 / Latin Extended letters
+        elif ch.isalpha():
             latin += 1
     letters = dev + latin + stray
     devanagari_ratio = round(dev / letters, 4) if letters else 0.0
 
     latin_tokens = _LATIN_TOKEN.findall(text)
-    garbled = sum(1 for t in latin_tokens if _GARBLED_LATIN.search(t))
+    n_latin = len(latin_tokens)
+    words = [t.strip(_PUNCT_TO_STRIP + "`").lower() for t in latin_tokens]
+    english = sum(1 for w in words if w in COMMON_ENGLISH)
+    english_page = n_latin >= MIN_LATIN_TOKENS_FOR_ENGLISH and english / n_latin >= MIN_ENGLISH_WORD_RATIO
+
+    glyph_tokens = sum(1 for t in latin_tokens if _GLYPH_TOKEN.search(t))
+    shape_tokens = sum(1 for t in latin_tokens if _garbled_shape(t))
+    code_tokens = sum(1 for t in latin_tokens if len(t) >= 4 and _vowel_share(t) < CODE_TOKEN_MAX_VOWEL_SHARE)
     legacy = bool(
         (stray >= 3 and stray / letters >= MAX_STRAY_SCRIPT_RATIO)
         or (
-            garbled >= MIN_GARBLED_LATIN_TOKENS
-            and garbled / max(1, len(latin_tokens)) >= MAX_GARBLED_LATIN_RATIO
+            glyph_tokens >= MIN_GARBLED_LATIN_TOKENS
+            and glyph_tokens / max(1, n_latin) >= MAX_GARBLED_LATIN_RATIO
+        )
+        or (
+            not english_page
+            and (
+                (
+                    shape_tokens >= MIN_GARBLED_LATIN_TOKENS
+                    and shape_tokens / max(1, n_latin) >= MAX_GARBLED_LATIN_RATIO
+                )
+                or (
+                    n_latin >= MIN_LATIN_TOKENS_FOR_CODE_CHECK
+                    and code_tokens / n_latin >= MIN_CODE_TOKEN_RATIO
+                )
+            )
         )
     )
 
@@ -160,10 +262,14 @@ def assess_text_layer(text: str) -> TextLayerAssessment:
         1 for t in dev_tokens if _MALFORMED_START.search(t) or _MALFORMED_INSIDE.search(t)
     )
     mixed = sum(1 for t in text.split() if _MIXED_TOKEN.search(t.strip(_PUNCT_TO_STRIP)))
-    known = sum(1 for t in dev_tokens if t in KNOWN_WORDS)
+    known = sum(1 for t in dev_tokens if _is_known(t))
     known_ratio = round(known / n_tokens, 4) if n_tokens else 0.0
     malformed_ratio = round(malformed / n_tokens, 4) if n_tokens else 0.0
     mixed_ratio = round(mixed / n_tokens, 4) if n_tokens else 0.0
+
+    dev_lines = [ln for ln in text.splitlines() if _tokens_of_devanagari(ln)]
+    prose_lines = sum(1 for ln in dev_lines if len(_tokens_of_devanagari(ln)) >= PROSE_LINE_MIN_TOKENS)
+    prose_like = bool(dev_lines) and prose_lines / len(dev_lines) >= MIN_PROSE_LINE_RATIO
 
     def build(verdict: Verdict) -> TextLayerAssessment:
         return TextLayerAssessment(
@@ -183,7 +289,11 @@ def assess_text_layer(text: str) -> TextLayerAssessment:
     if (
         (malformed >= 2 and malformed_ratio >= MAX_MALFORMED_TOKEN_RATIO)
         or (mixed >= 2 and mixed_ratio >= MAX_MIXED_TOKEN_RATIO)
-        or (n_tokens >= MIN_TOKENS_FOR_WORD_CHECK and known_ratio < MIN_KNOWN_WORD_RATIO)
+        or (
+            n_tokens >= MIN_TOKENS_FOR_WORD_CHECK
+            and known_ratio < MIN_KNOWN_WORD_RATIO
+            and prose_like
+        )
     ):
         return build("corrupted")
     return build("clean")

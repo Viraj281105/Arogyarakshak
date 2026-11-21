@@ -103,6 +103,30 @@ def test_main_refuses_an_output_path_inside_the_repository(baseline, tmp_path, c
     assert "refusing" in capsys.readouterr().err
 
 
+def test_main_refuses_dotdot_and_symlink_paths_that_resolve_into_the_repo(baseline, tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    _pdf(docs / "a.pdf", pages=1)
+    sneaky = baseline.REPO_ROOT / "scripts" / ".." / "dotdot_should_not_exist.json"
+    assert baseline.main(["--docs", str(docs), "--out", str(sneaky)]) == 2
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(baseline.REPO_ROOT, target_is_directory=True)
+    except OSError:
+        # Windows without symlink privilege: a directory junction resolves the same way.
+        import subprocess
+        import sys
+
+        if sys.platform != "win32" or subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(baseline.REPO_ROOT)],
+            capture_output=True,
+        ).returncode != 0:
+            pytest.skip("cannot create a symlink or junction on this machine")
+    assert baseline.main(["--docs", str(docs), "--out", str(link / "via_link.json")]) == 2
+    assert not (baseline.REPO_ROOT / "via_link.json").exists()
+    assert not (baseline.REPO_ROOT / "dotdot_should_not_exist.json").exists()
+
+
 def test_main_fails_cleanly_when_no_pdfs_are_found(baseline, tmp_path):
     assert baseline.main(["--docs", str(tmp_path), "--out", str(tmp_path / "o.json")]) == 2
 
@@ -114,10 +138,11 @@ def test_default_docs_dir_resolves_from_a_linked_worktree(baseline):
 
 def test_real_easyocr_reads_a_rendered_english_line_when_weights_are_cached(baseline):
     """Model-dependent: skipped cleanly when the EasyOCR weights are not cached locally."""
+    pytest.importorskip("easyocr")
     try:
         reader = baseline.default_reader_factory(("en",))
-    except Exception as exc:  # missing weights (download is disabled) or no easyocr
-        pytest.skip(f"EasyOCR weights unavailable: {type(exc).__name__}")
+    except FileNotFoundError as exc:  # weights not cached (downloads are disabled)
+        pytest.skip(f"EasyOCR weights not cached: {exc}")
     doc = fitz.open()
     page = doc.new_page()
     page.insert_text((40, 80), "ROOM RENT 1500", fontsize=28)
