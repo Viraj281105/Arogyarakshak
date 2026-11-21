@@ -1,0 +1,29 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-docker-sock
+  annotations:
+    policies.kyverno.io/title: "No Docker socket"
+    policies.kyverno.io/category: ArogyaRakshak Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      A pod must not mount the Docker socket through a hostPath volume; it is root on the node.
+      Mirrors the rule "disallow-docker-sock" in policy_checks.py and rego/workload.rego.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: no-docker-socket-hostpath
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [arogyarakshak]
+      validate:
+        message: "Mounting the Docker socket is not allowed."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.volumes[?hostPath.path=='/var/run/docker.sock' || hostPath.path=='/run/docker.sock'] | length(@) }}"
+                operator: GreaterThan
+                value: 0

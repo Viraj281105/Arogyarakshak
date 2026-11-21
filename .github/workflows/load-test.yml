@@ -1,0 +1,52 @@
+name: Load Test (manual)
+
+# Manual only. Never runs on push, pull request or schedule: it generates traffic, so it
+# must be pointed at a throw-away stack on purpose (docs/operations/load-and-chaos.md).
+# The thresholds in tests/load/*.js are PROPOSED, NOT MEASURED targets taken from the SLO
+# table in docs/operations/observability.md. This workflow has not been run yet.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL of a disposable API (e.g. https://staging.example.test). The API rate limiter must be raised for the run."
+        required: true
+        type: string
+      script:
+        description: "Script under tests/load to run"
+        required: true
+        type: choice
+        default: health.js
+        options:
+          - health.js
+          - case_create.js
+          - upload.js
+          - sse_stream.js
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load-test
+  cancel-in-progress: false
+
+jobs:
+  k6:
+    name: "k6 (${{ inputs.script }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Run k6
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          SCRIPT: ${{ inputs.script }}
+        run: k6 run --summary-export=k6-summary.json "tests/load/${SCRIPT}"
+      - name: Upload k6 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary-${{ inputs.script }}
+          path: k6-summary.json
+          if-no-files-found: ignore

@@ -1,0 +1,30 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: "Require resource limits"
+    policies.kyverno.io/category: ArogyaRakshak Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Every container must declare cpu and memory limits.
+      Mirrors the rule "require-resource-limits" in policy_checks.py and rego/workload.rego.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: container-limits
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [arogyarakshak]
+      validate:
+        message: "resources.limits.cpu and resources.limits.memory are required."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"

@@ -1,0 +1,39 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: "Pin image tags"
+    policies.kyverno.io/category: ArogyaRakshak Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Images must carry an explicit tag (or digest) and never :latest.
+      Mirrors the rule "disallow-latest-tag" in policy_checks.py and rego/workload.rego.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [arogyarakshak]
+      validate:
+        message: "An image tag or digest is required."
+        pattern:
+          spec:
+            containers:
+              - image: "*:* | *@sha256:*"
+    - name: disallow-latest
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [arogyarakshak]
+      validate:
+        message: "The latest tag is not allowed."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
