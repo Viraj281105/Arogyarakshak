@@ -57,8 +57,9 @@ _INJECTION_MARKER_PATTERNS = _ALL_MARKER_PATTERNS
 
 def _detect_injection_markers(text: str) -> List[str]:
     """Best-effort scan for common prompt-injection phrasing in untrusted document text.
-    Returns the matched phrases verbatim (truncated) for disclosure — never used to
-    silently alter extraction behaviour, only to flag the result as warranting review."""
+    Returns the NAMES of the patterns that matched (never document text) for disclosure —
+    never used to silently alter extraction behaviour, only to flag the result as
+    warranting review."""
     return detect_injection_markers(text)
 
 
@@ -120,7 +121,8 @@ def extract_entities_from_text(text: str, api_key: Optional[str] = None, model: 
     # (including the patient themselves, adversarially) fully controls the content of.
     # It must never be able to redirect the model away from the extraction task.
     # #94: invisible / reordering characters are removed before the text reaches the model
-    # (ZWJ/ZWNJ inside Devanagari words are kept). Only a count is logged, never the text.
+    # (ZWJ/ZWNJ inside Devanagari words are kept). Only counts and pattern names are logged,
+    # never document text.
     truncated_text = sanitise_for_prompt(text[:6000])
     hidden = hidden_character_count(text[:6000])
     if hidden:
@@ -128,7 +130,8 @@ def extract_entities_from_text(text: str, api_key: Optional[str] = None, model: 
     injection_markers = _detect_injection_markers(truncated_text)
     if injection_markers:
         logger.warning(
-            "Possible prompt-injection phrasing detected in document text: %s", injection_markers
+            "Possible prompt-injection phrasing detected in document text (%d pattern(s): %s).",
+            len(injection_markers), ", ".join(injection_markers),
         )
 
     sys_instr = _EXTRACTION_SYSTEM_PROMPT
@@ -177,7 +180,7 @@ def _apply_extraction_integrity_checks(
     if injection_markers:
         warnings.append(
             "Source document text contained phrasing resembling a prompt-injection "
-            f"attempt: {injection_markers}. Extracted values below were not overridden "
+            f"attempt (pattern kinds: {', '.join(injection_markers)}). Extracted values below were not overridden "
             "by it (the model was instructed to treat all document text as data), but "
             "this document's extraction warrants manual review."
         )

@@ -111,6 +111,129 @@
    "reversal_probability_score": 0.85
   }
  },
+ "lowercase_category": {
+  "input": {
+   "claimed_amount": 100000.0,
+   "denial_category": "ped_non_disclosure",
+   "denial_reason_raw": "Hypertension not disclosed at proposal stage",
+   "denied_or_deducted_amount": 60000.0,
+   "diagnosis": "Hypertensive crisis",
+   "insurer_name": "Synthetic Insurer Ltd",
+   "policy_age_years": 6.0,
+   "policy_number": "SYN-0001"
+  },
+  "result": {
+   "clinical_review": {
+    "note": "Identifies whether the denial reason turns on clinical judgment. It does not predict the insurer's decision, and ArogyaRakshak does not write the clinical opinion itself — a named clinician must.",
+    "reasons": [
+     "The insurer alleges a pre-existing disease — whether the condition existed before the policy, and when it was diagnosable, is a clinical question."
+    ],
+    "requires_clinical_interpretation": true,
+    "suggested_clinical_question": "Based on the records you review, what is your professional opinion on the insurer's stated reason for denying the claim for Hypertensive crisis? Please state what the records do and do not show, and the limits of your review."
+   },
+   "is_wrongful_denial": true,
+   "level_1_gro_appeal": "TO:\nThe Grievance Redressal Officer (GRO)\nSynthetic Insurer Ltd\n\nSUBJECT: Formal Appeal Against Wrongful Repudiation of Claim No. [CLAIM_NO] Under Policy No. SYN-0001\n\nDear Sir / Madam,\n\nI am writing to register an urgent grievance against the arbitrary and wrongful repudiation / disallowance of my health insurance claim amounting to INR 60,000.00 out of total claimed expenses of INR 100,000.00 for treatment of Hypertensive crisis.\n\nREASON CITED BY INSURER:\n\"Hypertension not disclosed at proposal stage\"\n\nGROUNDS OF APPEAL:\nPolicy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.\n\nSTATUTORY IRDAI PROVISIONS VIOLATED:\n- Clause 16 — Moratorium Period (IRDAI Master Circular on Health Insurance Business (May 29, 2024)): Insurer contested claim based on pre-existing condition after 5 continuous renewal years.\n- Claims Review Committee (CRC) Requirement (IRDAI Master Circular (May 29, 2024)): No claim can be repudiated without prior approval of the 3-member Claims Review Committee.\n\nUnder the IRDAI Master Circular on Health Insurance Business (May 29, 2024), health insurance claims cannot be repudiated without documented prior approval of the Claims Review Committee (CRC). Furthermore, insurers failing to settle claims within statutory timelines are liable to pay penal interest at Bank Rate + 2%.\n\nI request you to re-examine my claim dossier and release the admissible settlement amount of INR 60,000.00 within the statutory 15-day resolution window. Failing this, I will escalate this matter to the IRDAI Bima Bharosa portal and the Insurance Ombudsman.\n\nYours faithfully,\n[POLICYHOLDER NAME]\nPolicy No: SYN-0001\n",
+   "level_2_bimabharosa_text": "Grievance against Synthetic Insurer Ltd for wrongful claim repudiation. Policy No: SYN-0001. Disallowed Amount: INR 60,000.00. Insurer Rejection Reason: 'Hypertension not disclosed at proposal stage'. Grounds: Policy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law. Insurer failed to resolve dispute within 15-day statutory window under IRDAI Master Circular 2024. Requesting IRDAI regulatory intervention to direct settlement with statutory penal interest.",
+   "level_3_ombudsman_grounds": "STATEMENT OF FACTS FOR COMPLAINT TO INSURANCE OMBUDSMAN\n(Under Rule 14(1)(b) of Insurance Ombudsman Rules, 2017)\n\n1. Complainant Name & Details: [POLICYHOLDER NAME]\n2. Insurer Name: Synthetic Insurer Ltd\n3. Policy Number: SYN-0001\n4. Policy Inception Date: Active continuously for 6.0 years\n5. Total Claim Amount: INR 100,000.00\n6. Disallowed / Repudiated Amount: INR 60,000.00\n7. Nature of Disease / Treatment: Hypertensive crisis\n8. Grounds for Relief:\nPolicy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.\n9. Relief Sought:\nDirection to Synthetic Insurer Ltd to pay INR 60,000.00 along with 2% above bank rate penal interest for delayed settlement as mandated by IRDAI regulations.\n",
+   "primary_dispute_grounds": "Policy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.",
+   "probability_basis": "HEURISTIC_PRIOR_NOT_HISTORICAL",
+   "regulatory_violations": [
+    {
+     "clause_reference": "Clause 16 — Moratorium Period",
+     "legal_remedy": "Invoke 5-year moratorium statutory bar and demand immediate claim settlement with 2% penal interest.",
+     "statute_or_circular": "IRDAI Master Circular on Health Insurance Business (May 29, 2024)",
+     "violation_summary": "Insurer contested claim based on pre-existing condition after 5 continuous renewal years."
+    },
+    {
+     "clause_reference": "Claims Review Committee (CRC) Requirement",
+     "legal_remedy": "Request proof of Claims Review Committee signed minutes authorizing the repudiation.",
+     "statute_or_circular": "IRDAI Master Circular (May 29, 2024)",
+     "violation_summary": "No claim can be repudiated without prior approval of the 3-member Claims Review Committee."
+    }
+   ],
+   "reversal_probability_score": 0.95
+  }
+ },
+ "ped_exactly_5y": {
+  "input": {
+   "claimed_amount": 100000.0,
+   "denial_category": "PED_NON_DISCLOSURE",
+   "denial_reason_raw": "Hypertension not disclosed at proposal stage",
+   "denied_or_deducted_amount": 60000.0,
+   "diagnosis": "Hypertensive crisis",
+   "insurer_name": "Synthetic Insurer Ltd",
+   "policy_age_years": 5.0,
+   "policy_number": "SYN-0001"
+  },
+  "result": {
+   "clinical_review": {
+    "note": "Identifies whether the denial reason turns on clinical judgment. It does not predict the insurer's decision, and ArogyaRakshak does not write the clinical opinion itself — a named clinician must.",
+    "reasons": [
+     "The insurer alleges a pre-existing disease — whether the condition existed before the policy, and when it was diagnosable, is a clinical question."
+    ],
+    "requires_clinical_interpretation": true,
+    "suggested_clinical_question": "Based on the records you review, what is your professional opinion on the insurer's stated reason for denying the claim for Hypertensive crisis? Please state what the records do and do not show, and the limits of your review."
+   },
+   "is_wrongful_denial": true,
+   "level_1_gro_appeal": "TO:\nThe Grievance Redressal Officer (GRO)\nSynthetic Insurer Ltd\n\nSUBJECT: Formal Appeal Against Wrongful Repudiation of Claim No. [CLAIM_NO] Under Policy No. SYN-0001\n\nDear Sir / Madam,\n\nI am writing to register an urgent grievance against the arbitrary and wrongful repudiation / disallowance of my health insurance claim amounting to INR 60,000.00 out of total claimed expenses of INR 100,000.00 for treatment of Hypertensive crisis.\n\nREASON CITED BY INSURER:\n\"Hypertension not disclosed at proposal stage\"\n\nGROUNDS OF APPEAL:\nPolicy has been continuously active for 5.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.\n\nSTATUTORY IRDAI PROVISIONS VIOLATED:\n- Clause 16 — Moratorium Period (IRDAI Master Circular on Health Insurance Business (May 29, 2024)): Insurer contested claim based on pre-existing condition after 5 continuous renewal years.\n- Claims Review Committee (CRC) Requirement (IRDAI Master Circular (May 29, 2024)): No claim can be repudiated without prior approval of the 3-member Claims Review Committee.\n\nUnder the IRDAI Master Circular on Health Insurance Business (May 29, 2024), health insurance claims cannot be repudiated without documented prior approval of the Claims Review Committee (CRC). Furthermore, insurers failing to settle claims within statutory timelines are liable to pay penal interest at Bank Rate + 2%.\n\nI request you to re-examine my claim dossier and release the admissible settlement amount of INR 60,000.00 within the statutory 15-day resolution window. Failing this, I will escalate this matter to the IRDAI Bima Bharosa portal and the Insurance Ombudsman.\n\nYours faithfully,\n[POLICYHOLDER NAME]\nPolicy No: SYN-0001\n",
+   "level_2_bimabharosa_text": "Grievance against Synthetic Insurer Ltd for wrongful claim repudiation. Policy No: SYN-0001. Disallowed Amount: INR 60,000.00. Insurer Rejection Reason: 'Hypertension not disclosed at proposal stage'. Grounds: Policy has been continuously active for 5.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law. Insurer failed to resolve dispute within 15-day statutory window under IRDAI Master Circular 2024. Requesting IRDAI regulatory intervention to direct settlement with statutory penal interest.",
+   "level_3_ombudsman_grounds": "STATEMENT OF FACTS FOR COMPLAINT TO INSURANCE OMBUDSMAN\n(Under Rule 14(1)(b) of Insurance Ombudsman Rules, 2017)\n\n1. Complainant Name & Details: [POLICYHOLDER NAME]\n2. Insurer Name: Synthetic Insurer Ltd\n3. Policy Number: SYN-0001\n4. Policy Inception Date: Active continuously for 5.0 years\n5. Total Claim Amount: INR 100,000.00\n6. Disallowed / Repudiated Amount: INR 60,000.00\n7. Nature of Disease / Treatment: Hypertensive crisis\n8. Grounds for Relief:\nPolicy has been continuously active for 5.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.\n9. Relief Sought:\nDirection to Synthetic Insurer Ltd to pay INR 60,000.00 along with 2% above bank rate penal interest for delayed settlement as mandated by IRDAI regulations.\n",
+   "primary_dispute_grounds": "Policy has been continuously active for 5.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.",
+   "probability_basis": "HEURISTIC_PRIOR_NOT_HISTORICAL",
+   "regulatory_violations": [
+    {
+     "clause_reference": "Clause 16 — Moratorium Period",
+     "legal_remedy": "Invoke 5-year moratorium statutory bar and demand immediate claim settlement with 2% penal interest.",
+     "statute_or_circular": "IRDAI Master Circular on Health Insurance Business (May 29, 2024)",
+     "violation_summary": "Insurer contested claim based on pre-existing condition after 5 continuous renewal years."
+    },
+    {
+     "clause_reference": "Claims Review Committee (CRC) Requirement",
+     "legal_remedy": "Request proof of Claims Review Committee signed minutes authorizing the repudiation.",
+     "statute_or_circular": "IRDAI Master Circular (May 29, 2024)",
+     "violation_summary": "No claim can be repudiated without prior approval of the 3-member Claims Review Committee."
+    }
+   ],
+   "reversal_probability_score": 0.95
+  }
+ },
+ "ped_just_under_5y": {
+  "input": {
+   "claimed_amount": 100000.0,
+   "denial_category": "PED_NON_DISCLOSURE",
+   "denial_reason_raw": "Hypertension not disclosed at proposal stage",
+   "denied_or_deducted_amount": 60000.0,
+   "diagnosis": "Hypertensive crisis",
+   "insurer_name": "Synthetic Insurer Ltd",
+   "policy_age_years": 4.99,
+   "policy_number": "SYN-0001"
+  },
+  "result": {
+   "clinical_review": {
+    "note": "Identifies whether the denial reason turns on clinical judgment. It does not predict the insurer's decision, and ArogyaRakshak does not write the clinical opinion itself — a named clinician must.",
+    "reasons": [
+     "The insurer alleges a pre-existing disease — whether the condition existed before the policy, and when it was diagnosable, is a clinical question."
+    ],
+    "requires_clinical_interpretation": true,
+    "suggested_clinical_question": "Based on the records you review, what is your professional opinion on the insurer's stated reason for denying the claim for Hypertensive crisis? Please state what the records do and do not show, and the limits of your review."
+   },
+   "is_wrongful_denial": true,
+   "level_1_gro_appeal": "TO:\nThe Grievance Redressal Officer (GRO)\nSynthetic Insurer Ltd\n\nSUBJECT: Formal Appeal Against Wrongful Repudiation of Claim No. [CLAIM_NO] Under Policy No. SYN-0001\n\nDear Sir / Madam,\n\nI am writing to register an urgent grievance against the arbitrary and wrongful repudiation / disallowance of my health insurance claim amounting to INR 60,000.00 out of total claimed expenses of INR 100,000.00 for treatment of Hypertensive crisis.\n\nREASON CITED BY INSURER:\n\"Hypertension not disclosed at proposal stage\"\n\nGROUNDS OF APPEAL:\nInsurer must provide verifiable clinical documentary proof of pre-inception diagnosis. Oral declarations or doctor notes without diagnostic reports prior to inception are legally insufficient.\n\nSTATUTORY IRDAI PROVISIONS VIOLATED:\n- Claims Review Committee (CRC) Requirement (IRDAI Master Circular (May 29, 2024)): No claim can be repudiated without prior approval of the 3-member Claims Review Committee.\n\nUnder the IRDAI Master Circular on Health Insurance Business (May 29, 2024), health insurance claims cannot be repudiated without documented prior approval of the Claims Review Committee (CRC). Furthermore, insurers failing to settle claims within statutory timelines are liable to pay penal interest at Bank Rate + 2%.\n\nI request you to re-examine my claim dossier and release the admissible settlement amount of INR 60,000.00 within the statutory 15-day resolution window. Failing this, I will escalate this matter to the IRDAI Bima Bharosa portal and the Insurance Ombudsman.\n\nYours faithfully,\n[POLICYHOLDER NAME]\nPolicy No: SYN-0001\n",
+   "level_2_bimabharosa_text": "Grievance against Synthetic Insurer Ltd for wrongful claim repudiation. Policy No: SYN-0001. Disallowed Amount: INR 60,000.00. Insurer Rejection Reason: 'Hypertension not disclosed at proposal stage'. Grounds: Insurer must provide verifiable clinical documentary proof of pre-inception diagnosis. Oral declarations or doctor notes without diagnostic reports prior to inception are legally insufficient. Insurer failed to resolve dispute within 15-day statutory window under IRDAI Master Circular 2024. Requesting IRDAI regulatory intervention to direct settlement with statutory penal interest.",
+   "level_3_ombudsman_grounds": "STATEMENT OF FACTS FOR COMPLAINT TO INSURANCE OMBUDSMAN\n(Under Rule 14(1)(b) of Insurance Ombudsman Rules, 2017)\n\n1. Complainant Name & Details: [POLICYHOLDER NAME]\n2. Insurer Name: Synthetic Insurer Ltd\n3. Policy Number: SYN-0001\n4. Policy Inception Date: Active continuously for 4.99 years\n5. Total Claim Amount: INR 100,000.00\n6. Disallowed / Repudiated Amount: INR 60,000.00\n7. Nature of Disease / Treatment: Hypertensive crisis\n8. Grounds for Relief:\nInsurer must provide verifiable clinical documentary proof of pre-inception diagnosis. Oral declarations or doctor notes without diagnostic reports prior to inception are legally insufficient.\n9. Relief Sought:\nDirection to Synthetic Insurer Ltd to pay INR 60,000.00 along with 2% above bank rate penal interest for delayed settlement as mandated by IRDAI regulations.\n",
+   "primary_dispute_grounds": "Insurer must provide verifiable clinical documentary proof of pre-inception diagnosis. Oral declarations or doctor notes without diagnostic reports prior to inception are legally insufficient.",
+   "probability_basis": "HEURISTIC_PRIOR_NOT_HISTORICAL",
+   "regulatory_violations": [
+    {
+     "clause_reference": "Claims Review Committee (CRC) Requirement",
+     "legal_remedy": "Request proof of Claims Review Committee signed minutes authorizing the repudiation.",
+     "statute_or_circular": "IRDAI Master Circular (May 29, 2024)",
+     "violation_summary": "No claim can be repudiated without prior approval of the 3-member Claims Review Committee."
+    }
+   ],
+   "reversal_probability_score": 0.7
+  }
+ },
  "ped_over_5y": {
   "input": {
    "claimed_amount": 100000.0,
@@ -189,6 +312,47 @@
     }
    ],
    "reversal_probability_score": 0.7
+  }
+ },
+ "pre_existing_alias": {
+  "input": {
+   "claimed_amount": 100000.0,
+   "denial_category": "PRE_EXISTING",
+   "denial_reason_raw": "Hypertension not disclosed at proposal stage",
+   "denied_or_deducted_amount": 60000.0,
+   "diagnosis": "Hypertensive crisis",
+   "insurer_name": "Synthetic Insurer Ltd",
+   "policy_age_years": 6.0,
+   "policy_number": "SYN-0001"
+  },
+  "result": {
+   "clinical_review": {
+    "note": "Identifies whether the denial reason turns on clinical judgment. It does not predict the insurer's decision, and ArogyaRakshak does not write the clinical opinion itself — a named clinician must.",
+    "reasons": [],
+    "requires_clinical_interpretation": false,
+    "suggested_clinical_question": null
+   },
+   "is_wrongful_denial": true,
+   "level_1_gro_appeal": "TO:\nThe Grievance Redressal Officer (GRO)\nSynthetic Insurer Ltd\n\nSUBJECT: Formal Appeal Against Wrongful Repudiation of Claim No. [CLAIM_NO] Under Policy No. SYN-0001\n\nDear Sir / Madam,\n\nI am writing to register an urgent grievance against the arbitrary and wrongful repudiation / disallowance of my health insurance claim amounting to INR 60,000.00 out of total claimed expenses of INR 100,000.00 for treatment of Hypertensive crisis.\n\nREASON CITED BY INSURER:\n\"Hypertension not disclosed at proposal stage\"\n\nGROUNDS OF APPEAL:\nPolicy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.\n\nSTATUTORY IRDAI PROVISIONS VIOLATED:\n- Clause 16 — Moratorium Period (IRDAI Master Circular on Health Insurance Business (May 29, 2024)): Insurer contested claim based on pre-existing condition after 5 continuous renewal years.\n- Claims Review Committee (CRC) Requirement (IRDAI Master Circular (May 29, 2024)): No claim can be repudiated without prior approval of the 3-member Claims Review Committee.\n\nUnder the IRDAI Master Circular on Health Insurance Business (May 29, 2024), health insurance claims cannot be repudiated without documented prior approval of the Claims Review Committee (CRC). Furthermore, insurers failing to settle claims within statutory timelines are liable to pay penal interest at Bank Rate + 2%.\n\nI request you to re-examine my claim dossier and release the admissible settlement amount of INR 60,000.00 within the statutory 15-day resolution window. Failing this, I will escalate this matter to the IRDAI Bima Bharosa portal and the Insurance Ombudsman.\n\nYours faithfully,\n[POLICYHOLDER NAME]\nPolicy No: SYN-0001\n",
+   "level_2_bimabharosa_text": "Grievance against Synthetic Insurer Ltd for wrongful claim repudiation. Policy No: SYN-0001. Disallowed Amount: INR 60,000.00. Insurer Rejection Reason: 'Hypertension not disclosed at proposal stage'. Grounds: Policy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law. Insurer failed to resolve dispute within 15-day statutory window under IRDAI Master Circular 2024. Requesting IRDAI regulatory intervention to direct settlement with statutory penal interest.",
+   "level_3_ombudsman_grounds": "STATEMENT OF FACTS FOR COMPLAINT TO INSURANCE OMBUDSMAN\n(Under Rule 14(1)(b) of Insurance Ombudsman Rules, 2017)\n\n1. Complainant Name & Details: [POLICYHOLDER NAME]\n2. Insurer Name: Synthetic Insurer Ltd\n3. Policy Number: SYN-0001\n4. Policy Inception Date: Active continuously for 6.0 years\n5. Total Claim Amount: INR 100,000.00\n6. Disallowed / Repudiated Amount: INR 60,000.00\n7. Nature of Disease / Treatment: Hypertensive crisis\n8. Grounds for Relief:\nPolicy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.\n9. Relief Sought:\nDirection to Synthetic Insurer Ltd to pay INR 60,000.00 along with 2% above bank rate penal interest for delayed settlement as mandated by IRDAI regulations.\n",
+   "primary_dispute_grounds": "Policy has been continuously active for 6.0 years. Under the IRDAI Master Circular on Health Insurance (May 29, 2024), the moratorium period is 5 years. Contesting this claim on grounds of non-disclosure is barred by law.",
+   "probability_basis": "HEURISTIC_PRIOR_NOT_HISTORICAL",
+   "regulatory_violations": [
+    {
+     "clause_reference": "Clause 16 — Moratorium Period",
+     "legal_remedy": "Invoke 5-year moratorium statutory bar and demand immediate claim settlement with 2% penal interest.",
+     "statute_or_circular": "IRDAI Master Circular on Health Insurance Business (May 29, 2024)",
+     "violation_summary": "Insurer contested claim based on pre-existing condition after 5 continuous renewal years."
+    },
+    {
+     "clause_reference": "Claims Review Committee (CRC) Requirement",
+     "legal_remedy": "Request proof of Claims Review Committee signed minutes authorizing the repudiation.",
+     "statute_or_circular": "IRDAI Master Circular (May 29, 2024)",
+     "violation_summary": "No claim can be repudiated without prior approval of the 3-member Claims Review Committee."
+    }
+   ],
+   "reversal_probability_score": 0.95
   }
  },
  "room_rent": {

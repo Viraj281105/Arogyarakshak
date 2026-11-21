@@ -481,7 +481,11 @@ jobs:
         env:
           PYTHONPATH: apps/api
           PYTHONIOENCODING: utf-8
+        # `shell: bash` makes GitHub run `bash -e -o pipefail`, so a crash of the script is
+        # not hidden by `| tee`.
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p terminology-report
           python scripts/terminology_audit.py \
             --markdown terminology-report/terminology-worksheet.md \

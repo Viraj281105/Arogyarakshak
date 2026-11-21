@@ -7,7 +7,8 @@ agent prompts:
 
 1. ``sanitise_for_prompt`` — removes characters that are invisible or reorder text and have
    no business in a bill or letter: zero-width space, BOM, soft hyphen, word joiner, bidi
-   controls, Unicode "tag" characters and other format characters. The zero-width
+   controls, Unicode "tag" characters, variation selectors, the combining grapheme joiner,
+   Hangul fillers, the Braille blank and other format characters. The zero-width
    joiner / non-joiner are *kept* only between two Devanagari characters, where they change
    how conjuncts render (क्‍ष, र्‍य) and removing them would alter real words.
 2. ``detect_injection_markers`` — best-effort phrase scan, now on a normalised *matching
@@ -23,7 +24,8 @@ What this is NOT: a guarantee. Prompt injection cannot be solved by pattern matc
 reworded or translated attack will not match, a homoglyph outside the table is not folded,
 and the measured detection / false-positive rates on the synthetic red-team corpus
 (``data/evaluation/injection_redteam_*.jsonl``, reported by
-``packages/kadi/tests/test_injection_redteam.py``) are the honest picture. The Hindi/Marathi phrase lists were written by the
+``packages/kadi/tests/test_injection_redteam.py``) are the honest picture. The scan is capped at
+``MAX_SCAN_CHARS`` characters (a denial-of-service bound). The Hindi/Marathi phrase lists were written by the
 engineering team and have NOT been reviewed by a native speaker (tracked in #37). Real
 protection is architectural: schema-constrained output, an explicit "this is data"
 boundary, and deterministic cross-checks (see ``kadi.extraction`` and
@@ -87,7 +89,7 @@ def sanitise_for_prompt(text: str) -> str:
                 out.append(ch)
             continue
         cat = unicodedata.category(ch)
-        if cat == "Cf":
+        if cat == "Cf" or ord(ch) in _INVISIBLE_FILLERS:
             continue
         if cat == "Cc" and ch not in "\n\r\t":
             continue
@@ -101,14 +103,46 @@ def hidden_character_count(text: str) -> int:
     return len(text or "") - len(sanitise_for_prompt(text or ""))
 
 
+# Characters that render as nothing (or as blank filler) but are not "Cf" format characters, so
+# the category test alone misses them: variation selectors, the combining grapheme joiner,
+# Mongolian free variation selectors, Hangul fillers and the Braille blank.
+_INVISIBLE_FILLERS = (
+    {0x034F, 0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800}
+    | set(range(0x180B, 0x1810))
+    | set(range(0xFE00, 0xFE10))
+    | set(range(0xE0100, 0xE01F0))
+)
+
+# The detector scans at most this many characters of the matching view. Pattern matching on
+# attacker-sized input is a denial-of-service lever; the cost is that a payload placed after
+# this offset is not seen (documented limitation, see docs/evaluation/localised-letters.md).
+MAX_SCAN_CHARS = 20_000
+
+
 def _matching_view(text: str) -> str:
-    """Lower-cased, hidden characters and joiners removed, NFKC (full-width Latin -> ASCII),
-    Devanagari spelling variants and digits folded, Cyrillic/Greek Latin-lookalikes folded to
-    Latin, whitespace collapsed."""
-    t = unicodedata.normalize("NFKC", text or "")
-    t = "".join(ch for ch in t if unicodedata.category(ch) != "Cf" and (unicodedata.category(ch) != "Cc" or ch in "\n\r\t"))
-    t = t.translate(_DEVANAGARI_DIGITS).translate(_FOLD).translate(_CONFUSABLE_TABLE).casefold()
-    return re.sub(r"\s+", " ", t)
+    """Lower-cased view for pattern matching only (never sent to a model): at most
+    ``MAX_SCAN_CHARS`` long; NFKC (full-width Latin -> ASCII) then NFD; invisible characters,
+    fillers and joiners removed; combining marks dropped when they follow a NON-Devanagari
+    base (so ``i\u0301gnore``, ``ïgnore`` and the Turkish dotted ``İ`` match as plain Latin;
+    Devanagari matras are kept); Devanagari spelling variants and digits folded;
+    Cyrillic/Greek Latin-lookalikes folded to Latin; whitespace collapsed."""
+    t = unicodedata.normalize("NFKC", (text or "")[: MAX_SCAN_CHARS * 2])
+    t = unicodedata.normalize("NFD", t)
+    out = []
+    base_is_devanagari = False
+    for ch in t:
+        cat = unicodedata.category(ch)
+        if cat in ("Mn", "Mc", "Me"):
+            if ord(ch) in _INVISIBLE_FILLERS or not base_is_devanagari:
+                continue
+            out.append(ch)
+            continue
+        if cat == "Cf" or ord(ch) in _INVISIBLE_FILLERS or (cat == "Cc" and ch not in "\n\r\t"):
+            continue
+        base_is_devanagari = _is_devanagari(ch)
+        out.append(ch)
+    t = "".join(out).translate(_DEVANAGARI_DIGITS).translate(_FOLD).translate(_CONFUSABLE_TABLE).casefold()
+    return re.sub(r"\s+", " ", t)[:MAX_SCAN_CHARS]
 
 
 _D = r"[ऀ-ॿ]"  # any Devanagari character, matras included (\w does not match matras)
@@ -140,25 +174,25 @@ DEVANAGARI_MARKER_PATTERNS: List[Pattern[str]] = [
     re.compile(p)
     for p in [
         # Hindi: "ignore (all) previous instructions"
-        rf"(?:पिछले|पिछली|पहले\s+के|पूर्व|ऊपर\s+के|उपरोक्त|सभी|सारे)\s+(?:{_D}+\s+)?(?:निर्देश|आदेश|नियम){_D}*\s+(?:को\s+)?(?:अनदेखा|नजर\s*अंदाज|नजर\s*अन्दाज|भूल)",
+        rf"(?:पिछले|पिछली|पहले\s+के|पूर्व|ऊपर\s+के|उपरोक्त|सभी|सारे)\s+(?:{_D}{{1,20}}\s+)?(?:निर्देश|आदेश|नियम){_D}{{0,12}}\s+(?:को\s+)?(?:अनदेखा|नजर\s*अंदाज|नजर\s*अन्दाज|भूल)",
         # Hindi: "new instructions:"
-        rf"(?:नए|नये|नई|नवीन)\s+(?:निर्देश|आदेश){_D}*\s*[:：]",
+        rf"(?:नए|नये|नई|नवीन)\s+(?:निर्देश|आदेश){_D}{{0,12}}\s*[:：]",
         # Hindi / Marathi: "system prompt / system message"
         r"सिस्टम\s*(?:प्रॉम्प्ट|प्रोम्प्ट|प्रॉम्पट|संदेश)",
         # Hindi: "you act as ..."
         rf"(?:तुम|आप|तू)\s+(?:{_D}|\s){{0,30}}?के\s+रूप\s+में\s+(?:कार्य|काम|व्यवहार)\s*(?:करो|करें|कीजिए|कीजिये)(?!{_D})",
         # Hindi: "do not follow the instructions"
-        rf"(?:निर्देश|नियम){_D}*\s+(?:का|के)\s+पालन\s+(?:न|मत)\s+{_D}+",
+        rf"(?:निर्देश|नियम){_D}{{0,12}}\s+(?:का|के)\s+पालन\s+(?:न|मत)\s+{_D}{{1,20}}",
         # Hindi: "instead output the following"
         r"इसके\s+बजाय\s+निम्नलिखित",
         # Marathi: "ignore (all) previous instructions"
-        rf"(?:मागील|मागच्या|आधीच्या|पूर्वीच्या|वरील|वरच्या|सर्व)\s+(?:{_D}+\s+)?(?:सूचना|आदेश|नियम){_D}*\s+(?:दुर्लक्ष|विसर)",
+        rf"(?:मागील|मागच्या|आधीच्या|पूर्वीच्या|वरील|वरच्या|सर्व)\s+(?:{_D}{{1,20}}\s+)?(?:सूचना|आदेश|नियम){_D}{{0,12}}\s+(?:दुर्लक्ष|विसर)",
         # Marathi: "new instructions:"
-        rf"(?:नवीन|नव्या)\s+(?:सूचना|आदेश){_D}*\s*[:：]",
+        rf"(?:नवीन|नव्या)\s+(?:सूचना|आदेश){_D}{{0,12}}\s*[:：]",
         # Marathi: "you act as ..."
         rf"(?:तू|तुम्ही)\s+(?:आता\s+)?(?:{_D}|\s){{0,30}}?म्हणून\s+(?:वागा|वाग|काम\s+करा|काम\s+कर|कार्य\s+करा|कार्य\s+कर)(?!{_D})",
         # Marathi: "do not follow the instructions"
-        rf"(?:सूचना|आदेश|नियम){_D}*\s+पालन\s+(?:करू|करु)\s+नका",
+        rf"(?:सूचना|आदेश|नियम){_D}{{0,12}}\s+पालन\s+(?:करू|करु)\s+नका",
         # Marathi: "instead (output) the following"
         r"त्याऐवजी\s+(?:खालील|पुढील)",
     ]
@@ -168,20 +202,30 @@ DEVANAGARI_MARKER_PATTERNS: List[Pattern[str]] = [
 ROMANISED_HINDI_PATTERNS: List[Pattern[str]] = [
     re.compile(p)
     for p in [
-        r"\b(?:pichh?le|purane|upar\s+ke|sabhi)\s+(?:sabhi\s+)?(?:nirdesh|instructions?|aadesh)\w*\s+(?:ko\s+)?(?:ignore|bhool|andekha|nazarandaz)",
+        r"\b(?:pichh?le|purane|upar\s+ke|sabhi)\s+(?:sabhi\s+)?(?:nirdesh|instructions?|aadesh)\w{0,12}\s+(?:ko\s+)?(?:ignore|bhool|andekha|nazarandaz)",
     ]
 ]
 
 ALL_MARKER_PATTERNS = ENGLISH_MARKER_PATTERNS + DEVANAGARI_MARKER_PATTERNS + ROMANISED_HINDI_PATTERNS
 
+# One stable name per pattern, in the same order. The detector returns these names, never the
+# matched document text, so a hit can be logged and shown without leaking the document.
+MARKER_PATTERN_NAMES = (
+    "english-ignore-instructions", "english-disregard-instructions", "english-forget-everything",
+    "english-new-instructions", "english-system-prompt", "english-you-are-now", "english-act-as",
+    "english-dan-mode", "english-output-instead", "english-do-not-follow",
+    "hindi-ignore-instructions", "hindi-new-instructions", "devanagari-system-prompt",
+    "hindi-act-as", "hindi-do-not-follow", "hindi-output-instead",
+    "marathi-ignore-instructions", "marathi-new-instructions", "marathi-act-as",
+    "marathi-do-not-follow", "marathi-output-instead",
+    "romanised-hindi-ignore-instructions",
+)
+assert len(MARKER_PATTERN_NAMES) == len(ALL_MARKER_PATTERNS)
+
 
 def detect_injection_markers(text: str) -> List[str]:
-    """Matched phrases (from the normalised view, truncated to 80 characters) for
-    disclosure. Never used to silently alter extraction behaviour."""
+    """Names (``MARKER_PATTERN_NAMES``) of the patterns that matched the normalised view, for
+    disclosure. Never contains document text. Never used to silently alter extraction
+    behaviour."""
     view = _matching_view(text)
-    found: List[str] = []
-    for pattern in ALL_MARKER_PATTERNS:
-        match = pattern.search(view)
-        if match:
-            found.append(match.group(0)[:80])
-    return found
+    return [name for name, pattern in zip(MARKER_PATTERN_NAMES, ALL_MARKER_PATTERNS) if pattern.search(view)]

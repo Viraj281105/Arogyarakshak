@@ -26,6 +26,10 @@ CASES = {
     "room_rent": dict(policy_age_years=2.0, denial_category="ROOM_RENT_CAPPING"),
     "delay": dict(policy_age_years=1.0, denial_category="DELAYED_INTIMATION"),
     "general": dict(policy_age_years=4.0, denial_category="EXCLUSION_CLAUSE"),
+    "ped_exactly_5y": dict(policy_age_years=5.0, denial_category="PED_NON_DISCLOSURE"),
+    "ped_just_under_5y": dict(policy_age_years=4.99, denial_category="PED_NON_DISCLOSURE"),
+    "pre_existing_alias": dict(policy_age_years=6.0, denial_category="PRE_EXISTING"),
+    "lowercase_category": dict(policy_age_years=6.0, denial_category="ped_non_disclosure"),
 }
 # User-supplied fields are Devanagari so that any Latin word left in a hi/mr letter is
 # system-generated text (same trick as scripts/terminology_audit.py).
@@ -131,8 +135,65 @@ def test_parameters_are_interpolated():
         assert "Hypertensive crisis" in audit_claim_denial(inv, language=lang)[2]
 
 
-def test_no_clinician_opinion_words_in_localised_grounds():
+def test_no_clinician_opinion_words_in_localised_grounds_or_violation_fields():
     # The grounding harness treats "डॉ..." as a clinician claim that can never be grounded.
     for key in catalogue.GROUND_KEYS:
         for lang in ("hi", "mr"):
             assert "डॉ" not in catalogue.raw_grounds(key, lang)
+    for key in catalogue.VIOLATION_KEYS:
+        for lang in ("hi", "mr"):
+            for field, text in catalogue.violation(key, lang).items():
+                assert "डॉ" not in text, (key, lang, field)
+
+
+def test_hindi_and_marathi_differ_for_every_key_and_field():
+    for key in catalogue.GROUND_KEYS:
+        assert catalogue.raw_grounds(key, "hi") != catalogue.raw_grounds(key, "mr"), key
+    for key in catalogue.VIOLATION_KEYS:
+        hi, mr = catalogue.violation(key, "hi"), catalogue.violation(key, "mr")
+        for field in hi:
+            assert hi[field] != mr[field], (key, field)
+
+
+def test_key_specific_anchors_are_present_in_every_language():
+    for lang in ("hi", "mr"):
+        assert "५" in catalogue.raw_grounds("ped_moratorium", lang)
+        assert "{policy_age_years}" in catalogue.raw_grounds("ped_moratorium", lang)
+        assert "{diagnosis}" in catalogue.raw_grounds("investigation", lang)
+        assert "IRDA/HLTH/MISC/CIR/216/09/2011" in catalogue.raw_grounds("delay", lang)
+        assert "IRDA/HLTH/MISC/CIR/216/09/2011" in catalogue.violation("delay", lang)["statute_or_circular"]
+        assert "ICU" in catalogue.raw_grounds("room_rent", lang)
+        assert catalogue.violation("room_rent", lang)["clause_reference"].startswith("UNVERIFIED")
+        assert "CRC" in catalogue.violation("crc", lang)["clause_reference"]
+        assert "२०२४" in catalogue.violation("moratorium", lang)["statute_or_circular"]
+
+
+def test_moratorium_clause_number_is_ascii_and_extractable_in_every_language():
+    for lang in ("en", "hi", "mr"):
+        assert "16" in catalogue.violation("moratorium", lang)["clause_reference"]
+
+
+def test_violation_placeholders_match_across_languages():
+    names = lambda s: sorted(set(re.findall(r"\{(\w+)\}", s)))  # noqa: E731
+    for key in catalogue.VIOLATION_KEYS:
+        en = catalogue.violation(key, "en")
+        for lang in ("hi", "mr"):
+            loc = catalogue.violation(key, lang)
+            for field in en:
+                assert names(loc[field]) == names(en[field]), (key, lang, field)
+
+
+def test_normalise_language_handles_none_case_and_unknown():
+    assert catalogue.normalise_language(None) == "en"
+    assert catalogue.normalise_language("") == "en"
+    assert catalogue.normalise_language("HI") == "hi"
+    assert catalogue.normalise_language("Mr") == "mr"
+    assert catalogue.normalise_language("fr") == "en"
+
+
+def test_five_year_boundary_follows_the_decision_not_the_language():
+    five = ClaimDenialInput(**BASE, **CASES["ped_exactly_5y"])
+    under = ClaimDenialInput(**BASE, **CASES["ped_just_under_5y"])
+    for lang in ("en", "hi", "mr"):
+        assert len(audit_claim_denial(five, language=lang)[3]) == 2   # moratorium + CRC
+        assert len(audit_claim_denial(under, language=lang)[3]) == 1  # CRC only

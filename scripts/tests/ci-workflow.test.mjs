@@ -28,3 +28,36 @@ test("ci-gate condition lists INVARIANTS and FOUNDATION as separate continued li
   assert.match(lines[i], /&& \\$/);
   assert.match(lines[i + 1], /^\s+\[ "\$FOUNDATION" = "success" \] && \\$/);
 });
+
+// Slice of the file for one top-level job (two-space indented key under `jobs:`).
+function jobBlock(name) {
+  const start = lines.findIndex((l) => l === `  ${name}:`);
+  assert.ok(start >= 0, `job ${name} not found`);
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^  [A-Za-z0-9_-]+:\s*$/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end);
+}
+
+test("terminology-audit is report-only: continue-on-error, not a ci-gate dependency, artifact always uploaded", () => {
+  const job = jobBlock("terminology-audit");
+  assert.ok(job.some((l) => /^    continue-on-error: true\s*$/.test(l)), "continue-on-error: true missing");
+
+  const gate = jobBlock("ci-gate").join("\n");
+  assert.doesNotMatch(gate, /terminology-audit/, "ci-gate must not mention terminology-audit");
+
+  const upload = job.findIndex((l) => l.includes("actions/upload-artifact"));
+  assert.ok(upload > 0, "upload-artifact step missing");
+  const stepStart = job.slice(0, upload).map((l, i) => ({ l, i })).filter(({ l }) => /^      - name:/.test(l)).pop().i;
+  assert.ok(job.slice(stepStart, upload).some((l) => /^        if: always\(\)\s*$/.test(l)), "artifact step must run `if: always()`");
+});
+
+test("terminology-audit shell does not hide a crash behind `| tee`", () => {
+  const job = jobBlock("terminology-audit").join("\n");
+  assert.match(job, /shell: bash/);
+  assert.match(job, /set -o pipefail/);
+});
