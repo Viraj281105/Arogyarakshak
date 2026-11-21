@@ -30,3 +30,13 @@ def test_benign_marathi_text_logs_nothing(caplog):
     with caplog.at_level(logging.WARNING, logger="arogyarakshak.billnyay.prompt_safety"):
         wrap_untrusted("डॉक्टरांच्या सूचनांचे पालन करा", "DENIAL")
     assert caplog.records == []
+
+
+def test_wrap_untrusted_is_fast_on_hostile_input_and_sends_the_whole_text():
+    import time
+
+    hostile = "नियम" * 25_000  # 100k characters; the detector scan is capped, the text is not
+    start = time.perf_counter()
+    block = wrap_untrusted(hostile, "BILL")
+    assert time.perf_counter() - start < 1.0
+    assert hostile in block
