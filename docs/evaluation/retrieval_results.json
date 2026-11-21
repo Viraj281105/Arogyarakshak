@@ -1,0 +1,465 @@
+{
+ "note": "SYNTHETIC hand-labelled sets written by the retriever's author. 'tuning' is the set the floors were chosen on (optimistic); 'heldout' is reported separately. Not real-world accuracy.",
+ "corpus_passages": 27,
+ "corpus_meta_name": "retrieval_corpus_synthetic_v2",
+ "defaults": {
+  "min_score": 0.0,
+  "min_coverage": 0.5,
+  "min_score_ratio": 0.25
+ },
+ "tuning": {
+  "meta_name": "retrieval_queries_synthetic_v2",
+  "queries": 63,
+  "answerable": 46,
+  "unanswerable": 17,
+  "mrr": 0.717391,
+  "recall_at_k": 0.585507,
+  "pcra": 0.483871,
+  "precision": 0.818182,
+  "abstention_rate": 0.941176,
+  "hit_rate_at_1": 0.717391,
+  "hit_rate_at_3": 0.717391,
+  "hit_rate_at_5": 0.717391,
+  "failures": [
+   {
+    "id": "RET-002",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#1",
+     "schemesetu.thresholds#10"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-010",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#9",
+     "schemesetu.thresholds#12"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-016",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#1",
+     "schemesetu.thresholds#2",
+     "schemesetu.thresholds#3",
+     "schemesetu.thresholds#4",
+     "schemesetu.thresholds#11"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-025",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.tracker#1",
+     "bimanyay.drafter#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-032",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.clause_auditor#1",
+     "bimanyay.clause_auditor#2",
+     "bimanyay.clinical_triggers#3"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-037",
+    "kind": "miss",
+    "relevant": [
+     "daavisetu.readiness#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-039",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#1",
+     "schemesetu.thresholds#2",
+     "schemesetu.thresholds#3",
+     "schemesetu.thresholds#4",
+     "schemesetu.thresholds#11"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-040",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.drafter#1",
+     "bimanyay.clause_auditor#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-041",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.clause_auditor#6",
+     "bimanyay.drafter#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-042",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.drafter#1",
+     "bimanyay.tracker#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-043",
+    "kind": "miss",
+    "relevant": [
+     "daavisetu.readiness#1",
+     "daavisetu.readiness#3"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-044",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#6"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-045",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#7",
+     "schemesetu.thresholds#8"
+    ],
+    "returned": []
+   },
+   {
+    "id": "RET-058",
+    "kind": "answered_out_of_corpus",
+    "returned": [
+     "schemesetu.thresholds#8",
+     "daavisetu.readiness#2"
+    ]
+   }
+  ]
+ },
+ "heldout": {
+  "meta_name": "retrieval_heldout_synthetic_v1",
+  "queries": 20,
+  "answerable": 15,
+  "unanswerable": 5,
+  "mrr": 0.733333,
+  "recall_at_k": 0.588889,
+  "pcra": 0.458333,
+  "precision": 0.647059,
+  "abstention_rate": 0.8,
+  "hit_rate_at_1": 0.733333,
+  "hit_rate_at_3": 0.733333,
+  "hit_rate_at_5": 0.733333,
+  "failures": [
+   {
+    "id": "HLD-001",
+    "kind": "miss",
+    "relevant": [
+     "schemesetu.thresholds#1",
+     "schemesetu.thresholds#2",
+     "schemesetu.thresholds#4",
+     "schemesetu.thresholds#11"
+    ],
+    "returned": []
+   },
+   {
+    "id": "HLD-007",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.clinical_triggers#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "HLD-008",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.clause_auditor#5",
+     "bimanyay.clinical_triggers#1"
+    ],
+    "returned": []
+   },
+   {
+    "id": "HLD-011",
+    "kind": "miss",
+    "relevant": [
+     "bimanyay.clause_auditor#2"
+    ],
+    "returned": [
+     "bimanyay.clinical_triggers#3",
+     "bimanyay.clause_auditor#1",
+     "bimanyay.clinical_triggers#1"
+    ]
+   },
+   {
+    "id": "HLD-020",
+    "kind": "answered_out_of_corpus",
+    "returned": [
+     "schemesetu.thresholds#3"
+    ]
+   }
+  ]
+ },
+ "sweeps": {
+  "min_coverage": [
+   {
+    "value": 0.0,
+    "tuning": {
+     "mrr": 0.826087,
+     "hit_rate_at_3": 0.826087,
+     "pcra": 0.591398,
+     "precision": 0.597826,
+     "abstention_rate": 0.705882
+    },
+    "heldout": {
+     "mrr": 0.75,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.541667,
+     "precision": 0.464286,
+     "abstention_rate": 0.6
+    }
+   },
+   {
+    "value": 0.34,
+    "tuning": {
+     "mrr": 0.804348,
+     "hit_rate_at_3": 0.804348,
+     "pcra": 0.569892,
+     "precision": 0.716216,
+     "abstention_rate": 0.764706
+    },
+    "heldout": {
+     "mrr": 0.75,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.541667,
+     "precision": 0.541667,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.5,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.67,
+    "tuning": {
+     "mrr": 0.521739,
+     "hit_rate_at_3": 0.521739,
+     "pcra": 0.301075,
+     "precision": 0.965517,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.2,
+     "hit_rate_at_3": 0.2,
+     "pcra": 0.125,
+     "precision": 0.75,
+     "abstention_rate": 1.0
+    }
+   },
+   {
+    "value": 1.0,
+    "tuning": {
+     "mrr": 0.152174,
+     "hit_rate_at_3": 0.152174,
+     "pcra": 0.086022,
+     "precision": 1.0,
+     "abstention_rate": 1.0
+    },
+    "heldout": {
+     "mrr": 0.133333,
+     "hit_rate_at_3": 0.133333,
+     "pcra": 0.083333,
+     "precision": 1.0,
+     "abstention_rate": 1.0
+    }
+   }
+  ],
+  "min_score_ratio": [
+   {
+    "value": 0.0,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.1,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.25,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.5,
+    "tuning": {
+     "mrr": 0.630435,
+     "hit_rate_at_3": 0.630435,
+     "pcra": 0.397849,
+     "precision": 0.973684,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.466667,
+     "hit_rate_at_3": 0.466667,
+     "pcra": 0.291667,
+     "precision": 0.7,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.75,
+    "tuning": {
+     "mrr": 0.413043,
+     "hit_rate_at_3": 0.413043,
+     "pcra": 0.225806,
+     "precision": 0.954545,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.2,
+     "hit_rate_at_3": 0.2,
+     "pcra": 0.125,
+     "precision": 1.0,
+     "abstention_rate": 1.0
+    }
+   }
+  ],
+  "min_score": [
+   {
+    "value": 0.0,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 0.5,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 1.0,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   },
+   {
+    "value": 2.0,
+    "tuning": {
+     "mrr": 0.717391,
+     "hit_rate_at_3": 0.717391,
+     "pcra": 0.483871,
+     "precision": 0.818182,
+     "abstention_rate": 0.941176
+    },
+    "heldout": {
+     "mrr": 0.733333,
+     "hit_rate_at_3": 0.733333,
+     "pcra": 0.458333,
+     "precision": 0.647059,
+     "abstention_rate": 0.8
+    }
+   }
+  ]
+ }
+}
