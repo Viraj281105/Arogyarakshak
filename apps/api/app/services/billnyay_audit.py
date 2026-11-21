@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import KadiCase, KadiEntity
 from billnyay.agents.icd_audit import ICDProcedureAuditItem, audit_icd_procedure_consistency
 from billnyay.explain import explain_audit_line
+from billnyay.matching import match_key
 from billnyay.rate_basis import benchmark_line
 from kadi.explanation import Explanation
 
@@ -94,11 +95,7 @@ def _rate_of(entry: Any):
 def _billing_unit_of(norm_name: str, rates_source: Dict[str, Any]) -> Optional[str]:
     """The matched entry's billing unit (per_day, per_visit, ... per_service), using the
     same longest-substring match as _match_cghs_rate."""
-    key = norm_name if norm_name in rates_source else None
-    if key is None:
-        for k in rates_source:
-            if (k in norm_name or norm_name in k) and (key is None or len(k) > len(key)):
-                key = k
+    key = _match_cghs_key(norm_name, rates_source)
     entry = rates_source.get(key) if key else None
     return entry.get("billing_unit") if isinstance(entry, dict) else None
 
@@ -120,20 +117,12 @@ def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
 
 
 def _match_cghs_key(norm_name: str, rates_source: Dict[str, Any]) -> Optional[str]:
-    """The CGHS rate key a billed item name resolves to (exact, else longest substring
-    in either direction), or None. Exposed so the evaluation harness (BMA) can score the
-    mapping itself rather than only the resulting rate."""
-    if not norm_name:
-        return None
-    if norm_name in rates_source:
-        return norm_name
-
-    best_key = None
-    for key in rates_source:
-        if key in norm_name or norm_name in key:
-            if best_key is None or len(key) > len(best_key):
-                best_key = key
-    return best_key
+    """The CGHS rate key a billed item name resolves to (exact, else longest WHOLE-WORD
+    match in either direction, after the unreviewed synonym table; a modifier such as
+    "catheter" or "report copy" refuses the match), or None. See billnyay.matching.
+    Exposed so the evaluation harness (BMA) can score the mapping itself rather than
+    only the resulting rate."""
+    return match_key(norm_name, rates_source)
 
 
 # --- Result schemas -----------------------------------------------------------

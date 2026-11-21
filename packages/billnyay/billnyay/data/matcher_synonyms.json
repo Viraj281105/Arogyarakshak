@@ -1,0 +1,19 @@
+{
+  "clinically_reviewed": false,
+  "status": "ENGINEERING-WRITTEN, NOT CLINICALLY REVIEWED. A clinical lead must review every row before this table is relied on.",
+  "source_note": "Written by the engineering team from common Indian hospital bill wording (USG = ultrasonography, PTCA = percutaneous transluminal coronary angioplasty, haemodialysis = dialysis). Not derived from the CGHS schedule or any hospital's chargemaster. Each row only rewrites a hospital spelling to the wording already used by a key in cghs_rates.json; it never adds a rate.",
+  "synonyms": [
+    {"phrase": "usg", "canonical": "ultrasound"},
+    {"phrase": "sonography", "canonical": "ultrasound"},
+    {"phrase": "ultrasonography", "canonical": "ultrasound"},
+    {"phrase": "xray", "canonical": "x ray"},
+    {"phrase": "ptca", "canonical": "coronary angioplasty"},
+    {"phrase": "angioplasty", "canonical": "coronary angioplasty", "unless": ["peripheral", "renal", "carotid", "cerebral", "coronary"]},
+    {"phrase": "haemodialysis", "canonical": "dialysis"},
+    {"phrase": "hemodialysis", "canonical": "dialysis"}
+  ],
+  "modifier_note": "Words that change WHAT is billed (a catheter, a report copy, follow-up drops, a contrast agent, an image-guided procedure). A line containing one is refused rather than priced at the parent procedure's rate. 'contrast' directly after 'with'/'without' describes the scan itself and is not a modifier.",
+  "modifiers": ["catheter", "catheterization", "copy", "copies", "report", "drops", "followup", "guided"],
+  "modifier_phrases": ["follow up"],
+  "contrast_scan_prefixes": ["with", "without"]
+}
