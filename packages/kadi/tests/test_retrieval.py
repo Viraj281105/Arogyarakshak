@@ -193,6 +193,22 @@ def test_abbreviations_and_decimals_do_not_split_a_sentence():
     assert chunk_document(text2, "d", 1, max_words=6)[0].text == "Cover was 1.50 lakh per family."
 
 
+def test_sentence_boundaries_skip_abbreviations_numbers_and_decimals():
+    from kadi.retrieval.chunking import _sentence_spans
+
+    def sentences(t):
+        return [t[a:b] for a, b in _sentence_spans(t, 0, len(t))]
+
+    assert sentences("The limit is Rs. 5,00,000 per family. Another one.") == [
+        "The limit is Rs. 5,00,000 per family.",
+        "Another one.",
+    ]
+    assert sentences("See Sec. 5 and Dr. Rao. Next.") == ["See Sec. 5 and Dr. Rao.", "Next."]
+    assert sentences("Item 3. Then more.") == ["Item 3. Then more."]  # lone number
+    assert sentences("Cover was 1.50 lakh. Next.") == ["Cover was 1.50 lakh.", "Next."]
+    assert sentences("Wait... what?! Yes.") == ["Wait...", "what?!", "Yes."]
+
+
 def test_chunk_repr_never_shows_the_text():
     assert "SECRETTEXT" not in repr(Chunk("s", 1, 0, "SECRETTEXT"))
 

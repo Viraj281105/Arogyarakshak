@@ -1,0 +1,21 @@
+{"_meta": {"name": "retrieval_heldout_synthetic_v1", "synthetic": true, "tuning": false, "heldout": true, "provenance": "20 queries written after the thresholds were set and BEFORE the retriever was run on them (the author had seen the corpus, not the retriever's output on these queries); no floor was tuned on them. Hand-written by the retriever's author and labelled against retrieval_corpus_synthetic.jsonl BEFORE the run that produced the numbers in docs/evaluation/retrieval.md. relevant = EVERY passage that states the answer fact (usually 1-5); an empty list marks an out-of-corpus query that must return nothing. Same author as the retriever, so NOT an independent test and NOT real-world accuracy.", "description": "held-out slice, reported separately from the tuning set."}}
+{"id": "HLD-001", "group": "schemesetu", "query": "What does the government say about families of ASHA workers?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#2", "schemesetu.thresholds#4", "schemesetu.thresholds#11"]}
+{"id": "HLD-002", "group": "schemesetu", "query": "Is annual income used to decide PM-JAY eligibility?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#10"]}
+{"id": "HLD-003", "group": "schemesetu", "query": "Which Maharashtra scheme covers all ration card holders?", "relevant": ["schemesetu.thresholds#7", "schemesetu.thresholds#8"]}
+{"id": "HLD-004", "group": "schemesetu", "query": "Which Cabinet release approved coverage for older citizens?", "relevant": ["schemesetu.thresholds#3"]}
+{"id": "HLD-005", "group": "schemesetu", "query": "Rs 5 lakh per family per year", "relevant": ["schemesetu.thresholds#6"]}
+{"id": "HLD-006", "group": "schemesetu", "query": "What documents does the Arogyamitra ask for?", "relevant": ["schemesetu.thresholds#8"]}
+{"id": "HLD-007", "group": "bimanyay", "query": "Who decides whether a denial needs a clinician's statement?", "relevant": ["bimanyay.clinical_triggers#1"]}
+{"id": "HLD-008", "group": "bimanyay", "query": "Can an insurer deny a claim because the policyholder was late in informing them?", "relevant": ["bimanyay.clause_auditor#5", "bimanyay.clinical_triggers#1"]}
+{"id": "HLD-009", "group": "bimanyay", "query": "What happens if insurers do not settle within statutory timelines?", "relevant": ["bimanyay.drafter#1", "bimanyay.clause_auditor#1"]}
+{"id": "HLD-010", "group": "bimanyay", "query": "Which IRDAI circular number deals with late claim submission?", "relevant": ["bimanyay.clause_auditor#5"]}
+{"id": "HLD-011", "group": "bimanyay", "query": "What must the insurer show to prove a pre-existing condition?", "relevant": ["bimanyay.clause_auditor#2"]}
+{"id": "HLD-012", "group": "bimanyay", "query": "Is the Ombudsman rule citation verified?", "relevant": ["bimanyay.tracker#2"]}
+{"id": "HLD-013", "group": "bimanyay", "query": "How long does the Bima Bharosa portal take to review a complaint?", "relevant": ["bimanyay.tracker#1"]}
+{"id": "HLD-014", "group": "daavisetu", "query": "Does the checklist mark a clinical fact as satisfied automatically?", "relevant": ["daavisetu.readiness#1"]}
+{"id": "HLD-015", "group": "daavisetu", "query": "What kind of documentation does the readiness checklist list for cashless pre-authorization?", "relevant": ["daavisetu.readiness#1", "daavisetu.readiness#2", "daavisetu.readiness#3"]}
+{"id": "HLD-016", "group": "out_of_corpus", "query": "Current price of gold per gram", "relevant": []}
+{"id": "HLD-017", "group": "out_of_corpus", "query": "How do I apply for a driving licence?", "relevant": []}
+{"id": "HLD-018", "group": "out_of_corpus", "query": "Best treatment for diabetes", "relevant": []}
+{"id": "HLD-019", "group": "out_of_corpus", "query": "Bus timetable from Pune to Nashik", "relevant": []}
+{"id": "HLD-020", "group": "out_of_corpus", "query": "Income tax slab for senior citizens", "relevant": []}

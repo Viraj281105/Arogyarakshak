@@ -1,16 +1,20 @@
 # Wave 2 handoff — stream B (retrieval, SchemeSetu ranking, citations, hi/mr explanations)
 
-Branch `wave2/b-retrieval`. Measured figures and caveats: `docs/evaluation/retrieval.md`
-(synthetic, n=47 queries over 27 passages; not real-world accuracy).
+Branch `wave2/b-retrieval`. Figures, definitions and caveats: `docs/evaluation/retrieval.md`; every figure there is
+regenerated into `docs/evaluation/retrieval_results.json` (SYNTHETIC hand-labelled sets written by the retriever's author;
+the tuning set is optimistic because the floors were chosen on it; the held-out slice is small).
 
 ## What shipped
 
-- `packages/kadi/kadi/retrieval/` — `chunk_document`, `Bm25Index`, `CaseRetrievalIndex`
-  (in-memory, `purge()`, context manager), `Hit(source, page, quote, score)`, `tokenize`.
-  No new dependency. No env var. Defaults: `DEFAULT_MIN_SCORE=1.0`, `DEFAULT_MIN_COVERAGE=1/3`.
-- `packages/schemesetu/schemesetu/{ranking,citations,explain_i18n}.py` (+ tests). Not exported from
-  `schemesetu/__init__.py`; import from the submodules. `agent.py` and its tests untouched.
-- `apps/api/app/evaluation/retrieval.py` and `data/evaluation/retrieval_{corpus,queries}_synthetic.jsonl`.
+- `packages/kadi/kadi/retrieval/` — `chunk_document` (linear time, limits, one-sentence overlap), `Bm25Index`,
+  `CaseRetrievalIndex` (in-memory, `purge()`, context manager, thread-safe), `Hit(source, page, quote, score)`, `tokenize`.
+  Hit text is untrusted document data. No new dependency. No env var.
+  Defaults: `min_score=0.0`, `min_score_ratio=0.25`, `min_coverage=0.5` (all terms for 1-2 term queries).
+- `packages/schemesetu/schemesetu/{ranking,citations,explain_i18n}.py` (+ tests), imported from the submodules (not exported
+  from `schemesetu/__init__.py`). `agent.py` and its tests untouched.
+- `apps/api/app/evaluation/retrieval.py` (harness, `build_results()`), `retrieval_corpus.py` (generates the corpus from the
+  source modules), `data/evaluation/retrieval_{corpus,queries,heldout}_synthetic.jsonl`,
+  `docs/evaluation/retrieval_results.json`.
 - Tests: `packages/kadi/tests/test_retrieval.py`, `packages/schemesetu/tests/test_{ranking,citations,explain_i18n}.py`,
   `apps/api/tests/test_evaluation_retrieval.py`.
 
@@ -21,7 +25,7 @@ Branch `wave2/b-retrieval`. Measured figures and caveats: `docs/evaluation/retri
 ```python
 from app.evaluation.retrieval import evaluate_retrieval_dataset   # with the other imports
 
-DATASETS["retrieval"] = "retrieval_queries_synthetic.jsonl"       # add to the DATASETS dict
+DATASETS["retrieval"] = "retrieval_queries_synthetic.jsonl"       # add to the DATASETS dict (the tuning set)
 
 def _retrieval(rows):
     _meta, corpus = load_dataset(DATA_DIR / "retrieval_corpus_synthetic.jsonl")
@@ -33,13 +37,12 @@ def _retrieval(rows):
 `apps/api/app/evaluation/regression.py`
 
 ```python
-# HEADLINE_METRICS (all "higher"; paths verified to resolve against evaluate_retrieval_dataset output)
+# HEADLINE_METRICS (all "higher"; the paths resolve against evaluate_retrieval_dataset output)
 MetricSpec("retrieval.mrr", "higher"),
 MetricSpec("retrieval.recall_at_k", "higher"),
 MetricSpec("retrieval.pcra", "higher"),
 MetricSpec("retrieval.precision", "higher"),
 MetricSpec("retrieval.abstention_rate", "higher"),
-MetricSpec("retrieval.at_k.1.hit_rate", "higher"),
 MetricSpec("retrieval.at_k.3.hit_rate", "higher"),
 
 # COUNT_METRICS
@@ -48,29 +51,35 @@ MetricSpec("retrieval.at_k.3.hit_rate", "higher"),
 
 Then regenerate the baseline in a reviewed commit
 (`python scripts/check_eval_regression.py --write-baseline apps/api/app/evaluation/baseline/phase4_baseline.json`).
-Current values at the defaults: mrr 0.8509, recall_at_k 0.8070, pcra 0.7636, precision 0.5526,
-abstention_rate 0.8889, at_k.1.hit_rate 0.7895, at_k.3.hit_rate 0.9211, queries 47, answerable 38.
-Also add a `retrieval` row to `docs/evaluation/phase4-harnesses.md` if desired, and extend
-`scripts/evaluate_phase4.py`'s summary printing if it has per-harness formatting (it takes `--only` choices
-from `DATASETS`, so the new key appears automatically). Any existing test that asserts the exact set
-of `DATASETS` keys or runner outputs will need the new key.
+Take the values from the regenerated baseline, not from this file: the figures in `docs/evaluation/retrieval.md` are the
+reference and carry the tuning caveat (tuning set: MRR 0.72, hit@3 0.72, abstention 0.94 at n=63; held-out: MRR 0.73,
+abstention 0.80 at n=20; tuned/synthetic; two decimals on purpose). A zero-tolerance gate on a tuned synthetic set guards
+against regressions only. The held-out file is reported by `retrieval_results.json`, not by the runner. Any existing test
+that asserts the exact set of `DATASETS` keys will need the new key.
 
 ## Decisions
 
-- Coverage floor added after the first run showed 5 of 9 out-of-corpus queries returning a hit on one shared
-  rare word (abstention 0.444). Default 1/3 chosen from the sensitivity table, i.e. on the evaluation set.
-- Tokeniser folding copied from `kadi.injection._matching_view`, not imported (file owned by stream A/other).
-- `schemesetu` does not import `kadi`: `verify_citation` accepts anything with a `.quote` (a `kadi.retrieval.Hit`
-  fits) and `explain_i18n` builds its own `CitedSpan`, keeping the domain-package independence contracts intact.
-- Ranking relevance = 0.3 state specificity + 0.7 share of the stated medical-need words found in the scheme's
-  cited criteria text. Deterministic, explained in `relevance_basis`; never uses income.
-- Gold sets labelled on in-repo English text only; the real PDFs' text layers are corrupted.
+- Floors: the absolute BM25 floor made every single-term query abstain in a 1-3 chunk index, so the default floor is a
+  fraction (0.25) of the query's own best achievable score; a coverage floor requires all terms for 1-2 term queries and
+  ceil(50%) otherwise ("PAN card" must not match "ration card"). Chosen on the tuning set.
+- Tokeniser fold copied from `kadi.injection._matching_view` (parity test; that file belongs to another stream).
+- `schemesetu` does not import `kadi`: `verify_citation` takes anything with a `.quote` and optional `.scheme`;
+  `explain_i18n` builds its own `CitedSpan`, keeping the domain-package independence contracts intact.
+- `verify_citation` statuses: `supported`, `scheme_only`, `unsupported`, `uncheckable`; scheme names are matched in the span
+  body only (the title is carried separately and ignored) and figures must sit near the named scheme in a multi-scheme span.
+- Ranking relevance = 0.3 state specificity + 0.7 share of stated medical-need words in the scheme's cited criteria text; never
+  uses income.
+- The corpus file is generated from the source modules and a test fails on drift. **If stream A/C/E (bimanyay, daavisetu,
+  schemesetu wording) changes those texts the drift test will fail after integration:** run
+  `cd apps/api && python -m app.evaluation.retrieval_corpus && python -m app.evaluation.retrieval`, re-check the labels in the
+  queries files, and recommit.
 
 ## NOT verified / limits
 
-- No Hindi/Marathi retrieval measured (no clean Devanagari corpus). hi/mr templates are `NEEDS NATIVE-SPEAKER QA`.
-- `verify_citation` is a string check on figures and scheme names, not a semantic entailment check.
-- Nothing wired into an API route or the UI: retrieval is library-only so far; nothing calls `CaseRetrievalIndex`
-  in production code, so the BYOD purge hook (call `purge()` when a case session ends) is for whoever wires it.
-- Not measured on real documents or OCR output; no latency or large-corpus performance measurement
-  (the index recomputes scores in a Python loop over all chunks, fine for per-case sizes only).
+- No Hindi/Marathi retrieval measured (no clean Devanagari corpus). hi/mr templates, stop-word and number-word lists are
+  `NEEDS NATIVE-SPEAKER QA`.
+- `verify_citation` is a string check on figures and scheme names, not semantic entailment (pinned limitation); only PMJAY and
+  MJPJAY are recognised.
+- Nothing calls the retrieval index in production code, so the BYOD hook (`purge()` when a case session ends) is for whoever
+  wires it. Not measured on real documents/OCR output or on large corpora.
+- Filesystem-silence is tested through the common file-creating entry points only (a tripwire, not a proof).
