@@ -261,3 +261,6 @@ test_temp.db
 
 # Lighthouse CI output
 .lighthouseci/
+
+# Real public Devanagari PDFs for QA (#35): provenance and hashes are in data/raw/devanagari_public_docs/README.md
+data/raw/devanagari_public_docs/**/*.pdf
