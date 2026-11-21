@@ -21,7 +21,8 @@ _GROUPED_NUMBER = re.compile(r"(?<=\d),(?=\d)")
 
 ENGLISH_STOPWORDS = frozenset(
     "a an and are as at be but by for from has have in is it its of on or that the their this "
-    "to was were what when which who will with".split()
+    "to was were what when which who will with "
+    "how does do can why where i me my you your".split()
 )
 
 

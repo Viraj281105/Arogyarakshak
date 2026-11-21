@@ -125,6 +125,21 @@ def test_search_returns_empty_below_the_floor_never_a_guess():
     assert idx.search("zzz nothing matches", k=5) == []
 
 
+def test_coverage_floor_drops_chunks_matching_too_few_query_terms():
+    idx = Bm25Index(min_score=0.0, min_coverage=0.5)
+    idx.add(Chunk("A", 1, 0, "alpha beta"))
+    idx.add(Chunk("B", 1, 0, "gamma delta"))
+    assert idx.search("alpha zzz yyy", k=3) == []  # 1 of 3 terms = 0.33 < 0.5
+    assert [h.source for h in idx.search("alpha zzz", k=3)] == ["A"]  # 1 of 2 = 0.5
+    loose = Bm25Index(min_score=0.0, min_coverage=0.0)
+    loose.add(Chunk("A", 1, 0, "alpha beta"))
+    assert [h.source for h in loose.search("alpha zzz yyy", k=3)] == ["A"]
+
+
+def test_question_words_do_not_count_as_query_terms():
+    assert tokenize("How does the claim work?", drop_stopwords=True) == ["claim", "work"]
+
+
 def test_search_on_empty_index_or_empty_query_or_nonpositive_k_is_empty():
     assert Bm25Index().search("anything", k=3) == []
     assert _two_docs(min_score=0.0).search("", k=3) == []

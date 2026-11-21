@@ -27,6 +27,9 @@ B = 0.75
 # Hits scoring below this are dropped. 1.0 is roughly "one moderately rare term matched";
 # tuned against the synthetic gold sets (docs/evaluation/retrieval.md), not a universal value.
 DEFAULT_MIN_SCORE = 1.0
+# A chunk must also contain at least this share of the query's distinct content terms. Without
+# it a single shared rare word ("card" in "PAN card" vs "ration card") clears any score floor.
+DEFAULT_MIN_COVERAGE = 1 / 3
 
 
 @dataclass(frozen=True)
@@ -38,8 +41,9 @@ class Hit:
 
 
 class Bm25Index:
-    def __init__(self, min_score: float = DEFAULT_MIN_SCORE) -> None:
+    def __init__(self, min_score: float = DEFAULT_MIN_SCORE, min_coverage: float = DEFAULT_MIN_COVERAGE) -> None:
         self.min_score = min_score
+        self.min_coverage = min_coverage
         self._chunks: List[Chunk] = []
         self._tf: List[Counter] = []
         self._len: List[int] = []
@@ -67,7 +71,8 @@ class Bm25Index:
         return len(chunks)
 
     def search(self, query: str, k: int = 5) -> List[Hit]:
-        """Top-``k`` chunks scoring at or above ``min_score``; ``[]`` when none do."""
+        """Top-``k`` chunks with score >= ``min_score`` that also cover >= ``min_coverage`` of the
+        query terms; ``[]`` when none do."""
         terms = list(dict.fromkeys(tokenize(query, drop_stopwords=True)))
         n_docs = len(self._chunks)
         if k <= 0 or not terms or n_docs == 0:
@@ -76,15 +81,17 @@ class Bm25Index:
         scored = []
         for i, tf in enumerate(self._tf):
             score = 0.0
+            matched = 0
             norm = K1 * (1 - B + B * self._len[i] / avgdl) if avgdl else K1
             for term in terms:
                 f = tf.get(term)
                 if not f:
                     continue
+                matched += 1
                 n = self._df[term]
                 idf = math.log(1 + (n_docs - n + 0.5) / (n + 0.5))
                 score += idf * f * (K1 + 1) / (f + norm)
-            if score > 0 and score >= self.min_score:
+            if score > 0 and score >= self.min_score and matched / len(terms) >= self.min_coverage:
                 c = self._chunks[i]
                 scored.append((-score, c.source, c.page, c.index, c))
         scored.sort(key=lambda s: s[:4])

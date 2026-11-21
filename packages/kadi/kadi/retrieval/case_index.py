@@ -7,12 +7,12 @@ the index refuses new documents. Nothing is written to disk or logged.
 
 from typing import Optional
 
-from kadi.retrieval.bm25 import DEFAULT_MIN_SCORE, Bm25Index, Chunk
+from kadi.retrieval.bm25 import DEFAULT_MIN_COVERAGE, DEFAULT_MIN_SCORE, Bm25Index, Chunk
 
 
 class CaseRetrievalIndex(Bm25Index):
-    def __init__(self, case_id: str, min_score: float = DEFAULT_MIN_SCORE) -> None:
-        super().__init__(min_score=min_score)
+    def __init__(self, case_id: str, min_score: float = DEFAULT_MIN_SCORE, min_coverage: float = DEFAULT_MIN_COVERAGE) -> None:
+        super().__init__(min_score=min_score, min_coverage=min_coverage)
         self.case_id = case_id
         self.purged = False
 
