@@ -5,6 +5,7 @@ Benchmarks MRP against NPPA ceiling prices and suggests generic alternatives.
 """
 
 import logging
+import re
 from typing import Any, Mapping, Optional
 from pydantic import BaseModel, Field
 
@@ -21,7 +22,10 @@ from dawacheck.reference_data import (
     extract_dosage_mg,
     find_exact_or_alias,
     find_ingredient_family,
+    extract_all_dosages_mg,
     find_phonetic_match,
+    is_combination_query,
+    uncovered_drug_tokens,
     strip_dosage_token,
 )
 
@@ -91,6 +95,44 @@ class MedicineBenchmark(BaseModel):
     comparison_note: Optional[str] = Field(None, description="Why no comparison was made, in plain language.")
 
 
+# A bare number is read as a strength only when it stands alone: not a pack size ("15s", "x 15",
+# "strip of 10", "10 tablets", "qty 30"), not part of a code ("b12"), and not one of several numbers.
+_PACK_WORDS = r"(?:x|of|pack|packs|strip|strips|pcs|nos?|qty|quantity|units?|tabs?|tablets?|caps?|capsules?|vials?)"
+_BARE_STRENGTH_RE = re.compile(
+    r"(?<![\d.])(?:(?<![a-z])|(?<=[a-z]{3}))(\d{2,4})(?![\d.]|[a-z])", re.IGNORECASE
+)
+_PACK_CONTEXT_RE = re.compile(
+    rf"(?:\b{_PACK_WORDS}\b\s*[:=.]?\s*\d)|(?:\d\s*(?:'?s\b|{_PACK_WORDS}\b))", re.IGNORECASE
+)
+
+
+def _bare_strength_mg(norm_query: str) -> Optional[float]:
+    """A strength written without a unit ("dolo 500", "dolo650"), read as mg only when the
+    query holds exactly one such number and nothing marks it as a pack size or a code.
+    Otherwise None: no strength is guessed."""
+    if _PACK_CONTEXT_RE.search(norm_query):
+        return None
+    numbers = _BARE_STRENGTH_RE.findall(norm_query)
+    return float(numbers[0]) if len(numbers) == 1 else None
+
+
+def _combination_strength_ok(brand_name: str, norm_query: str, dosage_hint: Optional[str],
+                             reference_mg: Optional[float]) -> bool:
+    """A combination's reference strength is the combined product ("500 + 125" = 625). A price
+    ceiling is never scaled linearly from one component, so a stated strength is accepted only
+    when it equals the reference or its components add up to it; any other strength is refused."""
+    strengths = extract_all_dosages_mg(brand_name)
+    if not strengths and dosage_hint:
+        one = extract_dosage_mg(str(dosage_hint))
+        strengths = [one] if one else []
+    if not strengths:
+        bare = _bare_strength_mg(norm_query)
+        strengths = [bare] if bare else []
+    if not strengths or not reference_mg:
+        return True
+    return abs(sum(strengths) - reference_mg) <= 0.01 or (len(strengths) == 1 and abs(strengths[0] - reference_mg) <= 0.01)
+
+
 def _price_fields(comparison: PriceComparison) -> dict:
     return dict(
         mrp=comparison.billed_amount,
@@ -149,19 +191,27 @@ def benchmark_medicine(
     matched_data = None
     match_method = "exact_or_alias"
 
-    hit = find_exact_or_alias(norm_query)
-    if hit:
-        matched_key, matched_data = hit
+    if is_combination_query(norm_query):
+        # A combination product is never priced as one of its ingredients: it maps to a
+        # multi-ingredient reference entry (all ingredients named) or is refused.
+        combo_hit = find_phonetic_match(norm_query, require_combination=True)
+        if combo_hit:
+            matched_key, matched_data = combo_hit
+            match_method = "fuzzy_phonetic"
+    else:
+        hit = find_exact_or_alias(norm_query)
+        if hit:
+            matched_key, matched_data = hit
 
-    if not matched_data:
-        bare_query = strip_dosage_token(norm_query)
-        if bare_query:
-            family = find_ingredient_family(bare_query)
-            if family:
-                matched_key, matched_data = family[0]
-                match_method = "ingredient_dosage_variant"
+        if not matched_data:
+            bare_query = strip_dosage_token(norm_query)
+            if bare_query:
+                family = find_ingredient_family(bare_query)
+                if family:
+                    matched_key, matched_data = family[0]
+                    match_method = "ingredient_dosage_variant"
 
-    if not matched_data:
+    if not matched_data and not is_combination_query(norm_query):
         phon_hit = find_phonetic_match(norm_query)
         if phon_hit:
             matched_key, matched_data = phon_hit
@@ -176,6 +226,23 @@ def benchmark_medicine(
         )
         return None
 
+    if match_method != "fuzzy_phonetic":
+        # exact/alias/ingredient hits do not check the whole name: "Amoxicillin 500mg Clavulanate"
+        # contains the plain amoxicillin key but is a different (combination) product.
+        extra = uncovered_drug_tokens(norm_query, matched_key, matched_data)
+        if extra:
+            logger.warning("[DawaCheck] '%s' names %s that '%s' does not cover; refusing to price it as that entry.",
+                           brand_name, extra, matched_key)
+            return None
+
+    is_combination_entry = len(matched_data["ingredient_base"].split()) >= 2
+    if is_combination_entry:
+        if not _combination_strength_ok(brand_name, norm_query, dosage_hint, matched_data.get("dosage_mg")):
+            logger.warning("[DawaCheck] '%s' states a strength that is not the reference combination strength; "
+                           "a combination ceiling is never scaled from one component, refusing.", brand_name)
+            return None
+        queried_dosage_mg = matched_data.get("dosage_mg")  # full combined strength; no scaling
+
     billed = resolve_billed_price(
         mrp,
         declared_basis=price_basis,
@@ -185,6 +252,11 @@ def benchmark_medicine(
         facts=price_facts,
         allow_api_default=allow_api_default,
     )
+
+    if match_method == "fuzzy_phonetic" and queried_dosage_mg is None and not is_combination_entry:
+        # A phonetic match must still go through the dosage rule: "Dolo 500" states a bare
+        # strength (no 'mg') that differs from the 650 mg reference entry.
+        queried_dosage_mg = _bare_strength_mg(norm_query)
 
     ceiling = matched_data["ceiling_price"]
     reference_dosage_mg = matched_data.get("dosage_mg")
