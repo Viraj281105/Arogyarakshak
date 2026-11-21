@@ -47,7 +47,33 @@ def test_no_bma_row_is_wrong_key_or_false_match_now():
     assert not bad, bad
 
 
-def test_billing_unit_uses_the_same_match_as_the_rate():
-    # 'ppe' inside 'appendectomy' must not supply a per-shift unit either.
+FORMER_FALSE_MATCHES = ["BMA-064", "BMA-066", "BMA-069", "BMA-070", "BMA-071", "BMA-073", "BMA-074", "BMA-078"]
+NEWLY_MAPPED = ["BMA-040", "BMA-041", "BMA-042", "BMA-043", "BMA-044", "BMA-046"]
+
+
+def _outcome_by_id():
+    return {
+        r["id"]: classify(r["expected_keys"], bn._match_cghs_key(r["hospital_line"].lower().strip(), bn.CGHS_RATES))
+        for r in _rows()
+    }
+
+
+def test_bma_accuracy_does_not_fall_below_the_measured_69_of_78():
+    outcomes = _outcome_by_id()
+    assert len(outcomes) == 78
+    assert sum(1 for o in outcomes.values() if o == "correct") >= 69
+
+
+def test_former_false_matches_and_newly_mapped_rows_are_correct_by_id():
+    outcomes = _outcome_by_id()
+    assert {i: outcomes[i] for i in FORMER_FALSE_MATCHES + NEWLY_MAPPED if outcomes[i] != "correct"} == {}
+
+
+def test_billing_unit_uses_the_same_match_as_the_rate(monkeypatch):
+    # Behavioural: 'ppe' inside 'appendectomy' must not supply a per-shift unit either.
     assert bn._billing_unit_of("appendectomy (open)", bn.CGHS_RATES) is None
     assert bn._billing_unit_of("icu day charges", bn.CGHS_RATES) == "per_day"
+    # Structural: _billing_unit_of must delegate to _match_cghs_key (a private copy of the
+    # matcher would ignore this stub and fall back to its own substring logic).
+    monkeypatch.setattr(bn, "_match_cghs_key", lambda name, rates: "dialysis")
+    assert bn._billing_unit_of("appendectomy (open)", bn.CGHS_RATES) == "per_session"

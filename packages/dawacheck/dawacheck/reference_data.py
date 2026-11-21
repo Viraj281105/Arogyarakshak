@@ -106,6 +106,11 @@ def extract_dosage_mg(text: str) -> Optional[float]:
     return round(float(value) * _UNIT_TO_MG[unit.lower()], 4)
 
 
+def extract_all_dosages_mg(text: str) -> List[float]:
+    """Every mg/mcg/g strength in `text`, normalised to mg (a combination names several)."""
+    return [round(float(v) * _UNIT_TO_MG[u.lower()], 4) for v, u in _DOSAGE_RE.findall(text)]
+
+
 def strip_dosage_token(text: str) -> str:
     """Removes the first mg/mcg/g strength token, leaving the bare brand/ingredient text."""
     return _DOSAGE_RE.sub("", text).strip()
@@ -145,8 +150,10 @@ _NON_DRUG_WORDS = {
     "tablet", "tablets", "capsule", "capsules", "injection", "injections", "syrup", "strip",
     "strips", "bottle", "vial", "vials", "pack", "sachet", "powder", "forte", "acid", "film",
     "coated", "oral", "sustained", "release",
+    # dosing instructions, not drugs ("Metformin 500mg with meals")
+    "caps", "tabs", "with", "plus", "meals", "meal", "food", "water", "milk", "after", "before", "daily", "night", "morning",
 }
-_COMBINATION_MARKER_RE = re.compile(r"\+|&|/|\band\b|\bwith\b", re.IGNORECASE)
+_COMBINATION_MARKER_RE = re.compile(r"\+|&|/|\band\b|\bwith\b|\bplus\b", re.IGNORECASE)
 _DRUG_TOKEN_RE = re.compile(r"[a-z]{4,}")
 _DOSAGE_ALL_RE = re.compile(r"\d+(?:\.\d+)?\s*(?:mcg|mg|g)\b", re.IGNORECASE)
 
@@ -174,6 +181,21 @@ def _token_matches(a: str, b: str) -> bool:
     return a == b or phonetic_codes_match(a, b)
 
 
+def _entry_candidate_tokens(key: str, entry: dict) -> set:
+    tokens = set()
+    for term in [entry["ingredient_base"], key] + entry.get("aliases", []):
+        tokens.update(t for t in re.split(r"\s+", strip_dosage_token(term)) if len(t) >= 4)
+    return tokens
+
+
+def uncovered_drug_tokens(query: str, key: str, entry: dict) -> List[str]:
+    """Drug words in the query that the matched entry does not account for ("Amoxicillin 500mg
+    Clavulanate": 'clavulanate' is not part of the plain amoxicillin entry). A non-empty result
+    means the product is more than the entry, and must not be priced as it."""
+    cands = _entry_candidate_tokens(key, entry)
+    return [t for t in drug_tokens(query) if not any(_token_matches(t, c) for c in cands)]
+
+
 def find_phonetic_match(query: str, require_combination: bool = False) -> Optional[Tuple[str, dict]]:
     """Matches the bare (dosage-stripped) ingredient token in `query` against each
     reference entry's ingredient name and aliases using Double Metaphone codes.
@@ -195,7 +217,7 @@ def find_phonetic_match(query: str, require_combination: bool = False) -> Option
     # require a minimum length before trusting a match.
     query_tokens = [
         t for t in re.split(r"\s+", bare_query)
-        if len(t) >= 4 and t.lower() not in _NON_DRUG_WORDS
+        if len(t) >= 4 and t.lower() not in _NON_DRUG_WORDS and re.search(r"[A-Za-z]", t)
     ]
     if not query_tokens:
         return None

@@ -118,7 +118,7 @@ def _match_cghs_rate(norm_name: str, rates_source: Dict[str, Any]):
 
 def _match_cghs_key(norm_name: str, rates_source: Dict[str, Any]) -> Optional[str]:
     """The CGHS rate key a billed item name resolves to (exact, else longest WHOLE-WORD
-    match in either direction, after the unreviewed synonym table; a modifier such as
+    match of a key inside the line, after the unreviewed synonym table; a modifier such as
     "catheter" or "report copy" refuses the match), or None. See billnyay.matching.
     Exposed so the evaluation harness (BMA) can score the mapping itself rather than
     only the resulting rate."""
