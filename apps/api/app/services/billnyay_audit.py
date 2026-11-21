@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import KadiCase, KadiEntity
+from app.services.context_requests import note_context_request
 from billnyay.agents.icd_audit import ICDProcedureAuditItem, audit_icd_procedure_consistency
 from billnyay.explain import explain_audit_line
 from billnyay.rate_basis import benchmark_line
@@ -185,6 +186,7 @@ async def build_case_audit(case_id: str, db: AsyncSession) -> AuditResponse:
         .where(KadiEntity.type == "billing_item")
     )
     billing_items = entities_result.scalars().all()
+    await note_context_request(db, case_id, module="billnyay", context="line_items", items=len(billing_items))
 
     return audit_billing_lines(case_id, billing_items)
 
@@ -333,5 +335,9 @@ async def build_case_icd_audit(case_id: str, db: AsyncSession) -> ICDProcedureAu
         .where(KadiCase.id == case_id, KadiEntity.type == "procedure")
     )
     procedures_billed = [e.name for e in procedure_result.scalars().all() if e.name]
+    await note_context_request(
+        db, case_id, module="billnyay", context="entities",
+        items=(1 if diagnosis_entity else 0) + len(procedures_billed),
+    )
 
     return audit_icd_procedure_consistency(diagnosis_text, procedures_billed)

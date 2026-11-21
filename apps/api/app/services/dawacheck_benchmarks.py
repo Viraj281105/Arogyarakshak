@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from app.clinical.transcription_service import open_tasks_by_entity
 from app.models import DawaCheckGenericMapping, KadiCase, KadiEntity
+from app.services.context_requests import note_context_request
 from dawacheck.checker import (
     MedicineBenchmark,
     benchmark_from_known_generic,
@@ -98,6 +99,7 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
         .where(KadiCase.id == case_id, KadiEntity.type == "medicine")
     )
     medicine_entities = entities_result.scalars().all()
+    await note_context_request(db, case_id, module="dawacheck", context="entities", items=len(medicine_entities))
     unresolved = await open_tasks_by_entity(db, case_id)
 
     results: List[CaseMedicineBenchmark] = []

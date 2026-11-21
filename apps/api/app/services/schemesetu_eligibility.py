@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import KadiCase, KadiEntity
+from app.services.context_requests import note_context_request
 from schemesetu.agent import EligibilityRequest, SchemeResult, check_eligibility
 
 
@@ -28,6 +29,7 @@ async def case_medical_need(case_id: str, db: AsyncSession) -> Optional[str]:
     # De-duplicated, order-preserving: a case can carry the same procedure name from more
     # than one source document.
     names = list(dict.fromkeys(e.name for e in entities_result.scalars().all() if e.name))
+    await note_context_request(db, case_id, module="schemesetu", context="entities", items=len(names))
     return "; ".join(names) if names else None
 
 

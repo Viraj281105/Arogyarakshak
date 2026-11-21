@@ -48,6 +48,7 @@ from app.models import (
 from app.services import document_jobs
 from app.services.ingestion_mentions import build_mentions
 from app.telemetry.metrics import stage_timer
+from app.telemetry.context_metrics import record_context_work
 
 logger = logging.getLogger("arogyarakshak.api.kadi")
 
@@ -209,6 +210,7 @@ async def _run_pipeline(
 
         text = parsed.get("full_text_content", "")
         line_items = parsed.get("line_items", [])
+        record_context_work("ocr", "ingest")  # #112: the one OCR/parse pass per document
 
         # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic
         # fallback). SEC-01: extract_entities_from_text makes a synchronous
@@ -223,6 +225,8 @@ async def _run_pipeline(
                 extracted = await run_in_threadpool(
                     extract_entities_from_text, text, api_key=settings.groq_api_key, model=settings.groq_model
                 )
+
+        record_context_work("extraction", "ingest")  # #112: the one extraction pass per document
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
