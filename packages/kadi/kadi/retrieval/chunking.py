@@ -1,21 +1,36 @@
-"""Deterministic document chunking.
+"""Deterministic, linear-time document chunking.
 
 A chunk's ``text`` is always an exact slice of the input (never rewritten), so a retrieval
-hit can quote the source verbatim. Paragraphs (blank-line separated) are kept whole when
-they fit in ``max_words``; longer ones are packed sentence by sentence, and a single
-over-long sentence is cut into word windows so no text is ever dropped.
+hit can quote the source verbatim. Paragraphs (blank-line separated) are kept whole when they
+fit in ``max_words`` words and ``max_chars`` characters; longer ones are packed sentence by
+sentence, with the last sentence of a chunk repeated at the start of the next when it fits
+(so a clause cut at a boundary is still whole in one chunk). A single over-long sentence is
+cut into word windows, and a single over-long "word" is cut by characters, so no text is ever
+dropped and no chunk exceeds the limits.
+
+Every scan here is a single left-to-right pass: a sentence ends at ``. ! ? । ॥`` only when the
+run of terminators (capped) is followed by whitespace or the end of the text, which keeps
+"1.50", "Rs. 5" and "a.b.c" inside one sentence and keeps adversarial punctuation runs linear.
+
+Limits are loud: a document larger than ``max_doc_chars`` raises ``RetrievalLimitError``.
 """
 
-import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple
 
 DEFAULT_MAX_WORDS = 80
+DEFAULT_MAX_CHARS = 1000
+MAX_DOCUMENT_CHARS = 1_000_000
+_MAX_TERMINATOR_RUN = 8
+_TERMINATORS = ".!?।॥"
+# Abbreviations after which a single '.' does not end a sentence ("Rs. 5,00,000").
+_ABBREVIATIONS = frozenset(
+    "rs no dr mr mrs ms sec art cl reg fig vs approx govt st e.g i.e".split()
+)
 
-_PARAGRAPH = re.compile(r"\S(?:.*?\S)?(?=\s*\n\s*\n|\s*$)", re.DOTALL)
-# A sentence ends at . ! ? । ॥ followed by whitespace/end, so "1.50" and "Rs. 5" survive.
-_SENTENCE = re.compile(r".+?(?:[.!?।॥]+(?=\s|$)|$)", re.DOTALL)
-_WORD = re.compile(r"\S+")
+
+class RetrievalLimitError(ValueError):
+    """A configured size limit was exceeded; nothing was truncated or stored."""
 
 
 @dataclass(frozen=True)
@@ -23,55 +38,144 @@ class Chunk:
     source: str
     page: int
     index: int
-    text: str
+    text: str = field(repr=False)  # untrusted document text: never in logs or tracebacks
 
 
-def _units(text: str, start: int, end: int, max_words: int) -> List[Tuple[int, int, int]]:
-    """(start, end, word_count) spans for the sentences of text[start:end], word-windowed if long."""
-    out: List[Tuple[int, int, int]] = []
-    for m in _SENTENCE.finditer(text, start, end):
-        s, e = m.start(), m.end()
-        while s < e and text[s].isspace():
-            s += 1
-        while e > s and text[e - 1].isspace():
-            e -= 1
-        if s >= e:
+_Unit = Tuple[int, int, int, bool]  # start, end, words, overlappable (a whole sentence)
+
+
+def _paragraphs(text: str) -> List[Tuple[int, int]]:
+    """Spans of runs of non-blank lines, stripped. One pass over the lines."""
+    spans: List[Tuple[int, int]] = []
+    start = end = -1
+    pos, n = 0, len(text)
+    while pos <= n:
+        nl = text.find("\n", pos)
+        line_end = n if nl == -1 else nl
+        line = text[pos:line_end]
+        stripped = line.strip()
+        if stripped:
+            s = pos + (len(line) - len(line.lstrip()))
+            e = s + len(stripped)
+            if start == -1:
+                start = s
+            end = e
+        elif start != -1:
+            spans.append((start, end))
+            start = -1
+        if nl == -1:
+            break
+        pos = nl + 1
+    if start != -1:
+        spans.append((start, end))
+    return spans
+
+
+def _is_abbreviation(text: str, dot: int) -> bool:
+    a = dot
+    while a > 0 and dot - a < 16 and not text[a - 1].isspace():
+        a -= 1
+    token = text[a:dot].lstrip("(['\"")
+    low = token.casefold()
+    return low in _ABBREVIATIONS or (token.isdigit() and len(token) <= 3) or (len(token) == 1 and token.isalpha())
+
+
+def _sentence_spans(text: str, start: int, end: int) -> List[Tuple[int, int]]:
+    spans: List[Tuple[int, int]] = []
+    s = i = start
+    while i < end:
+        if text[i] not in _TERMINATORS:
+            i += 1
             continue
-        words = [w for w in _WORD.finditer(text, s, e)]
-        if len(words) <= max_words:
-            out.append((s, e, len(words)))
-        else:
-            for i in range(0, len(words), max_words):
-                group = words[i : i + max_words]
-                out.append((group[0].start(), group[-1].end(), len(group)))
+        j = i + 1
+        while j < end and j - i < _MAX_TERMINATOR_RUN and text[j] in _TERMINATORS:
+            j += 1
+        boundary = j >= end or text[j].isspace()
+        if boundary and j - i == 1 and text[i] == "." and _is_abbreviation(text, i):
+            boundary = False
+        if boundary:
+            spans.append((s, j))
+            while j < end and text[j].isspace():
+                j += 1
+            s = j
+        i = j
+    if s < end:
+        spans.append((s, end))
+    return spans
+
+
+def _pieces(text: str, start: int, end: int, max_chars: int) -> List[Tuple[int, int]]:
+    """Word spans of text[start:end]; a word longer than ``max_chars`` is cut by characters."""
+    out: List[Tuple[int, int]] = []
+    i = start
+    while i < end:
+        while i < end and text[i].isspace():
+            i += 1
+        j = i
+        while j < end and not text[j].isspace():
+            j += 1
+        for k in range(i, j, max_chars):
+            out.append((k, min(k + max_chars, j)))
+        i = j
     return out
 
 
-def chunk_document(text: str, source: str, page: int, max_words: int = DEFAULT_MAX_WORDS) -> List[Chunk]:
-    """Split ``text`` into chunks of at most ``max_words`` words, in document order."""
-    if max_words < 1:
-        raise ValueError("max_words must be at least 1")
+def _units(text: str, start: int, end: int, max_words: int, max_chars: int) -> List[_Unit]:
+    units: List[_Unit] = []
+    for s, e in _sentence_spans(text, start, end):
+        pieces = _pieces(text, s, e, max_chars)
+        if not pieces:
+            continue
+        if len(pieces) <= max_words and e - s <= max_chars:
+            units.append((s, e, len(pieces), True))
+            continue
+        w_start, count = pieces[0][0], 0
+        for idx, (ps, pe) in enumerate(pieces):
+            if count and (count >= max_words or pe - w_start > max_chars):
+                units.append((w_start, pieces[idx - 1][1], count, False))
+                w_start, count = ps, 0
+            count += 1
+        units.append((w_start, pieces[-1][1], count, False))
+    return units
+
+
+def chunk_document(
+    text: str,
+    source: str,
+    page: int,
+    max_words: int = DEFAULT_MAX_WORDS,
+    max_chars: int = DEFAULT_MAX_CHARS,
+    max_doc_chars: int = MAX_DOCUMENT_CHARS,
+) -> List[Chunk]:
+    """Split ``text`` into chunks of at most ``max_words`` words / ``max_chars`` characters."""
+    if max_words < 1 or max_chars < 1:
+        raise ValueError("max_words and max_chars must be at least 1")
     text = text or ""
+    if len(text) > max_doc_chars:
+        raise RetrievalLimitError(f"document of {len(text)} characters exceeds the limit of {max_doc_chars}")
     chunks: List[Chunk] = []
 
     def emit(s: int, e: int) -> None:
         chunks.append(Chunk(source=source, page=page, index=len(chunks), text=text[s:e]))
 
-    for para in _PARAGRAPH.finditer(text):
-        ps, pe = para.start(), para.end()
-        if len(_WORD.findall(text, ps, pe)) <= max_words:
+    for ps, pe in _paragraphs(text):
+        pieces = _pieces(text, ps, pe, max_chars)
+        if len(pieces) <= max_words and pe - ps <= max_chars:
             emit(ps, pe)
             continue
-        cur_start = cur_end = -1
-        cur_words = 0
-        for s, e, n in _units(text, ps, pe, max_words):
-            if cur_words and cur_words + n > max_words:
-                emit(cur_start, cur_end)
-                cur_words = 0
-            if not cur_words:
-                cur_start = s
-            cur_end = e
-            cur_words += n
-        if cur_words:
-            emit(cur_start, cur_end)
+        cur: List[_Unit] = []
+        words = 0
+        for unit in _units(text, ps, pe, max_words, max_chars):
+            s, e, n, _ov = unit
+            if cur and (words + n > max_words or e - cur[0][0] > max_chars):
+                emit(cur[0][0], cur[-1][1])
+                last = cur[-1]
+                if last[3] and last[2] + n <= max_words and e - last[0] <= max_chars:
+                    cur, words = [last], last[2]  # one-sentence overlap
+                else:
+                    cur, words = [], 0
+            cur.append(unit)
+            words += n
+        if cur:
+            emit(cur[0][0], cur[-1][1])
     return chunks

@@ -25,7 +25,8 @@ STATE_WEIGHT = 0.3
 NEED_WEIGHT = 0.7
 
 _STATUS_ORDER = {"eligible": 0, "ambiguous": 1, "ineligible": 2}
-_WORD = re.compile(r"[\wऀ-ॿ]+")
+# Devanagari letters and matras, but not the danda / double danda (U+0964, U+0965).
+_WORD = re.compile(r"[\wऀ-ॣ०-ॿ]+")
 _STOP = frozenset("a an and are as at for from in is of on or the to with".split())
 
 

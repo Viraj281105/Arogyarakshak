@@ -2,7 +2,7 @@
 relevance second. It never changes a verdict and every row stays provisional."""
 
 from schemesetu.agent import EligibilityRequest, check_eligibility
-from schemesetu.ranking import RankedScheme, rank_schemes
+from schemesetu.ranking import RankedScheme, _terms, rank_schemes
 
 
 def _req(state="Maharashtra", need="knee surgery", income=100000.0):
@@ -99,3 +99,47 @@ def test_unknown_scheme_is_kept_with_zero_relevance_and_sorted_by_status():
     other = pmjay.model_copy(update={"scheme_name": "Some Other Scheme", "estimated_eligibility": "eligible"})
     ranked = rank_schemes(req, [pmjay, other])
     assert ranked[0].scheme_name == "Some Other Scheme" and ranked[0].relevance == 0.0
+
+
+# ---- hand-computed relevance, ordering corner cases, Devanagari ---------------
+def test_state_only_relevance_is_exactly_0_3():
+    req = _req(need="")
+    ranked = {r.scheme_name[:5]: r for r in rank_schemes(req, check_eligibility(req))}
+    assert ranked["MJPJA"].relevance == 0.3 and ranked["PMJAY"].relevance == 0.0
+
+
+def test_need_share_of_one_half_is_exactly_0_35():
+    req = _req(state="Karnataka", need="senior zzzzqq")  # 'senior' is in the PMJAY text, 'zzzzqq' is not
+    (row,) = rank_schemes(req, check_eligibility(req))
+    assert row.relevance == 0.35
+    assert row.relevance_basis == ["1 of 2 stated medical-need words appear in the cited criteria"]
+
+
+def test_same_status_and_relevance_sort_by_scheme_name():
+    req = _req()
+    pmjay, _ = check_eligibility(req)
+    b = pmjay.model_copy(update={"scheme_name": "B Scheme"})
+    a = pmjay.model_copy(update={"scheme_name": "A Scheme"})
+    assert [r.scheme_name for r in rank_schemes(req, [b, a])] == ["A Scheme", "B Scheme"]
+
+
+def test_unknown_status_sorts_after_every_known_status():
+    req = _req()
+    pmjay, mjpjay = check_eligibility(req)
+    odd = pmjay.model_copy(update={"scheme_name": "Odd", "estimated_eligibility": "weird"})
+    ranked = rank_schemes(req, [odd, _with_status(pmjay, "ineligible"), mjpjay])
+    assert [r.estimated_eligibility for r in ranked] == ["eligible", "ineligible", "weird"]
+
+
+def test_devanagari_state_name_still_earns_the_state_bonus():
+    req = _req(state="महाराष्ट्र", need="")
+    ranked = rank_schemes(req, check_eligibility(req))
+    assert ranked[0].scheme_name.startswith("MJPJAY") and ranked[0].relevance == 0.3
+
+
+def test_danda_does_not_glue_words_and_devanagari_need_does_not_crash():
+    assert _terms("पात्र।अपात्र") == {"पात्र", "अपात्र"}
+    assert _terms("पात्र॥अपात्र") == {"पात्र", "अपात्र"}
+    req = _req(need="आयु ७० वर्ष।")
+    ranked = rank_schemes(req, check_eligibility(req))
+    assert all(0.0 <= r.relevance <= 1.0 for r in ranked)

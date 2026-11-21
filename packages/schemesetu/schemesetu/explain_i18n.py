@@ -12,6 +12,13 @@ Citation keys:
 - ``<SCHEME>:TRACE:<criterion>``     a step of the deterministic reasoning trace;
 - ``TRACE:provisional``              the provisional-result notice (not a factual claim).
 
+Every checkable sentence is verified with ``schemesetu.citations.verify_citation`` before it is
+returned; an unsupported or uncheckable one is dropped (and listed in ``dropped_citation_keys``),
+and a scheme whose cited sources or trace steps are missing is listed in ``omitted_schemes``
+instead of raising. Honest limit: ``TRACE:`` sentences carry no figure, so their check is only
+the scheme attribution (status ``scheme_only``); the figures in the ``<SCHEME>:S<n>`` sentences
+are the ones really verified against the cited source text.
+
 NEEDS NATIVE-SPEAKER QA: every Hindi and Marathi string below was written by an engineer
 (and an AI assistant), not by a native-speaker reviewer. Treat all of it as UNREVIEWED. It
 must not be shown to a patient as final copy until reviewed (tracked with #37).
@@ -21,7 +28,7 @@ from typing import Dict, List
 
 from pydantic import BaseModel
 
-from schemesetu.citations import CitedSpan
+from schemesetu.citations import CitedSpan, verify_citation
 from schemesetu.reasoning_agent import EligibilityReasoning
 from schemesetu.thresholds import MJPJAY, PMJAY
 
@@ -69,25 +76,29 @@ class LocalizedExplanation(BaseModel):
     lang: str
     sentences: List[LocalizedSentence]
     omitted_schemes: List[str]
+    dropped_citation_keys: List[str] = []
     review_status: str = NEEDS_QA
 
 
 def build_citation_hits(reasoning: EligibilityReasoning) -> Dict[str, CitedSpan]:
-    """Citation key -> the cited text (source title plus the source's stated support, or the
-    trace step's rule). Built only from the engine's own cited sources and trace."""
+    """Citation key -> the cited text: a source's stated support, or a trace step's rule.
+    Built only from the engine's own cited sources and trace. The source's document title is
+    kept in ``title`` (ignored by the verifier) and the scheme it is filed under in ``scheme``."""
     hits: Dict[str, CitedSpan] = {}
     for result in reasoning.scheme_results:
         short = _SHORT.get(result.scheme_name)
         if short is None:
             continue
         for n, cit in enumerate(result.sources, 1):
-            hits[f"{short}:S{n}"] = CitedSpan(source=cit.url, page=n, quote=f"{cit.document}. {cit.supports}")
+            hits[f"{short}:S{n}"] = CitedSpan(
+                source=cit.url, page=n, quote=cit.supports, scheme=short, title=cit.document
+            )
     for n, step in enumerate(reasoning.reasoning_trace, 1):
         short = _SHORT.get(step.scheme)
         if short is None:
             continue
         hits[f"{short}:TRACE:{step.criterion}"] = CitedSpan(
-            source="reasoning_trace", page=n, quote=f"{step.scheme}. {step.threshold_or_rule}"
+            source="reasoning_trace", page=n, quote=step.threshold_or_rule, scheme=short
         )
     hits["TRACE:provisional"] = CitedSpan(
         source="reasoning_trace", page=0, quote="Result is provisional: unevaluated criteria remain."
@@ -95,30 +106,44 @@ def build_citation_hits(reasoning: EligibilityReasoning) -> Dict[str, CitedSpan]
     return hits
 
 
+_KEPT_STATUSES = ("supported", "scheme_only")
+
+
 def explain_eligibility(reasoning: EligibilityReasoning, lang: str) -> LocalizedExplanation:
-    """Templated explanation of ``reasoning`` in Hindi (``hi``) or Marathi (``mr``)."""
-    if lang not in SUPPORTED_LANGS:
+    """Templated explanation of ``reasoning`` in Hindi (``hi``) or Marathi (``mr``).
+    ``lang`` must be exactly ``"hi"`` or ``"mr"`` (anything else raises ``ValueError``)."""
+    if not isinstance(lang, str) or lang not in SUPPORTED_LANGS:
         raise ValueError(f"unsupported language {lang!r}; supported: {', '.join(SUPPORTED_LANGS)}")
     templates = _TEMPLATES[lang]
     hits = build_citation_hits(reasoning)
     sentences: List[LocalizedSentence] = []
     omitted: List[str] = []
-
-    def add(key: str, text: str, checkable: bool = True) -> None:
-        if key not in hits:  # never emit a sentence whose citation cannot be resolved
-            raise KeyError(f"citation key {key} has no cited text")
-        sentences.append(LocalizedSentence(text=text, citation_key=key, lang=lang, checkable=checkable))
+    dropped: List[str] = []
 
     trace_criteria = {(_SHORT.get(s.scheme), s.criterion) for s in reasoning.reasoning_trace}
     for result in reasoning.scheme_results:
         short = _SHORT.get(result.scheme_name)
-        keys = _VERDICT_SENTENCES.get((short, result.estimated_eligibility)) if short else None
-        if not keys:
-            omitted.append(result.scheme_name)
-            continue
-        for key in keys:
-            add(key, templates[key])
+        keys = list(_VERDICT_SENTENCES.get((short, result.estimated_eligibility), [])) if short else []
         if (short, "annual_income") in trace_criteria:
-            add(f"{short}:TRACE:annual_income", templates["income"].format(S=short))
-    add("TRACE:provisional", templates["provisional"], checkable=False)
-    return LocalizedExplanation(lang=lang, sentences=sentences, omitted_schemes=omitted)
+            keys.append(f"{short}:TRACE:annual_income")
+        verdict_keys = keys[:-1] if keys and keys[-1].endswith(":annual_income") else keys
+        if not verdict_keys or any(k not in hits for k in keys):
+            omitted.append(result.scheme_name)  # unknown scheme/verdict, or the trace/sources changed
+            continue
+        kept = 0
+        for key in keys:
+            text = templates["income"].format(S=short) if key.endswith(":annual_income") else templates[key]
+            verdict = verify_citation(text, hits[key])
+            if verdict.status not in _KEPT_STATUSES:
+                dropped.append(key)
+                continue
+            kept += 1
+            sentences.append(LocalizedSentence(text=text, citation_key=key, lang=lang))
+        if not kept:
+            omitted.append(result.scheme_name)
+    sentences.append(
+        LocalizedSentence(text=templates["provisional"], citation_key="TRACE:provisional", lang=lang, checkable=False)
+    )
+    return LocalizedExplanation(
+        lang=lang, sentences=sentences, omitted_schemes=omitted, dropped_citation_keys=dropped
+    )
