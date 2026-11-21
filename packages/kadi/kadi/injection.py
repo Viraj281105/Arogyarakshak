@@ -15,9 +15,15 @@ agent prompts:
    instructions"), full-width Latin and Devanagari spelling variants (nukta, chandrabindu,
    Devanagari digits) do not slip past, plus Hindi, Marathi and romanised-Hindi phrases.
 
+Since v2 the matching view also folds a table of Cyrillic and Greek letters that look like
+Latin ones (a Cyrillic ``о`` for the ``o`` in "ignore") back to Latin. That table is small and
+hand-written, not the full Unicode confusables set: it covers the common lookalikes only.
+
 What this is NOT: a guarantee. Prompt injection cannot be solved by pattern matching; a
-reworded or translated attack will not match, and homoglyph substitution (e.g. a Cyrillic
-``о`` for Latin ``o``) is not folded. The Hindi/Marathi phrase lists were written by the
+reworded or translated attack will not match, a homoglyph outside the table is not folded,
+and the measured detection / false-positive rates on the synthetic red-team corpus
+(``data/evaluation/injection_redteam_*.jsonl``, reported by
+``packages/kadi/tests/test_injection_redteam.py``) are the honest picture. The Hindi/Marathi phrase lists were written by the
 engineering team and have NOT been reviewed by a native speaker (tracked in #37). Real
 protection is architectural: schema-constrained output, an explicit "this is data"
 boundary, and deterministic cross-checks (see ``kadi.extraction`` and
@@ -37,6 +43,29 @@ _DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789
 # Spelling variants folded in the matching view only (never in text sent to a model):
 # nukta dropped (ज़ -> ज), chandrabindu -> anusvara.
 _FOLD = {ord("़"): None, ord("ँ"): "ं"}
+
+# Cyrillic and Greek letters that render like a Latin letter, folded to that letter in the
+# matching view only. Applied BEFORE casefolding so capitals are handled (the table holds both
+# cases). Hand-written and deliberately small; NOT the Unicode confusables table. A few are
+# lookalikes only in capitals (Cyrillic н/в/т/м, Greek η/ν) and are folded for that reason, which
+# can in principle turn a genuine Russian or Greek word into a Latin-looking one; the view is
+# never sent to a model.
+_CONFUSABLES = {
+    # Cyrillic
+    "а": "a", "в": "b", "с": "c", "ԁ": "d", "е": "e", "һ": "h", "н": "h", "і": "i", "ї": "i",
+    "ј": "j", "к": "k", "ӏ": "l", "м": "m", "о": "o", "р": "p", "ԛ": "q", "ѕ": "s", "т": "t",
+    "у": "y", "х": "x", "ԝ": "w", "ѵ": "v",
+    # Greek
+    "α": "a", "β": "b", "ε": "e", "ζ": "z", "η": "n", "ι": "i", "κ": "k", "μ": "m", "ν": "v",
+    "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x",
+    # Latin-extended lookalikes NFKC leaves alone
+    "ı": "i", "ɑ": "a", "ɡ": "g", "ɩ": "i", "ɴ": "n", "ᴏ": "o",
+}
+# Upper-case keys are derived from the lower-case ones except where the capital looks like a
+# different Latin letter than the small one (Greek capital Nu is "N", small nu is "v").
+_CONFUSABLES.update({k.upper(): v for k, v in list(_CONFUSABLES.items())})
+_CONFUSABLES.update({"Ν": "n", "Η": "h", "Υ": "y"})
+_CONFUSABLE_TABLE = str.maketrans(_CONFUSABLES)
 
 
 def _is_devanagari(ch: str) -> bool:
@@ -74,10 +103,11 @@ def hidden_character_count(text: str) -> int:
 
 def _matching_view(text: str) -> str:
     """Lower-cased, hidden characters and joiners removed, NFKC (full-width Latin -> ASCII),
-    Devanagari spelling variants and digits folded, whitespace collapsed."""
+    Devanagari spelling variants and digits folded, Cyrillic/Greek Latin-lookalikes folded to
+    Latin, whitespace collapsed."""
     t = unicodedata.normalize("NFKC", text or "")
     t = "".join(ch for ch in t if unicodedata.category(ch) != "Cf" and (unicodedata.category(ch) != "Cc" or ch in "\n\r\t"))
-    t = t.translate(_DEVANAGARI_DIGITS).translate(_FOLD).casefold()
+    t = t.translate(_DEVANAGARI_DIGITS).translate(_FOLD).translate(_CONFUSABLE_TABLE).casefold()
     return re.sub(r"\s+", " ", t)
 
 
