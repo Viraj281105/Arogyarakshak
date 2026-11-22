@@ -61,7 +61,9 @@ spec:
               valueFrom:
                 secretKeyRef: {name: arogyarakshak-api, key: CLINICAL_GOVERNANCE_ADMIN_KEY, optional: true}
           # Unmeasured assumptions — see docs/operations/kubernetes.md#resources. EasyOCR
-          # and torch dominate memory.
+          # and torch dominate memory. A local run with OCR_LANGUAGES=hi,mr,en reached a ~4.3 GB
+          # process high-water mark (not isolated per configuration): raise the memory limit
+          # before enabling Devanagari OCR. The default `en` was not measured here.
           resources:
             requests: {cpu: 500m, memory: 1536Mi, ephemeral-storage: 1Gi}
             limits: {cpu: "2", memory: 3Gi, ephemeral-storage: 4Gi}
@@ -85,8 +87,9 @@ spec:
             capabilities:
               drop: ["ALL"]
           volumeMounts:
-            # EasyOCR (~/.EasyOCR) and Hugging Face (HF_HOME) model downloads. Model
-            # weights only — documents are never written to disk (ADR-003).
+            # Hugging Face (HF_HOME) model cache. EasyOCR weights are baked into the image
+            # (/opt/easyocr, read-only) and never downloaded at runtime. Model weights only —
+            # documents are never written to disk (ADR-003).
             - {name: home, mountPath: /home/app}
             - {name: tmp, mountPath: /tmp}
       volumes:

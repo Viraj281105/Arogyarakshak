@@ -212,6 +212,11 @@ async def _run_pipeline(
         line_items = parsed.get("line_items", [])
         context_metrics.record_context_work("ocr")  # #112: the one OCR/parse pass per document
 
+        # Wave 2 (stream A): a partially read document must never look complete. The parser
+        # reports counts and fixed wording only (no document text), so they are safe to show.
+        parse_warnings = [w for w in parsed.get("warnings", []) if isinstance(w, str)]
+        partial_reason = parsed.get("partial_reason") if parsed.get("partial") else None
+
         # Step 2: Extraction using Kadi shared extraction agent (Groq API or heuristic
         # fallback). SEC-01: extract_entities_from_text makes a synchronous
         # urllib.request.urlopen call (kadi/extraction.py) when GROQ_API_KEY is
@@ -227,6 +232,10 @@ async def _run_pipeline(
                 )
 
         context_metrics.record_context_work("extraction")  # #112: the one extraction pass per document
+
+        if partial_reason:
+            extracted.extraction_warnings.append(f"Partial document: {partial_reason}")
+        extracted.extraction_warnings.extend(parse_warnings)
 
         # Step 3: Entity resolution and database write using dedicated session
         processing_status[case_id].append({"status": "database_write", "progress": 80, "log": "Saving structured entities to database..."})
@@ -303,6 +312,8 @@ async def _run_pipeline(
         completion = "Document processed successfully. Entities extracted."
         if insights:
             completion += f" {len(insights)} module check(s) ran automatically."
+        if partial_reason:
+            completion += f" Warning: only part of this document could be read ({partial_reason}). Review it before relying on the results."
         if extracted.extraction_warnings:
             completion += " Note: this extraction was flagged for review — see case details."
         processing_status[case_id].append({"status": "completed", "progress": 100, "log": completion})

@@ -37,17 +37,33 @@ RUN pip install -c /tmp/constraints-cpu.txt \
     -e /app/packages/daavisetu \
     -e /app/packages/bimanyay
 
+# OCR weights are baked in at BUILD time. The API builds its EasyOCR readers with
+# download_enabled=False, so an upload can never trigger a network download (Wave 2, stream A).
+# OCR_BAKE_LANGUAGES chooses what is downloaded now (network to the official EasyOCR release
+# host, during the build only): `en` (default, ~100 MB: detector + English recogniser) or
+# `en,hi,mr` (adds the ~215 MB Devanagari model). Running with OCR_LANGUAGES=hi,mr,en needs the
+# Devanagari weights baked in, otherwise the parser reports "OCR models not installed".
+# Both directories are created here so the read-only runtime user can use them.
+ARG OCR_BAKE_LANGUAGES=en
+COPY scripts/fetch_ocr_models.py /tmp/fetch_ocr_models.py
+RUN mkdir -p /opt/easyocr/model /opt/easyocr/user_network \
+    && if [ -n "$OCR_BAKE_LANGUAGES" ]; then \
+         python /tmp/fetch_ocr_models.py --download --languages "$OCR_BAKE_LANGUAGES" --dest /opt/easyocr/model; \
+       fi
+
 # ── runtime ────────────────────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    HF_HOME=/home/app/.cache/huggingface
+    HF_HOME=/home/app/.cache/huggingface \
+    EASYOCR_MODULE_PATH=/opt/easyocr
 
 # Unprivileged runtime user. Code and site-packages stay root-owned (read-only to the
-# app); only /home/app is writable, which is where the Hugging Face cache (HF_HOME) and
-# EasyOCR (~/.EasyOCR) download model weights at runtime. HF_HOME is created here so an
+# app); only /home/app is writable, which is where the Hugging Face cache (HF_HOME)
+# downloads its model at runtime. EasyOCR weights are NOT downloaded at runtime: they are
+# baked into /opt/easyocr (read-only) at build time. HF_HOME is created here so an
 # empty named volume mounted over it (docker-compose.yml) inherits app's ownership.
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /home/app --create-home \
@@ -59,6 +75,7 @@ WORKDIR /app
 
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /app/packages /app/packages
+COPY --from=build /opt/easyocr /opt/easyocr
 
 # Application code and its Alembic migrations (ADR-020). With the default
 # SCHEMA_MANAGEMENT=migrate the API upgrades the database at start-up; with `none`, run

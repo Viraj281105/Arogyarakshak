@@ -8,17 +8,17 @@
   },
   "metrics": {
     "bma.accuracy": {
-      "value": 0.7051282051282052,
+      "value": 0.8846153846153846,
       "direction": "higher",
       "tolerance": 0.0
     },
     "bma.mapping.f1": {
-      "value": 0.7735849056603773,
+      "value": 0.9126213592233009,
       "direction": "higher",
       "tolerance": 0.0
     },
     "pea.procedures.f1": {
-      "value": 0.9421487603305784,
+      "value": 1.0,
       "direction": "higher",
       "tolerance": 0.0
     },
@@ -28,7 +28,7 @@
       "tolerance": 0.0
     },
     "pea.all_items.f1": {
-      "value": 0.951048951048951,
+      "value": 1.0,
       "direction": "higher",
       "tolerance": 0.0
     },
@@ -38,12 +38,12 @@
       "tolerance": 0.0
     },
     "anomaly.line_level.f1": {
-      "value": 0.8095238095238095,
+      "value": 0.9302325581395349,
       "direction": "higher",
       "tolerance": 0.0
     },
     "anomaly.bill_level.f1": {
-      "value": 0.7777777777777777,
+      "value": 0.9189189189189189,
       "direction": "higher",
       "tolerance": 0.0
     },
@@ -78,17 +78,17 @@
       "tolerance": 0.0
     },
     "dawacheck.accuracy": {
-      "value": 0.8653846153846154,
+      "value": 0.9230769230769231,
       "direction": "higher",
       "tolerance": 0.0
     },
     "dawacheck.mapping.f1": {
-      "value": 0.8823529411764706,
+      "value": 0.9393939393939393,
       "direction": "higher",
       "tolerance": 0.0
     },
     "dawacheck.ceiling_accuracy": {
-      "value": 0.9666666666666667,
+      "value": 1.0,
       "direction": "higher",
       "tolerance": 0.0
     },
@@ -131,6 +131,41 @@
       "value": 0.8823529411764706,
       "direction": "higher",
       "tolerance": 0.0
+    },
+    "retrieval.mrr": {
+      "value": 0.717391304347826,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "retrieval.recall_at_k": {
+      "value": 0.5855072463768115,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "retrieval.pcra": {
+      "value": 0.4838709677419355,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "retrieval.precision": {
+      "value": 0.8181818181818182,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "retrieval.abstention_rate": {
+      "value": 0.9411764705882353,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "retrieval.at_k.3.hit_rate": {
+      "value": 0.717391304347826,
+      "direction": "higher",
+      "tolerance": 0.0
+    },
+    "context_reuse.dpr": {
+      "value": 0.8286,
+      "direction": "higher",
+      "tolerance": 0.0
     }
   },
   "counts": {
@@ -143,6 +178,10 @@
     "dawacheck.rows": 52,
     "appeal.letters": 75,
     "grounding.detector_rows": 18,
-    "grounding.production.letters": 225
+    "grounding.production.letters": 225,
+    "retrieval.queries": 63,
+    "retrieval.answerable": 46,
+    "context_reuse.n_scenarios": 5,
+    "context_reuse.n_requests": 20
   }
 }
