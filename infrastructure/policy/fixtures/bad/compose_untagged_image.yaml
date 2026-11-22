@@ -1,0 +1,7 @@
+# Shared policy fixture: must violate exactly rule 'disallow-latest-tag' in every engine.
+kind: compose
+rule: disallow-latest-tag
+object:
+  services:
+    svc:
+      image: grafana/grafana

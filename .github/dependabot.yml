@@ -1,0 +1,13 @@
+# Keeps GitHub Actions current. Once the actions in .github/workflows are pinned to commit SHAs
+# (maintainer task before the first release, see docs/operations/load-and-chaos.md), Dependabot
+# proposes the SHA bumps as reviewable pull requests. Only the github-actions ecosystem is
+# configured here; no other ecosystem is managed by this file.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"

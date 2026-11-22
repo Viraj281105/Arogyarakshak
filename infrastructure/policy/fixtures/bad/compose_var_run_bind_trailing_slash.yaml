@@ -1,0 +1,8 @@
+# Shared policy fixture: must violate exactly rule 'disallow-docker-sock' in every engine.
+kind: compose
+rule: disallow-docker-sock
+object:
+  services:
+    svc:
+      volumes:
+      - /var/run/:/host-run

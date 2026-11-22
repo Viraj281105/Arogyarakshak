@@ -1,0 +1,25 @@
+# Shared policy fixture: must violate exactly rule 'disallow-latest-tag' in every engine.
+kind: k8s
+rule: disallow-latest-tag
+kyverno_rules:
+- require-image-tag
+object:
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: t
+    namespace: arogyarakshak
+  spec:
+    template:
+      spec:
+        securityContext:
+          runAsNonRoot: true
+        containers:
+        - name: app
+          image: registry.example/app
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            readOnlyRootFilesystem: true
