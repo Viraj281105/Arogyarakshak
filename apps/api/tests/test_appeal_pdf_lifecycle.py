@@ -94,12 +94,16 @@ def test_failed_pdf_rerender_rolls_the_withdrawal_back(monkeypatch):
         raise RuntimeError("renderer unavailable")
 
     monkeypatch.setattr(billnyay_endpoint, "compile_appeal_packet_bytes", broken)
-    with pytest.raises(RuntimeError):
-        client.post(
-            f"{K}/clinical-reviews/{ids['review_id']}/statements/{ids['statement_id']}/withdraw",
-            json={"reason": "Changed my mind."},
-            headers=rh(ids["token"]),
-        )
+    # Since the Wave 2 error-path hardening an unhandled error is turned into the standard 500
+    # response by the request-context middleware (it used to propagate to the test client).
+    res = client.post(
+        f"{K}/clinical-reviews/{ids['review_id']}/statements/{ids['statement_id']}/withdraw",
+        json={"reason": "Changed my mind."},
+        headers=rh(ids["token"]),
+    )
+    assert res.status_code == 500
+    assert res.json().get("detail") and res.json().get("message"), "the standard {detail, message} payload"
+    assert "renderer unavailable" not in res.text, "the exception text must not reach the client"
     monkeypatch.undo()
 
     view = client.get(f"{K}/cases/{case_id}/clinical-reviews/{ids['review_id']}").json()
