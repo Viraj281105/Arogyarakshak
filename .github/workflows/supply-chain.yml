@@ -93,7 +93,7 @@ jobs:
       # layers of a signed release image.
       - name: Build and push the API image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile

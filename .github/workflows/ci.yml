@@ -305,7 +305,7 @@ jobs:
           echo "✓ infrastructure/kubernetes renders. Policy checks run in the backend test suite."
 
       - name: Build Backend Container Image (Dry Run)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
@@ -317,7 +317,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build Web Container Image (Dry Run)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./apps/web
           file: ./apps/web/Dockerfile
