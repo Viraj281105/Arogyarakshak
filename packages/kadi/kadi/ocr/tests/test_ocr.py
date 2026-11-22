@@ -1,6 +1,28 @@
 from kadi.ocr.ocr_parser import parse_document
 
 
+class _MockDocBase:
+    """Minimal stand-in for fitz.Document: iterable, indexable, a context manager."""
+
+    pages: list = []
+
+    def __iter__(self):
+        return iter(self.pages)
+
+    def __getitem__(self, index):
+        return self.pages[index]
+
+    @property
+    def page_count(self):
+        return len(self.pages)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 def test_parse_document_unreadable_pdf_reports_failure():
     """An unreadable PDF must be reported as a failure, not silently substituted.
 
@@ -44,9 +66,8 @@ def test_parse_document_line_items_regex(monkeypatch):
         def get_text(self):
             return mock_text
 
-    class MockDoc:
-        def __iter__(self):
-            return iter([MockPage()])
+    class MockDoc(_MockDocBase):
+        pages = [MockPage()]
 
     import fitz
     monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: MockDoc())
@@ -78,9 +99,8 @@ def test_parse_document_rupee_formatting_and_exclusions(monkeypatch):
         def get_text(self):
             return mock_text
 
-    class MockDoc:
-        def __iter__(self):
-            return iter([MockPage()])
+    class MockDoc(_MockDocBase):
+        pages = [MockPage()]
 
     import fitz
     monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: MockDoc())
@@ -109,9 +129,8 @@ def test_parse_document_noise_filtering(monkeypatch):
         def get_text(self):
             return mock_text
 
-    class MockDoc:
-        def __iter__(self):
-            return iter([MockPage()])
+    class MockDoc(_MockDocBase):
+        pages = [MockPage()]
 
     import fitz
     monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: MockDoc())
@@ -131,9 +150,8 @@ def test_parse_document_multipage_pdf(monkeypatch):
         def get_text(self):
             return "Nursing Charges: 1200.00\n"
 
-    class MockDoc:
-        def __iter__(self):
-            return iter([MockPage1(), MockPage2()])
+    class MockDoc(_MockDocBase):
+        pages = [MockPage1(), MockPage2()]
 
     import fitz
     monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: MockDoc())

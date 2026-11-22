@@ -1,0 +1,64 @@
+{"_meta": {"name": "retrieval_queries_synthetic_v2", "synthetic": true, "tuning": true, "provenance": "63 queries (TUNING SET: the retriever's floors were chosen while looking at results on this set, so figures here are optimistic). Hand-written by the retriever's author and labelled against retrieval_corpus_synthetic.jsonl BEFORE the run that produced the numbers in docs/evaluation/retrieval.md. relevant = EVERY passage that states the answer fact (usually 1-5); an empty list marks an out-of-corpus query that must return nothing. Same author as the retriever, so NOT an independent test and NOT real-world accuracy. Includes 8 paraphrase / vocabulary-mismatch queries and 17 out-of-corpus queries, 12 of which share words with the corpus.", "description": "query -> relevant '<source>#<page>' passages; group labels the topic."}}
+{"id": "RET-001", "group": "schemesetu", "query": "Who is eligible for PM-JAY if aged 70 or above?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#2", "schemesetu.thresholds#3", "schemesetu.thresholds#4", "schemesetu.thresholds#11"]}
+{"id": "RET-002", "group": "schemesetu", "query": "Is there an income limit for Ayushman Bharat?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#10"]}
+{"id": "RET-003", "group": "schemesetu", "query": "Which GR extended MJPJAY to all families in Maharashtra and when?", "relevant": ["schemesetu.thresholds#5", "schemesetu.thresholds#6", "schemesetu.thresholds#7", "schemesetu.thresholds#11"]}
+{"id": "RET-004", "group": "schemesetu", "query": "What was the 2020-2024 insurance cover under MJPJAY?", "relevant": ["schemesetu.thresholds#6", "schemesetu.thresholds#10"]}
+{"id": "RET-005", "group": "schemesetu", "query": "How much cover per family per year does the integrated scheme give?", "relevant": ["schemesetu.thresholds#6"]}
+{"id": "RET-006", "group": "schemesetu", "query": "Are ASHA and Anganwadi workers covered?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#2", "schemesetu.thresholds#4", "schemesetu.thresholds#11"]}
+{"id": "RET-007", "group": "schemesetu", "query": "Which families were identified from SECC-2011?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#2", "schemesetu.thresholds#11"]}
+{"id": "RET-008", "group": "schemesetu", "query": "Which document do I show at an MJPJAY network hospital?", "relevant": ["schemesetu.thresholds#7", "schemesetu.thresholds#8"]}
+{"id": "RET-009", "group": "schemesetu", "query": "Who is the Arogyamitra?", "relevant": ["schemesetu.thresholds#8"]}
+{"id": "RET-010", "group": "schemesetu", "query": "What could not be verified about the Maharashtra scheme order?", "relevant": ["schemesetu.thresholds#9", "schemesetu.thresholds#12"]}
+{"id": "RET-011", "group": "schemesetu", "query": "When were the scheme sources retrieved?", "relevant": ["schemesetu.thresholds#12"]}
+{"id": "RET-012", "group": "schemesetu", "query": "How do I check if my family is a listed PM-JAY beneficiary?", "relevant": ["schemesetu.thresholds#4"]}
+{"id": "RET-013", "group": "schemesetu", "query": "Is treatment cashless at private hospitals in Maharashtra?", "relevant": ["schemesetu.thresholds#8"]}
+{"id": "RET-014", "group": "schemesetu", "query": "Do ration card holders qualify in Maharashtra?", "relevant": ["schemesetu.thresholds#7", "schemesetu.thresholds#8"]}
+{"id": "RET-015", "group": "schemesetu", "query": "Can a family with a member aged 70 get top-up cover?", "relevant": ["schemesetu.thresholds#3"]}
+{"id": "RET-016", "group": "schemesetu", "query": "free treatment for elderly people", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#2", "schemesetu.thresholds#3", "schemesetu.thresholds#4", "schemesetu.thresholds#11"]}
+{"id": "RET-017", "group": "bimanyay", "query": "Can an insurer reject a claim for pre-existing disease after five years of renewals?", "relevant": ["bimanyay.clause_auditor#1"]}
+{"id": "RET-018", "group": "bimanyay", "query": "What is the moratorium period?", "relevant": ["bimanyay.clause_auditor#1"]}
+{"id": "RET-019", "group": "bimanyay", "query": "Does the insurer need proof of a pre-inception diagnosis?", "relevant": ["bimanyay.clause_auditor#2"]}
+{"id": "RET-020", "group": "bimanyay", "query": "Claim denied because the admission was only for investigation", "relevant": ["bimanyay.clause_auditor#3", "bimanyay.clinical_triggers#2", "bimanyay.clinical_triggers#1"]}
+{"id": "RET-021", "group": "bimanyay", "query": "Proportionate deduction of room rent and ICU charges", "relevant": ["bimanyay.clause_auditor#4"]}
+{"id": "RET-022", "group": "bimanyay", "query": "Claim rejected for delayed intimation or submission", "relevant": ["bimanyay.clause_auditor#5", "bimanyay.clinical_triggers#1"]}
+{"id": "RET-023", "group": "bimanyay", "query": "Claims Review Committee approval before repudiation", "relevant": ["bimanyay.clause_auditor#6", "bimanyay.drafter#1"]}
+{"id": "RET-024", "group": "bimanyay", "query": "Penal interest on delayed claim settlement", "relevant": ["bimanyay.drafter#1", "bimanyay.clause_auditor#1"]}
+{"id": "RET-025", "group": "bimanyay", "query": "How many days does the GRO have to resolve a grievance?", "relevant": ["bimanyay.tracker#1", "bimanyay.drafter#1"]}
+{"id": "RET-026", "group": "bimanyay", "query": "What is the limitation period for the Insurance Ombudsman?", "relevant": ["bimanyay.tracker#1", "bimanyay.tracker#2"]}
+{"id": "RET-027", "group": "bimanyay", "query": "Which denials depend on clinical interpretation?", "relevant": ["bimanyay.clinical_triggers#1", "bimanyay.clinical_triggers#2", "bimanyay.clinical_triggers#3"]}
+{"id": "RET-028", "group": "bimanyay", "query": "Bima Bharosa escalation timeline", "relevant": ["bimanyay.tracker#1", "bimanyay.drafter#1"]}
+{"id": "RET-029", "group": "bimanyay", "query": "Oral declarations or doctor notes without diagnostic reports", "relevant": ["bimanyay.clause_auditor#2"]}
+{"id": "RET-030", "group": "bimanyay", "query": "Is the IRDAI provision for room-rent proportionate deductions verified?", "relevant": ["bimanyay.clause_auditor#4"]}
+{"id": "RET-031", "group": "bimanyay", "query": "Circular reference for claims rejected on delayed submission", "relevant": ["bimanyay.clause_auditor#5"]}
+{"id": "RET-032", "group": "bimanyay", "query": "insurer refused to pay because the disease existed earlier", "relevant": ["bimanyay.clause_auditor#1", "bimanyay.clause_auditor#2", "bimanyay.clinical_triggers#3"]}
+{"id": "RET-033", "group": "daavisetu", "query": "What does the pre-authorization checklist actually check?", "relevant": ["daavisetu.readiness#1", "daavisetu.readiness#2", "daavisetu.readiness#3"]}
+{"id": "RET-034", "group": "daavisetu", "query": "Does the readiness checklist predict approval?", "relevant": ["daavisetu.readiness#1", "daavisetu.readiness#3"]}
+{"id": "RET-035", "group": "daavisetu", "query": "Who confirms a clinical fact on the checklist?", "relevant": ["daavisetu.readiness#1"]}
+{"id": "RET-036", "group": "daavisetu", "query": "What information does the standard cashless pre-authorization request ask the hospital for?", "relevant": ["daavisetu.readiness#2"]}
+{"id": "RET-037", "group": "daavisetu", "query": "Can a checklist label say the patient had failed treatment?", "relevant": ["daavisetu.readiness#1"]}
+{"id": "RET-038", "group": "daavisetu", "query": "Is the baseline checklist insurer-specific?", "relevant": ["daavisetu.readiness#2"]}
+{"id": "RET-039", "group": "paraphrase", "query": "Is hospital treatment for people over seventy paid for by the government?", "relevant": ["schemesetu.thresholds#1", "schemesetu.thresholds#2", "schemesetu.thresholds#3", "schemesetu.thresholds#4", "schemesetu.thresholds#11"]}
+{"id": "RET-040", "group": "paraphrase", "query": "What compensation can a policyholder claim when an insurer pays late?", "relevant": ["bimanyay.drafter#1", "bimanyay.clause_auditor#1"]}
+{"id": "RET-041", "group": "paraphrase", "query": "Who looks at a refusal before an insurer turns down a claim?", "relevant": ["bimanyay.clause_auditor#6", "bimanyay.drafter#1"]}
+{"id": "RET-042", "group": "paraphrase", "query": "Where can a patient complain if the insurer's own grievance officer does not respond?", "relevant": ["bimanyay.drafter#1", "bimanyay.tracker#1"]}
+{"id": "RET-043", "group": "paraphrase", "query": "Does the software promise the insurer will accept my pre-authorisation?", "relevant": ["daavisetu.readiness#1", "daavisetu.readiness#3"]}
+{"id": "RET-044", "group": "paraphrase", "query": "How much money does the Maharashtra government scheme pay for a family's hospital bills each year?", "relevant": ["schemesetu.thresholds#6"]}
+{"id": "RET-045", "group": "paraphrase", "query": "Which paper proves a family belongs to the state health scheme?", "relevant": ["schemesetu.thresholds#7", "schemesetu.thresholds#8"]}
+{"id": "RET-046", "group": "paraphrase", "query": "Does the rule engine use salary to decide scheme eligibility?", "relevant": ["schemesetu.thresholds#10", "schemesetu.thresholds#1", "schemesetu.thresholds#5"]}
+{"id": "RET-047", "group": "out_of_corpus", "query": "What is the capital of France?", "relevant": []}
+{"id": "RET-048", "group": "out_of_corpus", "query": "Recipe for chicken biryani", "relevant": []}
+{"id": "RET-049", "group": "out_of_corpus", "query": "Maximum bed charges allowed at CGHS hospitals", "relevant": []}
+{"id": "RET-050", "group": "out_of_corpus", "query": "Weather forecast for Mumbai tomorrow", "relevant": []}
+{"id": "RET-051", "group": "out_of_corpus", "query": "How to renew a passport online", "relevant": []}
+{"id": "RET-052", "group": "out_of_corpus", "query": "Documents needed for a PAN card application", "relevant": []}
+{"id": "RET-053", "group": "out_of_corpus", "query": "Side effects of paracetamol", "relevant": []}
+{"id": "RET-054", "group": "out_of_corpus", "query": "Premium for a family floater policy", "relevant": []}
+{"id": "RET-055", "group": "out_of_corpus", "query": "Which hospital in Pune has an MRI machine?", "relevant": []}
+{"id": "RET-056", "group": "out_of_corpus", "query": "Income tax rebate for a salaried family", "relevant": []}
+{"id": "RET-057", "group": "out_of_corpus", "query": "How to claim insurance for a damaged car after an accident", "relevant": []}
+{"id": "RET-058", "group": "out_of_corpus", "query": "Cashless treatment at hospitals abroad", "relevant": []}
+{"id": "RET-059", "group": "out_of_corpus", "query": "What documents do I need to renew my driving licence?", "relevant": []}
+{"id": "RET-060", "group": "out_of_corpus", "query": "Is there penalty interest on a late home loan EMI?", "relevant": []}
+{"id": "RET-061", "group": "out_of_corpus", "query": "Which scheme gives free school meals to families?", "relevant": []}
+{"id": "RET-062", "group": "out_of_corpus", "query": "How long does a passport application take to be reviewed?", "relevant": []}
+{"id": "RET-063", "group": "out_of_corpus", "query": "Medical colleges in Maharashtra and their fees", "relevant": []}

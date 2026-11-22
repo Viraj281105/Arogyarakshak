@@ -29,6 +29,7 @@ from app.clinical.serializers import annex_dict, statement_view
 from app.clinical.service import current_statements_for_case
 from app.config import settings
 from app.models import BillNyayAppeal, KadiCase, KadiEntity
+from app.services.case_context import load_case_entities
 from app.services.billnyay_llm import llm_client
 from billnyay.agents.auditor import StructuredDenial, run_auditor_agent
 from billnyay.agents.clinician import run_clinician_agent
@@ -128,12 +129,8 @@ def unspecified_denial() -> StructuredDenial:
 
 
 async def case_document_text(db: AsyncSession, case_id: str) -> str:
-    result = await db.execute(
-        select(KadiEntity).join(KadiCase.entities)
-        .where(KadiCase.id == case_id)
-        .where(KadiEntity.type == "document_text")
-    )
-    return "\n".join(e.value for e in result.scalars().all() if e.value)
+    entities = await load_case_entities(db, case_id, ["document_text"], module="billnyay", context="entities")
+    return "\n".join(e.value for e in entities if e.value)
 
 
 async def extract_denial(db: AsyncSession, case_id: str, *, empty_text_default: Optional[str]) -> DenialExtraction:

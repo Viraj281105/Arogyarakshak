@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from app.clinical.transcription_service import open_tasks_by_entity
 from app.models import DawaCheckGenericMapping, KadiCase, KadiEntity
+from app.services.case_context import load_case_entities
 from dawacheck.checker import (
     MedicineBenchmark,
     benchmark_from_known_generic,
@@ -92,12 +93,9 @@ async def build_case_medicine_benchmarks(case_id: str, db: AsyncSession) -> List
     Shared by the route above and Kadi's auto-triggers (app.auto_triggers, #32) so both
     always compute the same result. Callers must enforce consent first.
     """
-    entities_result = await db.execute(
-        select(KadiEntity)
-        .join(KadiCase.entities)
-        .where(KadiCase.id == case_id, KadiEntity.type == "medicine")
+    medicine_entities = await load_case_entities(
+        db, case_id, ["medicine"], module="dawacheck", context="entities"
     )
-    medicine_entities = entities_result.scalars().all()
     unresolved = await open_tasks_by_entity(db, case_id)
 
     results: List[CaseMedicineBenchmark] = []

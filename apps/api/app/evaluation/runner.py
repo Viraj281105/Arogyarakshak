@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 from app.evaluation.anomaly import evaluate_anomaly
 from app.evaluation.appeal_completeness import evaluate_appeal_completeness
+from app.evaluation.context_reuse import evaluate_context_reuse
 from app.evaluation.bma import evaluate_bma
 from app.evaluation.crma import evaluate_crma
 from app.evaluation.datasets import DATA_DIR, load_dataset
@@ -16,6 +17,7 @@ from app.evaluation.dawacheck_mapping import evaluate_dawacheck_mapping
 from app.evaluation.grounding import evaluate_grounding
 from app.evaluation.ocr_wer import evaluate_ocr
 from app.evaluation.pea import evaluate_pea
+from app.evaluation.retrieval import evaluate_retrieval_dataset
 
 logger = logging.getLogger("arogyarakshak.evaluation.runner")
 
@@ -29,6 +31,9 @@ DATASETS = {
     # appeal reuses the CRMA scenario inputs (no new labels: its checks are against each draft's own facts)
     "appeal": "crma_synthetic.jsonl",
     "grounding": "letter_grounding_synthetic.jsonl",
+    # Wave 2: tuning set of the retrieval harness (the held-out slice is reported by retrieval_results.json)
+    "retrieval": "retrieval_queries_synthetic.jsonl",
+    "context_reuse": "context_reuse_synthetic.jsonl",
 }
 
 
@@ -118,8 +123,14 @@ def _grounding(rows):
     return evaluate_grounding(rows, scenarios, generator)
 
 
+def _retrieval(rows):
+    _meta, corpus = load_dataset(DATA_DIR / "retrieval_corpus_synthetic.jsonl")
+    return evaluate_retrieval_dataset(corpus, rows)
+
+
 _RUNNERS = {"bma": _bma, "pea": _pea, "anomaly": _anomaly, "crma": _crma, "ocr": _ocr,
-            "dawacheck": _dawacheck, "appeal": _appeal, "grounding": _grounding}
+            "dawacheck": _dawacheck, "appeal": _appeal, "grounding": _grounding,
+            "retrieval": _retrieval, "context_reuse": evaluate_context_reuse}
 
 
 def run_all(only: Optional[str] = None) -> Dict[str, Any]:

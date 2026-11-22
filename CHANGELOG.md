@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Wave 2: Devanagari OCR, retrieval, context metrics, localised letters, platform tests, matcher fixes (2026-11-22, branch `wave2/integration`)
+
+Plan `docs/superpowers/plans/2026-11-21-wave2.md`. Combined suite: first combined run on the integrated branch: 2,237 passed, 1 failed, 9 skipped; the one failure was a test expectation changed by stream G's intended 500-handling fix, since updated (its file now passes, 5 passed); a full re-run was started and is not yet reported here.
+
+#### Added
+- Kadi: `pdf_text_quality.assess_text_layer` (clean / corrupted / not_devanagari), `OCR_LANGUAGES` (default `en`), a bounded OCR path for corrupted PDF pages (one job at a time, page cap, time budget, raster limits), `scripts/fetch_ocr_models.py` and `scripts/devanagari_ocr_baseline.py`; `kadi.retrieval` (BM25, chunking, per-case in-memory index); `kadi.injection` v2 (confusable folding, invisible-character handling, bounded patterns).
+- SchemeSetu: `ranking`, `citations` (`verify_citation`), `explain_i18n` (hi/mr, UNREVIEWED). BimaNyay: `catalogue` (en/hi/mr grounds and violation text). BillNyay: `matching` (whole-word, modifier/ambiguity refusal, synonym table).
+- API: `services/case_context.load_case_entities`, `telemetry/context_metrics`, evaluation harnesses `retrieval` and `context_reuse` (gate: DPR and counts), 507 for a full disk during upload.
+- Platform: k6 scripts, chaos tests, Kyverno/Rego/Python policies with a shared fixture corpus, `supply-chain.yml` (semver tags on `main` only), `load-test.yml`, `policy-test.yml`, `terminology-audit` CI job, `.github/dependabot.yml`, ADR-025 (PROPOSED).
+- Datasets (all SYNTHETIC): `retrieval_*`, `context_reuse_synthetic`, `injection_redteam_synthetic`.
+
+#### Changed
+- A PDF page whose text layer is corrupted is no longer trusted; under the default `en` it is skipped and reported (`partial`), and ingestion shows partial documents in the case warnings and final status.
+- OCR readers never download weights at request time; the API image bakes them at build time (`OCR_BAKE_LANGUAGES`, default `en`).
+- Hindi/Marathi appeal letters no longer contain English grounds text (English output unchanged, golden-tested).
+- Injection detector returns pattern names instead of matched text; extraction warnings and logs carry no document text.
+- Unhandled 500s now carry `X-Request-ID` and hardening headers; 500/429 payloads include `message`; the 500 log line names only the exception type.
+- BillNyay line matching refuses ambiguous or qualified lines instead of guessing; DawaCheck refuses combination products it cannot price.
+- Test database is per process (`test_temp_<pid>.db`).
+
+#### Fixed
+- Injection-detector regexes were quadratic (20.5 s for 96k characters, introduced with the earlier multilingual QA work and already on `main`): now bounded.
+- The regression-gate baseline was regenerated: it now also covers retrieval and context reuse and records the matcher and letter improvements.
+
+#### Known issues
+- Not run on GitHub CI; k6, cosign and syft were never executed. OPA 1.22.4 and Kyverno CLI v1.19.0 were run locally against the official images (all fixtures pass); Kyverno 1.20 removed the legacy ClusterPolicy type the policies use, so migrate to ValidatingPolicy before upgrading.
+- No WER/CER for Devanagari OCR; no native-speaker review of any Hindi/Marathi text; retrieval numbers are optimistic (synthetic, self-written, tuned).
+- `supply-chain.yml` actions are mutable tags until a maintainer SHA-pins them.
+
 ### WS0 Foundation: shared tokens, client, i18n, motion, fonts and CI budgets (2026-11-15, branch `ws0/foundation`)
 
 Spec `docs/superpowers/specs/2026-11-06-foundation-design.md`; shared code is vendored into each app (ADR-022).

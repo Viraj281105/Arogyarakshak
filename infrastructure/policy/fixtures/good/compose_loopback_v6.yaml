@@ -1,0 +1,7 @@
+# Shared policy fixture: must produce NO violations in any engine.
+kind: compose
+object:
+  services:
+    svc:
+      ports:
+      - '[::1]:9090:9090'

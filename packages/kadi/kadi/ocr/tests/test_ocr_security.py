@@ -152,9 +152,9 @@ def fake_easyocr_reader(monkeypatch):
 
     _FakeEasyOCRReader.instances_constructed = 0
     monkeypatch.setattr(easyocr, "Reader", _FakeEasyOCRReader)
-    ocr_module._easyocr_reader = None
+    ocr_module._easyocr_readers.clear()
     yield
-    ocr_module._easyocr_reader = None
+    ocr_module._easyocr_readers.clear()
 
 
 def test_easyocr_reader_is_a_singleton_reused_across_calls(fake_easyocr_reader):

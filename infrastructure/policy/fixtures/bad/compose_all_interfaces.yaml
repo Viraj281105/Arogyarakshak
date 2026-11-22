@@ -1,0 +1,8 @@
+# Shared policy fixture: must violate exactly rule 'loopback-only-ports' in every engine.
+kind: compose
+rule: loopback-only-ports
+object:
+  services:
+    svc:
+      ports:
+      - 9090:9090

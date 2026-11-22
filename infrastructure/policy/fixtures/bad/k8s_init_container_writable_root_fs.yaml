@@ -1,0 +1,33 @@
+# Shared policy fixture: must violate exactly rule 'read-only-root-fs' in every engine.
+kind: k8s
+rule: read-only-root-fs
+kyverno_rules:
+- container-read-only-root-fs
+object:
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: t
+    namespace: arogyarakshak
+  spec:
+    template:
+      spec:
+        securityContext:
+          runAsNonRoot: true
+        containers:
+        - name: app
+          image: registry.example/app:1.2.3
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            readOnlyRootFilesystem: true
+        initContainers:
+        - name: init
+          image: registry.example/app:1.2.3
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext: {}

@@ -1,0 +1,26 @@
+# scripts/terminology_audit.py summary BEFORE the catalogue (package from base commit 4d34190)
+strings: {'en': 485, 'hi': 489, 'mr': 489}
+concepts with more than one term in a language: 18
+  - insurer [hi]: बीमा कंपनी x6, बीमाकर्ता x4
+  - rejection [hi]: अस्वीकार x1, अस्वीकृति x22, इनकार x2, निरस्त x2
+  - appeal [mr]: अपील x17, अर्ज x6
+  - statutory [hi]: कानूनी x5, विधिक x4, वैधानिक x4
+  - statutory [mr]: कायदेशीर x11, वैधानिक x8
+  - government [mr]: शासकीय x11, सरकारी x6
+  - hospital [mr]: रुग्णालय x15, हॉस्पिटल x2
+  - patient [hi]: मरीज x3, रोगी x1
+  - medicine [hi]: औषध x3, दवा x16
+  - document [mr]: कागदपत्र x11, दस्तऐवज x20
+  - price [hi]: कीमत x9, दर x16, मूल्य x17
+  - price [mr]: किंमत x14, दर x25, मूल्य x1
+  - limit [hi]: अधिकतम x9, सीमा x22
+  - limit [mr]: कमाल x14, मर्यादा x9
+  - verification [mr]: पडताळणी x15, पुष्टी x4
+  - case [hi]: केस x18, प्रकरण x1, मामला x1
+  - case [mr]: केस x10, प्रकरण x3
+  - estimate [hi]: अंदाज x1, अनुमान x11
+spelling variants: 3
+  - [hi] जाँच x17, जांच x17
+  - [hi] जांचें x9, जाँचें x4
+  - [hi] मरीज़ x2, मरीज x1
+language leakage: 0   untranslated: 0   placeholder mismatches: 0   English words: 58

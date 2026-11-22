@@ -1,0 +1,35 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: loopback-only-ports
+  annotations:
+    policies.kyverno.io/title: No hostPort
+    policies.kyverno.io/category: ArogyaRakshak Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: 'Kubernetes analogue of the compose rule that every published port binds loopback:
+      a container may not use hostPort (0 means unset), which binds every node interface. Use a ClusterIP Service.
+      Mirrors rule "loopback-only-ports" in policy_checks.py and rego/.'
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: no-host-port
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - arogyarakshak
+    validate:
+      message: hostPort is not allowed; use a ClusterIP Service.
+      pattern:
+        spec:
+          containers:
+          - &id001
+            =(ports):
+            - =(hostPort): 0
+          =(initContainers):
+          - *id001
+          =(ephemeralContainers):
+          - *id001

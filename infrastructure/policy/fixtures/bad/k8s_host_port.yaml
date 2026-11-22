@@ -1,0 +1,28 @@
+# Shared policy fixture: must violate exactly rule 'loopback-only-ports' in every engine.
+kind: k8s
+rule: loopback-only-ports
+kyverno_rules:
+- no-host-port
+object:
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: t
+    namespace: arogyarakshak
+  spec:
+    template:
+      spec:
+        securityContext:
+          runAsNonRoot: true
+        containers:
+        - name: app
+          image: registry.example/app:1.2.3
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            readOnlyRootFilesystem: true
+          ports:
+          - containerPort: 80
+            hostPort: 80

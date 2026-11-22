@@ -19,10 +19,26 @@ _CURRENCY = r"(?:₹|rs\.?|inr)"
 # A billing line is "<description><separator><optional currency><amount>" with the amount
 # anchored to END OF LINE. Anchoring is what makes "Dolo 650: 33" resolve to
 # (name="Dolo 650", amount=33) instead of (name="Dolo", amount=650) — i.e. it stops the
-# drug strength being read as the price. Requiring the separator to be whitespace or a
-# colon (never a hyphen) is what stops "Date: 2024-01-15" parsing as an item costing 15.
+# drug strength being read as the price. The separator is whitespace, a colon, or a hyphen/dash
+# that has whitespace on BOTH sides ("Consultation - 400"); a hyphen glued to a digit
+# ("Date: 2024-01-15") is never a separator, so that still does not parse as an item costing 15.
+_SEP = r"(?P<sep>\s+[-–—]\s+|[\s:])"
+_AMOUNT = r"(?P<amount>\d[\d,]*(?:\.\d{1,2})?)"
+
 _LINE_ITEM_RE = re.compile(
-    rf"^\s*(?P<name>\S.*?)[\s:]\s*{_CURRENCY}?\s*(?P<amount>\d[\d,]*(?:\.\d{{1,2}})?)\s*$",
+    rf"^\s*(?P<name>\S.*?){_SEP}\s*(?P<cur>{_CURRENCY})?\s*{_AMOUNT}\s*$",
+    re.IGNORECASE,
+)
+
+# The same line followed by a payment-status remark: "Consultation: 500 (paid)", "Rs 250/-",
+# "350 only". Only an enumerated set of payment words is tolerated, and only when the amount is
+# explicitly marked as a price (colon, dash or currency): "Pan 40 (Strip of 15)" and
+# "Dolo 650 paid" keep being rejected rather than read as a charge of 40 / 650.
+_TRAILER = (
+    r"(?:\s*(?:\((?:paid|unpaid|due|pending|cash|card|upi|only)\)|/-|-/|only\b|paid\b))+"
+)
+_LINE_ITEM_TRAILING_RE = re.compile(
+    rf"^\s*(?P<name>\S.*?){_SEP}\s*(?P<cur>{_CURRENCY})?\s*{_AMOUNT}{_TRAILER}\s*$",
     re.IGNORECASE,
 )
 
@@ -232,7 +248,7 @@ def normalise_amount(raw: str) -> float:
 
 def is_summary_line(name: str) -> bool:
     """True when the description is a total/tax/metadata row rather than a charge."""
-    lowered = name.lower().strip().rstrip(":").strip()
+    lowered = name.lower().strip().rstrip(":-–—").strip()
     if lowered in SUMMARY_TERMS:
         return True
     return lowered.startswith(_SUMMARY_PREFIXES)
@@ -301,9 +317,13 @@ def parse_line_item(line: str) -> Optional[Dict[str, Any]]:
     """Parses one line into ``{"item", "charged"}``, or None if it is not a charge."""
     match = _LINE_ITEM_RE.match(line)
     if not match:
+        match = _LINE_ITEM_TRAILING_RE.match(line)
+        if match and not (match.group("cur") or match.group("sep").strip()):
+            match = None  # trailing text needs an explicit price marker (colon, dash, currency)
+    if not match:
         return None
 
-    name = match.group("name").strip().rstrip(":").strip()
+    name = match.group("name").strip().rstrip(":").strip().rstrip("-–—").strip()
     if not name or is_noise_name(name) or is_summary_line(name) or is_identity_line(name):
         return None
 

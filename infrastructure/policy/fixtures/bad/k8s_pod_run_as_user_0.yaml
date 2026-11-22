@@ -1,0 +1,26 @@
+# Shared policy fixture: must violate exactly rule 'run-as-non-root' in every engine.
+kind: k8s
+rule: run-as-non-root
+kyverno_rules:
+- pod-run-as-non-root
+object:
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: t
+    namespace: arogyarakshak
+  spec:
+    template:
+      spec:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 0
+        containers:
+        - name: app
+          image: registry.example/app:1.2.3
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            readOnlyRootFilesystem: true

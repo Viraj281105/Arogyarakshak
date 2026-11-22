@@ -17,13 +17,14 @@ import json
 import logging
 import re
 import time
+import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from app.telemetry import metrics as telemetry_metrics
 from app.telemetry.tracing import current_trace_id
@@ -35,6 +36,9 @@ _VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 request_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("request_id", default=None)
 
 access_logger = logging.getLogger("arogyarakshak.access")
+error_logger = logging.getLogger("arogyarakshak.api")
+
+INTERNAL_ERROR_DETAIL = "An unexpected server error occurred."
 
 # Applied to every response. The API serves JSON, PDFs and ZIPs that can contain health
 # information: nothing should be cached by a browser or an intermediary, sniffed into a
@@ -140,6 +144,26 @@ def route_template(request: Request) -> str:
     return "<unmatched>"
 
 
+def internal_error_response(request: Request, exc: BaseException) -> JSONResponse:
+    """The 500 answer for an unhandled exception, with its server-side log line.
+
+    Logged: the exception TYPE, the route template, the request id (via the log filter), a
+    correlation id and the innermost frame's ``file:line in function``. Never the exception
+    message or source text: an exception can quote document content (names, diagnoses,
+    amounts), which must not reach a log (PHI rule). The body carries no exception text either.
+    """
+    error_id = uuid.uuid4().hex[:12]
+    frames = traceback.extract_tb(exc.__traceback__)
+    where = f"{frames[-1].filename.replace(chr(92), '/').rsplit('/', 1)[-1]}:{frames[-1].lineno} in {frames[-1].name}" if frames else "unknown"
+    error_logger.error(
+        "Unhandled exception [%s] %s on %s at %s", error_id, type(exc).__name__, route_template(request), where
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": INTERNAL_ERROR_DETAIL, "message": INTERNAL_ERROR_DETAIL, "error_id": error_id},
+    )
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         request_id = resolve_request_id(request.headers.get(REQUEST_ID_HEADER))
@@ -147,7 +171,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         started = time.perf_counter()
         status_code = 500
         try:
-            response = await call_next(request)
+            try:
+                response = await call_next(request)
+            except Exception as exc:  # noqa: BLE001 - last line of defence, answered below
+                # Starlette's own 500 handler sits OUTSIDE this middleware, so an exception left to
+                # it would reach the client without the request id and hardening headers (and log
+                # req=-). Answer it here, inside the request context.
+                response = internal_error_response(request, exc)
             status_code = response.status_code
         finally:
             template = route_template(request)

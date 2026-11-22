@@ -59,13 +59,24 @@ HEADLINE_METRICS: Tuple[MetricSpec, ...] = (
     MetricSpec("grounding.production.hallucination_rate", "lower"),
     MetricSpec("grounding.detector.precision", "higher"),
     MetricSpec("grounding.detector.recall", "higher"),
+    # Wave 2. Retrieval is measured on a SYNTHETIC tuning set (optimistic by construction); the gate only
+    # guards against regressions. Context reuse gates the modelled DPR and the counts, NOT the hit rate
+    # (it measures non-emptiness and is ~1 by construction).
+    MetricSpec("retrieval.mrr", "higher"),
+    MetricSpec("retrieval.recall_at_k", "higher"),
+    MetricSpec("retrieval.pcra", "higher"),
+    MetricSpec("retrieval.precision", "higher"),
+    MetricSpec("retrieval.abstention_rate", "higher"),
+    MetricSpec("retrieval.at_k.3.hit_rate", "higher"),
+    MetricSpec("context_reuse.dpr", "higher"),
 )
 
 # Dataset sizes: a change means the dataset changed, which needs a reviewed baseline update.
 COUNT_METRICS: Tuple[str, ...] = (
     "bma.rows", "pea.bills", "anomaly.bills", "anomaly.lines", "crma.scenarios",
     "ocr.rows_total", "dawacheck.rows", "appeal.letters", "grounding.detector_rows",
-    "grounding.production.letters",
+    "grounding.production.letters", "retrieval.queries", "retrieval.answerable",
+    "context_reuse.n_scenarios", "context_reuse.n_requests",
 )
 
 _MISSING = object()

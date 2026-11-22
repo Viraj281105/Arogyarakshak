@@ -89,6 +89,13 @@ def main(argv=None) -> int:
                   f"letters with an ungrounded claim {_f(p['letters_with_ungrounded'])}")
             for k, v in p["by_kind"].items():
                 print(f"  - {k}: {v}")
+        elif name == "retrieval":
+            print(f"queries {r['queries']} (answerable {r['answerable']})  MRR {_f(r['mrr'])}  recall@k {_f(r['recall_at_k'])}  "
+                  f"PCRA {_f(r['pcra'])}  precision {_f(r['precision'])}  abstention {_f(r['abstention_rate'])}")
+            print("  SYNTHETIC tuning set written by the retriever's author: optimistic, not accuracy.")
+        elif name == "context_reuse":
+            print(f"scenarios {r['n_scenarios']}  requests {r['n_requests']}  DPR {_f(r['dpr'])} (modelled baseline)  "
+                  f"hit rate {_f(r.get('hit_rate'))} (non-emptiness, ~1 by construction; not gated)")
         if "per_category" in r and name != "appeal":
             for c, v in r["per_category"].items():
                 print(f"  - {c}: {v}")

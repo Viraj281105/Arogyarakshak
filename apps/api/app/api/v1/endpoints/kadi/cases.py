@@ -23,6 +23,7 @@ from app.models import (
 )
 from app.background import get_background_session
 from app.services import document_jobs
+from app.services.case_context import load_case_entities
 from app.services.case_ingestion import (  # noqa: F401 — re-exported for existing importers
     DUPLICATE_DOCUMENT_LOG,
     MAX_TRACKED_STATUS_CASES,
@@ -286,10 +287,7 @@ async def get_case(
 ):
     """Retrieves case details and all associated extracted entities."""
     # Load entities
-    entities_result = await db.execute(
-        select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id)
-    )
-    entities = entities_result.scalars().all()
+    entities = await load_case_entities(db, case_id, module="kadi", context="entities")
 
     return {
         "case": case,

@@ -286,3 +286,17 @@ Logs are shipped only from containers using the `fluentd` driver (the `api` serv
 
 ### Traces missing
 `OTEL_ENABLED` must be `true` and `OTEL_EXPORTER_OTLP_ENDPOINT` must reach the collector's OTLP/HTTP port (`http://otel-collector:4318` in Compose, `http://127.0.0.1:4318` from the host). The log line `OpenTelemetry tracing enabled` confirms the setup; `trace_id` is `null` in JSON logs when no span is active.
+
+## Error responses (Wave 2, stream G)
+
+### An upload fails with `507` "The server cannot accept this upload right now"
+The API's scratch space is full (ENOSPC/EDQUOT/EROFS) while Starlette spooled a multipart body larger than 1 MiB to a temporary file. Free disk space on the API container's temp volume (or give it more); nothing was stored and the client can retry. Previously this was reported as `400 There was an error parsing the body`, which hid the fault from 5xx alerts. Documents are still never written anywhere else.
+
+### A 500 has no request id, or the log shows `req=-`
+Fixed: `RequestContextMiddleware` now answers unhandled exceptions itself, so 500s carry `X-Request-ID`, the hardening headers and a correlated log line. The log names the exception type, route template, correlation id (`error_id`, also in the response) and `file:line in function`, never the exception text (it can quote document content). Find the cause by searching the log for the `error_id`.
+
+### Every error body is `{"detail", "message"}`
+Including 429 (plus `retry_after_seconds`) and 500 (plus `error_id`).
+
+### Two pytest runs at once fail with dozens of errors
+Before Wave 2 stream G every run shared one `test_temp.db`, so two pytest processes in the same directory corrupted each other (95 failed / 83 errors was observed). The file is now `test_temp_<pid>.db` (see `apps/api/tests/conftest.py`), created per process and removed when the session ends, so concurrent runs are safe. Leftover `test_temp*.db*` files from a killed run are git-ignored and safe to delete.

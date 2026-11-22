@@ -1,0 +1,7 @@
+# Shared policy fixture: must produce NO violations in any engine.
+kind: compose
+object:
+  services:
+    svc:
+      ports:
+      - ${HOST_IP:-127.0.0.1}:80:80

@@ -13,13 +13,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clinical.transcription_service import open_tasks_by_entity
+from app.services.case_context import load_case_entities
 from app.models import (
     BillNyayAppeal,
     DaaviSetuClaim,
     KadiCase,
     KadiCaseDocument,
     KadiClinicalAuditEvent,
-    KadiEntity,
     KadiModuleInsight,
     KadiSafetyRule,
     KadiSafetyScanResult,
@@ -32,9 +32,7 @@ async def case_timeline(db: AsyncSession, case_id: str, live_status: Optional[Di
     docs = (
         await db.execute(select(KadiCaseDocument).where(KadiCaseDocument.case_id == case_id))
     ).scalars().all()
-    entities = (
-        await db.execute(select(KadiEntity).join(KadiCase.entities).where(KadiCase.id == case_id))
-    ).scalars().all()
+    entities = await load_case_entities(db, case_id, module="kadi", context="timeline")
     audit = (
         await db.execute(
             select(KadiClinicalAuditEvent)

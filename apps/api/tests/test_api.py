@@ -465,11 +465,24 @@ def test_cghs_rates_loaded_from_json():
     assert "laparoscopic appendectomy" in CGHS_RATES
 
 
-@pytest.mark.allows_model_download
 def test_real_image_ocr_upload_and_persistence():
-    """Verifies that uploading a real image document executes EasyOCR, extracts entities, and persists them."""
+    """Verifies that uploading a real image document executes EasyOCR, extracts entities, and persists them.
+
+    Needs the real EasyOCR weights on disk (EASYOCR_MODULE_PATH, or baked into the API image).
+    The parser never downloads weights at request time and CI is hermetic (no endpoint beyond
+    GitHub runners, Postgres and PyPI/npm), so on a machine without the weights this test is
+    SKIPPED with a reason, not failed. It runs wherever the weights are present: a developer
+    machine that ran scripts/fetch_ocr_models.py, and inside the built API image."""
     import io
     from PIL import Image, ImageDraw
+
+    from kadi.ocr import ocr_parser
+
+    try:
+        ocr_parser._get_easyocr_reader(("en",))
+    except ocr_parser.OCRModelsUnavailableError:
+        pytest.skip("EasyOCR weights are not installed (run scripts/fetch_ocr_models.py --download, "
+                    "or point EASYOCR_MODULE_PATH at them); real-OCR coverage needs them")
 
     # 1. Create patient case
     res_case = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
