@@ -2,10 +2,13 @@
 # packages. The Python reference implementation and the generated `kyverno test` set read the
 # same files, so the three engines are held to the same verdicts.
 #
-#   opa test infrastructure/policy/rego infrastructure/policy/fixtures
+#   python infrastructure/policy/build_opa_data.py --out /tmp/opa-fixtures.json
+#   opa test infrastructure/policy/rego /tmp/opa-fixtures.json -v
 #
-# (the fixtures directory must be loaded too: its files become data.good.<name> and data.bad.<name>)
-# NOT EXECUTED in this repository (no opa binary); written against the documented opa test format.
+# (do NOT pass the fixtures directory: OPA merges every data file into one root and the fixtures'
+# top-level keys collide. build_opa_data.py mounts each file as data.good.<name> / data.bad.<name>.
+# Verified against the official openpolicyagent/opa image: 3/3 pass over 14 good and 35 bad fixtures.)
+# Executed once against the official OPA image (see above); not part of the local pytest run.
 package arogya.fixtures_test
 
 import rego.v1

@@ -258,7 +258,9 @@ def test_policy_test_workflow_is_report_only_and_least_privilege():
     job = data["jobs"]["policy"]
     assert job["continue-on-error"] is True
     runs = "\n".join(s.get("run", "") for s in _steps("policy-test.yml"))
-    assert "opa test infrastructure/policy/rego infrastructure/policy/fixtures" in runs
+    # OPA merges every data file into one root, so the fixtures go in as ONE generated document
+    assert "build_opa_data.py --out" in runs and "opa test infrastructure/policy/rego" in runs
+    assert "opa test infrastructure/policy/rego infrastructure/policy/fixtures" not in runs
     assert "kyverno test infrastructure/policy/kyverno-tests" in runs
     assert "build_kyverno_tests.py --check" in runs
     assert "secrets." not in (WORKFLOWS / "policy-test.yml").read_text(encoding="utf-8")

@@ -5,10 +5,10 @@ name: Policy Tests (report-only)
 # has run once and its first result has been reviewed: `continue-on-error` below keeps a broken
 # policy file from blocking merges before that. Remove it when the job is known green.
 #
-# Supply-chain note: the two setup actions are pinned by MAJOR tag (mutable) and install the
-# CLIs at their default release. Pin both actions to commit SHAs, and set explicit CLI versions
-# once they are looked up (no network was available when this was written). The job has no
-# secrets and only `contents: read`.
+# Supply-chain note: the two setup actions are pinned by MAJOR tag (mutable): pin them to commit
+# SHAs before relying on this job. The CLI versions ARE pinned (OPA 1.22.4, Kyverno CLI v1.19.0),
+# both verified locally against the official images. The job has no secrets and only
+# `contents: read`.
 
 on:
   pull_request:
@@ -45,8 +45,20 @@ jobs:
           python infrastructure/policy/policy_checks.py
           python infrastructure/policy/build_kyverno_tests.py --check
       - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.22.4  # the version the fixtures were verified against (3/3 pass)
       - name: opa test (Rego + shared fixtures)
-        run: opa test infrastructure/policy/rego infrastructure/policy/fixtures -v
+        # OPA merges every data file into ONE root, so the per-case fixture directory cannot be
+        # passed directly (47 "conflicting values at data.bad.kind" errors on the first run).
+        # build_opa_data.py mounts each fixture under data.good.<name> / data.bad.<name>.
+        run: |
+          python infrastructure/policy/build_opa_data.py --out "$RUNNER_TEMP/opa-fixtures.json"
+          opa test infrastructure/policy/rego "$RUNNER_TEMP/opa-fixtures.json" -v
       - uses: kyverno/action-install-cli@v0.2.0
+        with:
+          # v1.19.0 ran all 232 generated tests. Do NOT float this to latest: Kyverno 1.20 removed
+          # execution of the legacy kyverno.io/v1 ClusterPolicy type these policies use (migrate to
+          # ValidatingPolicy / policies.kyverno.io first). The action's own default is v1.10.3.
+          release: v1.19.0
       - name: kyverno test
         run: kyverno test infrastructure/policy/kyverno-tests

@@ -203,7 +203,8 @@ def test_rego_files_are_structurally_sound(name, package):
 def test_rego_runs_the_shared_fixtures_and_covers_init_and_ephemeral_containers():
     text = (POLICY / "rego" / "fixtures_test.rego").read_text(encoding="utf-8")
     assert "package arogya.fixtures_test" in text and "data.good" in text and "data.bad" in text
-    assert "opa test infrastructure/policy/rego infrastructure/policy/fixtures" in text
+    assert "build_opa_data.py" in text and "opa test infrastructure/policy/rego" in text
+    assert "do NOT pass the fixtures directory" in text
     workload = (POLICY / "rego" / "workload.rego").read_text(encoding="utf-8")
     assert "pod_spec.initContainers" in workload and "pod_spec.ephemeralContainers" in workload
     assert "p.hostPort > 0" in workload, "hostPort: 0 is unset"

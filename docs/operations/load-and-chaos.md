@@ -112,7 +112,7 @@ log text is acceptable is a privacy decision (ADR-023 scrubs telemetry, not the 
 - `kyverno-tests/`: the `kyverno test` set, **generated** from the fixtures by
   `build_kyverno_tests.py` (a unit test fails when it is stale).
 - `rego/workload.rego`, `rego/compose.rego`, `rego/fixtures_test.rego`: the same rules for
-  `conftest`/`opa`. Run `opa test infrastructure/policy/rego infrastructure/policy/fixtures`
+  `conftest`/`opa`. Run `python infrastructure/policy/build_opa_data.py --out /tmp/opa-fixtures.json && opa test infrastructure/policy/rego /tmp/opa-fixtures.json -v`
   (the fixtures directory must be loaded: its files become `data.good` / `data.bad`).
 - `policy_checks.py`: the **same rules in Python**, the only form executed here. It is run
   against `infrastructure/kubernetes/**` (including each Kustomization's `images:` overlay, so an
@@ -140,7 +140,7 @@ are enforced for Kubernetes only; the one root container (Tempo in the observabi
 is a commented, tested exception. **Neither Kyverno nor OPA has been executed.** The Rego relies
 on `regex.replace` expanding `$1` in its replacement and on `every`; the Kyverno uses `foreach`
 with `regex_match`. Both are unverified by an engine. `.github/workflows/policy-test.yml` runs
-`opa test` and `kyverno test` report-only (`continue-on-error`) so the first run tells us.
+`opa test` and `kyverno test` report-only (`continue-on-error`) so the first run tells us. **Executed once for real** (2026-11-22) against the official images: OPA 1.22.4 passed 3/3 over 14 good and 35 bad fixtures, and Kyverno CLI v1.19.0 passed all 232 generated tests. The first CI run failed twice before that: OPA could not load a directory of per-case fixtures (now one generated document, `build_opa_data.py`), and the action's default Kyverno CLI predates the tests. **Kyverno 1.20 removed execution of the legacy `kyverno.io/v1` ClusterPolicy type these policies use**, so the CLI is pinned to v1.19.0 and migrating to ValidatingPolicy (CEL, `policies.kyverno.io`) is an open follow-up before upgrading.
 
 ## Supply chain
 
