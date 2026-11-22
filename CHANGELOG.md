@@ -34,7 +34,7 @@ Plan `docs/superpowers/plans/2026-11-21-wave2.md`. Combined suite: first combine
 - The regression-gate baseline was regenerated: it now also covers retrieval and context reuse and records the matcher and letter improvements.
 
 #### Known issues
-- Not run on GitHub CI; k6, opa, kyverno, cosign, syft and the new workflows were never executed.
+- Not run on GitHub CI; k6, cosign and syft were never executed. OPA 1.22.4 and Kyverno CLI v1.19.0 were run locally against the official images (all fixtures pass); Kyverno 1.20 removed the legacy ClusterPolicy type the policies use, so migrate to ValidatingPolicy before upgrading.
 - No WER/CER for Devanagari OCR; no native-speaker review of any Hindi/Marathi text; retrieval numbers are optimistic (synthetic, self-written, tuned).
 - `supply-chain.yml` actions are mutable tags until a maintainer SHA-pins them.
 
