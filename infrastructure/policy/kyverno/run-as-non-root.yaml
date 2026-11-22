@@ -3,25 +3,42 @@ kind: ClusterPolicy
 metadata:
   name: run-as-non-root
   annotations:
-    policies.kyverno.io/title: "Run as non-root"
+    policies.kyverno.io/title: Run as non-root
     policies.kyverno.io/category: ArogyaRakshak Pod Security
     policies.kyverno.io/severity: high
-    policies.kyverno.io/description: >-
-      Pods in the arogyarakshak namespace must set securityContext.runAsNonRoot: true.
-      Mirrors the rule "run-as-non-root" in policy_checks.py and rego/workload.rego.
+    policies.kyverno.io/description: 'Pods must set securityContext.runAsNonRoot: true and no pod or container may
+      run as UID 0 or set runAsNonRoot: false. Mirrors rule "run-as-non-root" in policy_checks.py and rego/.'
 spec:
   validationFailureAction: Enforce
   background: true
   rules:
-    - name: pod-run-as-non-root
-      match:
-        any:
-          - resources:
-              kinds: [Pod]
-              namespaces: [arogyarakshak]
-      validate:
-        message: "securityContext.runAsNonRoot must be true."
-        pattern:
-          spec:
-            securityContext:
-              runAsNonRoot: true
+  - name: pod-run-as-non-root
+    match: &id001
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - arogyarakshak
+    validate:
+      message: Pod securityContext.runAsNonRoot must be true and runAsUser non-zero.
+      pattern:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            =(runAsUser): '>0'
+  - name: container-run-as-non-root
+    match: *id001
+    validate:
+      message: 'A container must not set runAsNonRoot: false or runAsUser: 0.'
+      pattern:
+        spec:
+          containers:
+          - &id002
+            =(securityContext):
+              =(runAsNonRoot): true
+              =(runAsUser): '>0'
+          =(initContainers):
+          - *id002
+          =(ephemeralContainers):
+          - *id002

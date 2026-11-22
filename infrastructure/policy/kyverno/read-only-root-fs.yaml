@@ -3,26 +3,32 @@ kind: ClusterPolicy
 metadata:
   name: read-only-root-fs
   annotations:
-    policies.kyverno.io/title: "Read-only root filesystem"
+    policies.kyverno.io/title: Read-only root filesystem
     policies.kyverno.io/category: ArogyaRakshak Pod Security
     policies.kyverno.io/severity: high
-    policies.kyverno.io/description: >-
-      Containers must set securityContext.readOnlyRootFilesystem: true. Writable paths are explicit emptyDir mounts.
-      Mirrors the rule "read-only-root-fs" in policy_checks.py and rego/workload.rego.
+    policies.kyverno.io/description: 'Containers must set securityContext.readOnlyRootFilesystem: true; writable
+      paths are explicit emptyDir mounts. Mirrors rule "read-only-root-fs" in policy_checks.py and rego/.'
 spec:
   validationFailureAction: Enforce
   background: true
   rules:
-    - name: container-read-only-root-fs
-      match:
-        any:
-          - resources:
-              kinds: [Pod]
-              namespaces: [arogyarakshak]
-      validate:
-        message: "securityContext.readOnlyRootFilesystem must be true."
-        pattern:
-          spec:
-            containers:
-              - securityContext:
-                  readOnlyRootFilesystem: true
+  - name: container-read-only-root-fs
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - arogyarakshak
+    validate:
+      message: securityContext.readOnlyRootFilesystem must be true.
+      pattern:
+        spec:
+          containers:
+          - &id001
+            securityContext:
+              readOnlyRootFilesystem: true
+          =(initContainers):
+          - *id001
+          =(ephemeralContainers):
+          - *id001

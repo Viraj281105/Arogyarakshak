@@ -1,0 +1,9 @@
+# Shared policy fixture: must produce NO violations in any engine.
+kind: compose
+object:
+  services:
+    svc:
+      image: pgvector/pgvector:pg16
+      volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./cfg:/etc/cfg:ro

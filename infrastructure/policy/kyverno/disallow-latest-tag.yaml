@@ -3,37 +3,74 @@ kind: ClusterPolicy
 metadata:
   name: disallow-latest-tag
   annotations:
-    policies.kyverno.io/title: "Pin image tags"
+    policies.kyverno.io/title: Pin image tags
     policies.kyverno.io/category: ArogyaRakshak Pod Security
     policies.kyverno.io/severity: high
-    policies.kyverno.io/description: >-
-      Images must carry an explicit tag (or digest) and never :latest.
-      Mirrors the rule "disallow-latest-tag" in policy_checks.py and rego/workload.rego.
+    policies.kyverno.io/description: Images (containers, init and ephemeral) need an explicit tag or digest and
+      never :latest. A registry port (localhost:5000/app) is not a tag. Mirrors rule "disallow-latest-tag" in policy_checks.py
+      and rego/.
 spec:
   validationFailureAction: Enforce
   background: true
   rules:
-    - name: require-image-tag
-      match:
-        any:
-          - resources:
-              kinds: [Pod]
-              namespaces: [arogyarakshak]
-      validate:
-        message: "An image tag or digest is required."
-        pattern:
-          spec:
-            containers:
-              - image: "*:* | *@sha256:*"
-    - name: disallow-latest
-      match:
-        any:
-          - resources:
-              kinds: [Pod]
-              namespaces: [arogyarakshak]
-      validate:
-        message: "The latest tag is not allowed."
-        pattern:
-          spec:
-            containers:
-              - image: "!*:latest"
+  - name: require-image-tag
+    match: &id001
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - arogyarakshak
+    validate:
+      message: An image tag or digest is required.
+      foreach:
+      - list: request.object.spec.containers
+        deny:
+          conditions:
+            any:
+            - key: '{{ regex_match(''^([^/]+/)*[^/:@]+(:[^/:@]+(@sha256:[0-9a-f]+)?|@sha256:[0-9a-f]+)$'', element.image)
+                }}'
+              operator: Equals
+              value: false
+      - list: request.object.spec.initContainers || `[]`
+        deny:
+          conditions:
+            any:
+            - key: '{{ regex_match(''^([^/]+/)*[^/:@]+(:[^/:@]+(@sha256:[0-9a-f]+)?|@sha256:[0-9a-f]+)$'', element.image)
+                }}'
+              operator: Equals
+              value: false
+      - list: request.object.spec.ephemeralContainers || `[]`
+        deny:
+          conditions:
+            any:
+            - key: '{{ regex_match(''^([^/]+/)*[^/:@]+(:[^/:@]+(@sha256:[0-9a-f]+)?|@sha256:[0-9a-f]+)$'', element.image)
+                }}'
+              operator: Equals
+              value: false
+  - name: disallow-latest
+    match: *id001
+    validate:
+      message: The latest tag is not allowed.
+      foreach:
+      - list: request.object.spec.containers
+        deny:
+          conditions:
+            any:
+            - key: '{{ regex_match(''^([^/]+/)*[^/:@]+:latest$'', element.image) }}'
+              operator: Equals
+              value: true
+      - list: request.object.spec.initContainers || `[]`
+        deny:
+          conditions:
+            any:
+            - key: '{{ regex_match(''^([^/]+/)*[^/:@]+:latest$'', element.image) }}'
+              operator: Equals
+              value: true
+      - list: request.object.spec.ephemeralContainers || `[]`
+        deny:
+          conditions:
+            any:
+            - key: '{{ regex_match(''^([^/]+/)*[^/:@]+:latest$'', element.image) }}'
+              operator: Equals
+              value: true

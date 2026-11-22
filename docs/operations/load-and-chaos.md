@@ -10,10 +10,15 @@ throughput or capacity figure exists; do not quote one until a run produced it.
 
 | Script | What it does | Thresholds (all *proposed, not measured*) |
 |---|---|---|
-| `health.js` | 20 req/s on `/health/live` and `/health/ready` | 5xx < 0.5 %, p95 < 500 ms |
-| `case_create.js` | ramps `POST /cases` to 5/s | 5xx < 0.5 %, p95 < 1 s |
-| `upload.js` | 2 uploads/s of a synthetic text bill, accept path (`202`) | 5xx < 0.5 %, p95 < 2 s |
-| `sse_stream.js` | 5 VUs: create, upload, follow the SSE stream to its terminal event | 5xx < 0.5 %, p95 end-to-end < 10 s |
+| `health.js` | 20 req/s on `/health/live` and `/health/ready` | 5xx < 0.5 %, 429s < 5 %, p95 < 500 ms, > 600 accepted requests |
+| `case_create.js` | ramps `POST /cases` to 5/s | 5xx < 0.5 %, 429s < 5 %, p95 < 1 s, > 100 accepted requests |
+| `upload.js` | 2 uploads/s of a synthetic text bill, accept path (`202`) | 5xx < 0.5 %, 429s < 5 %, p95 < 2 s, > 100 accepted requests |
+| `sse_stream.js` | 5 VUs: create, upload, follow the SSE stream to its terminal event | 5xx < 0.5 %, 429s < 5 %, p95 end-to-end < 10 s, > 20 accepted requests |
+
+Every script also requires a minimum number of iterations and of 2xx responses
+(`accepted_requests`) and caps the share of `429` responses (`rate_limited`). At the default
+120 requests per minute per IP the scripts would otherwise return early or collect 429s and
+still "pass" having measured nothing; with these thresholds such a run fails.
 
 Where the numbers come from: the availability SLO (99.5 % of requests not 5xx) and the case
 latency SLO (95 % of documents within 10 s) are from the SLO table in
@@ -41,13 +46,22 @@ the offline heuristic and nothing leaves the machine. With a key set, the run wo
 measure Groq, which is a different (and billable) experiment.
 
 CI: `.github/workflows/load-test.yml` is `workflow_dispatch` only. It asks for a base URL and a
-script, runs k6 and uploads the summary JSON. It never runs on a push, pull request or schedule.
+script, **validates the URL first** (`tests/load/validate_base_url.py`: https only, no
+credentials, no IP literals or internal names, host must be in the repository variable
+`LOAD_TEST_HOSTS`, and must resolve to public addresses only), then runs k6 and uploads the
+summary JSON. It never runs on a push, pull request or schedule.
 
 ## Chaos tests (pytest)
 
 `tests/chaos/` injects faults into the **real FastAPI app** (TestClient, the SQLite test
 database and the API suite's isolation fixtures from `apps/api/tests/conftest.py`). They run in
 the normal `python -m pytest` invocation and need no network.
+
+**What "database unavailable" means here:** the database is *stubbed*, not taken down. The tests
+override the `get_db` dependency with a session object whose every statement raises an
+`OperationalError`. That exercises the application's handling (readiness, the error handler, job
+bookkeeping) but is **not** a pool-level outage: connection-pool exhaustion, `pool_pre_ping`
+recovery, reconnect timing and a real Postgres restart are untested.
 
 | Module | Fault | Asserted |
 |---|---|---|
@@ -86,32 +100,104 @@ log text is acceptable is a privacy decision (ADR-023 scrubs telemetry, not the 
 
 `infrastructure/policy/`:
 
+- `fixtures/{good,bad}/*.yaml`: the **shared corpus** (14 good, 35 bad). Each bad case is a
+  single-defect variant annotated with the one rule it must violate. Python, Rego and Kyverno
+  are all held to it.
 - `kyverno/*.yaml`: six `ClusterPolicy` objects (run as non-root, no `latest`/untagged images,
-  resource limits, read-only root filesystem, no Docker socket hostPath, no `hostPort`),
-  `Enforce`, scoped to the `arogyarakshak` namespace so cluster add-ons are unaffected.
-- `rego/workload.rego` and `rego/compose.rego` (+ `workload_test.rego`): the same rules for
-  `conftest`/`opa`, for rendered Kubernetes manifests and for the compose files (image tags,
-  loopback-only published ports, no Docker socket).
-- `policy_checks.py`: the **same rules implemented in Python**. `tests/infrastructure/
-  test_policy_as_code.py` runs it against `infrastructure/kubernetes/**` and `docker-compose*.yml`
-  (they pass), proves each rule rejects a bad example, validates the Kyverno and Rego structure
-  and checks that all three forms cover the same rule names. `python
-  infrastructure/policy/policy_checks.py` runs it by hand.
+  resource limits, read-only root filesystem, no runtime-socket or node `hostPath`, no
+  `hostPort`), `Enforce`, scoped to the `arogyarakshak` namespace so cluster add-ons are
+  unaffected. They cover `initContainers` and `ephemeralContainers`; the volume expression
+  defaults a missing `volumes` list (the migration Job has none); the image expression treats a
+  registry port (`localhost:5000/app`) as *not* a tag; `hostPort: 0` is unset.
+- `kyverno-tests/`: the `kyverno test` set, **generated** from the fixtures by
+  `build_kyverno_tests.py` (a unit test fails when it is stale).
+- `rego/workload.rego`, `rego/compose.rego`, `rego/fixtures_test.rego`: the same rules for
+  `conftest`/`opa`. Run `opa test infrastructure/policy/rego infrastructure/policy/fixtures`
+  (the fixtures directory must be loaded: its files become `data.good` / `data.bad`).
+- `policy_checks.py`: the **same rules in Python**, the only form executed here. It is run
+  against `infrastructure/kubernetes/**` (including each Kustomization's `images:` overlay, so an
+  overlay cannot re-point an image at `latest`) and `docker-compose*.yml`, which pass, and
+  against the fixtures. `python infrastructure/policy/policy_checks.py [--root DIR]` exits 1 on any
+  violation.
 
-Scope notes. The "loopback-only" rule is a compose rule (every published port binds
-`127.0.0.1`); its Kubernetes counterpart is "no `hostPort`". The compose files are
-local-development stacks, so run-as-non-root, read-only root filesystem and limits are enforced
-for Kubernetes only; the one root container (Tempo in the observability override) is a
-commented, tested exception. Neither Kyverno nor OPA has been executed: the Kyverno patterns
-use documented syntax and the Rego is written for `rego.v1`, but only the Python implementation
-is exercised. Run `opa test infrastructure/policy/rego` and `kyverno test` before relying on
-them in a cluster.
+Rule details that all three forms share:
+
+- **Compose ports.** A bare container port (`"8000"`) or `"8000:8000"` publishes on every
+  interface and is denied. Allowed: `127.0.0.1:`, `[::1]:`, `localhost:` prefixes, and long
+  syntax with `host_ip` `127.0.0.1` or `::1`. `${X:-127.0.0.1}` is resolved to its default;
+  any `${X}` without a default is unprovable and denied. `[::]:9090:9090` is denied.
+- **Host paths** (Kubernetes `hostPath` and compose binds) use one regex, identical in all
+  four files (a test asserts it): the runtime sockets (`docker.sock`, `containerd.sock`,
+  `crio.sock`), `/`, `/var`, `/var/run` and `/run` (parents expose the sockets), and
+  `/var/lib/{docker,containerd,kubelet}`; trailing slashes are tolerated, nothing else is
+  normalised (so `..` segments are not resolved).
+- **Root.** Pod `runAsNonRoot: true` is required; a pod or container `runAsUser: 0` or a
+  container `runAsNonRoot: false` is denied.
+
+Scope notes. "Loopback-only" is a compose rule; its Kubernetes counterpart is "no
+`hostPort`". Compose files are local-development stacks, so non-root, read-only root and limits
+are enforced for Kubernetes only; the one root container (Tempo in the observability override)
+is a commented, tested exception. **Neither Kyverno nor OPA has been executed.** The Rego relies
+on `regex.replace` expanding `$1` in its replacement and on `every`; the Kyverno uses `foreach`
+with `regex_match`. Both are unverified by an engine. `.github/workflows/policy-test.yml` runs
+`opa test` and `kyverno test` report-only (`continue-on-error`) so the first run tells us.
 
 ## Supply chain
 
-`.github/workflows/supply-chain.yml` runs **only on a pushed tag `v*`**, never on a pull request
-or branch push: it builds and pushes `ghcr.io/<owner>/<repo>/api:<tag>`, generates an SPDX SBOM
-of that image digest (Syft via `anchore/sbom-action`), signs the digest with keyless cosign
-(GitHub OIDC; no stored key) and attaches the SBOM as a signed attestation. `id-token: write` is
-granted only to that job. It has never run; the first release tag is its first test. The
-verification command is in the workflow header.
+`.github/workflows/supply-chain.yml` runs **only when a semver tag is pushed**
+(`v[0-9]+.[0-9]+.[0-9]+*`), never on a pull request or branch push. It builds and pushes
+`ghcr.io/<owner>/<repo>/api:<tag>` (lower-case path), generates an SPDX SBOM of that image
+digest, signs the digest with keyless cosign (GitHub OIDC, no stored key) and attaches the SBOM
+as a signed attestation. Job permissions are exactly `contents: read`, `packages: write`,
+`id-token: write`. The build uses no `type=gha` cache. Its first steps fail the run unless the
+tag is semver **and** the tagged commit is an ancestor of `origin/main`.
+
+**What the signature proves:** "built by this workflow file from a semver tag whose commit is on
+main". It does **not** prove the commit was reviewed.
+
+**Decision: signing writes to the public Rekor transparency log.** The entry exposes the
+repository name, the workflow path, the ref and the commit SHA. That is accepted for a
+public-facing release; do not use this workflow for a repository that must stay private.
+
+### Repository settings a maintainer must configure (the workflow alone is not enough)
+
+1. Settings > Environments > **`release`**: Required reviewers (at least one person who is not
+   the one pushing the tag), "Prevent self-review" on, Deployment branches and tags limited to
+   the tag pattern `v[0-9]+.[0-9]+.[0-9]+*`. No secrets are needed.
+2. Settings > Rules > Rulesets > a **tag ruleset** targeting `v*`: restrict creations to
+   maintainers, block updates, block deletions.
+3. Branch protection or a ruleset on **`main`**: pull request required, required status checks,
+   no force-push or deletion (the ancestry guard is only as strong as main's protection).
+4. Settings > Actions > General: workflow permissions "Read repository contents" by default.
+5. Repository **variable** `LOAD_TEST_HOSTS` (for `load-test.yml`): comma-separated allowed
+   hostnames.
+
+### Maintainer checklist before the first release
+
+- [ ] **Maintainer must SHA-pin every action in `supply-chain.yml` before the first release.**
+      They are pinned by mutable major tags (`actions/checkout@v4`, `docker/*@v3|v6`,
+      `anchore/sbom-action@v0`, `sigstore/cosign-installer@v3`) because no commit SHA could be
+      looked up offline and none was invented. These actions run in the job that holds
+      `packages: write` and `id-token: write`. `.github/dependabot.yml` (github-actions
+      ecosystem) then keeps the SHAs current.
+- [ ] Do the same for `load-test.yml` and `policy-test.yml` (lower risk: read-only token).
+- [ ] Configure the settings above.
+- [ ] Run `policy-test.yml` once, review it, then drop its `continue-on-error`.
+
+### Verifying a release image (by digest, never by tag)
+
+Get the digest from the release job summary or `docker buildx imagetools inspect`. The
+certificate identity keeps the repository's original case (`Viraj281105/Arogyarakshak`), while
+the image path is lower-cased by the workflow: mixing them up makes verification fail.
+
+```bash
+IMAGE=ghcr.io/viraj281105/arogyarakshak/api@sha256:<digest>
+IDENTITY='^https://github\.com/Viraj281105/Arogyarakshak/\.github/workflows/supply-chain\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$'
+ISSUER=https://token.actions.githubusercontent.com
+
+cosign verify "$IMAGE" --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+cosign verify-attestation --type spdxjson "$IMAGE" \
+  --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+```
+
+It has never run; the first release tag is its first test.

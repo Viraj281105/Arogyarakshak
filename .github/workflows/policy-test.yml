@@ -1,0 +1,52 @@
+name: Policy Tests (report-only)
+
+# Runs the policy-as-code engines that the local test suite cannot run: `opa test` on the Rego
+# and `kyverno test` on the generated Kyverno set (infrastructure/policy). REPORT-ONLY until it
+# has run once and its first result has been reviewed: `continue-on-error` below keeps a broken
+# policy file from blocking merges before that. Remove it when the job is known green.
+#
+# Supply-chain note: the two setup actions are pinned by MAJOR tag (mutable) and install the
+# CLIs at their default release. Pin both actions to commit SHAs, and set explicit CLI versions
+# once they are looked up (no network was available when this was written). The job has no
+# secrets and only `contents: read`.
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/policy/**"
+      - "infrastructure/kubernetes/**"
+      - "docker-compose*.yml"
+      - ".github/workflows/policy-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: "opa test and kyverno test"
+    runs-on: ubuntu-latest
+    continue-on-error: true  # report-only until the first reviewed run
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install PyYAML
+      - name: Python reference checks (repository, fixtures, generated Kyverno set up to date)
+        run: |
+          python infrastructure/policy/policy_checks.py
+          python infrastructure/policy/build_kyverno_tests.py --check
+      - uses: open-policy-agent/setup-opa@v2
+      - name: opa test (Rego + shared fixtures)
+        run: opa test infrastructure/policy/rego infrastructure/policy/fixtures -v
+      - uses: kyverno/action-install-cli@v0.2.0
+      - name: kyverno test
+        run: kyverno test infrastructure/policy/kyverno-tests

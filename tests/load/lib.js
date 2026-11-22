@@ -19,10 +19,17 @@ export const API = `${BASE_URL}/api/v1/kadi`;
 // SLO "Availability: 99.5 % of requests not 5xx" (observability.md) -> at most 0.5 % 5xx.
 export const serverErrors = new Rate('server_errors');
 export const rateLimited = new Counter('rate_limited_responses');
+// Share of responses that were 429, and a count of 2xx responses. Without thresholds on these a
+// run against the default 120 requests/minute limit would "pass" while almost every request was
+// rejected early and nothing was measured.
+export const rateLimitedShare = new Rate('rate_limited');
+export const accepted = new Counter('accepted_requests');
 
 export const SLO = {
   // proposed, not measured: derived from the availability SLO above.
   maxServerErrorRate: 0.005,
+  // proposed, not measured: more than this share of 429s means the rate limiter, not the API, was measured.
+  maxRateLimitedShare: 0.05,
   // proposed, not measured: "95 % of documents processed within 10 s" (TARGET_LATENCY_SECONDS).
   caseProcessingP95Ms: 10000,
   // proposed, not measured: NO request-latency SLO exists in observability.md. These are
@@ -35,8 +42,12 @@ export const SLO = {
 // Records the outcome of one response against the availability SLI.
 export function track(res) {
   serverErrors.add(res.status >= 500);
+  rateLimitedShare.add(res.status === 429);
   if (res.status === 429) {
     rateLimited.add(1);
+  }
+  if (res.status >= 200 && res.status < 300) {
+    accepted.add(1);
   }
   return res;
 }

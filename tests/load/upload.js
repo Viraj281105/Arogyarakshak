@@ -18,6 +18,9 @@ export const options = {
   // proposed, not measured
   thresholds: {
     server_errors: [`rate<${SLO.maxServerErrorRate}`],
+    rate_limited: [`rate<${SLO.maxRateLimitedShare}`],
+    accepted_requests: ['count>100'],
+    iterations: ['count>50'],
     'http_req_duration{name:POST /upload}': [`p(95)<${SLO.uploadAcceptP95Ms}`],
   },
 };

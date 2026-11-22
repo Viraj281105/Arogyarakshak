@@ -1,21 +1,42 @@
 name: Supply Chain (release)
 
-# Runs ONLY when a release tag (v*) is pushed. It never runs for pull requests or branch
-# pushes, so a fork or a PR can never obtain the OIDC token that keyless signing needs.
-# What it does: builds the API image, pushes it to GHCR, generates an SPDX SBOM of that
-# exact image, signs the image digest with keyless cosign (Sigstore, GitHub OIDC identity)
-# and attaches the SBOM as a signed attestation.
+# Runs ONLY when a semver release tag (vMAJOR.MINOR.PATCH, optional suffix) is pushed, never for
+# pull requests or branch pushes. It builds the API image, pushes it to GHCR, generates an SPDX
+# SBOM of that exact digest, signs the digest with keyless cosign (Sigstore, GitHub OIDC) and
+# attaches the SBOM as a signed attestation.
 #
-# NOT YET RUN. Nothing here has been executed (no cosign or syft locally); the first
-# release tag is the first test. Verify a release image with:
-#   cosign verify ghcr.io/<owner>/<repo>/api@<digest> \
-#     --certificate-identity-regexp 'https://github.com/<owner>/<repo>/.github/workflows/supply-chain.yml@refs/tags/v.*' \
+# WHAT A SIGNATURE MEANS. "This digest was built by this workflow file from a semver tag whose
+# commit is on main." It does NOT mean the commit was reviewed or the code is safe. Whoever can
+# push a matching tag AND approve the `release` environment can produce a valid signature, so the
+# repository settings below are part of the control (docs/operations/load-and-chaos.md):
+#   - environment `release` with required reviewers (not the tag pusher) and deployment
+#     branches/tags restricted to the semver pattern;
+#   - a tag ruleset on `v*` (restrict creation to maintainers, block deletion and updates);
+#   - branch protection on main (the ancestry check below relies on it).
+#
+# TRANSPARENCY LOG. Keyless signing records the signing certificate in the PUBLIC Rekor log. That
+# log entry exposes the repository name, the workflow path, the ref and the commit SHA. This is
+# an accepted, explicit decision for a public-facing release; do not run this workflow for a
+# repository whose name or commits must stay private.
+#
+# ACTION PINS. Every action below is pinned by a MUTABLE major tag because no SHA could be looked
+# up offline and none may be invented. A maintainer must SHA-pin each of them before the first
+# release (Dependabot, .github/dependabot.yml, keeps the pins current afterwards).
+#
+# NOT YET RUN. The first release tag is the first test. Verify a release image BY DIGEST (never a
+# tag), with the repository name in its original case in the identity and the image path in
+# lower case:
+#   cosign verify ghcr.io/viraj281105/arogyarakshak/api@sha256:<digest> \
+#     --certificate-identity-regexp '^https://github\.com/Viraj281105/Arogyarakshak/\.github/workflows/supply-chain\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+#   cosign verify-attestation --type spdxjson ghcr.io/viraj281105/arogyarakshak/api@sha256:<digest> \
+#     --certificate-identity-regexp '^https://github\.com/Viraj281105/Arogyarakshak/\.github/workflows/supply-chain\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$' \
 #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+*"
 
 permissions:
   contents: read
@@ -26,21 +47,36 @@ concurrency:
 
 jobs:
   release-image:
-    name: "Build, SBOM, sign (release tag only)"
-    # Defence in depth: the trigger already restricts this, and the condition keeps it
-    # true if someone later widens `on:`.
+    name: "Build, SBOM, sign (semver tag on main only)"
+    # Defence in depth: the trigger already restricts this, and the condition keeps it true if
+    # someone later widens `on:`.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    environment: release
     timeout-minutes: 60
     permissions:
       contents: read
       packages: write   # push the image to GHCR
       id-token: write   # keyless cosign: short-lived OIDC identity, no stored key
-      attestations: write
     env:
       REGISTRY: ghcr.io
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # all branches and tags, so origin/main exists for the ancestry check
+          persist-credentials: false
+
+      - name: Require a semver tag on a commit that is on main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error::tag '$TAG' is not a semver release tag"; exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the tagged commit is not an ancestor of origin/main; refusing to sign"; exit 1
+          fi
 
       - name: Compute lower-case image name
         run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}/api" >> "$GITHUB_ENV"
@@ -53,6 +89,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # No type=gha cache here: a cache written by a pull-request build must not influence the
+      # layers of a signed release image.
       - name: Build and push the API image
         id: build
         uses: docker/build-push-action@v6
@@ -61,8 +99,6 @@ jobs:
           file: apps/api/Dockerfile
           push: true
           tags: ${{ env.IMAGE }}:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Generate SBOM (SPDX) for the pushed image
         uses: anchore/sbom-action@v0

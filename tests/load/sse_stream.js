@@ -18,6 +18,9 @@ export const options = {
   // proposed, not measured: SLO "95 % of documents processed within 10 s".
   thresholds: {
     server_errors: [`rate<${SLO.maxServerErrorRate}`],
+    rate_limited: [`rate<${SLO.maxRateLimitedShare}`],
+    accepted_requests: ['count>20'],
+    iterations: ['count>10'],
     case_processing_ms: [`p(95)<${SLO.caseProcessingP95Ms}`],
     checks: ['rate>0.95'],
   },

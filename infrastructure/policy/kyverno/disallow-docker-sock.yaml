@@ -3,27 +3,32 @@ kind: ClusterPolicy
 metadata:
   name: disallow-docker-sock
   annotations:
-    policies.kyverno.io/title: "No Docker socket"
+    policies.kyverno.io/title: No container runtime or node host paths
     policies.kyverno.io/category: ArogyaRakshak Pod Security
     policies.kyverno.io/severity: high
-    policies.kyverno.io/description: >-
-      A pod must not mount the Docker socket through a hostPath volume; it is root on the node.
-      Mirrors the rule "disallow-docker-sock" in policy_checks.py and rego/workload.rego.
+    policies.kyverno.io/description: A pod must not mount a container runtime socket, its parent directory, the
+      node root or the runtime and kubelet state directories through hostPath. The volumes list is optional, so
+      the expression defaults it to an empty list. Mirrors rule "disallow-docker-sock" in policy_checks.py and rego/.
 spec:
   validationFailureAction: Enforce
   background: true
   rules:
-    - name: no-docker-socket-hostpath
-      match:
-        any:
-          - resources:
-              kinds: [Pod]
-              namespaces: [arogyarakshak]
-      validate:
-        message: "Mounting the Docker socket is not allowed."
+  - name: no-docker-socket-hostpath
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - arogyarakshak
+    validate:
+      message: Mounting the container runtime socket or node paths is not allowed.
+      foreach:
+      - list: request.object.spec.volumes || `[]`
         deny:
           conditions:
             any:
-              - key: "{{ request.object.spec.volumes[?hostPath.path=='/var/run/docker.sock' || hostPath.path=='/run/docker.sock'] | length(@) }}"
-                operator: GreaterThan
-                value: 0
+            - key: '{{ regex_match(''^(/|/var|/var/run|/run)/*$|(^|/)(docker|containerd|crio)\.sock/*$|^/var/lib/(docker|containerd|kubelet)(/.*)?$'',
+                element.hostPath.path || '''') }}'
+              operator: Equals
+              value: true

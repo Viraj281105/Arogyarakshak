@@ -1,0 +1,22 @@
+# Shared policy fixture: must produce NO violations in any engine.
+kind: k8s
+object:
+  apiVersion: batch/v1
+  kind: Job
+  metadata:
+    name: migrate
+    namespace: arogyarakshak
+  spec:
+    template:
+      spec:
+        securityContext:
+          runAsNonRoot: true
+        containers:
+        - name: app
+          image: registry.example/app:1.2.3
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            readOnlyRootFilesystem: true

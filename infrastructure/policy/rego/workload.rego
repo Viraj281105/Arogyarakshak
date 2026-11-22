@@ -22,13 +22,33 @@ containers contains c if some c in pod_spec.containers
 
 containers contains c if some c in pod_spec.initContainers
 
-docker_sockets := {"/var/run/docker.sock", "/run/docker.sock"}
+containers contains c if some c in pod_spec.ephemeralContainers
+
+# Same string as FORBIDDEN_HOST_PATH in policy_checks.py and kyverno/disallow-docker-sock.yaml
+# (a test asserts they are identical): runtime sockets, their parents, / and runtime state dirs.
+forbidden_host_path := `^(/|/var|/var/run|/run)/*$|(^|/)(docker|containerd|crio)\.sock/*$|^/var/lib/(docker|containerd|kubelet)(/.*)?$`
 
 # run-as-non-root
 deny contains msg if {
 	object.get(pod_spec, ["securityContext", "runAsNonRoot"], false) != true
 	msg := sprintf("%s/%s: [run-as-non-root] pod securityContext.runAsNonRoot must be true", [input.kind, input.metadata.name])
 }
+
+# run-as-non-root: pod and container overrides
+deny contains msg if {
+	object.get(pod_spec, ["securityContext", "runAsUser"], null) == 0
+	msg := sprintf("%s/%s: [run-as-non-root] pod securityContext.runAsUser must not be 0", [input.kind, input.metadata.name])
+}
+
+deny contains msg if {
+	some c in containers
+	root_container(c)
+	msg := sprintf("%s/%s:%s: [run-as-non-root] container must not set runAsNonRoot: false or runAsUser: 0", [input.kind, input.metadata.name, c.name])
+}
+
+root_container(c) if object.get(c, ["securityContext", "runAsNonRoot"], null) == false
+
+root_container(c) if object.get(c, ["securityContext", "runAsUser"], null) == 0
 
 # disallow-latest-tag
 deny contains msg if {
@@ -65,14 +85,14 @@ deny contains msg if {
 # disallow-docker-sock
 deny contains msg if {
 	some v in pod_spec.volumes
-	v.hostPath.path in docker_sockets
-	msg := sprintf("%s/%s: [disallow-docker-sock] volume %s mounts the Docker socket", [input.kind, input.metadata.name, v.name])
+	regex.match(forbidden_host_path, v.hostPath.path)
+	msg := sprintf("%s/%s: [disallow-docker-sock] volume %s mounts a runtime socket or node path", [input.kind, input.metadata.name, v.name])
 }
 
 # loopback-only-ports (Kubernetes form: no hostPort)
 deny contains msg if {
 	some c in containers
 	some p in c.ports
-	p.hostPort
+	p.hostPort > 0
 	msg := sprintf("%s/%s:%s: [loopback-only-ports] hostPort binds every node interface; use a Service", [input.kind, input.metadata.name, c.name])
 }

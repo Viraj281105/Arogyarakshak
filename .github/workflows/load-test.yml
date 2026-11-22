@@ -4,12 +4,18 @@ name: Load Test (manual)
 # must be pointed at a throw-away stack on purpose (docs/operations/load-and-chaos.md).
 # The thresholds in tests/load/*.js are PROPOSED, NOT MEASURED targets taken from the SLO
 # table in docs/operations/observability.md. This workflow has not been run yet.
+#
+# The target is validated first (tests/load/validate_base_url.py): https only, no credentials,
+# no IP literals or internal names, the host must be listed in the repository VARIABLE
+# LOAD_TEST_HOSTS (Settings > Variables, comma separated), and it must resolve to public
+# addresses only. Set that variable before the first run; an empty variable fails the job.
+# Action versions are mutable major tags (see the pinning note in supply-chain.yml).
 
 on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: "Base URL of a disposable API (e.g. https://staging.example.test). The API rate limiter must be raised for the run."
+        description: "Origin of a disposable API, e.g. https://staging.example.test (host must be in vars.LOAD_TEST_HOSTS). The API rate limiter must be raised for the run."
         required: true
         type: string
       script:
@@ -37,10 +43,24 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate the target
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          LOAD_TEST_HOSTS: ${{ vars.LOAD_TEST_HOSTS }}
+        run: |
+          if ! url="$(python tests/load/validate_base_url.py)"; then
+            echo "$url"; exit 1
+          fi
+          echo "VALIDATED_BASE_URL=$url" >> "$GITHUB_ENV"
       - uses: grafana/setup-k6-action@v1
       - name: Run k6
         env:
-          BASE_URL: ${{ inputs.base_url }}
+          BASE_URL: ${{ env.VALIDATED_BASE_URL }}
           SCRIPT: ${{ inputs.script }}
         run: k6 run --summary-export=k6-summary.json "tests/load/${SCRIPT}"
       - name: Upload k6 summary
