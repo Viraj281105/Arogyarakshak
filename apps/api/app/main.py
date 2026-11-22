@@ -6,8 +6,8 @@ lifespan hooks, and versioned routing.
 """
 
 import asyncio
+import errno
 import logging
-import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request, status
@@ -24,7 +24,7 @@ from app.case_retention import run_retention_sweep_loop
 from app.config import settings
 from app.database import AsyncSessionLocal, engine, Base, get_db
 from app.api.v1.api import api_router
-from app.observability import RequestContextMiddleware, configure_logging, route_template, warm_route_templates
+from app.observability import RequestContextMiddleware, internal_error_response, configure_logging, route_template, warm_route_templates
 from app.rate_limit import limiter, resolve_client_ip
 from app import schema
 from app.services import document_jobs
@@ -39,6 +39,10 @@ configure_logging(settings.log_format, settings.log_level, settings.app_env)
 
 # Paths that must answer even when a client is rate limited (orchestrator probes).
 PROBE_PATHS = {"/health", "/health/live", "/health/ready"}
+
+# Server-side storage exhaustion while spooling a large upload: the scratch space cannot be written.
+STORAGE_ERRNOS = {errno.ENOSPC, errno.EDQUOT, errno.EROFS}
+STORAGE_FULL_DETAIL = "The server cannot accept this upload right now. Please try again later."
 
 # Outcome of the start-up schema step, reported by /health/ready.
 schema_state = {"ok": False, "revision": None, "detail": "not checked yet"}
@@ -256,6 +260,7 @@ async def rate_limit_middleware(request: Request, call_next):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
                 "detail": "Rate limit exceeded. Please slow down and try again shortly.",
+                "message": "Rate limit exceeded. Please slow down and try again shortly.",
                 "retry_after_seconds": retry_after,
             },
             headers={"Retry-After": str(retry_after)},
@@ -294,6 +299,15 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     `message` is only populated for string details — stringifying a dict produced a Python
     repr in the response body.
     """
+    cause = exc.__cause__
+    if exc.status_code == 400 and isinstance(cause, OSError) and cause.errno in STORAGE_ERRNOS:
+        # FastAPI wraps ANY failure while reading a form body as 400 "error parsing the body".
+        # The server's own scratch space running out is not the client's fault: report it as 5xx.
+        logger.error("Server storage error while reading a request body: %s (errno %s)", type(cause).__name__, cause.errno)
+        return JSONResponse(
+            status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
+            content={"detail": STORAGE_FULL_DETAIL, "message": STORAGE_FULL_DETAIL},
+        )
     logger.warning("HTTP %d error on %s: %s", exc.status_code, route_template(request), exc.detail)
     content = {"detail": exc.detail}
     if isinstance(exc.detail, str):
@@ -303,23 +317,13 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Catches unhandled errors without leaking internal detail to the caller.
+    """Fallback for an unhandled error that reaches Starlette's outer handler.
 
-    The exception text previously went back in the response body, disclosing internal
-    function names and parameters (e.g. the Barrister Agent TypeError). It is logged with
-    a correlation id instead, so operators can still find it.
+    RequestContextMiddleware answers these first (so the response carries the request id
+    and hardening headers); this keeps the same payload and logging if one ever gets past
+    it. Neither logs or returns the exception text, which can quote document content.
     """
-    error_id = uuid.uuid4().hex[:12]
-    logger.error(
-        "Unhandled exception [%s] on %s: %s", error_id, route_template(request), exc, exc_info=True
-    )
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": "An unexpected server error occurred.",
-            "error_id": error_id,
-        },
-    )
+    return internal_error_response(request, exc)
 
 
 # --- API Routes ---------------------------------------------------------------

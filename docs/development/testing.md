@@ -99,7 +99,7 @@ python scripts/demo_runtime_smoke.py --api http://127.0.0.1:8000 --admin-key <CL
   `PRAGMA foreign_keys=ON` on the SQLite test engine, so an insert-ordering bug that
   Postgres would reject fails locally too (`test_the_test_database_enforces_foreign_keys_like_postgres`).
 
-Integration tests in `apps/api/tests/conftest.py` use a file-backed **SQLite async engine (`sqlite+aiosqlite:///test_temp.db`)**, created and dropped around each test:
+Integration tests in `apps/api/tests/conftest.py` use a file-backed **SQLite async engine (`sqlite+aiosqlite:///test_temp_<pid>.db`)**, created and dropped around each test:
 - Tests execute in complete isolation without requiring an active PostgreSQL container.
 - All database schemas are created before each test and dropped afterwards; the file is removed at teardown.
 - A file-backed database (rather than `:memory:`) is required so the background document-processing task sees the same data as the request that scheduled it.

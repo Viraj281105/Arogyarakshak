@@ -6,18 +6,49 @@ spill file for a large body; that failure must still give a clean JSON error.
 """
 
 import errno
+import os
 import tempfile
 
 import pytest
 
 from app.config import settings
 from app.services import case_ingestion
-from chaos_harness import K, TEXT_BILL, assert_no_leak, client, jobs, new_case, stream_events, upload
+from chaos_harness import K, TEST_DB_FILE, TEXT_BILL, assert_no_leak, client, jobs, new_case, stream_events, upload
 from chaos_harness import *  # noqa: F401,F403
 
 
+SPOOL_ATTEMPTS = []
+
+
 def _no_space(*args, **kwargs):
+    SPOOL_ATTEMPTS.append(1)
     raise OSError(errno.ENOSPC, "No space left on device")
+
+
+MARKER = b"DOC-BYTES-MARKER-7f3a9c"
+
+
+def _pdf():
+    return b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n% " + MARKER + b"\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+
+
+def _png():
+    import struct
+    import zlib
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    header = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"tEXt", b"Comment\x00" + MARKER)
+            + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00")) + chunk(b"IEND", b""))
+
+
+DOCUMENTS = {
+    "txt": (TEXT_BILL + b"Note " + MARKER + b"\n", "bill.txt"),
+    "pdf": (_pdf(), "bill.pdf"),
+    "png": (_png(), "bill.png"),
+}
 
 
 def test_an_oversized_upload_is_rejected_413_and_nothing_is_recorded(monkeypatch):
@@ -68,19 +99,29 @@ def test_a_request_without_a_file_is_a_422_with_the_documented_payload():
     assert res.json()["message"] == "Request validation failed"
 
 
-def test_a_full_disk_does_not_stop_a_small_upload(monkeypatch, tmp_path):
+@pytest.mark.parametrize("kind", list(DOCUMENTS))
+def test_a_full_disk_does_not_stop_a_small_upload(monkeypatch, kind):
     """Documents live in memory only. With every attempt to create a temporary file failing
-    (disk full), a small upload is still accepted and processed to completion."""
+    (disk full), a small upload of any supported type is still accepted and its job reaches a
+    terminal state (a text bill completes; a synthetic PDF/PNG may fail to parse, but never because
+    of the disk)."""
+    SPOOL_ATTEMPTS.clear()
     monkeypatch.setattr(tempfile, "TemporaryFile", _no_space)
     monkeypatch.setattr(tempfile, "NamedTemporaryFile", _no_space)
     monkeypatch.setattr(tempfile, "mkstemp", _no_space)
+    data, name = DOCUMENTS[kind]
     case_id = new_case()
-    assert upload(case_id).status_code == 202
-    assert stream_events(case_id)[-1]["status"] == "completed"
-    assert [s for s, _ in jobs(case_id)] == ["completed"]
+    res = upload(case_id, data, name)
+    assert res.status_code == 202, res.text
+    states = [s for s, _ in jobs(case_id)]
+    assert states and states[0] in {"completed", "failed"}
+    assert SPOOL_ATTEMPTS == [], "a small upload must not even try to create a temporary file"
+    if kind == "txt":
+        assert states == ["completed"] and stream_events(case_id)[-1]["status"] == "completed"
 
 
 def _spool_failure(monkeypatch):
+    SPOOL_ATTEMPTS.clear()
     monkeypatch.setattr(tempfile, "TemporaryFile", _no_space)
     monkeypatch.setattr(tempfile, "NamedTemporaryFile", _no_space)
     case_id = new_case()
@@ -92,6 +133,7 @@ def test_a_full_disk_while_spooling_a_large_body_is_a_clean_json_error(monkeypat
     that write fails the client gets a JSON error with no path or errno text, nothing is
     recorded, and the process stays up."""
     case_id, res = _spool_failure(monkeypatch)
+    assert SPOOL_ATTEMPTS, "the disk-full fault was really injected"
     assert res.status_code >= 400
     body = res.json()
     assert "detail" in body
@@ -100,32 +142,85 @@ def test_a_full_disk_while_spooling_a_large_body_is_a_clean_json_error(monkeypat
     assert jobs(case_id) == []
 
 
-@pytest.mark.xfail(
-    reason="DEFECT: a server-side ENOSPC while Starlette spools a large multipart body is reported as "
-           "400 'There was an error parsing the body' (a client error), so alerts on 5xx never see it "
-           "and clients are told to fix their request. Comes from the framework's form parser; the fix "
-           "(catching OSError around the form read and answering 507/503) is not trivial and isolated.",
-    strict=True,
-)
 def test_a_full_disk_while_spooling_is_a_server_error_not_a_client_error(monkeypatch):
     _, res = _spool_failure(monkeypatch)
     assert res.status_code >= 500
 
 
-def test_no_document_bytes_are_ever_written_to_the_filesystem(monkeypatch, tmp_path):
-    """Spy on write-mode open(): processing a document may write nothing that contains it."""
+# Not application output: the test database files, and the cache directory the torch library
+# (a dependency of the OCR engine) creates in the temp directory the first time it is imported.
+# Document bytes inside either would still fail the marker scan below.
+_IGNORED_PREFIXES = ("test_temp", TEST_DB_FILE, "torchinductor_")
+
+
+def _entries(path):
+    return sorted(n for n in os.listdir(path) if not n.startswith(_IGNORED_PREFIXES))
+
+
+def _files_containing(root, marker):
+    hits = []
+    for folder, _dirs, names in os.walk(root):
+        for name in names:
+            full = os.path.join(folder, name)
+            try:
+                with open(full, "rb") as handle:
+                    if marker in handle.read():
+                        hits.append(full)
+            except OSError:
+                pass
+    return hits
+
+
+@pytest.mark.parametrize("kind", list(DOCUMENTS))
+def test_no_document_bytes_are_ever_written_to_the_filesystem(monkeypatch, kind):
+    """Zero retention, demonstrated at every layer a write could go through: write-mode
+    ``open`` (builtins and io), ``os.open`` with write flags (which is what ``tempfile`` uses),
+    ``os.write`` of the document marker, and the temp directory and working directory listings
+    before and after. The temp directory is a private one so other processes cannot disturb the
+    snapshot."""
     import builtins
+    import io
 
-    real_open = builtins.open
-    written = []
+    private_tmp = tempfile.mkdtemp(prefix="chaos-tmp-")
+    monkeypatch.setattr(tempfile, "tempdir", private_tmp)
+    before = (_entries(private_tmp), _entries(os.getcwd()), tempfile.gettempdir())
 
-    def spy(file, mode="r", *args, **kwargs):
-        if any(flag in str(mode) for flag in "wax+") and not str(file).endswith((".db", ".db-journal")):
-            written.append(str(file))
-        return real_open(file, mode, *args, **kwargs)
+    writes = []
+    real_open, real_io_open, real_os_open, real_write = builtins.open, io.open, os.open, os.write
+    write_flags = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
 
-    monkeypatch.setattr(builtins, "open", spy)
+    def spy_open(real):
+        def inner(file, mode="r", *args, **kwargs):
+            if any(flag in str(mode) for flag in "wax+") and not os.path.basename(str(file)).startswith(TEST_DB_FILE):
+                writes.append(f"open({file!r}, {mode!r})")
+            return real(file, mode, *args, **kwargs)
+
+        return inner
+
+    def spy_os_open(path, flags, *args, **kwargs):
+        if flags & write_flags and not os.path.basename(str(path)).startswith(TEST_DB_FILE):
+            writes.append(f"os.open({path!r}, {flags})")
+        return real_os_open(path, flags, *args, **kwargs)
+
+    def spy_os_write(fd, data):
+        if MARKER in bytes(data):
+            writes.append(f"os.write(fd={fd}) carried the document")
+        return real_write(fd, data)
+
+    monkeypatch.setattr(builtins, "open", spy_open(real_open))
+    monkeypatch.setattr(io, "open", spy_open(real_io_open))
+    monkeypatch.setattr(os, "open", spy_os_open)
+    monkeypatch.setattr(os, "write", spy_os_write)
+
+    data, name = DOCUMENTS[kind]
     case_id = new_case()
-    assert upload(case_id).status_code == 202
-    assert stream_events(case_id)[-1]["status"] == "completed"
-    assert written == [], f"unexpected writes: {written}"
+    res = upload(case_id, data, name)
+    assert res.status_code == 202, res.text
+    jobs(case_id)
+    stream_events(case_id)
+
+    after = (_entries(private_tmp), _entries(os.getcwd()), tempfile.gettempdir())
+    assert writes == [], f"unexpected filesystem writes: {writes}"
+    assert after == before, f"files appeared or disappeared: {before} -> {after}"
+    assert _files_containing(private_tmp, MARKER) == [], "document bytes found in the temp directory"
+    os.rmdir(private_tmp)
