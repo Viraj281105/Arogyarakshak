@@ -171,7 +171,7 @@ jobs:
             -v
 
       - name: Upload Test Coverage Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-coverage-report
@@ -494,7 +494,7 @@ jobs:
 
       - name: Upload the Worksheet (artifact)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terminology-audit-worksheet
           path: terminology-report/
