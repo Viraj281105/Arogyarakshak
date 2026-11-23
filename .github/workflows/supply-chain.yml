@@ -61,7 +61,7 @@ jobs:
     env:
       REGISTRY: ghcr.io
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # all branches and tags, so origin/main exists for the ancestry check
           persist-credentials: false
@@ -93,7 +93,7 @@ jobs:
       # layers of a signed release image.
       - name: Build and push the API image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
