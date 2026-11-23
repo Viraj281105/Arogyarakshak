@@ -255,6 +255,10 @@ It is Next's agent upgrade reminder reporting real advisories.**
   clears all seven advisories and with them the reminder. Until then, an agent re-runs a stopped build once (the
   second run is the real result; check that it prints the warning and the route table), and humans and CI are
   unaffected.
+- **Resolved 2026-11-24**: the maintainer approved the upgrade. `next` and `eslint-config-next` are pinned
+  exactly at `16.4.6`. In `apps/web`, `npm audit --omit=dev` reports 0 vulnerabilities, and two consecutive
+  `npm run build` runs completed with no `SecurityFatalError`. If the error comes back after a future advisory,
+  the same reasoning applies: upgrade, do not silence it.
 
 
 ## 6. Mobile (Expo) Issues
