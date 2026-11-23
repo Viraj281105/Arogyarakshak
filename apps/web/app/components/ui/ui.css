@@ -126,6 +126,7 @@
 
 /* ---------- Data table ---------- */
 .ui-table-scroll {
+  min-width: 0;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--border-subtle);
@@ -149,7 +150,7 @@
 .ui-sort-idle { opacity: 0.6; }
 
 /* ---------- Charts ---------- */
-.ui-chart { display: grid; gap: var(--space-sm); padding: var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); min-width: 0; }
+.ui-chart { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); padding: var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); min-width: 0; }
 .ui-chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; }
 .ui-chart-title { font-weight: 700; }
 .ui-chart-meta { color: var(--text-muted); font-size: 0.8rem; }
