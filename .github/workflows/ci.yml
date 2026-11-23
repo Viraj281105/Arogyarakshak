@@ -198,7 +198,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Cache Next.js Build Output
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: apps/web/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('apps/web/package-lock.json') }}-${{ hashFiles('apps/web/app/**') }}
