@@ -38,12 +38,12 @@ export const LandingHero: React.FC = () => {
           rates, NPPA medicine price ceilings and IRDAI rules — then explains what it found in plain language.
         </p>
         <div className="lp-cta-row">
-          <a href="#intake-dropzone" className="btn btn-primary btn-lg">
+          <TransitionLink href="/app#intake-dropzone" className="btn btn-primary btn-lg">
             Check a document
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
-              <path d="M12 5v14M5 12l7 7 7-7" />
+              <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
-          </a>
+          </TransitionLink>
           <a href="#lp-example" className="btn btn-ghost btn-lg">
             See an example first
           </a>
@@ -63,7 +63,7 @@ export const LandingHero: React.FC = () => {
         </ul>
         <p className="lp-reviewer-note">
           Reviewing cases as a clinician?{" "}
-          <TransitionLink href="/clinical-review">Open the reviewer workspace →</TransitionLink>
+          <TransitionLink href="/review">Open the reviewer workspace →</TransitionLink>
         </p>
       </div>
       <figure className="lp-hero-figure">

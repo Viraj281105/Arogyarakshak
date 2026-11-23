@@ -2345,6 +2345,7 @@ tbody tr:hover {
 }
 
 .lp-module-open {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -2511,6 +2512,31 @@ tbody tr:hover {
 /* Intake sits after the story with breathing room */
 .lp-intake {
   margin: clamp(3.5rem, 8vw, 6rem) 0 2rem;
+}
+
+/* Case workspace header (/app, Wave 3 M2) */
+.workspace-head {
+  padding: clamp(2rem, 5vw, 3.5rem) 0 0;
+  max-width: 46rem;
+}
+
+.workspace-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(2rem, 4.2vw, 3.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0.6rem 0 0.75rem;
+  font-variation-settings: "opsz" 120;
+}
+
+.workspace-lede {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+}
+
+.workspace-head ~ .lp-intake {
+  margin-top: clamp(1.5rem, 4vw, 2.5rem);
 }
 
 /* Responsive */

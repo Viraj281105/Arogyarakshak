@@ -1,4 +1,4 @@
-// Navigation model shared by the header, the drawer, the footer and the home page's module tabs.
+// Navigation model shared by the header, the drawer, the footer and the workspace's module tabs.
 // Pure data and functions (no JSX), unit-tested in tests/shell.test.ts.
 
 export type ModuleTab = "billnyay" | "bimanyay" | "daavisetu" | "schemesetu" | "dawacheck";
@@ -17,9 +17,20 @@ export const MODULE_META: Record<ModuleTab, { badge: string }> = {
 
 const HASH_PREFIX = "#module-";
 
-/** `#module-<id>`: deep link that opens one check on the home page. */
+/** The case workspace (Wave 3: moved off `/`, which is now the public landing page). */
+export const WORKSPACE_PATH = "/app";
+
+/** The clinical reviewer workspace (Wave 3: it was /clinical-review, which now redirects here). */
+export const REVIEW_PATH = "/review";
+
+/** `#module-<id>`: the hash that opens one check in the workspace. */
 export function moduleHash(id: ModuleTab): string {
   return `${HASH_PREFIX}${id}`;
+}
+
+/** `/app#module-<id>`: link from any page that opens one check in the workspace. */
+export function moduleHref(id: ModuleTab): string {
+  return `${WORKSPACE_PATH}${moduleHash(id)}`;
 }
 
 /** The check a `#module-<id>` hash points at, or null. */
@@ -31,9 +42,9 @@ export function moduleFromHash(hash: string): ModuleTab | null {
 
 /** Primary navigation (labels live in shellCopy.nav). */
 export const NAV_ITEMS = [
-  { key: "check", href: "/#intake-dropzone" },
-  { key: "modules", href: "/#module-workspace" },
-  { key: "reviewer", href: "/clinical-review" },
+  { key: "check", href: `${WORKSPACE_PATH}#intake-dropzone` },
+  { key: "modules", href: `${WORKSPACE_PATH}#module-workspace` },
+  { key: "reviewer", href: REVIEW_PATH },
 ] as const;
 
 /** Whether a nav href is the current page (hash links are sections, never "the current page"). */

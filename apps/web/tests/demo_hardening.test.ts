@@ -76,7 +76,7 @@ describe('Demo-hardening UI contracts', () => {
   });
 
   it('safety rule retirement is four-eyes in the workspace', () => {
-    const ws = read('app', 'clinical-review', 'components', 'SafetyTab.tsx');
+    const ws = read('app', 'review', 'components', 'SafetyTab.tsx');
     assert.ok(/Request retirement/.test(ws) && /Confirm retirement/.test(ws));
   });
 });

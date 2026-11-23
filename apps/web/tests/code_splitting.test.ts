@@ -16,8 +16,8 @@ function assertLazy(src: string, name: string, from: string) {
   assert.ok(lazy.test(src), `${name} must be loaded with next/dynamic from ${from}`);
 }
 
-describe('home route code splitting', () => {
-  // app/page.tsx is a Server Component; the interactive part lives in HomeWorkspace.
+describe('workspace route (/app) code splitting', () => {
+  // app/app/page.tsx is a Server Component; the interactive part lives in HomeWorkspace.
   const page = code(read('components', 'HomeWorkspace.tsx'));
 
   test('inactive module views are dynamic; the default BillNyay view stays static (it renders at first paint)', () => {
@@ -42,7 +42,7 @@ describe('home route code splitting', () => {
   });
 
   test('every dynamic() call has a sized, busy loading placeholder', () => {
-    for (const src of [page, code(read('clinical-review', 'page.tsx'))]) {
+    for (const src of [page, code(read('review', 'page.tsx'))]) {
       const calls = src.split('dynamic(').length - 1;
       const withLoading = (src.match(/loading: (moduleLoading|tabLoading|\(\) => <LazyPanel minHeight="[\d.]+rem" \/>)/g) ?? []).length;
       assert.ok(calls > 0);
@@ -61,7 +61,10 @@ describe('static landing sections are Server Components (no client JS)', () => {
     }
     const serverPage = read('page.tsx');
     assert.ok(!/["']use client["']/.test(serverPage));
-    assert.match(serverPage, /hero=\{<LandingHero \/>\} journey=\{<CaseJourney \/>\} coverage=\{<ReferenceCoverage \/>\}/);
+    assert.match(serverPage, /<LandingPage hero=\{<LandingHero \/>\} journey=\{<CaseJourney \/>\} coverage=\{<ReferenceCoverage \/>\}/);
+    // The workspace moved to /app (Wave 3 M2); its route file is a Server Component too.
+    assert.ok(!/["']use client["']/.test(read('app', 'page.tsx')), 'app/app/page.tsx must stay a Server Component');
+    assert.ok(!/HomeWorkspace/.test(serverPage), 'the landing route must not ship the workspace');
     const landing = read('components', 'landing', 'Landing.tsx');
     assert.ok(!/import \{ (LandingHero|CaseJourney|ReferenceCoverage) \}/.test(landing), 'Landing must not import them');
   });
@@ -69,7 +72,7 @@ describe('static landing sections are Server Components (no client JS)', () => {
 
 describe('reviewer workspace code splitting', () => {
   test('the three tabs (shown only after sign-in) are dynamic', () => {
-    const page = code(read('clinical-review', 'page.tsx'));
+    const page = code(read('review', 'page.tsx'));
     assertLazy(page, 'ReviewsTab', './components/ReviewsTab');
     assertLazy(page, 'TranscriptionTab', './components/TranscriptionTab');
     assertLazy(page, 'SafetyTab', './components/SafetyTab');

@@ -4,6 +4,8 @@ import React from "react";
 import type { ModuleTab } from "../ModuleTabs";
 import type { Translations } from "../../translations";
 import { MODULE_ICONS } from "../../shell/icons/moduleIcons";
+import { moduleHref } from "../../shell/nav";
+import { TransitionLink } from "../../shell/TransitionLink";
 
 const MODULES: { id: ModuleTab; against: string }[] = [
   { id: "billnyay", against: "CGHS 2024 rates" },
@@ -18,8 +20,8 @@ function ModuleIcon({ id }: { id: ModuleTab }) {
   return <Icon size={22} aria-hidden="true" className="lp-icon" />;
 }
 
-/** The five checks, each opening its real module tab below. */
-export const ModuleOverview: React.FC<{ t: Translations; onOpen: (tab: ModuleTab) => void }> = ({ t, onOpen }) => (
+/** The five checks, each linking to its real module tab in the workspace (`/app#module-<id>`). */
+export const ModuleOverview: React.FC<{ t: Translations }> = ({ t }) => (
   <section className="lp-section lp-modules" aria-labelledby="lp-modules-title">
     <header className="lp-section-head" data-reveal>
       <p className="lp-kicker">Five checks, one case</p>
@@ -34,12 +36,12 @@ export const ModuleOverview: React.FC<{ t: Translations; onOpen: (tab: ModuleTab
           <h3>{t.tabs[m.id]}</h3>
           <span className="lp-module-against">Compared with {m.against}</span>
           <p>{t.modules[m.id].desc}</p>
-          <button type="button" className="lp-module-open" onClick={() => onOpen(m.id)} aria-label={`Open ${t.tabs[m.id]}`}>
+          <TransitionLink href={moduleHref(m.id)} className="lp-module-open" aria-label={`Open ${t.tabs[m.id]}`}>
             Open module
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
-          </button>
+          </TransitionLink>
         </li>
       ))}
     </ul>

@@ -15,13 +15,13 @@ const readTree = (dir: string): string =>
   readdirSync(dir, { withFileTypes: true })
     .map((d) => (d.isDirectory() ? readTree(join(dir, d.name)) : readFileSync(join(dir, d.name), 'utf-8')))
     .join('\n');
-const workspace = readTree(join(process.cwd(), 'app', 'clinical-review'));
+const workspace = readTree(join(process.cwd(), 'app', 'review'));
 const libSrc = read('app', 'lib', 'clinical.ts');
 const billNyay = viewSource('BillNyayView');
 const bimaNyay = viewSource('BimaNyayView');
 const daaviSetu = read('app', 'components', 'modules', 'DaaviSetuView.tsx');
 const dawaCheck = read('app', 'components', 'modules', 'DawaCheckView.tsx');
-// The home page's interactive part lives in HomeWorkspace (app/page.tsx is a thin Server Component).
+// The workspace's interactive part lives in HomeWorkspace (app/app/page.tsx is a thin Server Component).
 const page = read('app', 'components', 'HomeWorkspace.tsx');
 
 describe('ADR-011 clinical review — web honesty contracts', () => {

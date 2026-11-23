@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import type { Language } from "../shared/i18n/types";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { MODULE_ICONS } from "./icons/moduleIcons";
-import { MODULE_META, MODULE_ORDER, NAV_ITEMS, isActiveHref, moduleHash, type ModuleTab } from "./nav";
+import { MODULE_META, MODULE_ORDER, NAV_ITEMS, isActiveHref, moduleHref, type ModuleTab } from "./nav";
 
 function ModuleIcon({ id }: { id: ModuleTab }) {
   const Icon = MODULE_ICONS[id];
@@ -93,7 +93,7 @@ export function MobileNav({
           <ul className="site-drawer-modules">
             {MODULE_ORDER.map((id) => (
               <li key={id}>
-                <TransitionLink href={`/${moduleHash(id)}`} onClick={close}>
+                <TransitionLink href={moduleHref(id)} onClick={close}>
                   <ModuleIcon id={id} />
                   <span>{copy.tabs[id]}</span>
                   <span className="site-chip">{MODULE_META[id].badge}</span>

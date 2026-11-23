@@ -66,7 +66,7 @@ flowchart TD
 | Module logic | `packages/billnyay/billnyay/plausibility.py`, `packages/bimanyay/bimanyay/clinical_triggers.py`, `packages/daavisetu/daavisetu/readiness.py` |
 | Persistence & services | `apps/api/app/clinical/` — `auth`, `audit`, `serializers`, `context`, `service`, `safety_service`, `transcription_service`, `purge`, `demo`; `apps/api/app/daavisetu_playbooks.py` |
 | HTTP | `apps/api/app/api/v1/endpoints/clinical_review.py`, `clinical_safety.py`, `clinical_transcription.py`, `clinical_demo.py` (all under `/api/v1/kadi`); additions in `billnyay.py`, `bimanyay.py`, `daavisetu.py`, `dawacheck.py`, `kadi.py` |
-| Web | `apps/web/app/lib/clinical.ts`, `app/components/clinical/*`, `app/clinical-review/page.tsx` (reviewer workspace) |
+| Web | `apps/web/app/lib/clinical.ts`, `app/components/clinical/*`, `app/review/page.tsx` (reviewer workspace at `/review`; `/clinical-review` redirects there since Wave 3) |
 | Mobile | `apps/mobile/src/components/ClinicalReviewCard.tsx`, `ClinicalWorkflowCards.tsx`; screen integrations |
 
 ### Tables (all new; no existing table altered)

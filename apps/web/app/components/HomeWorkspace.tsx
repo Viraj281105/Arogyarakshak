@@ -43,25 +43,15 @@ const DemoControls = dynamic(() => import("./demo/DemoControls").then((m) => m.D
 import { translations } from "../translations";
 import { useHeaderSlot, useLanguage } from "../shell/ShellProvider";
 import { moduleFromHash } from "../shell/nav";
-import { Landing } from "./landing/Landing";
 
 // The module each demo scenario starts in.
 const SCENARIO_TAB: Record<DemoScenario["id"], ModuleTab> = { A: "billnyay", B: "daavisetu", C: "dawacheck", D: "bimanyay", E: "daavisetu" };
 
 /**
- * The home page's interactive part: language-aware landing pieces, intake, the case desk and the
- * five module tabs. The static landing sections (hero, journey, reference coverage) are Server
- * Components rendered by app/page.tsx and passed in, so they ship no client JS (WS4).
+ * The case workspace (`/app`; Wave 3 M2 moved it off `/`, which is now the landing page):
+ * intake, the case desk and the five module tabs. `header` is the server-rendered page header.
  */
-export function HomeWorkspace({
-  hero,
-  journey,
-  coverage,
-}: {
-  hero: React.ReactNode;
-  journey: React.ReactNode;
-  coverage: React.ReactNode;
-}) {
+export function HomeWorkspace({ header }: { header?: React.ReactNode }) {
   const [currentLang] = useLanguage();
   const [activeTab, setActiveTab] = useState<ModuleTab>("billnyay");
   const demoStatus = useDemoStatus();
@@ -95,14 +85,7 @@ export function HomeWorkspace({
     setActiveTab(SCENARIO_TAB[scenario.id]);
   };
 
-  // A landing-page module card opens that tab and brings the workspace into view. No explicit
-  // `behavior`: the CSS scroll-behavior decides, which is instant under reduced motion.
-  const openModule = (tab: ModuleTab) => {
-    setActiveTab(tab);
-    document.getElementById("module-workspace")?.scrollIntoView({ block: "start" });
-  };
-
-  // Shell deep links (#module-<id>, from the header drawer or another page) open that check.
+  // Deep links (/app#module-<id>, from the drawer, the landing cards or another page) open that check.
   useEffect(() => {
     // On load the jump is instant, like native hash navigation; later hash changes follow the CSS
     // scroll-behavior (smooth, or instant under reduced motion).
@@ -139,7 +122,7 @@ export function HomeWorkspace({
       <div className="container">
         <DemoBanner status={demoStatus} />
 
-        <Landing t={t} onOpenModule={openModule} hero={hero} journey={journey} coverage={coverage} />
+        {header}
 
         {demoStatus?.demo_mode && <DemoControls status={demoStatus} onScenarioLoaded={onScenarioLoaded} onReset={resetCaseView} />}
 
