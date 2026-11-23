@@ -254,7 +254,9 @@ async def me(principal: Principal = Depends(require_principal)):
     return _user_view(principal.user)
 
 
-@router.post(f"{AUTH_PREFIX}/password", response_model=SessionResponse)
+# Password-checking routes share the auth bucket, so a stolen session cannot be used to
+# guess the current password faster than a login could.
+@router.post(f"{AUTH_PREFIX}/password", response_model=SessionResponse, dependencies=[Depends(auth_attempt_guard)])
 async def change_password(
     req: ChangePasswordRequest,
     response: Response,
@@ -326,7 +328,7 @@ async def confirm_password_reset(req: ResetPasswordRequest, db: AsyncSession = D
     return StatusResponse(status="password_reset")
 
 
-@router.delete(f"{AUTH_PREFIX}/me", response_model=DeleteAccountResponse)
+@router.delete(f"{AUTH_PREFIX}/me", response_model=DeleteAccountResponse, dependencies=[Depends(auth_attempt_guard)])
 async def delete_account(
     req: DeleteAccountRequest,
     response: Response,

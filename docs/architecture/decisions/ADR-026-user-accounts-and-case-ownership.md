@@ -172,7 +172,8 @@ call; recorded as a follow-up).
   Registration therefore does not sign the user in: the client calls login next.
 - **Rate limits:** the existing limiter (`app/rate_limit.py`) gains a second, stricter bucket per
   client IP, `AUTH_RATE_LIMIT_PER_MINUTE` (default 10), shared by register, login, verification
-  and reset requests and confirmations. The global `RATE_LIMIT_PER_MINUTE` still applies.
+  and reset requests and confirmations, password change and account deletion (both check the
+  current password, so a stolen session cannot guess it faster than a login could). The global `RATE_LIMIT_PER_MINUTE` still applies.
 - **Per-account lockout:** after `LOGIN_MAX_FAILURES` (10) consecutive wrong passwords the account
   refuses logins for `LOGIN_LOCKOUT_MINUTES` (15). During the pause even the correct password gets
   the **same generic `401`** (the message mentions that repeated failures pause sign-in), so the

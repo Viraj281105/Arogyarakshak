@@ -598,3 +598,16 @@ def test_sweep_removes_stale_sessions_and_used_tokens(clock, outbox):
 def test_web_origin_constant_is_the_test_server():
     # Guards the helper: cookie tests rely on https://testserver being "this API's origin".
     assert WEB_ORIGIN == "https://testserver"
+
+
+def test_password_checking_routes_share_the_auth_bucket(monkeypatch):
+    headers, _ = bearer_for()
+    monkeypatch.setattr(settings, "auth_rate_limit_per_minute", 2)
+    from app.rate_limit import limiter
+
+    limiter.reset()
+    client = plain_client()
+    body = {"current_password": "not my password", "new_password": "a completely new passphrase"}
+    statuses = [client.post("/api/v1/kadi/auth/password", json=body, headers=headers).status_code for _ in range(3)]
+    assert statuses == [403, 403, 429]
+    assert client.request("DELETE", ME, json={"password": "nope"}, headers=headers).status_code == 429

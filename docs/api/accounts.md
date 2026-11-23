@@ -27,17 +27,17 @@ creation, guest case routes) and is `401` where an account is required.
 | `POST` | `/auth/login` | none (auth bucket) | `{email, password, session_transport?: "cookie"\|"bearer"}` | `200` `{user, session:{transport, expires_at, idle_timeout_minutes}, token}` (`token` only for bearer) | `401` generic for unknown email, wrong password and a paused account; `429`; `403` untrusted Origin |
 | `POST` | `/auth/logout` | session | — | `204`, session revoked, cookie cleared | `401` |
 | `GET` | `/auth/me` | session | — | `200` `{id, email, email_verified, email_verified_at, created_at}` | `401` |
-| `POST` | `/auth/password` | session | `{current_password, new_password}` | `200` like login: **every** session revoked, one fresh session for the caller (new cookie or new `token`) | `403` wrong current password; `422` policy; `401` |
+| `POST` | `/auth/password` | session (auth bucket) | `{current_password, new_password}` | `200` like login: **every** session revoked, one fresh session for the caller (new cookie or new `token`) | `403` wrong current password; `422` policy; `401` |
 | `POST` | `/auth/verification/request` | none (auth bucket) | `{email}` | `202`, same body whether or not an account exists | `429` |
 | `POST` | `/auth/verification/confirm` | none (auth bucket) | `{token}` | `200` `{status:"verified"}` | `400` invalid, used or expired |
 | `POST` | `/auth/password-reset/request` | none (auth bucket) | `{email}` | `202`, same body whether or not an account exists | `429` |
 | `POST` | `/auth/password-reset/confirm` | none (auth bucket) | `{token, new_password}` | `200` `{status:"password_reset"}`; every session revoked; does not sign in | `400` token; `422` policy (token stays usable) |
-| `DELETE` | `/auth/me` | session | `{password}` | `200` `{deleted:true, cases_erased}`; owned cases erased through the purge cascade, sessions and tokens deleted, cookie cleared | `403` wrong password; `401` |
+| `DELETE` | `/auth/me` | session (auth bucket) | `{password}` | `200` `{deleted:true, cases_erased}`; owned cases erased through the purge cascade, sessions and tokens deleted, cookie cleared | `403` wrong password; `401` |
 | `GET` | `/cases` | session | — | `200` `{cases:[{id, status, consent_opt_in, total_charged, created_at, updated_at, expires_at}]}` — live owned cases, newest first, never a token | `401` |
 | `POST` | `/cases/{case_id}/claim` | session **and** `X-Case-Access-Token` | — | `200` `{id, owned:true, claimed}` (`claimed:false` if already yours); the case token stops working | `401` no session / no token; `403` wrong token or owned by another account; `404` |
 
 "Auth bucket": `AUTH_RATE_LIMIT_PER_MINUTE` (10) requests per client IP per minute across
-these routes, on top of the global limit. `429` carries `Retry-After`.
+these routes (including the two that check the current password), on top of the global limit. `429` carries `Retry-After`.
 
 Password policy: 12 to 128 characters after Unicode NFKC normalisation, not only spaces, not
 the email address. No composition rules.
