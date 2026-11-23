@@ -16,6 +16,11 @@ scheme eligibility and medicine pricing endpoints.
 > headers). A case id alone is no longer sufficient — missing the header returns `401`,
 > a wrong token returns `403`. This note is a stopgap; the per-route tables below have
 > not yet been individually regenerated to show this requirement on each row.
+>
+> **Accounts (ADR-026, added 2026-11-23):** optional user accounts sit on top of the guest
+> flow above. A case created while signed in, or claimed into an account, is opened with the
+> account session (web cookie or mobile `Authorization: Bearer`), and its case token no longer
+> works. Routes, session handling and the full access table: [`accounts.md`](accounts.md).
 
 ---
 

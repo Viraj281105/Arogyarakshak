@@ -300,3 +300,34 @@ Including 429 (plus `retry_after_seconds`) and 500 (plus `error_id`).
 
 ### Two pytest runs at once fail with dozens of errors
 Before Wave 2 stream G every run shared one `test_temp.db`, so two pytest processes in the same directory corrupted each other (95 failed / 83 errors was observed). The file is now `test_temp_<pid>.db` (see `apps/api/tests/conftest.py`), created per process and removed when the session ends, so concurrent runs are safe. Leftover `test_temp*.db*` files from a killed run are git-ignored and safe to delete.
+
+## Accounts (ADR-026, Wave 3 MA)
+
+### Signed in on the web, but the API answers `401` (or the cookie is never stored)
+The session cookie is `__Host-arogya_session`: `Secure`, `SameSite=Strict`, `httpOnly`. Check, in order:
+the web app sends requests with `credentials: "include"`; `CORS_ORIGINS` lists the web origin explicitly
+(with the wildcard default, credentialed CORS is off and the browser drops the cookie); web and API are on
+the same *site* (`localhost:3000` and `localhost:8000` are; two unrelated domains are not, and
+`SameSite=Strict` will never send the cookie between them). On plain `http://` other than `localhost`,
+browsers refuse `Secure` cookies: use HTTPS, or `SESSION_COOKIE_SECURE=false` for local development only.
+
+### `403` "This request did not come from a trusted origin"
+A state-changing request carried the session cookie but its `Origin` is not the API's own origin, not in
+`AUTH_TRUSTED_ORIGINS`, and not in an explicit `CORS_ORIGINS` (or it had no `Origin`). Add the web app's
+origin to `AUTH_TRUSTED_ORIGINS` (or `CORS_ORIGINS`). Mobile clients use `Authorization: Bearer` and are
+not affected.
+
+### A case that used to open with its token now answers `403` "…its case access token no longer works"
+The case was claimed into an account (or created while signed in). Owned cases accept only the owner's
+session (ADR-026 §6). Sign in to that account.
+
+### Verification or password-reset emails never arrive
+Expected: `MAIL_TRANSPORT=disabled` is the only transport until the email delivery decision is made
+(ADR-026 §11). The log line `Account email (reset_password) not delivered` confirms the request was handled.
+A user who forgets their password cannot recover the account yet; their cases still expire after
+`CASE_TTL_DAYS`.
+
+### Every login answers `401` even with the right password
+After `LOGIN_MAX_FAILURES` consecutive wrong passwords, sign-in for that account pauses for
+`LOGIN_LOCKOUT_MINUTES`, with the same generic `401` (so the pause reveals nothing). The log shows
+`Sign-in paused for user USR-…`. Wait, or complete a password reset (which clears the pause).

@@ -156,3 +156,41 @@ async def override_get_db():
 
 # Apply dependency override globally for all tests
 fastapi_app.dependency_overrides[get_db] = override_get_db
+
+
+# --- Accounts (ADR-026) ------------------------------------------------------------------
+# Cheap scrypt parameters for every test (the hashing code path is the same), plus opt-in
+# fixtures for the account tests: a fake service clock, an in-memory mail outbox and a
+# relaxed per-IP auth bucket. Helpers live in tests/account_helpers.py.
+from app.config import settings as _settings  # noqa: E402
+from app.services import accounts as _account_service  # noqa: E402
+from app.services.mail import InMemoryMailTransport, get_mail_transport  # noqa: E402
+from tests.account_helpers import FakeClock  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def fast_scrypt(monkeypatch):
+    """Cheap scrypt parameters so the suite stays fast; the hashing code path is the same."""
+    monkeypatch.setattr(_settings, "password_scrypt_n", 2**10)
+    monkeypatch.setattr(_settings, "password_scrypt_r", 8)
+    monkeypatch.setattr(_settings, "password_scrypt_p", 1)
+
+
+@pytest.fixture
+def clock(monkeypatch) -> FakeClock:
+    fake = FakeClock()
+    monkeypatch.setattr(_account_service, "utcnow", fake)
+    return fake
+
+
+@pytest.fixture
+def outbox():
+    transport = InMemoryMailTransport()
+    fastapi_app.dependency_overrides[get_mail_transport] = lambda: transport
+    yield transport.outbox
+    fastapi_app.dependency_overrides.pop(get_mail_transport, None)
+
+
+@pytest.fixture
+def relaxed_auth_limit(monkeypatch):
+    monkeypatch.setattr(_settings, "auth_rate_limit_per_minute", 10_000)
