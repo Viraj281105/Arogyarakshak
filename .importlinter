@@ -61,6 +61,7 @@ name = Application code below the HTTP layer never imports route modules
 type = forbidden
 source_modules =
     app.services
+    app.account_auth
     app.auto_triggers
     app.background
     app.config
@@ -88,6 +89,7 @@ forbidden_modules =
 name = Route modules do not import each other (shared logic belongs in app.services)
 type = independence
 modules =
+    app.api.v1.endpoints.accounts
     app.api.v1.endpoints.billnyay
     app.api.v1.endpoints.bimanyay
     app.api.v1.endpoints.claim_pack

@@ -49,9 +49,14 @@ class CaseCreatedResponse(CaseResponse):
     # CaseResponse (no access_token field) so the secret is never echoed back on a
     # later GET — losing it means the case is permanently unrecoverable by design, the
     # same trade-off as an API key shown once at creation.
-    access_token: str = Field(
+    access_token: Optional[str] = Field(
         ..., description="Case access token (ADR-009). Store it — it is shown only once "
-        "and is required on every subsequent request for this case."
+        "and is required on every subsequent request for this case. null when the case was "
+        "created while signed in: an owned case is opened with the account session, never "
+        "a case token (ADR-026)."
+    )
+    owned: bool = Field(
+        default=False, description="True when the case belongs to the signed-in account (ADR-026)."
     )
 
 
