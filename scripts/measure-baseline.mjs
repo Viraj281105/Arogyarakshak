@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Dependency-free performance baseline helper (Node 20+ ESM).
-// Usage: node scripts/measure-baseline.mjs <path-to-.next>
-// Prints JSON: { "<route>": <gzip KB of initial JS>, ... }
-import { readFileSync, existsSync } from "node:fs";
+// Usage: node scripts/measure-baseline.mjs <path-to-.next> [--include-nomodule]
+// Prints JSON: { "<route>": <gzip KB of initial JS>, ... }. By default the noModule polyfill
+// chunk is excluded (what module browsers download); --include-nomodule gives the old measure.
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import { pathToFileURL } from "node:url";
@@ -34,23 +35,49 @@ function loadClientManifest(file) {
 }
 
 /**
- * Gzip KB (2 decimals) of the initial JS each App Router route loads:
- * polyfills + root main files (framework/runtime) + the route's entry chunks
- * (layout, error/not-found boundaries and page) from its client reference manifest.
- * This matches the <script src> set in the prerendered HTML.
+ * The polyfill files Next.js renders as `<script noModule>`. Module-capable browsers (every
+ * browser Next 16 supports) never download them. Throws if any prerendered page references one
+ * of them WITHOUT `noModule`, so excluding them can never hide JS that is really downloaded.
  */
-export function measureWebRouteSizes(nextDir) {
+export function noModuleFiles(dir, build) {
+  const files = build.polyfillFiles ?? [];
+  const appDir = join(dir, "server", "app");
+  const pages = existsSync(appDir)
+    ? readdirSync(appDir, { recursive: true }).map(String).filter((f) => f.endsWith(".html"))
+    : [];
+  for (const page of pages) {
+    const tags = readFileSync(join(appDir, page), "utf8").match(/<script[\s>][^>]*>?/gi) ?? [];
+    for (const f of files) {
+      const name = f.slice(f.lastIndexOf("/") + 1);
+      const loaded = tags.filter((tag) => tag.includes(name));
+      if (loaded.some((tag) => !/nomodule/i.test(tag))) {
+        throw new Error(`${f} is loaded without noModule in ${page}; it cannot be excluded from the measure.`);
+      }
+    }
+  }
+  return new Set(files);
+}
+
+/**
+ * Gzip KB (2 decimals) of the initial JS a module-capable browser downloads for each App Router
+ * route: root main files (framework/runtime) + the route's entry chunks (layout, error/not-found
+ * boundaries and page) from its client reference manifest. That is the <script src> set in the
+ * prerendered HTML minus the `noModule` polyfill chunk (Wave 3 decision B1, 2026-11-23).
+ * `{ includeNoModule: true }` gives the pre-Wave-3 measure (polyfills counted) for comparison.
+ */
+export function measureWebRouteSizes(nextDir, { includeNoModule = false } = {}) {
   const dir = resolve(nextDir);
   const build = readJson(join(dir, "build-manifest.json"));
   const routes = readJson(join(dir, "app-path-routes-manifest.json"));
-  const shared = [...(build.polyfillFiles ?? []), ...(build.rootMainFiles ?? [])];
+  const excluded = includeNoModule ? new Set() : noModuleFiles(dir, build);
+  const shared = [...(build.polyfillFiles ?? []), ...(build.rootMainFiles ?? [])].filter((f) => !excluded.has(f));
   const out = {};
   for (const [key, route] of Object.entries(routes)) {
     const manifestFile = join(dir, "server", "app", `${key}_client-reference-manifest.js`);
     const files = new Set(shared);
     if (existsSync(manifestFile)) {
       const entry = loadClientManifest(manifestFile).entryJSFiles ?? {};
-      for (const list of Object.values(entry)) list.forEach((f) => files.add(f));
+      for (const list of Object.values(entry)) list.forEach((f) => excluded.has(f) || files.add(f));
     } else if (!ROUTES_WITHOUT_CLIENT_MANIFEST.has(route)) {
       throw new Error(
         `Route ${route} has no client reference manifest at ${manifestFile}; ` +
@@ -72,5 +99,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     console.error("usage: node scripts/measure-baseline.mjs <path-to-.next>");
     process.exit(2);
   }
-  console.log(JSON.stringify(measureWebRouteSizes(nextDir), null, 2));
+  const includeNoModule = process.argv.includes("--include-nomodule");
+  console.log(JSON.stringify(measureWebRouteSizes(nextDir, { includeNoModule }), null, 2));
 }
