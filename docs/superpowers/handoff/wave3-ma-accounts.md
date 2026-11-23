@@ -33,7 +33,7 @@ No `packages/*` change, so the main checkout's editable installs were fine for t
 - **Enumeration resistance:** uniform 202 for register / verification request / reset request,
   uniform 401 for every login failure, one scrypt derivation on every path (tested by counting).
 - **Rate limits:** a stricter `auth:<ip>` bucket (10/min) inside the existing limiter (so the
-  conftest reset covers it); per-account pause after 10 failures for 15 min that answers the
+  conftest reset covers it), also on password change and account deletion; per-account pause after 10 failures for 15 min that answers the
   same generic 401.
 - **Mail:** `MailTransport` protocol, `DisabledMailTransport` (the only configurable value,
   `MAIL_TRANSPORT=disabled`), `InMemoryMailTransport` for tests via the `get_mail_transport`
@@ -74,10 +74,15 @@ ADR-008/009 status lines.
 
 ## Verification
 
-- Full backend suite, one invocation from the worktree root:
-  `D:/FinalYearProject/Arogyarakshak/.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`
-  → **RESULT_PLACEHOLDER**
-- New tests: `test_accounts.py` (49) and `test_case_ownership.py` (56, of which 43 are the
+- Full backend suite, one invocation from the worktree root at `eb64a71`:
+  `PYTHONPATH=apps/api D:/FinalYearProject/Arogyarakshak/.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  → **2348 passed, 9 skipped, 0 failed** (5 min 44 s).
+  Without `PYTHONPATH=apps/api` the same command gives 1 extra failure,
+  `test_telemetry_tracing.py::test_importing_telemetry_does_not_import_opentelemetry_sdk`: it spawns a
+  bare `python -c "import app..."` subprocess, which cannot find `app` from the repo root
+  (`ModuleNotFoundError`). Environmental and pre-existing (the test is untouched); it passes with
+  `PYTHONPATH=apps/api`, as CI sets it.
+- New tests: `test_accounts.py` (50) and `test_case_ownership.py` (56, of which 43 are the
   ownership sweep over **every** route whose dependency tree contains `require_case_access`,
   found automatically: owner allowed, other account 403, case token alone 403, nobody 401).
 - `test_migrations.py` also run against a throwaway PostgreSQL 16 container
