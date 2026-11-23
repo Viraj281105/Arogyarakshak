@@ -55,8 +55,9 @@ describe('navigation model', () => {
   });
 
   test('isActiveHref matches the route, never a hash link on the home page', () => {
-    assert.equal(isActiveHref('/clinical-review', '/clinical-review'), true);
-    assert.equal(isActiveHref('/clinical-review', '/'), false);
+    assert.equal(isActiveHref('/review', '/review'), true);
+    assert.equal(isActiveHref('/review', '/'), false);
+    assert.equal(isActiveHref('/app#intake-dropzone', '/app'), false);
     assert.equal(isActiveHref('/#intake-dropzone', '/'), false);
     assert.equal(isActiveHref('/', '/'), true);
   });
@@ -81,22 +82,22 @@ describe('route transitions', () => {
   const here = 'http://localhost:3000/';
 
   test('only plain left clicks to another same-origin page are transitioned', () => {
-    assert.equal(shouldTransition(click(), '/clinical-review', here), true);
-    assert.equal(shouldTransition(click({ metaKey: true }), '/clinical-review', here), false);
-    assert.equal(shouldTransition(click({ ctrlKey: true }), '/clinical-review', here), false);
-    assert.equal(shouldTransition(click({ shiftKey: true }), '/clinical-review', here), false);
-    assert.equal(shouldTransition(click({ button: 1 }), '/clinical-review', here), false);
-    assert.equal(shouldTransition(click({ defaultPrevented: true }), '/clinical-review', here), false);
-    assert.equal(shouldTransition(click(), '/clinical-review', here, '_blank'), false);
+    assert.equal(shouldTransition(click(), '/review', here), true);
+    assert.equal(shouldTransition(click({ metaKey: true }), '/review', here), false);
+    assert.equal(shouldTransition(click({ ctrlKey: true }), '/review', here), false);
+    assert.equal(shouldTransition(click({ shiftKey: true }), '/review', here), false);
+    assert.equal(shouldTransition(click({ button: 1 }), '/review', here), false);
+    assert.equal(shouldTransition(click({ defaultPrevented: true }), '/review', here), false);
+    assert.equal(shouldTransition(click(), '/review', here, '_blank'), false);
     assert.equal(shouldTransition(click(), 'https://example.org/', here), false);
     assert.equal(shouldTransition(click(), '/#module-dawacheck', here), false, 'same-page hash links stay native');
-    assert.equal(shouldTransition(click(), '/#module-dawacheck', 'http://localhost:3000/clinical-review'), true);
+    assert.equal(shouldTransition(click(), '/app#module-dawacheck', 'http://localhost:3000/review'), true);
   });
 
   test('a link to the SAME pathname (search- or hash-only change) never starts a transition', () => {
     // The transition waits for the pathname to change; these links would never change it.
     assert.equal(shouldTransition(click(), '/?module=x', here), false);
-    assert.equal(shouldTransition(click(), '/clinical-review?tab=safety', 'http://localhost:3000/clinical-review'), false);
+    assert.equal(shouldTransition(click(), '/review?tab=safety', 'http://localhost:3000/review'), false);
     assert.equal(shouldTransition(click(), '/', here), false);
   });
 
@@ -192,7 +193,7 @@ describe('root layout frame', () => {
     assert.match(layout, /<SiteHeader/);
     assert.match(layout, /<main id="main-content" tabIndex=\{-1\}/);
     assert.match(layout, /<SiteFooter/);
-    for (const f of ['page.tsx', 'components/HomeWorkspace.tsx', 'clinical-review/page.tsx', 'components/StatusPage.tsx', 'not-found.tsx', 'error.tsx']) {
+    for (const f of ['page.tsx', 'app/page.tsx', 'components/HomeWorkspace.tsx', 'components/landing/LandingPage.tsx', 'review/page.tsx', 'components/StatusPage.tsx', 'not-found.tsx', 'error.tsx']) {
       const src = read(...f.split('/'));
       // StatusPage keeps a <main> only for global-error, which replaces the root layout.
       const mains = (src.match(/<main\b/g) ?? []).length;
@@ -201,7 +202,7 @@ describe('root layout frame', () => {
   });
 
   test('the pages no longer render their own header or footer', () => {
-    for (const f of ['page.tsx', 'components/HomeWorkspace.tsx', 'clinical-review/page.tsx']) {
+    for (const f of ['page.tsx', 'app/page.tsx', 'components/HomeWorkspace.tsx', 'review/page.tsx']) {
       const src = read(...f.split('/'));
       assert.ok(!/<Header\b|<Footer\b|className="header-bar"/.test(src), f);
     }
@@ -227,7 +228,7 @@ describe('PWA manifest', () => {
     assert.ok(icons.some((i) => i.type === 'image/svg+xml' && i.purpose === 'maskable'));
     for (const i of icons) assert.ok(existsSync(join(webDir, 'public', i.src)), `${i.src} missing`);
     const all = [
-      ...['layout.tsx', 'page.tsx', 'components/HomeWorkspace.tsx'].map((f) => read(...f.split('/'))),
+      ...['layout.tsx', 'page.tsx', 'app/page.tsx', 'components/HomeWorkspace.tsx'].map((f) => read(...f.split('/'))),
       ...['SiteHeader.tsx', 'ShellProvider.tsx'].map((f) => read('shell', f)),
     ].join('\n');
     assert.ok(!/navigator\.serviceWorker|workbox/i.test(all), 'no service worker (zero retention)');
@@ -322,5 +323,32 @@ describe('demo banner does not shift the page when the demo status arrives', () 
     assert.match(css, /body:has\(\.demo-banner\) \.site-footer\s*\{[^}]*padding-bottom:/);
     // No band is reserved on non-demo deployments: the only reservation is conditional on the banner.
     assert.ok(!/demo-banner-space|min-height:\s*var\(--demo/.test(css));
+  });
+});
+
+describe('Wave 3 route structure', () => {
+  test('nav and deep links point at /app and /review; /clinical-review permanently redirects', async () => {
+    const nav = await import('../app/shell/nav');
+    assert.equal(nav.WORKSPACE_PATH, '/app');
+    assert.equal(nav.REVIEW_PATH, '/review');
+    assert.equal(nav.moduleHref('dawacheck'), '/app#module-dawacheck');
+    assert.deepEqual(nav.NAV_ITEMS.map((i) => i.href), ['/app#intake-dropzone', '/app#module-workspace', '/review']);
+    const { ROUTE_REDIRECTS } = await import('../next.config');
+    assert.deepEqual(ROUTE_REDIRECTS.map((r) => [r.source, r.destination, r.permanent]), [
+      ['/clinical-review', '/review', true],
+      ['/clinical-review/:path*', '/review/:path*', true],
+    ]);
+    assert.ok(existsSync(join(webDir, 'app', 'review', 'page.tsx')));
+    assert.ok(!existsSync(join(webDir, 'app', 'clinical-review')), 'no page left at the old path');
+  });
+
+  test('no app source links to the old reviewer path or to /#module-* / /#intake-dropzone', () => {
+    const files = ['not-found.tsx', 'components/landing/LandingHero.tsx', 'components/landing/ModuleOverview.tsx',
+      'shell/MobileNav.tsx', 'shell/SiteHeader.tsx', 'shell/SiteFooter.tsx', 'shell/nav.ts'];
+    for (const f of files) {
+      const src = read(...f.split('/'));
+      assert.ok(!/["'`]\/clinical-review(?!s)/.test(src), `${f} links to /clinical-review`);
+      assert.ok(!/["'`]\/#(module-|intake-dropzone)/.test(src), `${f} links to a hash on / (now on /app)`);
+    }
   });
 });

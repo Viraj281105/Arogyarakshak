@@ -160,7 +160,7 @@ The app is unit-tested and type-checked but **has not yet been run on a device o
 1. **Zero Retention (BYOD)**: Raw document photos (hospital bills, prescriptions, denial letters) are stored strictly in transient memory. They are expunged immediately after Kadi OCR extraction. Storing patient files permanently on device storage is blocked by design.
 2. **Accessible Touch Targets**: All interactive elements (buttons, segmented tabs, icons) adhere to WCAG 2.1 SC 2.5.5 and WCAG 2.2 SC 2.5.8 with a minimum `44px x 44px` touch target.
 3. **Module Boundaries**: The mobile client consumes the FastAPI gateway (`/api/v1/`) without embedding business rules locally.
-4. **Patient-facing only**: reviewer, transcription-reader and safety-board work is web-only (`/clinical-review`).
+4. **Patient-facing only**: reviewer, transcription-reader and safety-board work is web-only (`/review`).
 
 ---
 

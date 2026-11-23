@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import type { Translations } from "../translations";
 import { MODULE_META, MODULE_ORDER, moduleHash, type ModuleTab } from "../shell/nav";
+import { MODULE_ICONS } from "../shell/icons/moduleIcons";
 
 export type { ModuleTab };
 
@@ -43,7 +44,9 @@ export function ModuleTabs({ active, onSelect, t }: { active: ModuleTab; onSelec
 
   return (
     <div className="module-tabs" role="tablist" aria-label="Feature Modules">
-      {MODULE_ORDER.map((id) => (
+      {MODULE_ORDER.map((id) => {
+        const Icon = MODULE_ICONS[id];
+        return (
         <button
           key={id}
           ref={(el) => {
@@ -65,13 +68,12 @@ export function ModuleTabs({ active, onSelect, t }: { active: ModuleTab; onSelec
             select(next, true);
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="site-icon">
-            <path d={MODULE_META[id].icon} />
-          </svg>
+          <Icon size={18} aria-hidden="true" className="site-icon" />
           <span>{t.tabs[id]}</span>
           <span className="tab-badge">{MODULE_META[id].badge}</span>
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }

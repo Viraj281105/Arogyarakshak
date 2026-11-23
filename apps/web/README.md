@@ -41,7 +41,10 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the client.
+Open [http://localhost:3000](http://localhost:3000) to view the client. Routes (Wave 3): `/` landing page,
+`/app` case workspace (upload, case desk, the five checks; deep links `/app#module-<id>`), `/review` clinical
+reviewer workspace (`/clinical-review` redirects there permanently). Dev-only galleries (`next dev` only):
+`/motion-lab`, `/primitives`.
 
 ### Building for Production
 ```bash

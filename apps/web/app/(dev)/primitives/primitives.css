@@ -1,0 +1,9 @@
+/* Dev gallery layout only (not shipped: this route is page.dev.tsx). */
+.primitives { padding-bottom: 6rem; }
+.primitives section { display: grid; gap: var(--space-md); padding: var(--space-lg) 0; border-top: 1px solid var(--border-subtle); }
+.primitives h2 { font-family: var(--font-headline); font-size: 1.25rem; }
+.primitives h3 { font-size: 1rem; color: var(--text-secondary); }
+.primitives-stack { list-style: none; display: grid; gap: var(--space-sm); }
+.primitives-row { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
+.primitives-grid { display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.primitives-note { color: var(--text-secondary); font-size: 0.9rem; }

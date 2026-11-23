@@ -42,12 +42,12 @@ Expect every check to pass (58/58 on SQLite). It runs Scenarios A–E over HTTP 
 
 ### Prepare the browser
 
-1. Tab 1: http://localhost:3000 — the patient app. A striped **DEMO MODE** banner must be
+1. Tab 1: http://localhost:3000/app — the patient workspace (`/` is the landing page). A striped **DEMO MODE** banner must be
    visible. If it is not, the API is not in demo mode: stop and fix that first.
 2. Open **Demo controls** → paste the operator key → **Reset demo**. Confirm the dialog.
    The panel lists the demo personas with **Copy** buttons (reviewer ID and token).
    *These credentials are shown once and live only in this tab — do not reload it.*
-3. Tab 2: http://localhost:3000/clinical-review — the reviewer workspace. It shows the
+3. Tab 2: http://localhost:3000/review — the reviewer workspace (the old `/clinical-review` address redirects here). It shows the
    same DEMO MODE banner.
 
 ---
