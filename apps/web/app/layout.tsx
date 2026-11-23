@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./motion/motion.css";
 import "./shell/shell.css";
+import "./components/ui/ui.css";
 import { fontVariables } from "./fonts";
+import { CommandPaletteLauncher } from "./shell/CommandPaletteLauncher";
 import { ShellProvider } from "./shell/ShellProvider";
 import { SiteFooter } from "./shell/SiteFooter";
 import { SiteHeader } from "./shell/SiteHeader";
@@ -58,6 +60,7 @@ export default function RootLayout({
             {children}
           </main>
           <SiteFooter />
+          <CommandPaletteLauncher />
         </ShellProvider>
       </body>
     </html>

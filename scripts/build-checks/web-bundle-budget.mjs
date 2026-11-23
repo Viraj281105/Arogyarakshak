@@ -21,11 +21,14 @@ export const WEB_INITIAL_JS_KB = 170;
  * Wave 3 B1 (2026-11-23): the measure now excludes the `noModule` polyfill chunk (38.70 KB gzip),
  * which module-capable browsers never download (scripts/measure-baseline.mjs `noModuleFiles`).
  * Same WS4 build re-measured: / 222.26 -> 183.56, /clinical-review 190.32 -> 151.62, /_not-found
- * 179.84 -> 141.14, /_global-error 171.94 -> 133.24, so only / stays a known violation.
+ * 179.84 -> 141.14, /_global-error 171.94 -> 133.24, so only / stayed a known violation (183.56).
  * The framework floor is now about 128 KB (React/Next runtime only).
+ * Wave 3 M2 final build: the case workspace moved from / to /app, so its entry moves with it (a
+ * rename, not a new allowance): /app 182.84 (ceiling 183, below the 184 it had as /); / is now the
+ * landing page at 162.23 and leaves the map.
  */
 export const KNOWN_VIOLATIONS = {
-  "/": 184,
+  "/app": 183,
 };
 
 /** Pure: returns a list of failure messages (empty = pass). */

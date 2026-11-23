@@ -84,6 +84,8 @@ export function contrastPairs() {
   }
   pairs.push({ fg: "text-on-action", bg: "action-primary", min: AA_TEXT, why: "primary button label" });
   pairs.push({ fg: "text-on-action", bg: "action-primary-hover", min: AA_TEXT, why: "primary button label (hover)" });
+  pairs.push({ fg: "text-on-action", bg: "chart-series-1", min: AA_TEXT, why: "timeline index number" });
+  pairs.push({ fg: "bg-base", bg: "text-primary", min: AA_TEXT, why: "tooltip (inverted surface)" });
   pairs.push({ fg: "#FFFFFF", bg: "brand-forest", min: AA_TEXT, why: "legacy filled tab / button label" });
   for (const bg of ["bg-base", "bg-surface"]) {
     pairs.push({ fg: "action-primary", bg, min: AA_NON_TEXT, why: "primary button against the page" });

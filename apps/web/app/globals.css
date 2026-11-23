@@ -663,23 +663,22 @@ p {
   transform: scale(0.98);
 }
 
+/* Wave 3: action tokens (AA-checked in packages/design-tokens/tests/contrast.test.mjs). Dark theme
+   uses a bright teal fill with navy text; light uses the darkened teal with white text. */
 .btn-primary {
-  background: var(--brand-forest);
-  color: #EEF2F6;
+  background: var(--action-primary);
+  color: var(--text-on-action);
   font-weight: 700;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
 }
 
 [data-theme="light"] .btn-primary {
-  background: var(--brand-forest);
-  color: #FFFFFF;
-  border: 1px solid transparent;
   box-shadow: 0 4px 14px rgba(11, 107, 100, 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
-  opacity: 0.94;
+  background: var(--action-primary-hover);
   transform: translateY(-1px);
 }
 
