@@ -27,8 +27,8 @@ export const viewport: Viewport = {
   // Lets the page extend under notches/home indicators; the shell pads with env(safe-area-inset-*).
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F7F6F2" },
-    { media: "(prefers-color-scheme: dark)", color: "#151B18" },
+    { media: "(prefers-color-scheme: light)", color: "#F5F7FA" },
+    { media: "(prefers-color-scheme: dark)", color: "#101B2A" },
   ],
 };
 
