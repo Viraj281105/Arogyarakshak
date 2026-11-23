@@ -14,6 +14,11 @@ from app.models.kadi import (  # noqa: F401
     KadiModuleInsight,
     kadi_case_entities,
 )
+from app.models.accounts import (  # noqa: F401
+    KadiUser,
+    KadiSession,
+    KadiAccountToken,
+)
 from app.models.schemesetu import (  # noqa: F401
     SchemeSetuCaseProfile,
 )
@@ -60,6 +65,9 @@ __all__ = [
     "KadiThresholdCalibration",
     "KadiModuleInsight",
     "kadi_case_entities",
+    "KadiUser",
+    "KadiSession",
+    "KadiAccountToken",
     "SchemeSetuCaseProfile",
     "DawaCheckGenericMapping",
     "BimaNyayCase",

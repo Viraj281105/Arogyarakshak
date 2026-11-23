@@ -96,8 +96,14 @@ def test_create_all_database_is_stamped_and_upgraded_without_data_loss(tmp_path)
     by later revisions, and no alembic_version. It must be adopted, not recreated."""
     url = _sqlite_url(tmp_path)
     engine = create_engine(sync_database_url(url), poolclass=pool.NullPool)
-    legacy_tables = [t for name, t in Base.metadata.tables.items() if name != "kadi_document_jobs"]
-    Base.metadata.create_all(engine, tables=legacy_tables)
+    # The pre-Alembic schema is exactly 0001_baseline: build it, then forget the history,
+    # as the old create_all start-up left it. (Today's models minus some tables would also
+    # carry columns later revisions add to existing tables, e.g. kadi_cases.owner_user_id.)
+    with engine.begin() as conn:
+        cfg = alembic_config()
+        cfg.attributes["connection"] = conn
+        command.upgrade(cfg, BASELINE_REVISION)
+        conn.execute(text("DROP TABLE alembic_version"))
     with engine.begin() as conn:
         conn.execute(
             text("INSERT INTO kadi_cases (id, status, consent_opt_in, total_charged, created_at) "

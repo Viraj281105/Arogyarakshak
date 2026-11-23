@@ -56,6 +56,10 @@ class KadiCase(Base):
     # schema creation never fails on a stray pre-existing row; app.case_retention treats
     # a null expires_at as already-expired (never as "keep forever").
     expires_at = Column(DateTime, nullable=True)
+    # ADR-026: the account that owns this case. NULL = a guest case authorised by its
+    # access token (ADR-009). No ON DELETE CASCADE: account deletion erases each owned case
+    # through app.services.case_purge.purge_case so every derived table goes too.
+    owner_user_id = Column(String, ForeignKey("kadi_users.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
