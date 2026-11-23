@@ -3,7 +3,13 @@
 import React, { useEffect, useRef } from "react";
 import type { Language } from "../shared/i18n/types";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { MODULE_META, MODULE_ORDER, NAV_ITEMS, isActiveHref, moduleHash } from "./nav";
+import { MODULE_ICONS } from "./icons/moduleIcons";
+import { MODULE_META, MODULE_ORDER, NAV_ITEMS, isActiveHref, moduleHash, type ModuleTab } from "./nav";
+
+function ModuleIcon({ id }: { id: ModuleTab }) {
+  const Icon = MODULE_ICONS[id];
+  return <Icon size={20} aria-hidden="true" className="site-icon" />;
+}
 import { shellCopy } from "./shellCopy";
 import { TransitionLink } from "./TransitionLink";
 
@@ -88,9 +94,7 @@ export function MobileNav({
             {MODULE_ORDER.map((id) => (
               <li key={id}>
                 <TransitionLink href={`/${moduleHash(id)}`} onClick={close}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" className="site-icon">
-                    <path d={MODULE_META[id].icon} />
-                  </svg>
+                  <ModuleIcon id={id} />
                   <span>{copy.tabs[id]}</span>
                   <span className="site-chip">{MODULE_META[id].badge}</span>
                 </TransitionLink>
