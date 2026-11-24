@@ -58,6 +58,10 @@ describe('figures are labelled', () => {
     assert.match(est.replace(/<!-- -->/g, ''), /Source: S1 · P1/);
     const ver = renderToString(h(MetricCard, { label: 'X', value: '₹1', basis: 'verified', source: 'S2' }));
     assert.match(ver, />Verified</);
+    // A total read from the user's bill is neither an estimate nor verified (transformation review R13).
+    const doc = renderToString(h(MetricCard, { label: 'X', value: '₹1', basis: 'document', source: 'S3' }));
+    assert.match(doc, />From your document</);
+    assert.ok(!/Estimate|Verified/.test(doc));
   });
 
   test('confidence is clamped, bucketed and says who computed it', () => {

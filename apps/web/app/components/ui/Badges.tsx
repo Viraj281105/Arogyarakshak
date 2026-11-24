@@ -80,8 +80,9 @@ export function ConfidenceIndicator({
 }
 
 /**
- * A single headline figure. `basis` is mandatory: a figure is either an estimate or verified
- * against a source, and the card says which in words. `source` and `period` keep it honest.
+ * A single headline figure. `basis` is mandatory and the card says it in words: "estimate" (computed
+ * or matched, may be wrong), "verified" (checked against a cited source) or "document" (read as written
+ * from the user's own document, not checked). `source` and `period` keep it honest.
  */
 export function MetricCard({
   label,
@@ -96,7 +97,7 @@ export function MetricCard({
   /** Pre-formatted value (use Intl.NumberFormat('en-IN') upstream). */
   value: string;
   unit?: string;
-  basis: "estimate" | "verified";
+  basis: "estimate" | "verified" | "document";
   source: string;
   period?: string;
   note?: React.ReactNode;
@@ -105,7 +106,13 @@ export function MetricCard({
     <div className={`ui-metric ui-metric--${basis}`}>
       <div className="ui-metric-head">
         <span className="ui-metric-label">{label}</span>
-        {basis === "verified" ? <EvidenceBadge state="verified" size="sm" /> : <span className="ui-badge ui-badge-sm ui-estimate-badge">Estimate</span>}
+        {basis === "verified" ? (
+          <EvidenceBadge state="verified" size="sm" />
+        ) : basis === "document" ? (
+          <span className="ui-badge ui-badge-sm ui-document-badge">From your document</span>
+        ) : (
+          <span className="ui-badge ui-badge-sm ui-estimate-badge">Estimate</span>
+        )}
       </div>
       <p className="ui-metric-value code-tabular">
         {value}

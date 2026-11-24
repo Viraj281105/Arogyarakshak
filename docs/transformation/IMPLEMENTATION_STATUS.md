@@ -204,3 +204,35 @@ was exercised over HTTP instead (4.3).
 false evidence and privacy claims are fixed and covered by tests, every gate passes, and the 192-page responsive and
 theme sweep is clean. What keeps it from a production label: untranslated new copy in a trilingual product, the
 unverified reviewer and email-token flows, the backend 429/CORS gap, and no screen-reader or Postgres run in this pass.
+
+
+---
+
+## 5. Review follow-ups (Claude Code, 2026-11-25)
+
+The open items from section 4.11, worked through before the pull request.
+
+| Item | What was done | Evidence |
+|---|---|---|
+| **429 responses without CORS headers** (backend, pre-existing) | Root cause: the rate-limit middleware was registered after `CORSMiddleware`, and Starlette makes the last-registered middleware the outermost, so the limiter answered before CORS could add its headers. It is now registered before CORS (CORS wraps it); `Retry-After` is exposed to browsers; CORS preflights are answered without spending the caller's budget. No API contract changed. | 2 new tests in `apps/api/tests/test_rate_limiting.py`, both failing on the old order and passing on the new one; live check against the local API: the first 429 (after 113 requests) carries `access-control-allow-origin`, `access-control-allow-credentials` and `access-control-expose-headers: Retry-After`. |
+| **`MetricCard` basis** (R13) | Third basis `"document"`, shown as "From your document" (the AA-checked "unevaluated" colour pair). BillNyay's "Total billed" uses it; the CGHS-matched figures stay "Estimate". | `tests/primitives.test.ts`; seen in the browser: "Total billed · From your document · ₹1,47,750". |
+| **DaaviSetu PDF and ZIP downloads** (not exercised before) | Generated a pre-authorisation package for the synthetic Scenario B document and downloaded both files with the case token. | PDF `200 application/pdf`, starts with `%PDF-`; ZIP holds `manifest.txt`, `preauth_form.pdf`, `case_summary.txt` (redacted excerpt), `preauth_readiness.txt`, **no original document**; wrong token → 403. |
+| **Email-token pages** (not exercised before) | `/reset-password#token=…` and `/verify#token=…` with synthetic tokens in headless Chrome. | The token is read and removed from the address bar on both; an invalid reset link reports "This link is invalid or has expired. Request a new one."; `/verify` states that this server cannot send email. Real delivery stays blocked on the email-provider decision (Q1). |
+| **Reviewer workspace** (not exercised before) | `/review` at 390 px with a wrong credential. | "Invalid reviewer credential." The full reviewer lifecycle is covered by the backend suite (clinical review tests); not walked through in a browser. |
+| **PostgreSQL** (SQLite only before) | Throwaway local `postgres:16-alpine` container (image already present; removed afterwards), API with `SCHEMA_MANAGEMENT=migrate`. | Alembic head `0003_accounts`; every account, ownership, CSRF-origin, case-deletion, account-deletion and no-retention check passed; ICD audit, CGHS audit and eligibility reasoning returned 200 with real results. |
+| **Hindi/Marathi copy** for the new strings (R14) | Not done: it needs a native speaker (Q2). The project rule forbids unreviewed hi/mr copy without a reviewer; the new strings stay English and are marked `lang="en"` where they appear in the hi/mr UI. | — |
+| **Screen-reader pass; Stitch parity** | Not done: they need a person (screen reader) and the maintainer's Google sign-in (Stitch). | — |
+| R15, R16 (optional) | Left as they are (see 4.1). | — |
+
+### 5.1 Gates on the final tree
+
+Backend: one combined `pytest` run (as CI runs it, `PYTHONPATH=apps/api`): **2,371 passed, 9 skipped, 0 failed** (14 min 43 s). CI Ruff gate
+(`--select=E9,F63,F7,F82`) passed; `lint-imports` 6 kept, 0 broken; `scripts/ci_guardrails.py` passed. (Ruff's default
+rule set reports 10 findings in `main.py` and `test_rate_limiting.py`; the same 10 exist on the files before this
+change.) Web: lint 0, `tsc` 0, tests 312/312, `next build` OK, bundle budget PASS (`/app` 167.16 KB, `/app/settings`
+166.06 KB). Root tests 79/79, tokens 21/21, `check:generated` 3/3; mobile untouched (215/215 in section 4).
+
+### 5.2 Release recommendation (updated)
+
+**Ready for the pull request.** Remaining before calling it production-ready: native-speaker hi/mr copy, a
+screen-reader pass, the email-provider decision (Q1), and the maintainer's visual sign-off against the Stitch mockups.

@@ -220,6 +220,37 @@ if wildcard_origins:
         "Set CORS_ORIGINS to an explicit comma-separated list in production."
     )
 
+# --- Rate Limiting Middleware ---------------------------------------------------
+# See app/rate_limit.py for why this exists (no authentication) and its scope
+# limitation (single-process, in-memory).
+#
+# Registered BEFORE CORSMiddleware on purpose: Starlette makes the last-registered middleware
+# the outermost, so CORS now wraps the limiter. A 429 therefore carries the CORS headers and
+# a browser can read it (before, it surfaced as an opaque "blocked by CORS policy" network
+# error and the UI could not tell the user to wait), and CORS preflights are answered by the
+# CORS layer without spending the caller's request budget.
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    if request.url.path in PROBE_PATHS:
+        return await call_next(request)
+
+    client_key = resolve_client_ip(request)
+    allowed, retry_after = limiter.check(client_key)
+    if not allowed:
+        logger.warning("Rate limit exceeded for client %s on %s", client_key, route_template(request))
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "detail": "Rate limit exceeded. Please slow down and try again shortly.",
+                "message": "Rate limit exceeded. Please slow down and try again shortly.",
+                "retry_after_seconds": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if wildcard_origins else origins,
@@ -243,32 +274,9 @@ app.add_middleware(
         "X-Institution-Token",
         "X-Governance-Admin-Key",
     ],
+    # Lets browser clients read how long to wait after a 429 (the body also carries it).
+    expose_headers=["Retry-After"],
 )
-
-
-# --- Rate Limiting Middleware ---------------------------------------------------
-# See app/rate_limit.py for why this exists (no authentication) and its scope
-# limitation (single-process, in-memory).
-
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    if request.url.path in PROBE_PATHS:
-        return await call_next(request)
-
-    client_key = resolve_client_ip(request)
-    allowed, retry_after = limiter.check(client_key)
-    if not allowed:
-        logger.warning("Rate limit exceeded for client %s on %s", client_key, route_template(request))
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={
-                "detail": "Rate limit exceeded. Please slow down and try again shortly.",
-                "message": "Rate limit exceeded. Please slow down and try again shortly.",
-                "retry_after_seconds": retry_after,
-            },
-            headers={"Retry-After": str(retry_after)},
-        )
-    return await call_next(request)
 
 
 # Outermost: every response (including CORS preflights and 429s) gets a request id and

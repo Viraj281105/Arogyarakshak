@@ -51,7 +51,7 @@ export function AuditResults({ audit, currentLang }: { audit: AuditResponse; cur
         <MetricCard
           label={t.chargedTotal}
           value={inr(audit.total_charged)}
-          basis="estimate"
+          basis="document"
           source={`${audit.audit_items.length} line(s) read from your bill`}
         />
         <MetricCard
