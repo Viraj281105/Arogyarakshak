@@ -9,6 +9,7 @@ export const EVIDENCE_STATES = [
   'unevaluated',
   'insufficient-evidence',
   'ai-generated',
+  'human-reviewed',
   'rule-engine',
   'user-provided',
   'external',
@@ -37,6 +38,10 @@ export const EVIDENCE_COPY: Record<EvidenceState, { label: string; meaning: stri
   'ai-generated': {
     label: 'AI-generated',
     meaning: 'Written by a language model. Read it as a draft, not as a finding.',
+  },
+  'human-reviewed': {
+    label: 'Human-reviewed',
+    meaning: 'Read and finalised by a named reviewer. Reviewer credentials are self-declared unless stated otherwise.',
   },
   'rule-engine': {
     label: 'Rule engine',

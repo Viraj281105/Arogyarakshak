@@ -159,10 +159,12 @@ from the browser. The app calls `EXPO_PUBLIC_API_URL` (default `http://localhost
 
 ### 5.2.2 Self-hosted fonts (web and mobile, no Google Fonts)
 Fonts are served from npm packages, never from Google at build or runtime:
-- Web (`apps/web`): `@fontsource-variable/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`,
-  imported as CSS in `app/globals.css`. Their `@font-face` rules use `unicode-range`, so browsers
+- Web (`apps/web`): `@fontsource-variable/{manrope,inter,jetbrains-mono}` (Manrope + Inter since the
+  Deep Forest rebrand, ADR-028; Fraunces and Plus Jakarta Sans were removed), imported as CSS in
+  `app/globals.css`, with the latin faces preloaded through `next/font/local` in `app/fonts.ts`. Their `@font-face` rules use `unicode-range`, so browsers
   fetch only the latin / latin-ext files they need. Do not use `next/font/google`.
 - Mobile (`apps/mobile`): `@expo-google-fonts/{fraunces,plus-jakarta-sans,inter,jetbrains-mono}`
+  (still the pre-rebrand families; moving mobile to Manrope is part of the mobile pass, M7)
   (font files ship in the app binary), plus `expo-font` and `expo-splash-screen`, loaded by
   `src/hooks/useAppFonts.ts` while the splash screen stays up.
 - The font stacks live in `packages/design-tokens/tokens.json` and keep a Devanagari-capable

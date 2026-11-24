@@ -15,7 +15,7 @@ const walk = (dir: string): string[] =>
     return statSync(p).isDirectory() ? walk(p) : [p];
   });
 
-const FAMILIES = ['fraunces', 'plus-jakarta-sans', 'inter', 'jetbrains-mono'];
+const FAMILIES = ['manrope', 'inter', 'jetbrains-mono'];
 const GENERIC = ['serif', 'sans-serif', 'monospace', 'system-ui'];
 
 describe('self-hosted fonts', () => {
@@ -35,7 +35,7 @@ describe('self-hosted fonts', () => {
     }
   });
 
-  test('@fontsource-variable imports exist for all four families', () => {
+  test('@fontsource-variable imports exist for all three families', () => {
     const src = [join(appDir, 'globals.css'), join(appDir, 'layout.tsx')]
       .map((p) => readFileSync(p, 'utf8'))
       .join('\n');
@@ -64,8 +64,8 @@ describe('self-hosted fonts', () => {
   test('stacks put the preloaded next/font face first, then the Fontsource variable family', () => {
     // var(--font-face-*) is set on <html> by app/fonts.ts; without it the var() falls back to
     // the Fontsource family, so the stack still works anywhere the variable is missing.
-    assert.match(tokens.font.display, /^var\(--font-face-display, 'Fraunces Variable'\), 'Fraunces Variable',/);
-    assert.match(tokens.font.headline, /^var\(--font-face-headline, 'Plus Jakarta Sans Variable'\), 'Plus Jakarta Sans Variable',/);
+    assert.match(tokens.font.display, /^var\(--font-face-display, 'Manrope Variable'\), 'Manrope Variable',/);
+    assert.match(tokens.font.headline, /^var\(--font-face-display, 'Manrope Variable'\), 'Manrope Variable',/);
     assert.match(tokens.font.sans, /^var\(--font-face-sans, 'Inter Variable'\), 'Inter Variable',/);
     assert.match(tokens.font.mono, /^'JetBrains Mono Variable'/);
   });
@@ -88,9 +88,9 @@ describe('CLS: preloaded latin faces with metric-matched fallbacks (next/font/lo
 
   test('every src points at an installed @fontsource-variable latin or latin-ext woff2', () => {
     const srcs = [...fonts.matchAll(/path: "([^"]+\.woff2)"/g)].map((m) => m[1]);
-    assert.equal(srcs.length, 6, 'latin + latin-ext for three hero families');
-    assert.equal(srcs.filter((s) => /-latin-(opsz|wght)-normal/.test(s)).length, 3);
-    assert.equal(srcs.filter((s) => /-latin-ext-(opsz|wght)-normal/.test(s)).length, 3);
+    assert.equal(srcs.length, 4, 'latin + latin-ext for the two brand families');
+    assert.equal(srcs.filter((s) => /-latin-(opsz|wght)-normal/.test(s)).length, 2);
+    assert.equal(srcs.filter((s) => /-latin-ext-(opsz|wght)-normal/.test(s)).length, 2);
     for (const s of srcs) {
       assert.match(s, /^\.\.\/node_modules\/@fontsource-variable\/[a-z-]+\/files\/[a-z-]+-latin(-ext)?-(opsz|wght)-normal\.woff2$/);
       assert.ok(existsSync(join(appDir, s)), `${s} does not exist`);
@@ -98,26 +98,25 @@ describe('CLS: preloaded latin faces with metric-matched fallbacks (next/font/lo
   });
 
   test('latin faces are preloaded with an adjusted fallback; latin-ext faces load on demand without one', () => {
-    assert.equal(count('preload: true'), 3);
-    assert.equal(count('preload: false'), 3);
-    assert.equal(count('display: "swap"'), 6);
-    assert.equal(count('adjustFontFallback: "Times New Roman"'), 1);
+    assert.equal(count('preload: true'), 2);
+    assert.equal(count('preload: false'), 2);
+    assert.equal(count('display: "swap"'), 4);
     assert.equal(count('adjustFontFallback: "Arial"'), 2);
-    assert.equal(count('adjustFontFallback: false'), 3);
-    assert.equal(count(`{ prop: "unicode-range", value: "${LATIN}" }`), 3);
-    assert.equal(count(`{ prop: "unicode-range", value: "${LATIN_EXT}" }`), 3);
+    assert.equal(count('adjustFontFallback: false'), 2);
+    assert.equal(count(`{ prop: "unicode-range", value: "${LATIN}" }`), 2);
+    assert.equal(count(`{ prop: "unicode-range", value: "${LATIN_EXT}" }`), 2);
   });
 
   test('each latin-ext face joins its latin face in ONE family, so ₹ and ā come from the brand font, not the local fallback', () => {
     // The generated "<family> Fallback" face has no unicode-range; if ₹ were only in a family
     // AFTER it in the stack, the fallback (local Arial / Times) would draw it.
-    for (const fam of ['arogyaFraunces', 'arogyaJakarta', 'arogyaInter']) {
+    for (const fam of ['arogyaManrope', 'arogyaInter']) {
       assert.equal(count(`{ prop: "font-family", value: "${fam}" }`), 2, `${fam} must name both faces`);
     }
   });
 
   test('the CSS variables match the token stacks and are applied on <html>', () => {
-    for (const v of ['--font-face-display', '--font-face-headline', '--font-face-sans']) {
+    for (const v of ['--font-face-display', '--font-face-sans']) {
       assert.ok(fonts.includes(`variable: "${v}"`), `fonts.ts must declare ${v}`);
     }
     assert.match(layout, /<html[^>]*className=\{fontVariables\}/);

@@ -18,16 +18,16 @@ const appDir = join(process.cwd(), 'app');
 const tokens = JSON.parse(readFileSync(join(process.cwd(), '..', '..', 'packages', 'design-tokens', 'tokens.json'), 'utf8'));
 
 describe('evidence vocabulary', () => {
-  test('exactly the eight states, matching the design tokens, each with a label and meaning', () => {
+  test('exactly the nine states, matching the design tokens, each with a label and meaning', () => {
     assert.deepStrictEqual([...EVIDENCE_STATES], [
       'verified', 'provisional', 'unevaluated', 'insufficient-evidence',
-      'ai-generated', 'rule-engine', 'user-provided', 'external',
+      'ai-generated', 'human-reviewed', 'rule-engine', 'user-provided', 'external',
     ]);
     for (const s of EVIDENCE_STATES) {
       assert.ok(EVIDENCE_COPY[s].label && EVIDENCE_COPY[s].meaning, s);
       for (const theme of ['dark', 'light']) assert.ok(tokens.color[theme][`evidence-${s}-fg`], `${theme} token for ${s}`);
     }
-    assert.equal(new Set(EVIDENCE_STATES.map((s) => EVIDENCE_COPY[s].label)).size, 8);
+    assert.equal(new Set(EVIDENCE_STATES.map((s) => EVIDENCE_COPY[s].label)).size, 9);
   });
 
   test('Wave 2 citation statuses map as documented; unknown values are never verified', () => {

@@ -12,6 +12,7 @@ import Hourglass from "lucide-react/icons/hourglass";
 import Scale from "lucide-react/icons/scale";
 import Sparkles from "lucide-react/icons/sparkles";
 import UserRound from "lucide-react/icons/user-round";
+import UserRoundCheck from "lucide-react/icons/user-round-check";
 
 /** One icon per evidence state (EvidenceBadge); the badge always shows its text label too. */
 export const EVIDENCE_ICONS = {
@@ -20,6 +21,7 @@ export const EVIDENCE_ICONS = {
   unevaluated: CircleDashed,
   "insufficient-evidence": FileQuestion,
   "ai-generated": Sparkles,
+  "human-reviewed": UserRoundCheck,
   "rule-engine": Scale,
   "user-provided": UserRound,
   external: BookOpen,

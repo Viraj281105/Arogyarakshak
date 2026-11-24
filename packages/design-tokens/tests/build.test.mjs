@@ -28,6 +28,8 @@ const ALLOWED_EXTRA = [
   // Wave 3 M2 additions
   "--palette-", "--action-", "--text-link", "--text-on-action", "--overlay-", "--status-insufficient",
   "--evidence-", "--chart-grid", "--chart-series-",
+  // Deep Forest / Warm Ivory transformation (2026-11-24)
+  "--semantic-", "--module-", "--chart-ai", "--chart-human", "--shadow-sm", "--shadow-md", "--shadow-lg",
 ];
 
 /** Compare a baseline block against a generated block by name; returns a list of problems. */
@@ -99,8 +101,8 @@ test("buildTs exposes every key the mobile ColorPalette needs, in dark and light
   for (const theme of ["dark", "light"]) {
     for (const k of MOBILE_KEYS) assert.equal(typeof mod.colors[theme][k], "string", `${theme}.${k}`);
   }
-  assert.equal(mod.colors.dark.bgBase, "#101B2A");
-  assert.equal(mod.colors.light.bgBase, "#F5F7FA");
+  assert.equal(mod.colors.dark.bgBase, "#0F1A17");
+  assert.equal(mod.colors.light.bgBase, "#F4F1E8");
 });
 
 test("buildTs light palette falls back to dark values for non-overridden keys", async () => {

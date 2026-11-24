@@ -86,6 +86,7 @@ export const EVIDENCE_GLYPHS: Record<EvidenceState, string> = {
   unevaluated: '◌',
   'insufficient-evidence': '?',
   'ai-generated': '✦',
+  'human-reviewed': '✍',
   'rule-engine': '§',
   'user-provided': '✎',
   external: '❝',

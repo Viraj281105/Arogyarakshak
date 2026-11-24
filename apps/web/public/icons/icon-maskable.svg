@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Full-bleed background; the emblem sits inside the 80% maskable safe zone (radius 204). -->
-  <rect width="512" height="512" fill="#0B6B64"/>
-  <g fill="none" stroke="#F5F7FA" stroke-linecap="round" stroke-linejoin="round" transform="translate(136 136) scale(10)">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.6"/>
-    <path d="M12 8v8M8 12h8" stroke-width="1.6"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#142F2B"/><g transform="translate(108.80000000000001 108.80000000000001) scale(4.6)"><path d="M32 4.5 C38.6 7.6 45.4 9.6 52.5 10.6 C53.2 11.2 53.5 12 53.5 12.9 V29.5 C53.5 43.6 44.6 53.6 32 59.5 C19.4 53.6 10.5 43.6 10.5 29.5 V12.9 C10.5 12 10.8 11.2 11.5 10.6 C18.6 9.6 25.4 7.6 32 4.5 Z" fill="#244C42" stroke="#91B49C" stroke-width="1.5" stroke-linejoin="round"/><path d="M32 8.6 C37.9 11.2 43.9 13 50 14 V29.5 C50 41.4 42.8 50 32 55.5 C21.2 50 14 41.4 14 29.5 V14 C20.1 13 26.1 11.2 32 8.6 Z" fill="none" stroke="#91B49C" stroke-width="0.8" stroke-opacity="0.35"/><path d="M32 52.4 C21.6 50.6 14 42.4 13.2 27.6 C22.8 29.6 29.4 38 32 52.4 Z" fill="#91B49C"/><path d="M32 52.4 C42.4 50.6 50 42.4 50.8 27.6 C41.2 29.6 34.6 38 32 52.4 Z" fill="#91B49C"/><path d="M31.2 50.2 C25.2 46 19.6 39.4 15.6 30.6 M32.8 50.2 C38.8 46 44.4 39.4 48.4 30.6" fill="none" stroke="#244C42" stroke-width="0.9" stroke-linecap="round" stroke-opacity="0.55"/><circle cx="32" cy="19.2" r="4.7" fill="#F4F1E8"/><path d="M22.2 40 C22.2 32.4 26.6 27.8 32 27.8 C37.4 27.8 41.8 32.4 41.8 40 C41.8 40.9 41.1 41.6 40.2 41.6 H23.8 C22.9 41.6 22.2 40.9 22.2 40 Z" fill="#F4F1E8" stroke="#244C42" stroke-width="1.4" paint-order="stroke"/><path d="M32 31.6 V38.4 M28.6 35 H35.4" fill="none" stroke="#244C42" stroke-width="2" stroke-linecap="round"/></g></svg>

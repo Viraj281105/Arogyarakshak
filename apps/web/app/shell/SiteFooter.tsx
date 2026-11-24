@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ArogyaWordmark } from "../components/brand/Brand";
 import { PUBLIC_FOOTER_LINKS } from "../components/public/publicRoutes";
 import { NAV_ITEMS } from "./nav";
 import { useLanguage } from "./ShellProvider";
@@ -20,7 +21,7 @@ export function SiteFooter() {
       <div className="shell-container site-footer-grid">
         <div className="site-footer-about">
           <p className="site-footer-brand">
-            <span>{copy.appName}</span>
+            <ArogyaWordmark size={40} devanagari={lang === "en"} />
             <span className="site-chip">{f.academic}</span>
           </p>
           <p>{f.disclaimer}</p>

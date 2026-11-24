@@ -67,9 +67,9 @@ test('every evidence state has fg/bg/border tokens in both themes and a distinct
     }
   }
   const labels = EVIDENCE_STATES.map((s) => EVIDENCE_COPY[s].label);
-  assert.equal(new Set(labels).size, 8);
+  assert.equal(new Set(labels).size, 9);
   const glyphs = EVIDENCE_STATES.map((s) => EVIDENCE_GLYPHS[s]);
-  assert.equal(new Set(glyphs).size, 8, 'each evidence state has its own glyph');
+  assert.equal(new Set(glyphs).size, 9, 'each evidence state has its own glyph');
   for (const g of glyphs) assert.ok(g.length > 0);
 });
 

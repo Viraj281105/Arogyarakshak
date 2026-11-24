@@ -1,6 +1,7 @@
 import localFont from "next/font/local";
 
-// CLS fix (WS4). The three families that set the hero text load through next/font/local,
+// Brand type (Deep Forest / Warm Ivory, 2026-11-24): Manrope for display and headlines, Inter for
+// body text. CLS fix (WS4). The two families that set the hero text load through next/font/local,
 // straight from the woff2 files already installed by @fontsource-variable (no network at build or
 // run time). Each family is ONE CSS family with two faces, like Fontsource's own CSS:
 //
@@ -22,50 +23,26 @@ import localFont from "next/font/local";
 // repeated verbatim in each call (tests/fonts.test.ts keeps them exact). The ext calls declare a
 // variable only so their class (and with it their @font-face) is applied on <html>.
 
-const arogyaFraunces = localFont({
-  src: [{ path: "../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2", weight: "100 900", style: "normal" }],
+const arogyaManrope = localFont({
+  src: [{ path: "../node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2", weight: "100 900", style: "normal" }],
   variable: "--font-face-display",
   display: "swap",
   preload: true,
-  adjustFontFallback: "Times New Roman",
+  adjustFontFallback: "Arial",
   declarations: [
-    { prop: "font-family", value: "arogyaFraunces" },
+    { prop: "font-family", value: "arogyaManrope" },
     { prop: "unicode-range", value: "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD" },
   ],
 });
 
-const arogyaFrauncesExt = localFont({
-  src: [{ path: "../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-ext-opsz-normal.woff2", weight: "100 900", style: "normal" }],
+const arogyaManropeExt = localFont({
+  src: [{ path: "../node_modules/@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2", weight: "100 900", style: "normal" }],
   variable: "--font-face-display-ext",
   display: "swap",
   preload: false,
   adjustFontFallback: false,
   declarations: [
-    { prop: "font-family", value: "arogyaFraunces" },
-    { prop: "unicode-range", value: "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF" },
-  ],
-});
-
-const arogyaJakarta = localFont({
-  src: [{ path: "../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2", weight: "200 800", style: "normal" }],
-  variable: "--font-face-headline",
-  display: "swap",
-  preload: true,
-  adjustFontFallback: "Arial",
-  declarations: [
-    { prop: "font-family", value: "arogyaJakarta" },
-    { prop: "unicode-range", value: "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD" },
-  ],
-});
-
-const arogyaJakartaExt = localFont({
-  src: [{ path: "../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-ext-wght-normal.woff2", weight: "200 800", style: "normal" }],
-  variable: "--font-face-headline-ext",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [
-    { prop: "font-family", value: "arogyaJakarta" },
+    { prop: "font-family", value: "arogyaManrope" },
     { prop: "unicode-range", value: "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF" },
   ],
 });
@@ -94,12 +71,11 @@ const arogyaInterExt = localFont({
   ],
 });
 
-/** Classes that define --font-face-display/-headline/-sans (and apply the ext faces); on <html>. */
+/** Classes that define --font-face-display/-sans (and apply the ext faces); on <html>. Headlines use the
+ * display face too (tokens.json font.headline). */
 export const fontVariables = [
-  arogyaFraunces.variable,
-  arogyaFrauncesExt.variable,
-  arogyaJakarta.variable,
-  arogyaJakartaExt.variable,
+  arogyaManrope.variable,
+  arogyaManropeExt.variable,
   arogyaInter.variable,
   arogyaInterExt.variable,
 ].join(" ");

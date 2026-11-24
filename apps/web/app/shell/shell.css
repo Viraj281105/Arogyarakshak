@@ -156,19 +156,9 @@ body {
 }
 
 .site-emblem {
-  display: inline-grid;
-  place-items: center;
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  border-radius: var(--radius-md);
-  background: var(--brand-forest);
-  border: 1px solid var(--accent-gold);
-  color: var(--brand-brass);
-}
-
-[data-theme="light"] .site-emblem {
-  color: var(--text-on-action);
 }
 
 .site-brand-text {
@@ -596,8 +586,8 @@ body {
   color: var(--text-primary);
 }
 
-.site-footer-brand > span:first-child {
-  font-size: 1.1rem;
+.site-footer-brand {
+  flex-wrap: wrap;
 }
 
 .site-footer-note {

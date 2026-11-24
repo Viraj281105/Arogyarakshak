@@ -1,0 +1,210 @@
+/* ArogyaRakshak brand (emblem, wordmark, animated logo, loader). Imported once in app/layout.tsx. */
+
+.ar-emblem {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* ---------- Wordmark ---------- */
+.ar-wordmark {
+  --ar-wordmark-size: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ar-wordmark-size) * 0.3);
+  min-width: 0;
+  color: var(--palette-deep-forest);
+}
+
+.ar-wordmark--dark {
+  color: var(--palette-warm-ivory);
+}
+
+[data-theme="dark"] .ar-wordmark--light {
+  color: var(--text-primary);
+}
+
+.ar-wordmark-text {
+  display: grid;
+  min-width: 0;
+  gap: 0.2em;
+  line-height: 1.15;
+}
+
+.ar-wordmark-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--ar-wordmark-size) * 0.5);
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.ar-wordmark-name-b {
+  font-weight: 600;
+}
+
+.ar-wordmark-sub {
+  line-height: 1.35;
+  font-family: var(--font-sans);
+  font-size: max(0.72rem, calc(var(--ar-wordmark-size) * 0.3));
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ar-wordmark--dark .ar-wordmark-sub {
+  color: var(--palette-muted-sage);
+}
+
+/* ---------- Reveal (ArogyaLogoAnimated): plays once, about 1.6 s ---------- */
+.ar-emblem--reveal .ar-e-shield {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  fill-opacity: 0;
+  animation:
+    ar-draw 0.9s var(--motion-easing-emphasized, cubic-bezier(0.3, 0, 0, 1)) forwards,
+    ar-fill 0.5s ease-out 0.6s forwards;
+}
+
+.ar-emblem--reveal .ar-e-inner,
+.ar-emblem--reveal .ar-e-vein {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: ar-draw 0.8s ease-out 0.9s forwards;
+}
+
+.ar-emblem--reveal .ar-e-leaf {
+  transform-box: view-box;
+  transform-origin: 32px 52px;
+  transform: scale(0.2);
+  opacity: 0;
+  animation: ar-grow 0.7s var(--motion-easing-emphasized, cubic-bezier(0.3, 0, 0, 1)) 0.7s forwards;
+}
+
+.ar-emblem--reveal .ar-e-leaf-r {
+  animation-delay: 0.8s;
+}
+
+.ar-emblem--reveal .ar-e-figure {
+  opacity: 0;
+  transform: translateY(4px);
+  animation: ar-rise 0.5s ease-out 1s forwards;
+}
+
+.ar-emblem--reveal .ar-e-cross {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: ar-draw 0.45s ease-out 1.3s forwards;
+}
+
+/* ---------- Loading pulse (ArogyaLoader): calm, continuous ---------- */
+.ar-emblem--loading .ar-e-leaf {
+  transform-box: view-box;
+  transform-origin: 32px 52px;
+  animation: ar-breathe 1.8s ease-in-out infinite;
+}
+
+.ar-emblem--loading .ar-e-leaf-r {
+  animation-delay: 0.15s;
+}
+
+.ar-emblem--loading .ar-e-inner {
+  stroke-dasharray: 22 78;
+  stroke-opacity: 0.9;
+  animation: ar-sweep 1.8s linear infinite;
+}
+
+.ar-loader {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.ar-loader--inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0;
+}
+
+.ar-loader-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+@keyframes ar-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ar-fill {
+  to {
+    fill-opacity: 1;
+  }
+}
+
+@keyframes ar-grow {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ar-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ar-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+}
+
+@keyframes ar-sweep {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ar-emblem--reveal *,
+  .ar-emblem--loading * {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+    fill-opacity: 1 !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .ar-emblem--loading .ar-e-inner {
+    stroke-dasharray: none;
+    stroke-opacity: 0.35;
+  }
+}
+
+[data-motion="reduce"] .ar-emblem--reveal *,
+[data-motion="reduce"] .ar-emblem--loading * {
+  animation: none !important;
+  stroke-dashoffset: 0 !important;
+  fill-opacity: 1 !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+[data-motion="reduce"] .ar-emblem--loading .ar-e-inner {
+  stroke-dasharray: none;
+  stroke-opacity: 0.35;
+}
