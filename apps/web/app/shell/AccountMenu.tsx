@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { accountPaths } from "../shared/api-client";
 import type { Language } from "../shared/i18n/types";
 import { apiFetch } from "../lib/apiFetch";
+import { clearActiveCase, readActiveCase } from "../lib/caseStore";
 import { markSignedOut } from "../lib/session";
 import { SETTINGS_PATH, WORKSPACE_PATH } from "./nav";
 import { shellCopy } from "./shellCopy";
@@ -58,6 +59,8 @@ export function AccountMenu({
       // 401: the session had already ended; either way this browser is signed out now.
       if (!res.ok && res.status !== 401) throw new Error(String(res.status));
       markSignedOut();
+      // An owned case cannot be opened without the session; guest cases in this tab are kept.
+      if (readActiveCase()?.owned) clearActiveCase();
       onClose(false);
       router.push("/");
     } catch {

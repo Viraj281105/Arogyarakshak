@@ -28,6 +28,7 @@ const en = {
     updated: "Last run {when}",
     errorRef: "Error reference: {id}",
     summaryLabel: "Stored summary",
+    summaryNote: "Figures as the automatic check stored them, in its own units; open the check to see how each was computed.",
   },
   checks: {
     billnyay_audit: "Bill check against CGHS rates",
@@ -88,6 +89,7 @@ export const overviewCopy: Record<Language, OverviewCopy> = {
       updated: "अंतिम बार चली: {when}",
       errorRef: "त्रुटि संदर्भ: {id}",
       summaryLabel: "संग्रहीत सारांश",
+      summaryNote: "आंकड़े वैसे ही जैसे स्वचालित जाँच ने संग्रहीत किए, उसकी अपनी इकाइयों में; हर आंकड़ा कैसे निकला यह देखने के लिए जाँच खोलें।",
     },
     checks: {
       billnyay_audit: "CGHS दरों से बिल जाँच",
@@ -143,6 +145,7 @@ export const overviewCopy: Record<Language, OverviewCopy> = {
       updated: "शेवटची वेळ: {when}",
       errorRef: "त्रुटी संदर्भ: {id}",
       summaryLabel: "साठवलेला सारांश",
+      summaryNote: "स्वयंचलित तपासणीने साठवलेले आकडे, तिच्याच एककांत; प्रत्येक आकडा कसा काढला हे पाहण्यासाठी तपासणी उघडा.",
     },
     checks: {
       billnyay_audit: "CGHS दरांशी बिल तपासणी",

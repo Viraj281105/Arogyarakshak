@@ -214,6 +214,8 @@ function InsightSummary({ c, summary }: { c: WsCopy; summary: Record<string, unk
   const rows = Object.entries(summary ?? {}).filter(([, v]) => typeof v === "number" || typeof v === "string" || typeof v === "boolean");
   if (rows.length === 0) return null;
   return (
+    <>
+    <p className="ws-muted">{c.overview.summaryNote}</p>
     <dl className="ws-facts ws-facts-compact" aria-label={c.overview.summaryLabel}>
       {rows.slice(0, 8).map(([k, v]) => (
         <div key={k}>
@@ -222,5 +224,6 @@ function InsightSummary({ c, summary }: { c: WsCopy; summary: Record<string, unk
         </div>
       ))}
     </dl>
+    </>
   );
 }

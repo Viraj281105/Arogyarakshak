@@ -632,10 +632,9 @@
 /* ---------- Settings ---------- */
 
 .ws-fieldset {
-  margin: 0 0 var(--space-md);
-  padding: var(--space-sm) 0 0;
+  margin: 0 0 var(--space-lg);
+  padding: 0;
   border: 0;
-  border-top: 1px solid var(--border-subtle);
   min-width: 0;
 }
 

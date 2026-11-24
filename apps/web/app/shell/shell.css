@@ -1,7 +1,7 @@
 /*
  * App shell (WS4): skip link, sticky header, drawer, footer, page primitives.
- * Tokens only (generated/tokens.css). Breakpoints: < 640 phone, 640–1023 tablet, >= 1024 desktop
- * (SiteHeader.tsx's COMPACT_QUERY must match the 1024 one). Every animation sits inside
+ * Tokens only (generated/tokens.css). Breakpoints: < 640 phone, 640–1279 tablet, >= 1280 desktop
+ * header (SiteHeader.tsx's COMPACT_QUERY must match the 1280 one). Every animation sits inside
  * prefers-reduced-motion: no-preference. The header has a fixed height, so nothing in it (font
  * swap, scroll state, language) can shift the page.
  */
@@ -375,8 +375,10 @@ body {
   }
 }
 
-/* Tablet: brand + Devanagari, language, theme, menu. */
-@media (min-width: 640px) and (max-width: 1023.98px) {
+/* Tablet and small laptops: brand + Devanagari, language, account, theme, menu. Wave 3 M4: the
+   primary nav has five items (Platform, How it works, Security, Help, My cases), which overlapped
+   the actions at 1024 px (measured), so the inline nav starts at 1280 px now. */
+@media (min-width: 640px) and (max-width: 1279.98px) {
   .site-brand-tagline,
   .site-badge {
     display: none;
@@ -384,7 +386,7 @@ body {
 }
 
 /* Desktop: inline nav, no menu button. */
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .site-nav {
     display: block;
   }
@@ -394,7 +396,7 @@ body {
 }
 
 /* The tagline and badge only where they do not squeeze the nav. */
-@media (min-width: 1024px) and (max-width: 1279.98px) {
+@media (min-width: 1280px) and (max-width: 1599.98px) {
   .site-brand-tagline,
   .site-badge {
     display: none;
@@ -822,8 +824,9 @@ body:has(.demo-banner) .site-footer {
   white-space: nowrap;
 }
 
-/* Icon only where the header is tight; the accessible name always carries the label. */
-@media (max-width: 1279.98px) {
+/* Icon only where the header is tight (measured: at 1280 px the five nav items leave no room
+   for the email); the accessible name always carries the label. */
+@media (max-width: 1599.98px) {
   .site-account-text {
     display: none;
   }

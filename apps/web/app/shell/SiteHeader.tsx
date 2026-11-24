@@ -14,7 +14,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { TransitionLink } from "./TransitionLink";
 
 // Must match the desktop breakpoint in shell.css (inline nav, no menu button).
-const COMPACT_QUERY = "(max-width: 1023.98px)";
+const COMPACT_QUERY = "(max-width: 1279.98px)";
 
 /**
  * The sticky site header. Scroll-aware without changing its height (so it cannot cause layout
