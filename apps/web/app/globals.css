@@ -4951,3 +4951,19 @@ tbody tr:hover {
     grid-row: 1;
   }
 }
+
+/* Settings > "Reduce motion" (Wave 3 M4): the in-app override of prefers-reduced-motion. The
+   pre-paint script in layout.tsx sets data-motion="reduce" from localStorage; motion code reads it
+   through readReducedMotion(). CSS animations and transitions that are not behind a media query
+   are stopped here. */
+html[data-motion="reduce"] {
+  scroll-behavior: auto !important;
+}
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

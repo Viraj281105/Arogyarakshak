@@ -41,6 +41,47 @@ export function useSimpleLanguage(): boolean {
   );
 }
 
+// --- Read-aloud on/off (Settings page; per-viewer convenience stored only in this browser) -------
+
+const READ_ALOUD_KEY = "arogyarakshak.readAloud";
+const readAloudListeners = new Set<() => void>();
+let readAloudValue: boolean | null = null;
+
+function readReadAloud(): boolean {
+  if (readAloudValue === null) {
+    try {
+      readAloudValue = window.localStorage.getItem(READ_ALOUD_KEY) !== "off";
+    } catch {
+      readAloudValue = true;
+    }
+  }
+  return readAloudValue;
+}
+
+export function setReadAloudEnabled(on: boolean): void {
+  readAloudValue = on;
+  try {
+    if (on) window.localStorage.removeItem(READ_ALOUD_KEY);
+    else window.localStorage.setItem(READ_ALOUD_KEY, "off");
+  } catch {
+    // storage unavailable: the choice lasts until reload
+  }
+  if (!on && typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  readAloudListeners.forEach((l) => l());
+}
+
+/** Whether the Listen buttons are offered (on unless turned off in Settings). */
+export function useReadAloudEnabled(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      readAloudListeners.add(cb);
+      return () => readAloudListeners.delete(cb);
+    },
+    readReadAloud,
+    () => true
+  );
+}
+
 // --- Installed speech voices ---------------------------------------------------------------------
 
 const EMPTY_VOICES: SpeechSynthesisVoice[] = [];

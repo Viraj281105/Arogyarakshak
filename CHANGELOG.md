@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Wave 3, Milestones 3 and 4: public site, workspace and sign-in (2026-11-24, branch `wave3/m3m4-integration`)
+
+Both milestones were signed off by the maintainer. Handoffs: `docs/superpowers/handoff/wave3-m3-public.md`, `wave3-m4-workspace.md`.
+
+#### Added
+- **Public site:**
+  - a new landing page ("Healthcare deserves transparency.");
+  - `/platform` and six `/platform/<module>` pages (static, `dynamicParams = false`);
+  - `/how-it-works`, `/security` (implemented controls only, each with its source), `/about`, and `/help` (a searchable FAQ);
+  - copy in `components/public/copy`, with Hindi and Marathi as UNREVIEWED stubs.
+- **Sign-in:**
+  - pages `/login`, `/register`, `/forgot-password`, `/reset-password` and `/verify`; reset and verify read `#token=` and strip it from the address bar;
+  - an account menu in the header, loaded on first use;
+  - `lib/apiFetch.ts`, which sends the session cookie, and an SSE stream with `withCredentials` for owned cases.
+- **Workspace:**
+  - the `/app` case desk: the server list for accounts, `sessionStorage` guest cases (D2) and "Keep in my account";
+  - `/app/case` with insights, timeline, an SVG evidence graph with a table alternative, and the documents kept;
+  - `/app/case/<module>` and `/app/case/reports`;
+  - `/app/settings`, with change password, delete account and reduced motion.
+- `packages/api-client`: `accounts.ts` and a `credentials` option.
+
+#### Changed
+- The header switches to the drawer below 1280 px. Public routes have one source, `components/public/publicRoutes.ts`.
+- `HomeWorkspace.tsx` and `useCaseSession.ts` were replaced by the new workspace files.
+- Every web route is now under 170 KB, and `KNOWN_VIOLATIONS` is empty (`/app` went from 182.84 to 166.27 KB).
+- `docker-compose.yml` passes `CORS_ORIGINS`, `AUTH_TRUSTED_ORIGINS` and `SESSION_COOKIE_SECURE` to the API.
+- The registration response no longer suggests a password reset, which needs email the server cannot send yet.
+
+#### Not done / open
+- Mobile sign-in and owned-case downloads (M7).
+- Native-speaker Hindi and Marathi.
+- A screen-reader pass, and every page checked at every width.
+- D1a and the email channel.
+
 ### Wave 3, Milestones 1, 2 and MA: UX architecture, design foundation, user accounts (2026-11-24, branch `wave3/integration`)
 
 Plan `docs/superpowers/plans/2026-11-23-wave3.md`; audit and screen inventory `docs/design/wave3-ux-architecture.md`.

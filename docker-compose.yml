@@ -69,6 +69,22 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-text}
       # production refuses to start together with demo mode (app.config).
       APP_ENV: ${APP_ENV:-development}
+      # Accounts (ADR-026). The web app (http://localhost:3000) calls the API (:8000) with
+      # `credentials: "include"` while a session may exist, so the session cookie travels; a
+      # browser allows that only when CORS_ORIGINS lists the web origin explicitly (a wildcard
+      # disables credentials: guest cases still work then, accounts do not).
+      # AUTH_TRUSTED_ORIGINS (empty = the explicit CORS_ORIGINS) is the Origin allow-list for
+      # cookie-authenticated writes and browser logins.
+      # localhost:3000 and localhost:8000 are the same SITE, so the SameSite=Strict cookie is sent.
+      # Open both as `localhost`; 127.0.0.1 for one and localhost for the other are different sites.
+      # Production: list the real HTTPS web origin(s) in both; never a wildcard.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:-}
+      # true = `__Host-arogya_session`, Secure (the production setting; production refuses false).
+      # Chromium and Firefox treat http://localhost as a secure context and accept it; set false only
+      # for plain-HTTP development on another host name, or a browser that refuses Secure cookies
+      # on http://localhost.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       OCR_LOW_CONFIDENCE_THRESHOLD: ${OCR_LOW_CONFIDENCE_THRESHOLD:-0.5}
       SAFETY_RULE_REQUIRED_APPROVALS: ${SAFETY_RULE_REQUIRED_APPROVALS:-1}
       # LLM reliability (ADR-024), read by kadi.llm from the process environment. Empty or

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 
 import { API_BASE } from "../lib/apiBase";
+import { apiFetch } from "../lib/apiFetch";
 
 export interface ApiState<T> {
   data: T | null;
@@ -110,7 +111,7 @@ export function useApi<T>() {
           fetchOptions.body = JSON.stringify(body);
         }
 
-        const response = await fetch(`${API_BASE}${path}`, fetchOptions);
+        const response = await apiFetch(path, fetchOptions);
 
         if (!response.ok) {
           let errorMessage = `API error: HTTP ${response.status}`;

@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { Language, translations } from "../translations";
-import { API_BASE, caseAuthHeaders } from "../hooks/useApi";
+import { caseAuthHeaders } from "../hooks/useApi";
 import { ResolutionDecision, formatScore, resolutionPaths, signalRows } from "../lib/resolution";
 import { StatePanel } from "./clinical/StatePanel";
+import { apiFetch } from "../lib/apiFetch";
 
 interface EntityResolutionReviewProps {
   caseId: string;
@@ -25,7 +26,7 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}${resolutionPaths.pending(caseId)}`, { headers: caseAuthHeaders(caseToken) })
+    apiFetch(`${resolutionPaths.pending(caseId)}`, { headers: caseAuthHeaders(caseToken) })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<ResolutionDecision[]>;
@@ -49,7 +50,7 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
   const answer = async (decision: ResolutionDecision, sameEntity: boolean) => {
     setBusyId(decision.id);
     try {
-      const res = await fetch(`${API_BASE}${resolutionPaths.feedback(caseId, decision.id)}`, {
+      const res = await apiFetch(`${resolutionPaths.feedback(caseId, decision.id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...caseAuthHeaders(caseToken) },
         body: JSON.stringify({ same_entity: sameEntity }),

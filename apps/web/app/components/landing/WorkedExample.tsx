@@ -79,7 +79,7 @@ export const WorkedExample: React.FC = () => {
           This bill is made up. The reference rates are the real {CGHS_VERSION} rows BillNyay uses, and each line gets
           the status the real audit would give it. Choose a line to see why.
         </p>
-        <span className="lp-illustrative-pill">Illustrative — not a real patient&apos;s bill</span>
+        <span className="lp-illustrative-pill">Synthetic example — not a real patient&apos;s bill</span>
       </header>
 
       <div className="lp-example-grid" data-reveal>

@@ -18,7 +18,37 @@ export interface ShellCopy {
   prototype: string;
   prototypeTitle: string;
   skipToContent: string;
-  nav: { primary: string; home: string; check: string; modules: string; reviewer: string };
+  nav: {
+    primary: string;
+    home: string;
+    check: string;
+    modules: string;
+    reviewer: string;
+    platform: string;
+    howItWorks: string;
+    security: string;
+    help: string;
+    about: string;
+    workspace: string;
+    caseOverview: string;
+    reports: string;
+    settings: string;
+  };
+  /** Label of the Kadi platform page in the command palette. */
+  platformKadi: string;
+  /** Header account control and its menu (Wave 3 M4). */
+  account: {
+    signIn: string;
+    register: string;
+    menuLabel: string;
+    signedInAs: string;
+    myCases: string;
+    settings: string;
+    signOut: string;
+    signingOut: string;
+    signOutFailed: string;
+    sessionEnded: string;
+  };
   menu: { open: string; close: string; title: string; checks: string };
   language: { label: string };
   theme: { toDark: string; toLight: string };
@@ -63,6 +93,28 @@ export const shellCopy: Record<Language, ShellCopy> = {
       check: "Check a document",
       modules: "The five checks",
       reviewer: "Reviewer workspace",
+      platform: "Platform",
+      howItWorks: "How it works",
+      security: "Security",
+      help: "Help",
+      about: "About",
+      workspace: "My cases",
+      caseOverview: "Open case",
+      reports: "Case reports",
+      settings: "Settings",
+    },
+    platformKadi: "Kadi (documents)",
+    account: {
+      signIn: "Sign in",
+      register: "Create an account",
+      menuLabel: "Account",
+      signedInAs: "Signed in as",
+      myCases: "My cases",
+      settings: "Settings",
+      signOut: "Sign out",
+      signingOut: "Signing out…",
+      signOutFailed: "Could not sign out. Check the connection and try again.",
+      sessionEnded: "Your session ended. Sign in again to open your cases.",
     },
     menu: { open: "Open menu", close: "Close menu", title: "Menu", checks: "Checks" },
     language: { label: "Language" },
@@ -104,6 +156,29 @@ export const shellCopy: Record<Language, ShellCopy> = {
       check: "दस्तावेज़ जाँचें",
       modules: "पाँच जाँचें",
       reviewer: "समीक्षक कार्यक्षेत्र",
+      // UNREVIEWED: NEEDS NATIVE-SPEAKER QA (Wave 3 M4) — from here to the end of `account`.
+      platform: "प्लेटफ़ॉर्म",
+      howItWorks: "यह कैसे काम करता है",
+      security: "सुरक्षा",
+      help: "सहायता",
+      about: "परिचय",
+      workspace: "मेरे केस",
+      caseOverview: "खुला केस",
+      reports: "केस रिपोर्ट",
+      settings: "सेटिंग्स",
+    },
+    platformKadi: "कडी (दस्तावेज़)",
+    account: {
+      signIn: "साइन इन करें",
+      register: "खाता बनाएँ",
+      menuLabel: "खाता",
+      signedInAs: "साइन इन:",
+      myCases: "मेरे केस",
+      settings: "सेटिंग्स",
+      signOut: "साइन आउट करें",
+      signingOut: "साइन आउट हो रहा है…",
+      signOutFailed: "साइन आउट नहीं हो सका। कनेक्शन जाँचकर फिर कोशिश करें।",
+      sessionEnded: "आपका सत्र समाप्त हो गया। अपने केस खोलने के लिए फिर से साइन इन करें।",
     },
     menu: { open: "मेनू खोलें", close: "मेनू बंद करें", title: "मेनू", checks: "जाँचें" },
     language: { label: "भाषा" },
@@ -147,6 +222,29 @@ export const shellCopy: Record<Language, ShellCopy> = {
       check: "दस्तऐवज तपासा",
       modules: "पाच तपासण्या",
       reviewer: "परीक्षक कार्यक्षेत्र",
+      // UNREVIEWED: NEEDS NATIVE-SPEAKER QA (Wave 3 M4) — from here to the end of `account`.
+      platform: "प्लॅटफॉर्म",
+      howItWorks: "हे कसे चालते",
+      security: "सुरक्षा",
+      help: "मदत",
+      about: "माहिती",
+      workspace: "माझे केस",
+      caseOverview: "उघडलेली केस",
+      reports: "केस अहवाल",
+      settings: "सेटिंग्ज",
+    },
+    platformKadi: "कडी (दस्तऐवज)",
+    account: {
+      signIn: "साइन इन करा",
+      register: "खाते तयार करा",
+      menuLabel: "खाते",
+      signedInAs: "साइन इन:",
+      myCases: "माझे केस",
+      settings: "सेटिंग्ज",
+      signOut: "साइन आउट करा",
+      signingOut: "साइन आउट होत आहे…",
+      signOutFailed: "साइन आउट झाले नाही. कनेक्शन तपासून पुन्हा प्रयत्न करा.",
+      sessionEnded: "तुमचे सत्र संपले. तुमचे केस उघडण्यासाठी पुन्हा साइन इन करा.",
     },
     menu: { open: "मेनू उघडा", close: "मेनू बंद करा", title: "मेनू", checks: "तपासण्या" },
     language: { label: "भाषा" },
