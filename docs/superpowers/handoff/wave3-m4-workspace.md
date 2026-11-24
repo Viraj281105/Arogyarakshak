@@ -158,3 +158,7 @@ container removed, browser tab closed.
    (`session_transport: "bearer"`), token in SecureStore, `Authorization` via `headersFor`; owned cases have
    `access_token: null`, so PDF/ZIP/SSE must use the header and save bytes (never `?access_token=`); claim flow
    for device-held guest cases.
+
+## Maintainer sign-off
+
+Approved by the maintainer on 2026-11-24. This followed the integrator's end-to-end browser check on `wave3/m3m4-integration`, against the API with a throwaway SQLite database: register, sign in, upload a synthetic bill as an owned case, case overview, `/app/case/billnyay`, the case list surviving a reload, and settings at 390 px in light mode. The integrator also re-ran web lint, the 290 web tests, the build, the bundle budget (every route under 170 KB), the 79 root tests, `check:generated`, and the mobile type-check and 215 tests.

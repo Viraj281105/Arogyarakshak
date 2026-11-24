@@ -365,7 +365,20 @@ None. Ready for Product Phase 2 when directed by user.
     - **ADR-027:** Kadi privacy leaf package.
     - Handoffs are in `docs/superpowers/handoff/wave3-*.md`.
   - **Checks on the merged tree:** 2,369 passed / 9 skipped / 0 failed in one pytest run; 6/6 import contracts; ruff clean; web lint, 256 web tests, build and bundle budget pass (`/app` 182.74 KB); mobile type-check and 215 tests pass; root 75 tests; `check:generated` passes.
-  - **Next:** M3 (public site) and M4 (workspace with sign-in), after this PR.
+  - PR #176 (M1, M2, MA) was merged to `main` on 2026-11-24.
+  - **2026-11-24: M3 and M4 are merged on `wave3/m3m4-integration`; the maintainer signed off on both.**
+    - **M3 (public site):** a new landing page, `/platform`, six `/platform/<module>` pages, `/how-it-works`, `/security`, `/about` and `/help`. The copy is checked against the code and ADRs, with no testimonials or metrics. Hindi and Marathi are UNREVIEWED stubs, and the page says so.
+    - **M4 (workspace):**
+      - Sign-in pages: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify`. They say honestly that no email is sent.
+      - Session cookie on every request and on the SSE stream.
+      - A lazily loaded account menu.
+      - The `/app` case desk: the server-side list for accounts, and `sessionStorage` per tab for guests (D2), with "Keep in my account" to claim a case.
+      - `/app/case` (overview, timeline, evidence graph, documents kept) and `/app/case/<module>`.
+      - `/app/case/reports`, with downloads that send the cookie and never put a token in the URL.
+      - `/app/settings`, including account deletion.
+      - The `docker-compose.yml` API service now gets the CORS, cookie and trusted-origin variables.
+    - Every web route is under 170 KB (`/app` 166.27), so `KNOWN_VIOLATIONS` is empty.
+  - **Next:** M5 (module workspaces), M6 (side panels; the assistant only after an ADR), M7 (mobile, including bearer sign-in and header-based downloads for owned cases), M8 (polish), M9 (QA). The decisions D1a and the email channel are still open.
 
 ### WS0 follow-ups and the next workstreams (2026-11-15)
 - [ ] **Web bundle (WS4)**: *(Wave 1: ceilings lowered to `/` 223, `/clinical-review` 191, `/_not-found` 180, `/_global-error` 172 gzip KB and `/motion-lab` removed, as recorded by WS4; still above the 170 KB budget, so this stays open.)* every route's initial JS is above the 170 KB spec budget (gzip KB ceilings recorded in `KNOWN_VIOLATIONS`, `scripts/build-checks/web-bundle-budget.mjs`: `/` 255, `/clinical-review` 203, `/motion-lab` 231, `/_not-found` 184, `/_global-error` 175). WS4 must reduce them and delete the entries (the ratchet fails when a fixed route stays in the map).

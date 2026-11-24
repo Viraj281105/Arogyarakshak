@@ -44,7 +44,8 @@ AUTH_PREFIX = "/auth"
 
 ACCEPTED_REGISTRATION = (
     "If this email address can be registered, the account is ready: sign in with it. "
-    "If it is already registered, sign in or reset the password instead."
+    "If it is already registered, sign in with its existing password. Password reset needs email, "
+    "which this server cannot send yet (ADR-026)."
 )
 ACCEPTED_EMAIL_REQUEST = (
     "If an account matches, a message is on its way. Email delivery is not configured on this "
