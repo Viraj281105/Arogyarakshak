@@ -1,58 +1,45 @@
 import React from "react";
 import { TransitionLink } from "../../shell/TransitionLink";
+import { publicCopy } from "../public/publicCopy";
 import { ScrollProgressSection } from "./ScrollProgressSection";
 import { HeroIllustration } from "./HeroIllustration";
 
-const ASSURANCES = [
-  {
-    title: "Your original file is not kept",
-    body: "It is read, then discarded. Extracted details stay until you delete the case.",
-    icon: <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
-  },
-  {
-    title: "Nothing starts without consent",
-    body: "The upload stays disabled until you tick the consent box yourself.",
-    icon: <path d="M5 12.5l4.2 4.2L19 7" />,
-  },
-  {
-    title: "Every finding shows its basis",
-    body: "The reference rate or rule is shown beside it — or the line is marked as not compared.",
-    icon: <path d="M4 5h11l5 5v9H4zM15 5v5h5M8 14h8M8 17h5" />,
-  },
+const ASSURANCE_ICONS = [
+  <path key="0" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
+  <path key="1" d="M5 12.5l4.2 4.2L19 7" />,
+  <path key="2" d="M4 5h11l5 5v9H4zM15 5v5h5M8 14h8M8 17h5" />,
 ];
 
 /** Server Component (WS4): static hero copy; only the scroll-progress wrapper is client code. */
 export const LandingHero: React.FC = () => {
+  const c = publicCopy().landing;
   return (
     <ScrollProgressSection progressVar="--hero-progress" className="lp-hero" labelledBy="lp-hero-title">
       <div className="lp-hero-copy">
         <p className="lp-eyebrow">
           <span className="lp-eyebrow-dot" aria-hidden="true" />
-          Hospital bills · insurance denials · medicine prices
+          {c.eyebrow}
         </p>
         <h1 id="lp-hero-title" className="lp-display">
-          Know what your hospital bill <em>should</em> cost.
+          {c.headlineLead} <em>{c.headlineEmphasis}</em>
         </h1>
-        <p className="lp-lede">
-          ArogyaRakshak reads a bill, insurer letter or prescription and checks it line by line against public CGHS
-          rates, NPPA medicine price ceilings and IRDAI rules — then explains what it found in plain language.
-        </p>
+        <p className="lp-lede">{c.lede}</p>
         <div className="lp-cta-row">
-          <TransitionLink href="/app#intake-dropzone" className="btn btn-primary btn-lg">
-            Check a document
+          <TransitionLink href={c.primaryCta.href} className="btn btn-primary btn-lg">
+            {c.primaryCta.label}
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </TransitionLink>
-          <a href="#lp-example" className="btn btn-ghost btn-lg">
-            See an example first
-          </a>
+          <TransitionLink href={c.secondaryCta.href} className="btn btn-ghost btn-lg">
+            {c.secondaryCta.label}
+          </TransitionLink>
         </div>
         <ul className="lp-assurances">
-          {ASSURANCES.map((a) => (
+          {c.assurances.map((a, i) => (
             <li key={a.title}>
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon lp-assurance-icon">
-                {a.icon}
+                {ASSURANCE_ICONS[i]}
               </svg>
               <div>
                 <strong>{a.title}</strong>
@@ -62,13 +49,12 @@ export const LandingHero: React.FC = () => {
           ))}
         </ul>
         <p className="lp-reviewer-note">
-          Reviewing cases as a clinician?{" "}
-          <TransitionLink href="/review">Open the reviewer workspace →</TransitionLink>
+          {c.reviewerNote} <TransitionLink href={c.reviewerLink.href}>{c.reviewerLink.label} →</TransitionLink>
         </p>
       </div>
       <figure className="lp-hero-figure">
         <HeroIllustration />
-        <figcaption>Illustration: a made-up bill, checked against real CGHS reference rates.</figcaption>
+        <figcaption>{c.figureCaption}</figcaption>
       </figure>
     </ScrollProgressSection>
   );

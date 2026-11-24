@@ -2,19 +2,20 @@ import React from "react";
 import { ScrollProgressSection } from "./ScrollProgressSection";
 
 // What actually happens to a document, in order. Each claim here is backed by code:
-// the 10 MB limit (apps/api config max_upload_bytes), English OCR (kadi/ocr), identifier
-// redaction of the stored excerpt (kadi/redaction.py), in-browser AES-GCM for the claim
+// the 10 MB limit (apps/api config max_upload_bytes) and the upload allow-list (kadi/cases.py),
+// English OCR by default (kadi/ocr), identifier
+// redaction of the stored excerpt (kadi/privacy/redaction.py), in-browser AES-GCM for the claim
 // pack (lib/packageCrypto.ts) and patient-initiated deletion (SEC-03).
 const STEPS = [
   {
     title: "You add a document",
     body: "A photo, PDF or text export of a bill, discharge summary, insurer letter or prescription — up to 10 MB. Nothing is sent until you tick consent.",
-    facts: ["JPG · PNG · PDF · TXT · CSV", "Consent is opt-in"],
+    facts: ["PDF · JPG · PNG · WEBP · BMP · TXT · CSV", "Consent is opt-in"],
     icon: <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />,
   },
   {
     title: "Kadi reads it",
-    body: "Scans are read with English text recognition; line items, amounts, dates and names are pulled out. Direct identifiers are stripped from the excerpt that is kept, and the file itself is discarded.",
+    body: "Scans are read with text recognition (English by default); line items, amounts, dates and names are pulled out. Direct identifiers are stripped from the excerpt that is kept, and the file itself is discarded.",
     facts: ["Original file discarded", "Identifiers redacted"],
     icon: <path d="M4 6h16M4 10h10M4 14h16M4 18h7M17 15l3 3" />,
   },
@@ -37,7 +38,7 @@ export const CaseJourney: React.FC = () => {
   return (
     <ScrollProgressSection progressVar="--journey-progress" className="lp-section lp-journey" labelledBy="lp-journey-title">
       <header className="lp-section-head" data-reveal>
-        <p className="lp-kicker">How a case moves</p>
+        <p className="lp-kicker">Document → insight → action</p>
         <h2 id="lp-journey-title" className="lp-heading">From a folded bill to a clear next step.</h2>
       </header>
       <div className="lp-journey-track">

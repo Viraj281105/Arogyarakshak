@@ -1,35 +1,45 @@
 "use client";
 
 import React, { useRef } from "react";
-import type { Translations } from "../../translations";
 import { useScrollReveal } from "../../hooks/useScrollMotion";
 import { WorkedExample } from "./WorkedExample";
-import { ModuleOverview } from "./ModuleOverview";
 
 /**
- * The landing story (`/`). Module cards link into the workspace at `/app#module-<id>`. English only for now: the Hindi and Marathi
- * versions of this copy are pending native-speaker review (apps/web/AGENTS.md), so the
- * language switch currently changes the module names and descriptions here, not the prose.
+ * The landing story (`/`), Wave 3 M3. Server-rendered sections arrive as slots (WS4: their content
+ * ships no client JS); this wrapper adds the scroll reveal and the interactive worked example.
+ * Order: hero, six capabilities, document-to-insight story, worked example, how it works, evidence,
+ * reference coverage, privacy, languages, FAQ, call to action.
  *
- * WS4: the static sections (hero, journey, reference coverage) are Server Components rendered by
- * app/page.tsx and passed in as slots, so their content ships no client JS; only the worked
- * example (interactive) and the module cards (language + tab opening) are client code.
+ * English only: the Hindi and Marathi landing copy is pending native-speaker review
+ * (components/public/publicCopy.ts); PublicLanguageNotice says so when hi or mr is selected.
  */
 export const Landing: React.FC<{
-  t: Translations;
   hero: React.ReactNode;
   journey: React.ReactNode;
   coverage: React.ReactNode;
-}> = ({ t, hero, journey, coverage }) => {
+  capabilities: React.ReactNode;
+  steps: React.ReactNode;
+  evidence: React.ReactNode;
+  privacy: React.ReactNode;
+  languages: React.ReactNode;
+  faq: React.ReactNode;
+  cta: React.ReactNode;
+}> = ({ hero, journey, coverage, capabilities, steps, evidence, privacy, languages, faq, cta }) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
   return (
     <div ref={ref} className="lp">
       {hero}
+      {capabilities}
       {journey}
       <WorkedExample />
-      <ModuleOverview t={t} />
+      {steps}
+      {evidence}
       {coverage}
+      {privacy}
+      {languages}
+      {faq}
+      {cta}
     </div>
   );
 };
