@@ -383,7 +383,7 @@ export const PUBLIC_EN: PublicCopy = {
     lede: "Only controls that exist in this build are listed, each with the place it can be checked. The limitations follow, stated as plainly.",
     controlsHeading: "Controls in this build",
     controls: [
-      { title: "Your original file is never stored", body: "Uploads are processed in memory and dropped after extraction. A CI guardrail fails the build if code writes uploads to persistent folders.", source: "ADR-003 · scripts/ci_guardrails.py" },
+      { title: "Your original file is never stored", body: "Uploads are processed in memory and dropped after extraction. A CI guardrail also fails if an upload storage folder (such as uploads/ or storage/documents/) appears in the repository.", source: "ADR-003 · scripts/ci_guardrails.py" },
       { title: "Direct identifiers are removed before storage", body: "Names, phone numbers, email addresses, Aadhaar, PAN and ABHA numbers and addresses are stripped from the kept excerpt. The patient name is used in memory only.", source: "packages/kadi/kadi/privacy/redaction.py" },
       { title: "Consent gates shared case context", body: "Checks that read case context verify the consent stored on the case. A request cannot grant itself consent.", source: "apps/api/app/consent.py" },
       { title: "Guest cases are opened by a per-case key", body: "A random key is returned once at creation; the server keeps only its hash and compares in constant time.", source: "ADR-009 · apps/api/app/case_auth.py" },
@@ -480,6 +480,7 @@ export const PUBLIC_EN: PublicCopy = {
     lede: "Search the questions below, read a short guide for each capability, or find out how to delete your data.",
     search: {
       label: "Search help",
+      filterLabel: "Filter by topic",
       placeholder: "Try \"delete\", \"Groq\" or \"PM-JAY\"",
       all: "All",
       empty: "No question matches. Try a shorter word, or choose All.",

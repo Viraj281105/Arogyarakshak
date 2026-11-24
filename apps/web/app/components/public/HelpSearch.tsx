@@ -6,6 +6,7 @@ import { filterFaq, type FaqTopic } from "./faqFilter";
 
 export interface HelpSearchLabels {
   label: string;
+  filterLabel: string;
   placeholder: string;
   all: string;
   empty: string;
@@ -40,7 +41,7 @@ export function HelpSearch({ items, labels }: { items: readonly FaqItem[]; label
           aria-describedby={statusId}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <ul className="pub-chips" aria-label={labels.label}>
+        <ul className="pub-chips" aria-label={labels.filterLabel}>
           <li>
             <button type="button" className="pub-chip" aria-pressed={topic === null} onClick={() => setTopic(null)}>
               {labels.all}

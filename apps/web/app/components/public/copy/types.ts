@@ -186,7 +186,7 @@ export interface PublicCopy {
     kicker: string;
     headline: string;
     lede: string;
-    search: { label: string; placeholder: string; all: string; empty: string; count: string; topics: Record<FaqItem["topic"], string> };
+    search: { label: string; filterLabel: string; placeholder: string; all: string; empty: string; count: string; topics: Record<FaqItem["topic"], string> };
     faqHeading: string;
     guidesHeading: string;
     guidesLede: string;

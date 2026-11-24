@@ -73,7 +73,7 @@ export function PublicHero({
   aside?: React.ReactNode;
 }) {
   return (
-    <header className="pub-hero">
+    <header className={`pub-hero${aside ? "" : " pub-hero-solo"}`}>
       <div className="pub-hero-text">
         {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
         <p className="pub-kicker">{kicker}</p>
