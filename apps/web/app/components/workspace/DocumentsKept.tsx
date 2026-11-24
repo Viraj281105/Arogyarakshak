@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ConfidenceIndicator, EvidenceBadge } from "../ui/Badges";
+import { ConfidenceIndicator, EvidenceBadge, StatusBadge } from "../ui/Badges";
 import { EmptyState } from "../ui/States";
 import type { CaseEntity } from "../../lib/caseApi";
 import type { OverviewCopy } from "./overviewCopy";
@@ -38,7 +38,7 @@ function warningsOf(e: CaseEntity): string[] {
  * redacted excerpt (names, contacts and IDs removed, first 1,000 characters). The original file
  * is never stored, so there is nothing to preview or download here.
  */
-export function DocumentsKept({ c, lang, entities }: { c: WsCopy; lang: Lang; entities: CaseEntity[] }) {
+export function DocumentsKept({ c, lang, entities, emptyArt }: { c: WsCopy; lang: Lang; entities: CaseEntity[]; emptyArt?: React.ReactNode }) {
   const excerpts = entities.filter((e) => e.type === "document_text");
   const fields = entities.filter((e) => FIELD_ORDER.includes(e.type));
   const byType = FIELD_ORDER.map((type) => ({ type, items: fields.filter((e) => e.type === type) })).filter((g) => g.items.length > 0);
@@ -51,9 +51,12 @@ export function DocumentsKept({ c, lang, entities }: { c: WsCopy; lang: Lang; en
       <p className="ws-section-lede">{c.docs.lede}</p>
 
       {excerpts.length === 0 && fields.length === 0 ? (
-        <EmptyState title={c.docs.empty}>
-          <p>{c.docs.emptyBody}</p>
-        </EmptyState>
+        <div className="ws-empty-with-art">
+          {emptyArt}
+          <EmptyState title={c.docs.empty}>
+            <p>{c.docs.emptyBody}</p>
+          </EmptyState>
+        </div>
       ) : (
         <>
           {excerpts.map((e) => (
@@ -79,8 +82,11 @@ export function DocumentsKept({ c, lang, entities }: { c: WsCopy; lang: Lang; en
 
           {byType.map((g) => (
             <details key={g.type} className="ws-fields" open={g.items.length <= 12}>
-              <summary>
-                {c.docs.types[g.type as keyof WsCopy["docs"]["types"]] ?? humanizeKey(g.type)} ({g.items.length})
+              <summary className="ws-fields-summary">
+                <span>
+                  {c.docs.types[g.type as keyof WsCopy["docs"]["types"]] ?? humanizeKey(g.type)} ({g.items.length})
+                </span>
+                <StatusBadge tone="neutral">Read automatically, not checked</StatusBadge>
               </summary>
               <div className="ws-table-scroll" tabIndex={0} role="region" aria-label={c.docs.types[g.type as keyof WsCopy["docs"]["types"]] ?? g.type}>
                 <table className="ws-table">

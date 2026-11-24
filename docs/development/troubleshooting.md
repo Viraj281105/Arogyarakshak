@@ -47,6 +47,13 @@ This document catalogs known failure modes, error messages, and verified solutio
 
 ---
 
+### Browser shows "blocked by CORS policy" for API calls that work in curl
+Seen 2026-11-25 during the transformation QA sweep (many page loads in a short time). The API log showed
+`429 Too Many Requests` for those requests: the rate limiter's 429 responses carry no CORS headers, so the browser
+reports a CORS failure and the web app cannot read the 429 or tell the user to wait. Not a CORS misconfiguration:
+check the API log for 429 first. Open follow-up (backend): add the CORS headers to 429 responses (or apply the rate
+limiter inside the CORS middleware) so clients can show a proper "try again shortly" message.
+
 ## 3. Groq API & LLM Issues
 
 ### `404/400 Error: Model 'llama3-70b' or 'llama-3.3-70b-versatile' is not found / deprecated`

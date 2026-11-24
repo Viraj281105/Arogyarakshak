@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { ArogyaWordmark } from "../components/brand/Brand";
 import { PUBLIC_FOOTER_LINKS } from "../components/public/publicRoutes";
 import { NAV_ITEMS } from "./nav";
 import { useLanguage } from "./ShellProvider";
@@ -21,7 +20,22 @@ export function SiteFooter() {
       <div className="shell-container site-footer-grid">
         <div className="site-footer-about">
           <p className="site-footer-brand">
-            <ArogyaWordmark size={40} devanagari={lang === "en"} />
+            <span className="ar-wordmark ar-wordmark--light" style={{ "--ar-wordmark-size": "40px" } as React.CSSProperties}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- static SVG, no JS in this client footer */}
+              <img src="/brand/ar-emblem-primary.svg" width={40} height={40} alt="" className="ar-emblem ar-only-light" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/ar-emblem-dark.svg" width={40} height={40} alt="" className="ar-emblem ar-only-dark" />
+              <span className="ar-wordmark-text">
+                <span className="ar-wordmark-name">
+                  Arogya<span className="ar-wordmark-name-b">Rakshak</span>
+                </span>
+                {lang === "en" && (
+                  <span className="ar-wordmark-sub" lang="hi">
+                    आरोग्यरक्षक
+                  </span>
+                )}
+              </span>
+            </span>
             <span className="site-chip">{f.academic}</span>
           </p>
           <p>{f.disclaimer}</p>

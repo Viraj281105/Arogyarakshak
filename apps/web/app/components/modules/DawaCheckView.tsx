@@ -13,6 +13,8 @@ import { ListenSummary } from "../ListenSummary";
 import { buildMedicineSummary } from "../../lib/listenSummaries";
 import { StatePanel } from "../clinical/StatePanel";
 import { PriceBar } from "./dawacheck/PriceBar";
+import { CapsuleIllustration, TabletsIllustration } from "../illustrations/Illustrations";
+import { StatusBadge } from "../ui/Badges";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
 interface MedicineBenchmarkResponse extends PriceCheck {
@@ -109,10 +111,19 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
 
   return (
     <div className="module-panel">
-      <header className="module-head">
-        <p className="lp-kicker">DawaCheck · NPPA ceiling prices</p>
-        <h2>{t.title}</h2>
-        <p>{t.desc}</p>
+      <header className="ws-mod-hero ws-mod-dawacheck">
+        <div className="ws-mod-hero-copy">
+          <p className="lp-kicker">DawaCheck · NPPA ceiling prices</p>
+          <h2>{t.title}</h2>
+          <p>{t.desc}</p>
+          <div className="ws-kadi-badges">
+            <StatusBadge tone="neutral">Compared per tablet, capsule or vial</StatusBadge>
+            <StatusBadge tone="neutral">Unclear prescriptions go to a human reader</StatusBadge>
+          </div>
+        </div>
+        <div className="ws-mod-hero-art" aria-hidden="true">
+          <CapsuleIllustration size={100} />
+        </div>
       </header>
 
       {/* ADR-011: uncertain prescription readings go to human readers, never silently into a medication fact */}
@@ -125,7 +136,10 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
 
       {/* Search Form */}
       <section className="case-panel bn-card" aria-labelledby="dc-form-title">
-        <h3 id="dc-form-title">Check any medicine by name</h3>
+        <div className="case-panel-head">
+          <h3 id="dc-form-title">Check any medicine by name</h3>
+          <TabletsIllustration size={56} />
+        </div>
         <p className="bn-fine">
           NPPA ceiling prices are <strong>per tablet, capsule or vial</strong>. Say what your amount paid for — one unit, a
           strip, a pack, or several units — and DawaCheck converts it to a price per unit before comparing. If the number of

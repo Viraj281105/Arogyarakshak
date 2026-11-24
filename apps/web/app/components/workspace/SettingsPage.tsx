@@ -41,7 +41,7 @@ function useAnyReducedMotion(): boolean {
  * Settings (`/app/settings`): display preferences (kept in this browser only, never sent), the
  * account (change password, delete the account) and deleting the open case.
  */
-export function SettingsPage() {
+export function SettingsPage({ privacyArt }: { privacyArt?: React.ReactNode } = {}) {
   const [lang, setLang] = useLanguage();
   const c = { ...caseCopy[lang], ...settingsCopy[lang] };
   const { theme, setTheme } = useTheme();
@@ -117,7 +117,7 @@ export function SettingsPage() {
       </section>
 
       <AccountSection c={c} lang={lang} />
-      <CaseSection c={c} />
+      <CaseSection c={c} privacyArt={privacyArt} />
     </div>
   );
 }
@@ -293,7 +293,7 @@ function AccountSection({ c, lang }: { c: WsCopy; lang: Language }) {
   );
 }
 
-function CaseSection({ c }: { c: WsCopy }) {
+function CaseSection({ c, privacyArt }: { c: WsCopy; privacyArt?: React.ReactNode }) {
   const active = useActiveCase();
   const guests = useGuestCases();
   const [ask, setAsk] = useState(false);
@@ -319,10 +319,17 @@ function CaseSection({ c }: { c: WsCopy }) {
 
   return (
     <section className="ws-section" aria-labelledby="ws-case-settings-title">
-      <h2 id="ws-case-settings-title" className="ws-section-title">
-        {c.settings.caseTitle}
-      </h2>
-      <p className="ws-section-lede">{fillCopy(c.settings.guestCount, { count: guests.length })}</p>
+      <div className="ws-mod-hero-copy">
+        <h2 id="ws-case-settings-title" className="ws-section-title">
+          {c.settings.caseTitle}
+        </h2>
+        <p className="ws-section-lede">{fillCopy(c.settings.guestCount, { count: guests.length })}</p>
+      </div>
+      {privacyArt && (
+        <div className="ws-mod-hero-art" aria-hidden="true">
+          {privacyArt}
+        </div>
+      )}
       <OutcomeMessage outcome={outcome} />
       {active ? (
         <>

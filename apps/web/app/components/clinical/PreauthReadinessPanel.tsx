@@ -13,6 +13,8 @@ import { ListenSummary } from "../ListenSummary";
 import { buildReadinessSummary } from "../../lib/listenSummaries";
 import { StatePanel } from "./StatePanel";
 import { apiFetch } from "../../lib/apiFetch";
+import { DonutChart } from "../ui/Charts";
+import { EvidenceBadge } from "../ui/Badges";
 
 interface ReadinessItem {
   item_id: string;
@@ -182,6 +184,18 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
       {report && counts && (
         <div className="readiness-result">
           <ListenSummary lang={lang} panel="readiness" summary={buildReadinessSummary(report.items, lang)} />
+          <DonutChart
+            title="Document readiness breakdown"
+            source={report.guidance_label}
+            units="items"
+            period="Current case"
+            centerLabel="Items checked"
+            data={[
+              { label: "Found in documents", value: counts.ok, tone: "within" },
+              { label: "Needs doctor confirmation", value: counts.question, tone: "bundled" },
+              { label: "Not found", value: counts.missing, tone: "over" },
+            ]}
+          />
           <div className="readiness-meter" role="img" aria-label={`${counts.ok} found, ${counts.question} need a doctor, ${counts.missing} not found`}>
             {report.items.map((item) => (
               <span key={item.item_id} className={`readiness-cell is-${TONE[item.status]}`} title={item.label} />
@@ -204,6 +218,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
                     {item.evidence_strength === "KEYWORD_MATCH" && " (keyword found in document text — weak evidence)"}
                   </span>
                   {item.origin === "INSTITUTION_PLAYBOOK" && <span className="badge badge-info">playbook</span>}
+                  {item.status === "CONFIRMED_BY_REVIEWER" && <EvidenceBadge state="human-reviewed" size="sm" />}
                   {item.clinical_decision && item.clinical_decision.decision !== "PENDING" && (
                     <span className="readiness-status">
                       {humanizeEnum(item.clinical_decision.decision)} — {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label};

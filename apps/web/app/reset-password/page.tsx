@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../components/auth/auth.css";
+import { AuthSplit } from "../components/auth/AuthSplit";
 import { ResetPasswordForm } from "../components/auth/ResetPasswordForm";
 
 export const metadata: Metadata = {
@@ -9,5 +10,9 @@ export const metadata: Metadata = {
 
 /** Password reset with the one-time code from the link fragment (#token=...). */
 export default function Page() {
-  return <ResetPasswordForm />;
+  return (
+    <AuthSplit>
+      <ResetPasswordForm />
+    </AuthSplit>
+  );
 }

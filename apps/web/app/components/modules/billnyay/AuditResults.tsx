@@ -3,6 +3,8 @@
 import React from "react";
 import { Language, translations } from "../../../translations";
 import { ExplainTrail } from "../../ExplainTrail";
+import { MetricCard } from "../../ui/Badges";
+import { StackedBarChart } from "../../ui/Charts";
 import type { AuditResponse, AuditResultItem } from "./types";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
@@ -45,51 +47,47 @@ export function AuditResults({ audit, currentLang }: { audit: AuditResponse; cur
         CGHS audit result
       </h3>
 
-      <div className="bn-stats">
-        <div className="bn-stat">
-          <span className="bn-stat-label">{t.chargedTotal}</span>
-          <span className="bn-stat-value code-tabular">{inr(audit.total_charged)}</span>
-          <span className="bn-stat-sub">{audit.audit_items.length} line(s) read from the bill</span>
-        </div>
-        <div className="bn-stat">
-          <span className="bn-stat-label">{t.cghsBenchmark}</span>
-          <span className="bn-stat-value code-tabular">{inr(audit.total_benchmark)}</span>
-          <span className="bn-stat-sub">
-            {audit.benchmarked_count} line(s) compared, billed at {inr(audit.benchmarked_charged)}
-          </span>
-        </div>
-        <div className={`bn-stat ${audit.potential_savings > 0 ? "is-flagged" : ""}`}>
-          <span className="bn-stat-label">{t.potentialSavings}</span>
-          <span className="bn-stat-value code-tabular">{inr(audit.potential_savings)}</span>
-          <span className="bn-stat-sub">Net, across compared lines only</span>
-        </div>
+      <div className="ws-metric-grid">
+        <MetricCard
+          label={t.chargedTotal}
+          value={inr(audit.total_charged)}
+          basis="estimate"
+          source={`${audit.audit_items.length} line(s) read from your bill`}
+        />
+        <MetricCard
+          label={t.cghsBenchmark}
+          value={inr(audit.total_benchmark)}
+          basis="estimate"
+          source={`CGHS-2024-REVISED (${audit.benchmarked_count} line(s) compared, billed ${inr(audit.benchmarked_charged)})`}
+        />
+        <MetricCard
+          label={t.potentialSavings}
+          value={inr(audit.potential_savings)}
+          basis="estimate"
+          source="Net difference across compared CGHS lines only"
+        />
       </div>
 
       {audit.total_charged > 0 && segments.length > 0 && (
-        <figure className="lp-composition bn-composition">
-          <figcaption>
-            <span>Where the {inr(audit.total_charged)} falls</span>
-            <span className="lp-composition-note">By each line&apos;s status</span>
-          </figcaption>
-          <div
-            className="lp-composition-bar"
-            role="img"
-            aria-label={segments.map((s) => `${s.label} ${inr(s.value)}`).join(", ")}
-          >
-            {segments.map((s) => (
-              <span key={s.key} className={`lp-seg lp-seg-${s.key}`} style={{ flexGrow: s.value }} title={`${s.label}: ${inr(s.value)}`} />
-            ))}
-          </div>
-          <ul className="lp-composition-legend">
-            {segments.map((s) => (
-              <li key={s.key}>
-                <i className={`lp-swatch lp-swatch-${s.key}`} aria-hidden="true" />
-                <span>{s.label}</span>
-                <strong className="code-tabular">{inr(s.value)}</strong>
-              </li>
-            ))}
-          </ul>
-        </figure>
+        <StackedBarChart
+          title={`Where the ${inr(audit.total_charged)} falls`}
+          source="CGHS-2024-REVISED curated subset"
+          units="INR"
+          period="This hospital bill"
+          basis="estimate"
+          format={inr}
+          series={segments.map((s) => ({
+            key: s.key,
+            label: s.label,
+            tone: s.key as "within" | "over" | "bundled" | "unmatched",
+          }))}
+          rows={[
+            {
+              label: "Total billed",
+              values: Object.fromEntries(segments.map((s) => [s.key, s.value])),
+            },
+          ]}
+        />
       )}
 
       {/* Coverage disclosure: the patient must be able to see how much of the

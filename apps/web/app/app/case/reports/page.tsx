@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReportsViewer } from "../../../components/workspace/ReportsViewer";
+import { EvidenceVerificationIllustration } from "../../../components/illustrations/Illustrations";
 
 export const metadata: Metadata = {
   title: "Case reports — ArogyaRakshak",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ReportsPage() {
-  return <ReportsViewer />;
+  return <ReportsViewer heroArt={<EvidenceVerificationIllustration size={96} />} />;
 }

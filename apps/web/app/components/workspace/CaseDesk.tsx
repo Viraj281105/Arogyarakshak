@@ -16,7 +16,7 @@ import { useGuestCases } from "../../hooks/useCases";
 import { CaseApiError, claimCase, createCase, fetchCaseDetail, listOwnedCases, uploadDocument, type CaseSummary } from "../../lib/caseApi";
 import { addGuestCase, removeGuestCase, setActiveCase, type GuestCase } from "../../lib/caseStore";
 import type { DemoScenarioResult } from "../../lib/demo";
-import { AUTH_PATHS, CASE_PATH, moduleFromHash, moduleHref } from "../../shell/nav";
+import { AUTH_PATHS, CASE_PATH, MODULE_ORDER, moduleFromHash, moduleHref } from "../../shell/nav";
 import { useHeaderSlot, useLanguage } from "../../shell/ShellProvider";
 import { shellCopy } from "../../shell/shellCopy";
 import { TransitionLink } from "../../shell/TransitionLink";
@@ -37,7 +37,17 @@ const DemoControls = dynamic(() => import("../demo/DemoControls").then((m) => m.
  * once signed in, a "keep in my account" claim for each. Starting a case creates it (owned when
  * signed in) and opens it in the workspace; the case never goes into the URL.
  */
-export function CaseDesk() {
+// Shortcut blurbs (transformation M8). English only for now: hi/mr need native-speaker copy, so the
+// elements carry lang="en" in the other languages rather than an unreviewed translation.
+const SHORTCUT_BLURB: Record<(typeof MODULE_ORDER)[number], string> = {
+  billnyay: "CGHS line-by-line bill check, ICD-10 consistency hint and appeal draft",
+  daavisetu: "Pre-authorisation readiness and Annexure-B package",
+  bimanyay: "IRDAI denial clause check, three-tier appeal drafts and deadlines",
+  schemesetu: "Provisional PM-JAY and MJPJAY eligibility with citations",
+  dawacheck: "Per-unit NPPA ceiling check and prescription shorthand",
+};
+
+export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; intakeArt?: React.ReactNode } = {}) {
   const [lang] = useLanguage();
   const c = { ...caseCopy[lang], ...deskCopy[lang] };
   const upload = uploadCopy[lang];
@@ -97,13 +107,40 @@ export function CaseDesk() {
 
         {demoStatus?.demo_mode && <DemoControls status={demoStatus} onScenarioLoaded={onScenarioLoaded} onReset={() => undefined} />}
 
-        <section id="intake-dropzone" className="ws-section lp-intake" aria-labelledby="ws-start-title">
-          <h2 id="ws-start-title" className="ws-section-title">
-            {c.desk.startTitle}
+        <section id="intake-dropzone" className="ws-section lp-intake ws-kadi-hero" aria-labelledby="ws-start-title">
+          {intakeBg}
+          <div className="ws-kadi-hero-copy">
+            <h2 id="ws-start-title" className="ws-section-title">
+              {c.desk.startTitle}
+            </h2>
+            <p className="ws-section-lede">{signedIn ? c.desk.startOwned : c.desk.startGuest}</p>
+            <DocumentUploader currentLang={lang} onStartAudit={onStart} isProcessing={starting} />
+            {startError && <StatePanel kind="error">{startError}</StatePanel>}
+          </div>
+          {intakeArt && (
+            <div className="ws-kadi-hero-art" aria-hidden="true">
+              {intakeArt}
+            </div>
+          )}
+        </section>
+
+        <section className="ws-section" aria-labelledby="ws-shortcuts-title">
+          <h2 id="ws-shortcuts-title" className="ws-section-title" lang={lang === "en" ? undefined : "en"}>
+            Standalone &amp; case tools
           </h2>
-          <p className="ws-section-lede">{signedIn ? c.desk.startOwned : c.desk.startGuest}</p>
-          <DocumentUploader currentLang={lang} onStartAudit={onStart} isProcessing={starting} />
-          {startError && <StatePanel kind="error">{startError}</StatePanel>}
+          <p className="ws-section-lede" lang={lang === "en" ? undefined : "en"}>
+            Open any module directly. BillNyay and DaaviSetu work on an uploaded case; BimaNyay, DawaCheck, and SchemeSetu also work without uploading a document.
+          </p>
+          <ul className="ws-shortcuts">
+            {MODULE_ORDER.map((id) => (
+              <li key={id}>
+                <TransitionLink href={moduleHref(id)} className={`ws-shortcut-card ws-mod-${id}`}>
+                  <strong>{shellCopy[lang].tabs[id]}</strong>
+                  <span lang={lang === "en" ? undefined : "en"}>{SHORTCUT_BLURB[id]}</span>
+                </TransitionLink>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="ws-section" aria-labelledby="ws-cases-title">

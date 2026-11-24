@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SettingsPage } from "../../components/workspace/SettingsPage";
+import { InsuranceShieldIllustration } from "../../components/illustrations/Illustrations";
 
 export const metadata: Metadata = {
   title: "Settings — ArogyaRakshak",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Settings() {
-  return <SettingsPage />;
+  return <SettingsPage privacyArt={<InsuranceShieldIllustration size={72} />} />;
 }

@@ -6,20 +6,21 @@ import EyeOff from "lucide-react/icons/eye-off";
 import { apiErrorMessage, apiFetch, retryAfterSeconds } from "../../lib/apiFetch";
 import { authCopy, fillCopy, type AuthCopy } from "./authCopy";
 import type { Language } from "../../shared/i18n/types";
-
-/** Card frame shared by the account pages: one <h1>, a lede and the form. */
+/**
+ * The form card shared by the account pages: one <h1>, a lede and the form. The Deep Forest brand
+ * panel beside it is AuthSplit (a Server Component the pages wrap around the form), so this client
+ * module, which Settings also imports, carries no brand or background code.
+ */
 export function AuthCard({ title, lede, children, footer }: { title: string; lede?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <div className="auth-page">
-      <section className="auth-card" aria-labelledby="auth-title">
-        <h1 id="auth-title" className="auth-title">
-          {title}
-        </h1>
-        {lede && <p className="auth-lede">{lede}</p>}
-        {children}
-        {footer && <div className="auth-footer">{footer}</div>}
-      </section>
-    </div>
+    <section className="auth-card" aria-labelledby="auth-title">
+      <h1 id="auth-title" className="auth-title">
+        {title}
+      </h1>
+      {lede && <p className="auth-lede">{lede}</p>}
+      {children}
+      {footer && <div className="auth-footer">{footer}</div>}
+    </section>
   );
 }
 

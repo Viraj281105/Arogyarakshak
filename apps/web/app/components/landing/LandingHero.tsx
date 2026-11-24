@@ -3,6 +3,8 @@ import { TransitionLink } from "../../shell/TransitionLink";
 import { publicCopy } from "../public/publicCopy";
 import { ScrollProgressSection } from "./ScrollProgressSection";
 import { HeroIllustration } from "./HeroIllustration";
+import { ArogyaLogoAnimated } from "../brand/Brand";
+import { MolecularNetworkBackground } from "../illustrations/Backgrounds";
 
 const ASSURANCE_ICONS = [
   <path key="0" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
@@ -14,8 +16,12 @@ const ASSURANCE_ICONS = [
 export const LandingHero: React.FC = () => {
   const c = publicCopy().landing;
   return (
-    <ScrollProgressSection progressVar="--hero-progress" className="lp-hero" labelledBy="lp-hero-title">
+    <ScrollProgressSection progressVar="--hero-progress" className="lp-hero lp-hero-has-bg" labelledBy="lp-hero-title">
+      <MolecularNetworkBackground intensity={0.45} />
       <div className="lp-hero-copy">
+        <div className="lp-hero-emblem" aria-hidden="true">
+          <ArogyaLogoAnimated size={52} decorative />
+        </div>
         <p className="lp-eyebrow">
           <span className="lp-eyebrow-dot" aria-hidden="true" />
           {c.eyebrow}

@@ -75,9 +75,16 @@ describe('brand identity (Deep Forest / Warm Ivory)', () => {
     assert.match(read('app/layout.tsx'), /components\/brand\/brand\.css/);
   });
 
-  test('the header and footer use the brand components, not a generic icon', () => {
-    assert.match(read('app/shell/SiteHeader.tsx'), /<ArogyaEmblem /);
-    assert.match(read('app/shell/SiteFooter.tsx'), /<ArogyaWordmark /);
+  test('the header and footer show the brand emblem (static files, a light and a dark variant), not a generic icon', () => {
+    // Static <img> files keep the brand geometry out of these client components' JS (bundle budget).
+    const header = read('app/shell/SiteHeader.tsx');
+    assert.match(header, /src="\/brand\/ar-emblem-compact\.svg"[^>]*className="site-emblem ar-only-light"/);
+    assert.match(header, /src="\/brand\/ar-emblem-compact-dark\.svg"[^>]*className="site-emblem ar-only-dark"/);
+    const footer = read('app/shell/SiteFooter.tsx');
+    assert.match(footer, /src="\/brand\/ar-emblem-primary\.svg"/);
+    assert.match(footer, /src="\/brand\/ar-emblem-dark\.svg"/);
+    assert.ok(!/components\/brand\/Brand/.test(header + footer), 'no brand component import in client shell parts');
+    assert.match(read('app/components/brand/brand.css'), /\[data-theme="dark"\] \.ar-only-light \{\s*display: none;/);
   });
 });
 

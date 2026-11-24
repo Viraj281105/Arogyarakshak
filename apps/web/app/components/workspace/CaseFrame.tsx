@@ -76,6 +76,11 @@ export function CaseFrame({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="container ws-case">
+      <div className="ws-case-crumb">
+        <TransitionLink href={WORKSPACE_PATH} className="ws-crumb-link">
+          ← {c.frame.backToDesk}
+        </TransitionLink>
+      </div>
       <header className="ws-case-head">
         <div className="ws-case-id">
           <p className="ui-kicker">{c.frame.kicker}</p>
@@ -159,19 +164,21 @@ export function CaseFrame({ children }: { children: React.ReactNode }) {
 
       {ref && !cs.problem && cs.step > 0 && cs.step < 4 && <AgentStreamVisualizer currentLang={lang} currentStep={cs.step} liveLog={cs.liveLog} />}
 
-      <nav className="ws-case-nav" aria-label={c.nav.label}>
-        <ul>
-          {links.map((l) => (
-            <li key={l.href}>
-              <TransitionLink href={l.href} aria-current={isActiveHref(l.href, pathname) && (l.href !== CASE_PATH || pathname === CASE_PATH) ? "page" : undefined}>
-                {l.label}
-              </TransitionLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <div className="ws-case-shell">
+        <nav className="ws-case-nav" aria-label={c.nav.label}>
+          <ul>
+            {links.map((l) => (
+              <li key={l.href}>
+                <TransitionLink href={l.href} aria-current={isActiveHref(l.href, pathname) && (l.href !== CASE_PATH || pathname === CASE_PATH) ? "page" : undefined}>
+                  {l.label}
+                </TransitionLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      <div className="ws-case-body">{children}</div>
+        <div className="ws-case-body">{children}</div>
+      </div>
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { ClinicalSection } from "./bimanyay/ClinicalSection";
 import { DisputeSummary } from "./bimanyay/DisputeSummary";
 import { SlaTimeline } from "./bimanyay/SlaTimeline";
 import type { DisputeAuditResult, GrievanceTrackerResponse } from "./bimanyay/types";
+import { InsuranceShieldIllustration } from "../illustrations/Illustrations";
+import { StatusBadge } from "../ui/Badges";
 
 interface BimaNyayViewProps {
   currentLang: Language;
@@ -112,10 +114,19 @@ export const BimaNyayView: React.FC<BimaNyayViewProps> = ({ currentLang, caseId,
 
   return (
     <div className="module-panel">
-      <header className="module-head">
-        <p className="lp-kicker">BimaNyay · after an insurance denial</p>
-        <h2>{t.title}</h2>
-        <p>{t.desc}</p>
+      <header className="ws-mod-hero ws-mod-bimanyay">
+        <div className="ws-mod-hero-copy">
+          <p className="lp-kicker">BimaNyay · after an insurance denial</p>
+          <h2>{t.title}</h2>
+          <p>{t.desc}</p>
+          <div className="ws-kadi-badges">
+            <StatusBadge tone="neutral">Rules from the IRDAI Master Circular (2024)</StatusBadge>
+            <StatusBadge tone="neutral">Drafts only: nothing is sent to your insurer</StatusBadge>
+          </div>
+        </div>
+        <div className="ws-mod-hero-art" aria-hidden="true">
+          <InsuranceShieldIllustration size={104} />
+        </div>
       </header>
 
       <section className="case-panel bn-card" aria-labelledby="bm-form-title">

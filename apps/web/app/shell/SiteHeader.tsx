@@ -12,7 +12,6 @@ import { useHeaderSlotContent, useLanguage } from "./ShellProvider";
 import { shellCopy } from "./shellCopy";
 import { ThemeToggle } from "./ThemeToggle";
 import { TransitionLink } from "./TransitionLink";
-import { ArogyaEmblem } from "../components/brand/Brand";
 
 // Must match the desktop breakpoint in shell.css (inline nav, no menu button).
 const COMPACT_QUERY = "(max-width: 1279.98px)";
@@ -88,7 +87,11 @@ export function SiteHeader() {
     <header ref={headerRef} className="site-header">
       <div className="shell-container site-header-inner">
         <TransitionLink href="/" className="site-brand" aria-label={`${copy.appName} — ${copy.nav.home}`}>
-          <ArogyaEmblem size={36} variant="compact" className="site-emblem" decorative />
+          {/* Static files from scripts/brand-assets.ts: no JS in this client header, and a dark-theme variant. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- tiny static SVG; next/image adds JS for no gain */}
+          <img src="/brand/ar-emblem-compact.svg" width={36} height={36} alt="" className="site-emblem ar-only-light" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/ar-emblem-compact-dark.svg" width={36} height={36} alt="" className="site-emblem ar-only-dark" />
           <span className="site-brand-text">
             <span className="site-brand-name">
               <span>{copy.appName}</span>

@@ -6,6 +6,19 @@
   overflow: visible;
 }
 
+/* Theme pair for static brand images (header, footer): one <img> per theme. */
+.ar-only-dark {
+  display: none;
+}
+
+[data-theme="dark"] .ar-only-light {
+  display: none;
+}
+
+[data-theme="dark"] .ar-only-dark {
+  display: block;
+}
+
 /* ---------- Wordmark ---------- */
 .ar-wordmark {
   --ar-wordmark-size: 36px;

@@ -44,3 +44,12 @@ foundation, Antigravity builds pages on it, and Claude Code reviews them (`docs/
 - Hindi/Marathi copy is unchanged; the new evidence label "Human-reviewed" needs native-speaker translation.
 - Not verified: PWA installation on a device; the Stitch mockups could not be opened without the
   maintainer's Google sign-in, so visual parity with them is unchecked.
+
+## Amendment (2026-11-25, post-Antigravity review)
+The client shell (`SiteHeader`, `SiteFooter`) no longer imports the brand components: it renders the static
+`public/brand/*.svg` files as a light/dark `<img>` pair (`.ar-only-light` / `.ar-only-dark` in `brand.css`). Reasons:
+the components put the full emblem geometry into every route's client JS (part of a regression to 168.6 KB), and
+the header/footer always used the light emblem, which was nearly invisible in dark mode. The auth pages' brand panel
+moved to the Server Component `components/auth/AuthSplit.tsx` for the same reason. The components remain the way
+Server Components and pages draw the brand. See `docs/transformation/IMPLEMENTATION_STATUS.md` section 4.
+

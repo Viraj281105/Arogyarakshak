@@ -3,18 +3,109 @@
 .auth-page {
   display: grid;
   justify-items: center;
-  padding: clamp(1.5rem, 5vw, 4rem) var(--shell-gutter) clamp(2rem, 6vw, 5rem);
+  padding: clamp(1.5rem, 5vw, 3.5rem) var(--shell-gutter) clamp(2rem, 6vw, 4.5rem);
+}
+
+.auth-split {
+  display: grid;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 66rem;
+  align-items: stretch;
+}
+
+@media (min-width: 900px) {
+  .auth-split {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 0;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    background: var(--bg-surface);
+  }
+}
+
+.auth-brand-panel {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border-radius: var(--radius-lg);
+  background: var(--palette-deep-forest);
+  color: var(--palette-warm-ivory);
+}
+
+@media (min-width: 900px) {
+  .auth-brand-panel {
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+  }
+}
+
+.auth-brand-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.auth-brand-promise {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--palette-warm-ivory);
+}
+
+.auth-pillars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-md);
+}
+
+.auth-pillars li {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--palette-muted-sage);
+}
+
+.auth-pillars strong {
+  font-size: 0.92rem;
+  color: var(--palette-pale-sage);
+}
+
+.auth-pillars span {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--palette-warm-ivory);
+  opacity: 0.86;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 30rem;
-  padding: clamp(1.25rem, 4vw, 2rem);
+  max-width: 34rem;
+  justify-self: center;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-card);
   color: var(--text-primary);
+}
+
+@media (min-width: 900px) {
+  .auth-card {
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    align-self: center;
+  }
 }
 
 .auth-title {
