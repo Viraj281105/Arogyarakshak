@@ -25,8 +25,8 @@ const FAQ_EN: FaqItem[] = [
     topic: "accounts",
     question: "Do I need an account?",
     answer: [
-      "No. As a guest you get a case and a one-time case key. Whoever holds the key can open the case, so keep it private.",
-      "With an account, cases you create belong to the account instead, and the case key is not used. You can also attach a guest case to your account with its key.",
+      "No. As a guest you get a case and a case key. On the web the key stays inside the browser tab that created the case and is never shown; whoever holds it can open the case.",
+      "With an account, cases you create belong to the account instead, and the case key is not used. After signing in, you can attach a guest case from the same tab with \"Keep in my account\" on the case desk.",
     ],
     keywords: "sign in login register guest token key",
   },
@@ -69,7 +69,7 @@ const FAQ_EN: FaqItem[] = [
     topic: "accounts",
     question: "How do I delete my account?",
     answer: [
-      "Account deletion needs your current password. It erases every case the account owns, every session and the account itself, in one step. Guest cases that were never attached to the account are not affected.",
+      "In the workspace, open Settings and choose \"Delete my account\". It needs your current password and erases every case the account owns, every session and the account itself, in one step. Guest cases that were never attached to the account are not affected.",
     ],
     keywords: "erase account remove close",
   },
@@ -313,10 +313,10 @@ export const PUBLIC_EN: PublicCopy = {
       lede: "Accounts are optional. Neither way keeps your original files, and both expire cases after 90 days.",
       columns: ["", "Guest", "Account"],
       rows: [
-        { aspect: "How you get in", guest: "A case key, shown once when the case is created", account: "Email and password (12 to 128 characters)" },
+        { aspect: "How you get in", guest: "A case key held by the browser tab that created the case", account: "Email and password (12 to 128 characters)" },
         { aspect: "What the server keeps about you", guest: "Nothing about you; only a hash of the case key", account: "Your email address and a scrypt password hash" },
         { aspect: "Who can open the case", guest: "Anyone holding the case key", account: "Only you, signed in; the case key stops working once a case is attached" },
-        { aspect: "Several devices", guest: "Only where you have the key", account: "Yes: your case list follows the account" },
+        { aspect: "Several devices", guest: "Only in the tab that holds the key", account: "Yes: your case list follows the account" },
         { aspect: "Case lifetime", guest: "90 days, or until you delete it", account: "90 days, or until you delete it" },
         { aspect: "Deleting", guest: "Delete each case with its key", account: "Delete a case, or the whole account with your password" },
         { aspect: "Lost access", guest: "A lost key cannot be replaced", account: "Password reset is not available yet (no email is sent)" },

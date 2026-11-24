@@ -45,13 +45,10 @@ export const AUTH_PATHS = {
  * Public pages built by the Wave 3 M3 stream. ONE place for their paths: if M3's final routes
  * differ, change them here and the header, drawer, footer and command palette follow.
  */
-export const PUBLIC_PATHS = {
-  platform: "/platform",
-  howItWorks: "/how-it-works",
-  security: "/security",
-  about: "/about",
-  help: "/help",
-} as const;
+// Single source of truth for the public routes is M3's publicRoutes.ts (the footer already loads it
+// on every route, so importing it here costs nothing extra).
+import { PUBLIC_ROUTES } from "../components/public/publicRoutes";
+export const PUBLIC_PATHS = PUBLIC_ROUTES;
 
 /** The six platform pages (Kadi is the shared document layer, not a sixth check). */
 export const PLATFORM_PAGES = ["kadi", "billnyay", "daavisetu", "bimanyay", "schemesetu", "dawacheck"] as const;
