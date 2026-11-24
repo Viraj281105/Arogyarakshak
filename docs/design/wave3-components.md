@@ -122,3 +122,69 @@ No placeholder routes were added for pages the plan has not built.
   No single colour can be both AA text on navy and an AA fill under white text; the mobile stream should use
   `actionPrimary` / `textOnAction` for filled buttons.
 - Evidence and palette labels need Hindi and Marathi versions (native-speaker review).
+
+## 7. Mobile (Wave 3 M2 mobile foundation, 2026-11-24)
+
+**Code:** `apps/mobile/src/components/ui/`, `apps/mobile/src/icons/glyphs.ts`, `apps/mobile/src/theme/contrast.ts`.
+**Gallery:** `apps/mobile/src/dev/PrimitivesGallery.tsx`, dev builds only (`App.tsx` loads it through a
+`__DEV__ ? require(...) : null`, which Metro removes from release bundles; the string "Primitives (dev only)" is absent
+from the Android export). Open it in the Expo web preview with `?gallery` (`npx expo start --web`, then
+`http://localhost:<port>/?gallery`) or from the native dev menu ("Primitives gallery"). It has a Dark/Light switch.
+Written by the mobile stream; sections 1 to 6 above are the web stream's.
+
+### 7.1 Colour and contrast
+
+- `ColorPalette` is now the whole generated palette (`src/generated/tokens.ts`), so the action, evidence, status and
+  chart tokens are available to every component. No token was added or changed.
+- **All colours the shared components draw come from `components/ui/tones.ts`** (pure functions of the palette).
+  `contrastPairs(palette)` calls those functions for every variant and returns 107 pairs per theme;
+  `tests/contrast.test.ts` fails if any is under 4.5:1 (text) or 3:1 (UI parts, marks), and fails if a shared
+  component file contains a hex, `rgb()` or named colour.
+- **Fixes:** filled `Button` (`primary`, and `danger`) now uses `actionPrimary`/`statusDanger` with `textOnAction`
+  (navy in dark, white in light). White on dark `brandCyan` was 2.04:1; white on dark `statusDanger` 2.44:1. The
+  header language segment uses the action pair. The offline banner uses the provisional (amber) evidence pair; black on
+  light `statusWarning` was 3.74:1. The legacy `Badge` lost its pre-rebrand `rgba()` tints (status text on the elevated
+  surface). The test also caught two UI parts under 3:1 before they shipped: the upcoming-step ring (`borderMedium`,
+  1.5-1.8:1) and the sheet handle (`borderSpecular`, 2.0-2.5:1); both now use `textMuted`.
+
+| Pair | Light | Dark |
+|---|---|---|
+| Primary button label | 6.36 | 7.67 |
+| Danger button label | 6.54 | 7.11 |
+| Header language (active) | 6.36 | 7.67 |
+| Offline banner | 6.10 | 7.15 |
+| Lowest text pair (disabled button label, `textMuted` on elevated) | 4.61 | 5.07 |
+| Lowest evidence label | 5.04 (verified) | 6.08 (user-provided) |
+| Lowest mark (status dot / confidence fill) | 4.61 | 5.06 |
+
+Not covered: emoji glyphs (full colour), the Card's translucent dark border, shadows, and the ~40 colour literals
+still in module screens and `screens/camera` (M7 replaces them).
+
+### 7.2 Primitives (`src/components/ui`, import from `components/ui`)
+
+| Component | Notes |
+|---|---|
+| `EvidenceBadge` | Eight states, label + distinct glyph, `accessibilityLabel` "Evidence: <label>", meaning as hint, `showMeaning`, `label` override. `evidence.ts` is a copy of the web module; `tests/primitives.test.ts` imports the web file and fails on any drift (states, labels, meanings, citation mapping; unknown statuses, including `__proto__`/`toString`, map to `unevaluated`) |
+| `StatusBadge` | `tone` + required `label`; tone is a dot, the text is primary |
+| `ConfidenceIndicator` | `value` 0..1, required `source`; % + word (same buckets as web: 0.85 / 0.6); `progressbar` role with `accessibilityValue` |
+| `MetricCard` | Required `basis` ("estimate" / "verified", in words: Estimate chip or the verified EvidenceBadge) and `source`; value in JetBrains Mono |
+| `LoadingState`, `ErrorState`, `PartialResultState` (required `missing[]`), `InsufficientEvidenceState` (required `reason`, "nothing is guessed"), `OfflineState` | One panel layout: title + body in words, decorative glyph, tone on the left border; `action` node for retries. Error is `alert`/assertive, others polite. Loading shows a static marker instead of the spinner under reduced motion and can add skeleton lines (`Skeleton`) |
+| `EmptyState` (existing, `components/EmptyState.tsx`) | Extended: `action` node and `children`, default glyph, `summary` role, Devanagari-aware type |
+| `BottomSheet`, `ConfirmationDialog` | RN `Modal` + `Animated` (native driver), no gesture library. Close by button (44pt), scrim tap or Android back. Reduced motion: no slide/fade. Dialog states the consequence, Cancel first, confirm names the action, `destructive` uses the danger button |
+| `ToastProvider` / `useToast` | Same input as web (`message`, `tone`, `duration`; errors stay until dismissed, others 6 s, max 3); `announceForAccessibility` + live region; 44pt dismiss |
+| `StepWizard`, `Checklist` | Same props as web; each step/item states its status in words in its accessibility label |
+| `Icon` | Decorative glyph from the icon map, hidden from assistive tech |
+
+`Button`, `Card`, `Skeleton`, `EmptyState` and the motion layer (`Pressable`, `Reveal`, `useReducedMotion`) are reused,
+not duplicated. Every `Pressable` inside `components/ui` has a role, a label and the 44pt minimum (tested).
+
+### 7.3 Icons (decision D3, mobile)
+
+`react-native-svg` 15.8.0 (`npx expo install` choice for SDK 52) and `lucide-react-native` 1.71.0 were **measured
+and not adopted**: Android Hermes bundle 2,399,502 B before, 2,627,202 B with `react-native-svg` alone (+227,700 B),
+2,662,807 B with lucide and the 38 icons of the map (+263,305 B), over the 2,600,000 B budget. (Lucide also needs
+deep CommonJS paths here: Expo SDK 52's Metro does not use the `exports` map, so `lucide-react-native/icons/<name>`
+does not resolve.) `src/icons/glyphs.ts` is the one mobile icon map instead: the web keys for modules, actions
+(minus `command`) and evidence, plus the five-tab IA keys (`home`, `scan`, `cases`, `tools`, `settings`) and
+`offline`. Evidence and most action glyphs are monochrome text symbols that take the text colour; module and a few
+action glyphs are emoji. The tab bar still uses its own emoji (M7).
