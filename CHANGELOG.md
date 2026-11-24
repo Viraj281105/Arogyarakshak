@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Wave 3, Milestones 1, 2 and MA: UX architecture, design foundation, user accounts (2026-11-24, branch `wave3/integration`)
+
+Plan `docs/superpowers/plans/2026-11-23-wave3.md`; audit and screen inventory `docs/design/wave3-ux-architecture.md`.
+Checks on the merged tree: 2,369 passed, 9 skipped, 0 failed (one pytest run); 6/6 import contracts; web 256 tests,
+mobile 215 tests and root 75 tests pass; the web build and both bundle budgets pass.
+
+#### Added
+- **User accounts (ADR-026)**
+  - Register, login and logout; `me`; password change; verification and reset flows (mail transport `disabled`); account deletion that erases owned cases.
+  - `GET /api/v1/kadi/cases` and guest-case claim.
+  - Sessions: scrypt hashes; DB-stored hashed sessions; an httpOnly `__Host-` cookie with an Origin check for web; Bearer for mobile.
+  - Login throttle per account and IP; atomic claim and single-use tokens.
+  - Migration `0003_accounts`.
+- Web foundation:
+  - Navy/teal design tokens with AA contrast tests in both themes, and eight evidence-state tokens.
+  - `lucide-react` icon map.
+  - Component primitives: EvidenceBadge, DataTable, SVG charts with table alternatives, drawers and dialogs, state components, and a Ctrl/Cmd+K command palette.
+  - A dev-only `/primitives` gallery.
+- Mobile foundation: native primitives with the same evidence vocabulary, a contrast test over every shared-component colour pair, a glyph icon map and a dev-only gallery.
+- ADR-027: Kadi redaction lives in the dependency-free `kadi.privacy` package; a new import-linter contract and layering tests.
+
+#### Changed
+- The case workspace moved from `/` to `/app`, and `/clinical-review` to `/review` (permanent redirect).
+- The web bundle budget measures what module browsers download (`noModule` polyfills excluded).
+- `next` and `eslint-config-next` upgraded from 16.4.2 to 16.4.6 (seven moderate advisories).
+- Mobile filled buttons, the language switch and the offline banner meet AA contrast.
+- A case created while signed in is owned and returns `access_token: null`; owned cases refuse case tokens.
+- `kadi.parse_document` is loaded lazily.
+
+#### Not done / open
+- D1a: whether derived figures may outlive the 90-day purge.
+- The email delivery channel; email squatting stays possible until it exists.
+- The M3–M9 UI work, including sign-in pages and authenticated downloads for owned cases.
+- Hindi and Marathi copy for the new labels.
+- No device testing for mobile.
+
 ### Wave 2: Devanagari OCR, retrieval, context metrics, localised letters, platform tests, matcher fixes (2026-11-22, branch `wave2/integration`)
 
 Plan `docs/superpowers/plans/2026-11-21-wave2.md`. Combined suite: first combined run on the integrated branch: 2,237 passed, 1 failed, 9 skipped; the one failure was a test expectation changed by stream G's intended 500-handling fix, since updated (its file now passes, 5 passed); a full re-run was started and is not yet reported here.
