@@ -72,7 +72,7 @@ describe('Web Domain Contracts and Routing Boundaries', () => {
 
 describe('Web Consent Request Behaviour', () => {
   const source = readFileSync(
-    join(process.cwd(), 'app', 'hooks', 'useCaseSession.ts'),
+    join(process.cwd(), 'app', 'lib', 'caseApi.ts'),
     'utf-8'
   );
   const uploader = readFileSync(
@@ -83,11 +83,11 @@ describe('Web Consent Request Behaviour', () => {
   test('case creation must send the user consent value, never a hardcoded true', () => {
     assert.ok(
       !/consent_opt_in:\s*true/.test(source),
-      'case creation (useCaseSession) must not hardcode consent_opt_in: true'
+      'case creation (lib/caseApi createCase) must not hardcode consent_opt_in: true'
     );
     assert.ok(
-      /consent_opt_in:\s*consentGiven/.test(source),
-      'case creation (useCaseSession) must send the actual consent value'
+      /consent_opt_in:\s*consentOptIn/.test(source),
+      'case creation (lib/caseApi createCase) must send the actual consent value'
     );
   });
 

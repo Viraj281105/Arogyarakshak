@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { readReducedMotion } from "../motion/useReducedMotion";
 import { drawerShouldClose, nextHeaderState, type HeaderState } from "./headerScroll";
+import { AccountMenuLauncher } from "./AccountMenuLauncher";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { MobileNav } from "./MobileNav";
 import { NAV_ITEMS, isActiveHref } from "./nav";
@@ -13,7 +14,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { TransitionLink } from "./TransitionLink";
 
 // Must match the desktop breakpoint in shell.css (inline nav, no menu button).
-const COMPACT_QUERY = "(max-width: 1023.98px)";
+const COMPACT_QUERY = "(max-width: 1279.98px)";
 
 /**
  * The sticky site header. Scroll-aware without changing its height (so it cannot cause layout
@@ -130,6 +131,7 @@ export function SiteHeader() {
               this never moves the language, theme or menu buttons. */}
           <div className="site-slot">{slot}</div>
           <LanguageSwitcher className="site-lang-inline" />
+          <AccountMenuLauncher />
           <ThemeToggle />
           <button
             type="button"

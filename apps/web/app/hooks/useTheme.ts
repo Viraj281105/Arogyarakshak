@@ -22,8 +22,7 @@ function subscribe(onChange: () => void) {
 export function useTheme() {
   const theme = useSyncExternalStore<Theme>(subscribe, readTheme, () => "light");
 
-  const toggleTheme = useCallback(() => {
-    const next: Theme = readTheme() === "dark" ? "light" : "dark";
+  const setTheme = useCallback((next: Theme) => {
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem(STORAGE_KEY, next);
@@ -32,5 +31,9 @@ export function useTheme() {
     }
   }, []);
 
-  return { theme, toggleTheme };
+  const toggleTheme = useCallback(() => {
+    setTheme(readTheme() === "dark" ? "light" : "dark");
+  }, [setTheme]);
+
+  return { theme, toggleTheme, setTheme };
 }

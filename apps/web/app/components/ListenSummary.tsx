@@ -5,7 +5,7 @@ import type { Language } from "../translations";
 import { listenCopy } from "../lib/listenCopy";
 import { fill, type Summary } from "../lib/listenSummaries";
 import { getListenAvailability, speakWithVoice, type UtteranceLike } from "../lib/speech";
-import { useInstalledVoices, useSimpleLanguage, useSpeechSupported } from "../hooks/useListen";
+import { useInstalledVoices, useReadAloudEnabled, useSimpleLanguage, useSpeechSupported } from "../hooks/useListen";
 
 export type ListenPanelKind = "deadline" | "readiness" | "medicine" | "appeal";
 
@@ -21,6 +21,7 @@ export const ListenSummary: React.FC<{ lang: Language; panel: ListenPanelKind; s
   const simple = useSimpleLanguage();
   const supported = useSpeechSupported();
   const voices = useInstalledVoices();
+  const enabled = useReadAloudEnabled();
   const availability = getListenAvailability(supported, voices, lang);
   const [speaking, setSpeaking] = useState(false);
   const stopRef = useRef<(() => void) | null>(null);
@@ -69,7 +70,7 @@ export const ListenSummary: React.FC<{ lang: Language; panel: ListenPanelKind; s
         <strong style={{ fontSize: "0.9rem" }}>
           {ui.summaryLabel}: {panelTitle}
         </strong>
-        {availability.status === "ready" && (
+        {enabled && availability.status === "ready" && (
           <span style={{ display: "flex", gap: "0.5rem" }}>
             <button type="button" className="btn btn-secondary btn-compact" onClick={listen} disabled={speaking} aria-label={fill(ui.listenAria, { panel: panelTitle })}>
               🔊 {ui.listen}
@@ -82,9 +83,10 @@ export const ListenSummary: React.FC<{ lang: Language; panel: ListenPanelKind; s
       </div>
       <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem", lineHeight: 1.6 }}>{text}</p>
       <p role="status" style={{ margin: "0.4rem 0 0", fontSize: "0.78rem", opacity: 0.85 }}>
-        {availability.status === "ready" && (speaking ? ui.reading : ui.onDeviceNote)}
-        {availability.status === "no-local-voice" && ui.noLocalVoice}
-        {availability.status === "unsupported" && ui.unsupported}
+        {!enabled && ui.readAloudOff}
+        {enabled && availability.status === "ready" && (speaking ? ui.reading : ui.onDeviceNote)}
+        {enabled && availability.status === "no-local-voice" && ui.noLocalVoice}
+        {enabled && availability.status === "unsupported" && ui.unsupported}
       </p>
     </div>
   );

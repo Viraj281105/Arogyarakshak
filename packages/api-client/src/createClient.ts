@@ -8,6 +8,13 @@ export interface ClientOptions {
   fetchImpl?: typeof fetch;
   /** Extra headers for a request path (e.g. a per-case access token). Called with exactly the request path. */
   headersFor?: (path: string) => Record<string, string>;
+  /**
+   * Fetch credentials mode, or a function read at request time. The web app passes "include"
+   * while an account session may exist so the httpOnly session cookie travels cross-origin
+   * (ADR-026); mobile leaves it unset and sends `Authorization: Bearer` through `headersFor`.
+   * A `credentials` value passed to a single request wins.
+   */
+  credentials?: RequestCredentials | (() => RequestCredentials | undefined);
 }
 
 export type RequestOptions = RequestInit & { timeoutMs?: number };
@@ -91,7 +98,13 @@ export function createClient(o: ClientOptions): { request<T>(path: string, init?
 
     try {
       const doFetch = o.fetchImpl ?? fetch;
-      const response = await doFetch(`${base}${path}`, { ...fetchInit, headers, signal: controller.signal });
+      const credentials = typeof o.credentials === "function" ? o.credentials() : o.credentials;
+      const response = await doFetch(`${base}${path}`, {
+        ...(credentials ? { credentials } : {}),
+        ...fetchInit,
+        headers,
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
         throw makeApiError(

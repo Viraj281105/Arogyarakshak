@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { API_BASE, caseAuthHeaders } from "../../../hooks/useApi";
+import { caseAuthHeaders } from "../../../hooks/useApi";
 import { saveBlob } from "../../../lib/download";
 import { ClinicalStatementCard, ProvenanceBadge } from "../../clinical/Attribution";
 import { TONE_CLASS } from "../../../lib/labels";
 import { StatePanel } from "../../clinical/StatePanel";
 import type { AppealResponse } from "./types";
+import { apiFetch } from "../../../lib/apiFetch";
 
 /** The drafted appeal letter (5-agent pipeline, #18/#66), the attributed human clinical
  *  annex (ADR-011) and the signed-PDF download. */
@@ -31,7 +32,7 @@ ${appealData.clinical_annex}`);
   const handleDownloadAppealPdf = async () => {
     setDownloadError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/billnyay/cases/${caseId}/appeal/pdf`, {
+      const res = await apiFetch(`/api/v1/billnyay/cases/${caseId}/appeal/pdf`, {
         headers: caseAuthHeaders(caseToken),
       });
       if (!res.ok) {

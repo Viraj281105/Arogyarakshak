@@ -2,7 +2,7 @@
 
 import { humanizeEnum } from "../../lib/labels";
 import React, { useState } from "react";
-import { API_BASE, caseAuthHeaders, normalizeErrorDetail } from "../../hooks/useApi";
+import { caseAuthHeaders, normalizeErrorDetail } from "../../hooks/useApi";
 import { ReviewerProfile, CaseClinicalReview, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { AssignReviewer } from "./AssignReviewer";
 import { ReviewerAttribution } from "./Attribution";
@@ -12,6 +12,7 @@ import type { Language } from "../../translations";
 import { ListenSummary } from "../ListenSummary";
 import { buildReadinessSummary } from "../../lib/listenSummaries";
 import { StatePanel } from "./StatePanel";
+import { apiFetch } from "../../lib/apiFetch";
 
 interface ReadinessItem {
   item_id: string;
@@ -86,7 +87,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
   const [error, setError] = useState<string | null>(null);
 
   const post = async <T,>(path: string, body: unknown): Promise<T> => {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await apiFetch(path, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

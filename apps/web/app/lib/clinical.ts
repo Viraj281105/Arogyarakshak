@@ -11,7 +11,8 @@
  * native-speaker review and are deliberately not machine-drafted here.
  */
 
-import { API_BASE, caseAuthHeaders, normalizeErrorDetail } from "../hooks/useApi";
+import { caseAuthHeaders, normalizeErrorDetail } from "../hooks/useApi";
+import { apiFetch } from "./apiFetch";
 
 export type Provenance = "AI_DERIVED" | "HUMAN_REVIEWED" | "HUMAN_AUTHORED" | "EXTERNAL_SOURCE" | "PATIENT_PROVIDED";
 
@@ -220,7 +221,7 @@ export async function clinicalRequest<T>(
   path: string,
   options: { method?: "GET" | "POST" | "PUT"; body?: unknown; caseToken?: string; reviewerToken?: string } = {}
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await apiFetch(path, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",

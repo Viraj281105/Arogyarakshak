@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { Language, translations } from "../translations";
+import type { Language } from "../shared/i18n/types";
+import { shellCopy } from "../shell/shellCopy";
+import { uploadCopy } from "../lib/uploadCopy";
+import { DOCUMENT_ACCEPT } from "../lib/documentAccept";
 
-// Everything the API accepts (ALLOWED_UPLOAD_EXTENSIONS in apps/api/.../kadi.py): scans and
-// photos, PDFs, and plain-text/CSV exports. Text files were previously filtered out of the
-// picker although the server accepts them, so the synthetic demo documents could not be chosen.
-export const DOCUMENT_ACCEPT = "image/*,application/pdf,.pdf,.txt,text/plain,.csv,text/csv";
+export { DOCUMENT_ACCEPT };
+
 
 interface DocumentUploaderProps {
   currentLang: Language;
@@ -19,7 +20,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   onStartAudit,
   isProcessing,
 }) => {
-  const t = translations[currentLang];
+  // Only the upload strings and the BYOD badge: the full page dictionary is not shipped here.
+  const t = { upload: uploadCopy[currentLang], byodBadge: shellCopy[currentLang].byodBadge };
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // Opt-IN: a pre-ticked box is not consent. The value is forwarded to the caller so
   // the case is created with the patient's actual choice, not a hardcoded true.

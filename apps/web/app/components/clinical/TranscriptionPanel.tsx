@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { API_BASE, caseAuthHeaders } from "../../hooks/useApi";
+import { caseAuthHeaders } from "../../hooks/useApi";
 import { ReviewerProfile, TranscriptionTask, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { AssignReviewer } from "./AssignReviewer";
 import { ProvenanceBadge } from "./Attribution";
 import { StatePanel } from "./StatePanel";
 import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
+import { apiFetch } from "../../lib/apiFetch";
 
 interface MedicineEntity {
   id: string;
@@ -57,7 +58,7 @@ export const TranscriptionPanel: React.FC<{ caseId: string; caseToken?: string; 
     () =>
       Promise.all([
         clinicalRequest<TranscriptionTask[]>(clinicalPaths.transcriptions(caseId), { caseToken }),
-        fetch(`${API_BASE}/api/v1/kadi/cases/${encodeURIComponent(caseId)}`, { headers: caseAuthHeaders(caseToken) }).then((r) =>
+        apiFetch(`/api/v1/kadi/cases/${encodeURIComponent(caseId)}`, { headers: caseAuthHeaders(caseToken) }).then((r) =>
           r.ok ? (r.json() as Promise<{ entities: MedicineEntity[] }>) : { entities: [] as MedicineEntity[] }
         ),
         clinicalRequest<ReviewerProfile[]>(clinicalPaths.reviewers()),

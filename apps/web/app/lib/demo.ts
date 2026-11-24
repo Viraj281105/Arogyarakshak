@@ -6,8 +6,9 @@
  * held in component memory only — never written to storage.
  */
 
-import { API_BASE, normalizeErrorDetail } from "../hooks/useApi";
+import { normalizeErrorDetail } from "../hooks/useApi";
 import { api } from "./apiClient";
+import { apiFetch } from "./apiFetch";
 
 export interface SimulatedItem {
   item: string;
@@ -69,7 +70,7 @@ export interface DemoScenarioResult {
 export const RESET_CONFIRMATION = "RESET DEMO";
 
 async function demoFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}/api/v1/kadi/clinical-demo${path}`, init);
+  const res = await apiFetch(`/api/v1/kadi/clinical-demo${path}`, init);
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {

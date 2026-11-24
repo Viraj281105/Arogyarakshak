@@ -60,6 +60,11 @@ describe('navigation model', () => {
     assert.equal(isActiveHref('/app#intake-dropzone', '/app'), false);
     assert.equal(isActiveHref('/#intake-dropzone', '/'), false);
     assert.equal(isActiveHref('/', '/'), true);
+    // Sections: a page below a nav item marks it current (Platform for /platform/kadi).
+    assert.equal(isActiveHref('/platform', '/platform/kadi'), true);
+    assert.equal(isActiveHref('/app', '/app/case'), true);
+    assert.equal(isActiveHref('/app', '/application'), false);
+    assert.equal(isActiveHref('/', '/app'), false);
   });
 
   test('every nav item has a label in all three languages', () => {
@@ -193,7 +198,7 @@ describe('root layout frame', () => {
     assert.match(layout, /<SiteHeader/);
     assert.match(layout, /<main id="main-content" tabIndex=\{-1\}/);
     assert.match(layout, /<SiteFooter/);
-    for (const f of ['page.tsx', 'app/page.tsx', 'components/HomeWorkspace.tsx', 'components/landing/LandingPage.tsx', 'review/page.tsx', 'components/StatusPage.tsx', 'not-found.tsx', 'error.tsx']) {
+    for (const f of ['page.tsx', 'app/page.tsx', 'components/workspace/CaseDesk.tsx', 'components/landing/LandingPage.tsx', 'review/page.tsx', 'components/StatusPage.tsx', 'not-found.tsx', 'error.tsx']) {
       const src = read(...f.split('/'));
       // StatusPage keeps a <main> only for global-error, which replaces the root layout.
       const mains = (src.match(/<main\b/g) ?? []).length;
@@ -202,7 +207,7 @@ describe('root layout frame', () => {
   });
 
   test('the pages no longer render their own header or footer', () => {
-    for (const f of ['page.tsx', 'app/page.tsx', 'components/HomeWorkspace.tsx', 'review/page.tsx']) {
+    for (const f of ['page.tsx', 'app/page.tsx', 'components/workspace/CaseDesk.tsx', 'review/page.tsx']) {
       const src = read(...f.split('/'));
       assert.ok(!/<Header\b|<Footer\b|className="header-bar"/.test(src), f);
     }
@@ -228,7 +233,7 @@ describe('PWA manifest', () => {
     assert.ok(icons.some((i) => i.type === 'image/svg+xml' && i.purpose === 'maskable'));
     for (const i of icons) assert.ok(existsSync(join(webDir, 'public', i.src)), `${i.src} missing`);
     const all = [
-      ...['layout.tsx', 'page.tsx', 'app/page.tsx', 'components/HomeWorkspace.tsx'].map((f) => read(...f.split('/'))),
+      ...['layout.tsx', 'page.tsx', 'app/page.tsx', 'components/workspace/CaseDesk.tsx'].map((f) => read(...f.split('/'))),
       ...['SiteHeader.tsx', 'ShellProvider.tsx'].map((f) => read('shell', f)),
     ].join('\n');
     assert.ok(!/navigator\.serviceWorker|workbox/i.test(all), 'no service worker (zero retention)');
@@ -331,8 +336,11 @@ describe('Wave 3 route structure', () => {
     const nav = await import('../app/shell/nav');
     assert.equal(nav.WORKSPACE_PATH, '/app');
     assert.equal(nav.REVIEW_PATH, '/review');
-    assert.equal(nav.moduleHref('dawacheck'), '/app#module-dawacheck');
-    assert.deepEqual(nav.NAV_ITEMS.map((i) => i.href), ['/app#intake-dropzone', '/app#module-workspace', '/review']);
+    // Wave 3 M4: each check has its own page under the open case; the old hash is forwarded by the desk.
+    assert.equal(nav.moduleHref('dawacheck'), '/app/case/dawacheck');
+    assert.equal(nav.moduleFromHash('#module-dawacheck'), 'dawacheck');
+    assert.deepEqual(nav.NAV_ITEMS.map((i) => i.href), ['/platform', '/how-it-works', '/security', '/help', '/app']);
+    assert.deepEqual(nav.SECONDARY_ITEMS.map((i) => i.href), ['/about', '/review']);
     const { ROUTE_REDIRECTS } = await import('../next.config');
     assert.deepEqual(ROUTE_REDIRECTS.map((r) => [r.source, r.destination, r.permanent]), [
       ['/clinical-review', '/review', true],
