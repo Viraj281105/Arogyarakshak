@@ -15,7 +15,7 @@ interface AgentStreamVisualizerProps {
 
 /**
  * Where the document is in processing, driven only by the server's status stream
- * (useCaseSession). The active stage shows an indeterminate bar: the stream reports which
+ * (workspace/CaseProvider). The active stage shows an indeterminate bar: the stream reports which
  * stage is running, not how far through it is, so no percentage is shown.
  */
 export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({ currentLang, currentStep, liveLog }) => {

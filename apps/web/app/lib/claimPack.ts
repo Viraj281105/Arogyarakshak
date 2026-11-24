@@ -1,8 +1,10 @@
 // Claim Pack download (ADR-015): fetch the case's pack ZIP and, only if the person opted in,
 // seal it in the browser with packageCrypto (ADR-014). The password is used locally and is
-// never sent anywhere; the request carries only the per-case access token (ADR-009).
+// never sent anywhere; the request carries only the per-case access token (ADR-009) or, for a
+// case owned by the signed-in account, the session cookie (ADR-026).
 
 import { ENCRYPTED_EXTENSION, encryptPackage } from "./packageCrypto";
+import { noteUnauthorized, requestCredentials } from "./session";
 
 export interface ClaimPackFile {
   bytes: Uint8Array;
@@ -24,7 +26,9 @@ export async function fetchClaimPack(
 ): Promise<ClaimPackFile> {
   const doFetch = options.fetchImpl ?? fetch;
   const headers: Record<string, string> = caseToken ? { "X-Case-Access-Token": caseToken } : {};
-  const res = await doFetch(`${apiBase}${claimPackPath(caseId)}`, { headers });
+  // Owned cases are opened by the session cookie (ADR-026), guest cases by the token header.
+  const res = await doFetch(`${apiBase}${claimPackPath(caseId)}`, { headers, credentials: requestCredentials() });
+  if (res.status === 401) noteUnauthorized(claimPackPath(caseId));
   if (!res.ok) {
     let message = `Could not build the Claim Pack (HTTP ${res.status}).`;
     try {

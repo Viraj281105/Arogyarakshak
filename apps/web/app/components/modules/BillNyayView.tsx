@@ -117,7 +117,7 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               reference rates. Lines with no matching reference rate are listed as not benchmarked — never as fair or
               overcharged.
             </p>
-            <a href="#intake-dropzone" className="btn btn-secondary btn-compact">
+            <a href="/app#intake-dropzone" className="btn btn-secondary btn-compact">
               Add a document
             </a>
           </div>

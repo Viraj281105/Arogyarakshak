@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import type { Language } from "../shared/i18n/types";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { MODULE_ICONS } from "./icons/moduleIcons";
-import { MODULE_META, MODULE_ORDER, NAV_ITEMS, isActiveHref, moduleHref, type ModuleTab } from "./nav";
+import { MODULE_META, MODULE_ORDER, NAV_ITEMS, SECONDARY_ITEMS, SETTINGS_PATH, isActiveHref, moduleHref, type ModuleTab } from "./nav";
 
 function ModuleIcon({ id }: { id: ModuleTab }) {
   const Icon = MODULE_ICONS[id];
@@ -72,7 +72,7 @@ export function MobileNav({
                 {copy.nav.home}
               </TransitionLink>
             </li>
-            {NAV_ITEMS.map((item) => (
+            {[...NAV_ITEMS, { key: "settings" as const, href: SETTINGS_PATH }, ...SECONDARY_ITEMS].map((item) => (
               <li key={item.key}>
                 <TransitionLink
                   href={item.href}

@@ -44,11 +44,16 @@ describe('Provenance / verification stay visually distinct', () => {
 
 describe('Demo-hardening UI contracts', () => {
   it('module views get the case only after processing completes; a stalled stream offers Refresh status', () => {
-    const page = code(read('app', 'components', 'HomeWorkspace.tsx') + read('app', 'hooks', 'useCaseSession.ts'));
-    assert.ok(/caseReady = !!caseId && pipelineStep === 4 && !isProcessing/.test(page));
-    assert.ok(/caseId=\{readyCaseId\}/.test(page));
-    assert.ok(/retryLabel="Refresh status"/.test(page));
-    assert.ok(/Processing is taking longer than expected/.test(page));
+    // Wave 3 M4: CaseProvider decides readiness; module pages get the case id only when ready.
+    const provider = code(read('app', 'components', 'workspace', 'CaseProvider.tsx'));
+    const modulePage = code(read('app', 'components', 'workspace', 'ModuleWorkspace.tsx'));
+    const frame = code(read('app', 'components', 'workspace', 'CaseFrame.tsx'));
+    const copy = read('app', 'components', 'workspace', 'caseCopy.ts');
+    assert.ok(/ready: !!ref && !!detail && step === 4 && !processing && !sessionGone/.test(provider));
+    assert.ok(/const caseId = cs\.ready && cs\.ref \? cs\.ref\.id : "";/.test(modulePage));
+    assert.ok(/retryLabel=\{c\.frame\.refreshStatus\}/.test(frame));
+    assert.ok(/refreshStatus: "Refresh status"/.test(copy));
+    assert.ok(/Processing is taking longer than expected/.test(copy));
   });
 
   it('a failed or unavailable safety check says "Safety check unavailable"', () => {

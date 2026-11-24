@@ -12,6 +12,7 @@ import { nextIndexForKey } from '../app/components/ui/Disclosure';
 import { InsufficientEvidenceState, PartialResultState } from '../app/components/ui/States';
 import { Checklist, StepWizard } from '../app/components/ui/Steps';
 import { filterCommands, isPaletteShortcut, paletteCommands } from '../app/shell/commands';
+import { MODULE_ORDER, PLATFORM_PAGES, PUBLIC_PATHS } from '../app/shell/nav';
 
 const appDir = join(process.cwd(), 'app');
 const tokens = JSON.parse(readFileSync(join(process.cwd(), '..', '..', 'packages', 'design-tokens', 'tokens.json'), 'utf8'));
@@ -136,12 +137,19 @@ describe('command palette', () => {
     for (const lang of ['en', 'hi', 'mr'] as const) {
       const cmds = paletteCommands(lang);
       for (const c of cmds) {
-        assert.ok(['/', '/app', '/review'].includes(c.href.split('#')[0]), `${lang}: ${c.href}`);
+        // Workspace, auth and reviewer routes exist in this app; the public pages are the M3
+        // stream's (nav.ts PUBLIC_PATHS / PLATFORM_PAGES, the one place to adjust them).
+        const path = c.href.split('#')[0];
+        const known = ['/', '/app', '/app/case', '/app/case/reports', '/app/settings', '/review', '/login', '/register',
+          ...MODULE_ORDER.map((m) => `/app/case/${m}`), ...Object.values(PUBLIC_PATHS), ...PLATFORM_PAGES.map((p) => `/platform/${p}`)];
+        assert.ok(known.includes(path), `${lang}: ${c.href}`);
         assert.ok(c.label, `${lang}: ${c.id} has a label`);
       }
       assert.equal(cmds.filter((c) => c.group === 'Checks').length, 5);
     }
-    for (const page of ['page.tsx', 'app/page.tsx', 'review/page.tsx']) assert.ok(existsSync(join(appDir, page)), page);
+    for (const page of ['page.tsx', 'app/page.tsx', 'app/case/page.tsx', 'app/case/[module]/page.tsx', 'app/case/reports/page.tsx', 'app/settings/page.tsx', 'review/page.tsx', 'login/page.tsx', 'register/page.tsx']) {
+      assert.ok(existsSync(join(appDir, page)), page);
+    }
   });
 
   test('filter matches every word against label and keywords; English keywords work in Hindi', () => {

@@ -26,10 +26,12 @@ export const WEB_INITIAL_JS_KB = 170;
  * Wave 3 M2 final build: the case workspace moved from / to /app, so its entry moves with it (a
  * rename, not a new allowance): /app 182.84 (ceiling 183, below the 184 it had as /); / is now the
  * landing page at 162.23 and leaves the map.
+ * Wave 3 M4 (2026-11-24): /app is now the case desk only (the five checks moved to their own
+ * routes under /app/case/<module>, each module view its own chunk; the workspace copy is split
+ * per page area): /app 182.84 -> about 166, under the budget, so it leaves the map. No route is a
+ * known violation any more; every route must stay at or under WEB_INITIAL_JS_KB.
  */
-export const KNOWN_VIOLATIONS = {
-  "/app": 183,
-};
+export const KNOWN_VIOLATIONS = {};
 
 /** Pure: returns a list of failure messages (empty = pass). */
 export function evaluateWebBudget(sizes, known = KNOWN_VIOLATIONS, limit = WEB_INITIAL_JS_KB) {

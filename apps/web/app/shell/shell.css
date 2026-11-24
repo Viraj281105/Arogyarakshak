@@ -90,8 +90,8 @@ body {
   z-index: calc(var(--z-modal) + 1);
   padding: 0.7rem 1rem;
   border-radius: var(--radius-md);
-  background: var(--brand-forest);
-  color: #ffffff;
+  background: var(--action-primary);
+  color: var(--text-on-action);
   font-weight: 700;
   text-decoration: none;
   transform: translateY(-200%);
@@ -118,11 +118,7 @@ body {
 
 .site-header[data-elevated] {
   border-bottom-color: var(--border-subtle);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="light"] .site-header[data-elevated] {
-  box-shadow: 0 6px 20px rgba(23, 36, 51, 0.06);
+  box-shadow: var(--shadow-card);
 }
 
 .site-header[data-hidden] {
@@ -172,7 +168,7 @@ body {
 }
 
 [data-theme="light"] .site-emblem {
-  color: #ffffff;
+  color: var(--text-on-action);
 }
 
 .site-brand-text {
@@ -246,7 +242,7 @@ body {
 
 .site-slot > * {
   background: var(--bg-surface);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-card);
 }
 
 /* Phones: globals.css already pins .demo-pill under the emblem (absolute to the header), so the
@@ -352,7 +348,7 @@ body {
 }
 
 [data-theme="light"] .site-lang-btn[aria-pressed="true"] {
-  background: #ffffff;
+  background: var(--bg-surface);
   color: var(--brand-forest);
 }
 
@@ -424,7 +420,7 @@ body {
 }
 
 .site-drawer::backdrop {
-  background: rgba(5, 10, 18, 0.55);
+  background: var(--overlay-scrim);
 }
 
 .site-drawer-panel {
@@ -720,9 +716,9 @@ body {
 }
 
 .tab-btn.active .tab-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--text-on-action) 20%, transparent);
+  color: var(--text-on-action);
+  border-color: color-mix(in srgb, var(--text-on-action) 30%, transparent);
 }
 
 /* ---------- Loading placeholder for code-split panels (components/LazyPanel.tsx) ---------- */
@@ -757,10 +753,10 @@ body {
   padding: 0.6rem max(var(--shell-gutter), env(safe-area-inset-right)) max(0.6rem, env(safe-area-inset-bottom))
     max(var(--shell-gutter), env(safe-area-inset-left));
   background:
-    repeating-linear-gradient(135deg, rgba(240, 180, 76, 0.07) 0 10px, transparent 10px 20px),
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--status-warning) 7%, transparent) 0 10px, transparent 10px 20px),
     linear-gradient(var(--bg-surface), var(--bg-surface)),
     var(--bg-base);
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-card);
 }
 
 /* Room after the footer so the strip never covers the end of the page. Only when it exists. */
@@ -778,4 +774,124 @@ body:has(.demo-banner) .site-footer {
   .demo-banner {
     position: static;
   }
+}
+
+/* ---------- Account control (Wave 3 M4, ADR-026) ---------- */
+
+.site-account {
+  position: relative;
+}
+
+/* Same footprint as the icon buttons, so the first GET /auth/me never shifts the header. */
+.site-account-placeholder {
+  display: inline-block;
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+}
+
+.site-account-link,
+.site-account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: var(--min-touch-target);
+  min-height: var(--min-touch-target);
+  max-width: 15rem;
+  padding: 0 0.8rem;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.site-account-link:hover,
+.site-account-btn:hover {
+  border-color: var(--border-focus);
+  background: var(--bg-surface-elevated);
+}
+
+.site-account-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Icon only where the header is tight; the accessible name always carries the label. */
+@media (max-width: 1279.98px) {
+  .site-account-text {
+    display: none;
+  }
+  .site-account-link,
+  .site-account-btn {
+    padding: 0;
+  }
+}
+
+.site-account-menu {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  z-index: 60;
+  width: min(18rem, calc(100vw - 2 * var(--shell-gutter)));
+  padding: var(--space-sm);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+}
+
+.site-account-who {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.site-account-who strong {
+  display: block;
+  color: var(--text-primary);
+}
+
+.site-account-menu ul {
+  list-style: none;
+  margin: var(--space-xs) 0 0;
+  padding: 0;
+}
+
+.site-account-menu a,
+.site-account-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--min-touch-target);
+  padding: 0 var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.site-account-menu a:hover,
+.site-account-menu button:hover:not(:disabled) {
+  background: var(--bg-surface-elevated);
+}
+
+.site-account-error {
+  margin: var(--space-xs) var(--space-sm) 0;
+  font-size: 0.8rem;
+  color: var(--status-danger);
 }

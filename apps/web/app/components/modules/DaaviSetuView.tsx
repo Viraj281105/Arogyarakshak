@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "../../translations";
-import { useApi, API_BASE, caseAuthHeaders } from "../../hooks/useApi";
+import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 import { PreauthReadinessPanel } from "../clinical/PreauthReadinessPanel";
 import { StatePanel } from "../clinical/StatePanel";
 import { saveBlob } from "../../lib/download";
@@ -13,6 +13,7 @@ import {
   encryptPackage,
   passwordProblem,
 } from "../../lib/packageCrypto";
+import { apiFetch } from "../../lib/apiFetch";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -112,7 +113,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
     try {
       // A plain <a href> cannot carry the X-Case-Access-Token header (ADR-009), so the
       // file is fetched here and handed to the browser as a blob download instead.
-      const res = await fetch(`${API_BASE}${path}`, {
+      const res = await apiFetch(path, {
         headers: caseAuthHeaders(caseToken),
       });
       if (!res.ok) {
@@ -217,7 +218,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
               Upload a hospital document first to create a case. DaaviSetu then checks which commonly requested documents it
               can find, and fills the pre-authorisation form from what you type and what the document says.
             </p>
-            <a href="#intake-dropzone" className="btn btn-secondary btn-compact">
+            <a href="/app#intake-dropzone" className="btn btn-secondary btn-compact">
               Add a document
             </a>
           </div>

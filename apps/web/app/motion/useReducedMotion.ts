@@ -15,19 +15,46 @@ function defaultMediaQuery(): MediaQueryListLike | undefined {
   return window.matchMedia(QUERY);
 }
 
-/** Current OS-level preference. False where there is no window (server / tests). */
-export function readReducedMotion(mq: MediaQueryListLike | undefined = defaultMediaQuery()): boolean {
-  return mq?.matches ?? false;
+/** localStorage key of the in-app "Reduce motion" setting (Settings page); "reduce" or absent. */
+export const MOTION_PREF_KEY = "arogyarakshak.motion";
+const appListeners = new Set<() => void>();
+
+/** True when the in-app setting asks for reduced motion (the pre-paint script in layout.tsx sets it). */
+export function appReducedMotion(): boolean {
+  return typeof document !== "undefined" && document.documentElement?.getAttribute("data-motion") === "reduce";
 }
 
-/** Subscribes to preference changes (OS toggle while the page is open). Returns the unsubscribe. */
+/** Turns the in-app setting on or off for this browser (a per-viewer convenience, not sensitive). */
+export function setAppReducedMotion(on: boolean): void {
+  if (typeof document === "undefined") return;
+  if (on) document.documentElement.setAttribute("data-motion", "reduce");
+  else document.documentElement.removeAttribute("data-motion");
+  try {
+    if (on) localStorage.setItem(MOTION_PREF_KEY, "reduce");
+    else localStorage.removeItem(MOTION_PREF_KEY);
+  } catch {
+    // storage unavailable: the choice lasts until reload
+  }
+  appListeners.forEach((l) => l());
+}
+
+/** Current preference: the OS setting OR the in-app setting. False where there is no window (server / tests). */
+export function readReducedMotion(mq: MediaQueryListLike | undefined = defaultMediaQuery()): boolean {
+  return appReducedMotion() || (mq?.matches ?? false);
+}
+
+/** Subscribes to preference changes (OS toggle or the in-app setting). Returns the unsubscribe. */
 export function subscribeReducedMotion(
   listener: () => void,
   mq: MediaQueryListLike | undefined = defaultMediaQuery(),
 ): () => void {
-  if (!mq) return () => {};
+  appListeners.add(listener);
+  if (!mq) return () => void appListeners.delete(listener);
   mq.addEventListener("change", listener);
-  return () => mq.removeEventListener("change", listener);
+  return () => {
+    appListeners.delete(listener);
+    mq.removeEventListener("change", listener);
+  };
 }
 
 // Module-level so React keeps one subscription instead of resubscribing on every render.

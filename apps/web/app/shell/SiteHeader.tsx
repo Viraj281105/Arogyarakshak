@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { readReducedMotion } from "../motion/useReducedMotion";
 import { drawerShouldClose, nextHeaderState, type HeaderState } from "./headerScroll";
+import { AccountMenuLauncher } from "./AccountMenuLauncher";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { MobileNav } from "./MobileNav";
 import { NAV_ITEMS, isActiveHref } from "./nav";
@@ -130,6 +131,7 @@ export function SiteHeader() {
               this never moves the language, theme or menu buttons. */}
           <div className="site-slot">{slot}</div>
           <LanguageSwitcher className="site-lang-inline" />
+          <AccountMenuLauncher />
           <ThemeToggle />
           <button
             type="button"

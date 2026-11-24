@@ -34,6 +34,8 @@ export interface ListenCopy {
     simpleToggle: string;
     simpleToggleHelp: string;
     summaryLabel: string;
+    /** Shown instead of the Listen buttons when read-aloud is turned off in Settings. */
+    readAloudOff: string;
   };
   panels: {
     deadline: string;
@@ -103,6 +105,7 @@ export const listenCopy: Record<Language, ListenCopy> = {
       simpleToggle: "Simple language",
       simpleToggleHelp: "Short, plain sentences in the summaries that can be read aloud.",
       summaryLabel: "Summary",
+      readAloudOff: "Read-aloud is turned off in Settings.",
     },
     panels: {
       deadline: "Deadlines",
@@ -245,6 +248,7 @@ export const listenCopy: Record<Language, ListenCopy> = {
       simpleToggle: "सरल भाषा",
       simpleToggleHelp: "सुनाए जा सकने वाले सारांशों में छोटे, सादे वाक्य।",
       summaryLabel: "सारांश",
+      readAloudOff: "सेटिंग्स में पढ़कर सुनाना बंद है।", // UNREVIEWED: NEEDS NATIVE-SPEAKER QA
     },
     panels: {
       deadline: "समय-सीमाएँ",
@@ -387,6 +391,7 @@ export const listenCopy: Record<Language, ListenCopy> = {
       simpleToggle: "सोपी भाषा",
       simpleToggleHelp: "ऐकवता येणाऱ्या सारांशांमध्ये लहान, सोपी वाक्ये.",
       summaryLabel: "सारांश",
+      readAloudOff: "सेटिंग्जमध्ये वाचून दाखवणे बंद आहे.", // UNREVIEWED: NEEDS NATIVE-SPEAKER QA
     },
     panels: {
       deadline: "अंतिम मुदती",
