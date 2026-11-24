@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { useTheme } from '../theme';
+import { badgeSwatch, type BadgeVariant } from './ui/tones';
 
+/** Legacy chip used by the module screens. New code: StatusBadge or EvidenceBadge (components/ui). */
 export interface BadgeProps {
   label: string;
-  variant?: 'info' | 'success' | 'warning' | 'danger' | 'brand';
+  variant?: BadgeVariant;
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
@@ -17,23 +19,11 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
   const { colors, spacing, radii, typography } = useTheme();
 
-  const getColors = () => {
-    switch (variant) {
-      case 'success':
-        return { bg: 'rgba(16, 185, 129, 0.15)', text: colors.statusSuccess };
-      case 'warning':
-        return { bg: 'rgba(245, 158, 11, 0.15)', text: colors.statusWarning };
-      case 'danger':
-        return { bg: 'rgba(239, 68, 68, 0.15)', text: colors.statusDanger };
-      case 'info':
-        return { bg: 'rgba(59, 130, 246, 0.15)', text: colors.statusInfo };
-      case 'brand':
-      default:
-        return { bg: 'rgba(6, 182, 212, 0.15)', text: colors.brandCyan };
-    }
-  };
-
-  const { bg, text } = getColors();
+  // Status colour text on the elevated surface (tones.ts; AA-checked). The old translucent tints
+  // were pre-rebrand literals whose contrast depended on whatever was underneath.
+  const swatch = badgeSwatch(colors, variant);
+  const bg = swatch.bg ?? undefined;
+  const text = swatch.fg;
 
   return (
     <View
@@ -41,6 +31,8 @@ export const Badge: React.FC<BadgeProps> = ({
         styles.badgeBase,
         {
           backgroundColor: bg,
+          borderColor: swatch.border ?? undefined,
+          borderWidth: 1,
           borderRadius: radii.full,
           paddingVertical: spacing.xs,
           paddingHorizontal: spacing.sm + 2,

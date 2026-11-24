@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import { useTheme, fontFor } from '../theme';
 import { Pressable } from '../motion';
+import { buttonSwatch, type ButtonVariant } from './ui/tones';
 
 export interface ButtonProps extends AccessibilityProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: ButtonVariant;
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
@@ -38,50 +39,13 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const { colors, spacing, radii, typography } = useTheme();
 
-  const getBackgroundColor = () => {
-    if (disabled) return colors.borderMedium;
-    switch (variant) {
-      case 'primary':
-        return colors.brandCyan;
-      case 'secondary':
-        return colors.bgSurfaceElevated;
-      case 'outline':
-      case 'ghost':
-        return 'transparent';
-      case 'danger':
-        return colors.statusDanger;
-      default:
-        return colors.brandCyan;
-    }
-  };
-
-  const getTextColor = () => {
-    if (disabled) return colors.textMuted;
-    switch (variant) {
-      case 'primary':
-      case 'danger':
-        return '#ffffff';
-      case 'secondary':
-      case 'ghost':
-        return colors.textPrimary;
-      case 'outline':
-        return colors.brandCyan;
-      default:
-        return '#ffffff';
-    }
-  };
-
-  const getBorderColor = () => {
-    if (disabled) return 'transparent';
-    switch (variant) {
-      case 'outline':
-        return colors.brandCyan;
-      case 'secondary':
-        return colors.borderMedium;
-      default:
-        return 'transparent';
-    }
-  };
+  // Colours come from tones.ts, which the contrast test checks in both themes. Filled variants use
+  // the action pair (textOnAction is navy in the dark theme): white on dark brandCyan was 2.04:1.
+  const swatch = buttonSwatch(colors, variant, disabled);
+  const getBackgroundColor = () => swatch.bg ?? 'transparent';
+  const getTextColor = () => swatch.fg;
+  const getBorderColor = () => swatch.border ?? 'transparent';
+  const bordered = swatch.border !== null;
 
   const getPadding = () => {
     switch (size) {
@@ -109,7 +73,7 @@ export const Button: React.FC<ButtonProps> = ({
         {
           backgroundColor: getBackgroundColor(),
           borderColor: getBorderColor(),
-          borderWidth: variant === 'outline' || variant === 'secondary' ? 1 : 0,
+          borderWidth: bordered ? 1 : 0,
           borderRadius: radii.md,
           minHeight: spacing.minTouchTarget, // Enforces 44px WCAG minimum
           minWidth: spacing.minTouchTarget,

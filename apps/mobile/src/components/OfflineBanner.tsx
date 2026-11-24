@@ -1,11 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme';
+import { offlineBannerSwatch } from './ui/tones';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useLanguage } from '../hooks/useLanguage';
 
 export const OfflineBanner: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
+  // Amber pair from the evidence tokens (tones.ts, AA-checked). Black on light statusWarning was 3.74:1.
+  const swatch = offlineBannerSwatch(colors);
   const { isOnline } = useNetworkStatus();
   const { t } = useLanguage();
 
@@ -18,7 +21,9 @@ export const OfflineBanner: React.FC = () => {
       style={[
         styles.banner,
         {
-          backgroundColor: colors.statusWarning,
+          backgroundColor: swatch.bg ?? undefined,
+          borderBottomColor: swatch.border ?? undefined,
+          borderBottomWidth: 1,
           paddingVertical: spacing.xs,
           paddingHorizontal: spacing.md,
         },
@@ -26,7 +31,7 @@ export const OfflineBanner: React.FC = () => {
       accessible={true}
       accessibilityRole="alert"
     >
-      <Text style={[styles.text, { fontSize: typography.sizes.xs }]}>
+      <Text style={[styles.text, { fontSize: typography.sizes.xs, color: swatch.fg }]}>
         ⚠️ {t.offlineNotice} — {t.offlineSubtext}
       </Text>
     </View>
@@ -40,7 +45,6 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   text: {
-    color: '#000000',
     fontWeight: '600',
     textAlign: 'center',
   },

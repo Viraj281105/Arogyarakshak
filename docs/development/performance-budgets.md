@@ -188,6 +188,24 @@ Ruling 2026-11-18 (Wave 1 controller): budget **2,600,000 B** = the WS5-shell si
 | Shell using RN `Animated`-based `src/motion` | 2,394,806 (+33,653) | 929 | PASS |
 | After the review fixes and removing Reanimated + Gesture Handler from `package.json` (final) | 2,397,558 | 929 | PASS vs 2,600,000 (202,442 B margin) |
 
+**Wave 3 M2 mobile foundation (2026-11-24, same method, Windows, Node 24.19.0):**
+
+| State | Bytes | vs budget |
+|---|---|---|
+| Before M2 (`wave3/integration` 7f07477) | 2,399,502 | PASS (200,498 B margin) |
+| Probe: + `react-native-svg` 15.8.0 only (imported from `App.tsx`) | 2,627,202 (+227,700) | **FAIL** by 27,202 |
+| Probe: + `react-native-svg` + `lucide-react-native` 1.71.0, 38 icons (per-icon CommonJS imports) | 2,662,807 (+263,305) | **FAIL** by 62,807 |
+| Final M2 (AA fixes, glyph icon map; only what production code imports) | **2,416,556** (+17,054) | PASS (183,444 B margin) |
+| Probe: final + every `components/ui` primitive imported in production | 2,452,640 (+53,138 vs before) | PASS (147,360 B margin) |
+
+Decision taken by the M2 mobile stream under the plan's rule ("adopt only if it stays within budget with headroom"):
+**no SVG icon library on mobile**. The icon map uses text glyphs (`apps/mobile/src/icons/glyphs.ts`), and
+`tests/primitives.test.ts` fails if `react-native-svg` or `lucide-react-native` is added to `package.json` without a
+new ruling here. Adopting SVG icons later means raising the budget by at least about 270 KB (or removing a similar
+amount elsewhere), and also accepting native APK/AAB growth. The dev primitives gallery is not in the release bundle
+(it is loaded behind `__DEV__`, and its strings are absent from the `.hbc`). The probes were temporary edits to
+`App.tsx`, reverted before committing.
+
 Rulings (2026-11-18):
 - The mobile motion system uses React Native's built-in `Animated` with the native driver (opacity/transform only).
 - `react-native-reanimated` and `react-native-gesture-handler` are **not dependencies** of `apps/mobile` any more
