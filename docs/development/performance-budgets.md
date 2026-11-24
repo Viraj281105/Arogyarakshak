@@ -5,7 +5,7 @@ are in [`performance-baseline.md`](performance-baseline.md).
 
 | Surface | Metric | Budget | Enforced by |
 |---|---|---|---|
-| Web (`apps/web`) | Initial JS per route, gzip | **170 KB**, with a ratchet for known violations (below) | `scripts/build-checks/web-bundle-budget.mjs`, `web-ci` job |
+| Web (`apps/web`) | Initial JS per route, gzip, excluding `noModule` polyfills (Wave 3 B1) | **170 KB**, with a ratchet for known violations (below) | `scripts/build-checks/web-bundle-budget.mjs`, `web-ci` job |
 | Web `/` (mobile profile, 4x CPU, slow 4G) | Largest Contentful Paint | **2000 ms** (error; the spec target). Warning at 1500 ms | Lighthouse CI, `apps/web/lighthouserc.json` |
 | Web `/` | Cumulative Layout Shift | **0.1** (error) | Lighthouse CI |
 | Mobile (`apps/mobile`) | Android Hermes `.hbc` bundle | **2,600,000 B** (was 2,900,000 until 2026-11-18) | `scripts/build-checks/mobile-bundle-budget.mjs`, `mobile-ci` job |
@@ -21,6 +21,44 @@ fail from day one. The check instead works as a ratchet over `KNOWN_VIOLATIONS` 
 - A route in the map that is now at or under 170 KB fails with "remove it from KNOWN_VIOLATIONS", so fixes stick.
 - A route in the map that no longer exists in the build fails.
 - A missing `.next` build, or a route without a client reference manifest, throws instead of passing.
+
+### Wave 3 M2 (2026-11-23): what is measured changed, and the workspace moved to `/app`
+
+**Metric change (decision B1).** Until WS4 the measure summed every `<script src>` in the prerendered HTML,
+including the polyfill chunk (`build-manifest.json` `polyfillFiles`, 38.70 KB gzip). Next renders that chunk as
+`<script noModule>`, so every browser Next 16 supports (all module-capable) skips it; counting it made the
+170 KB budget unreachable (the React/Next floor alone was 167.09 KB). `scripts/measure-baseline.mjs` now excludes the
+polyfill files and **throws** if any prerendered page (nested pages included) loads one of them without `noModule`,
+so the exclusion can never hide JS that is really downloaded. `--include-nomodule` (CLI) or
+`{ includeNoModule: true }` still gives the old number for comparison. Nothing about the shipped JS changed with
+the metric; only what is counted. The framework floor under the new measure is about 128.4 KB (React/Next runtime),
+so a route has about 41 KB of its own client code before it hits 170 KB.
+
+Fresh builds on Windows, Node 24.19.0, gzip KB. "Old measure" includes the `noModule` polyfills:
+
+| Route | WS4 final, old measure | Same build, new measure | Wave 3 M2 final, new measure | M2 final, old measure | Ceiling |
+|---|---|---|---|---|---|
+| `/` (landing) | 222.26 | 183.56 | **162.23** | 200.93 | none (under 170; was 223, then 184) |
+| `/app` (workspace, was on `/`) | — | — | **182.84** | 221.53 | **183** (the `/` entry moved here: 184 → 183) |
+| `/review` (was `/clinical-review`) | 190.32 | 151.62 | **154.05** | 192.75 | none (was 191) |
+| `/_not-found` | 179.84 | 141.14 | **143.57** | 182.26 | none (was 180) |
+| `/_global-error` | 171.94 | 133.24 | **133.24** | 171.94 | none (was 172) |
+
+What moved the numbers within M2 (new measure):
+- `lucide-react` icon map in the shell (drawer + module tabs): +1.86 KB on every shell route (lucide runtime and
+  five icons). Grouping all 29 icons in one module cost +3.9 KB because the shell then bundled every icon, so the
+  map is split into `shell/icons/{moduleIcons,actionIcons,evidenceIcons}.ts`.
+- Ctrl/Cmd+K launcher in the root layout: about +0.6 KB per route. The palette itself is a separate chunk fetched
+  with a plain `import()` on first use (with `next/dynamic` the launcher cost +2.2 KB).
+- `/` no longer ships `HomeWorkspace` (upload, case desk, module tabs): 183.56 → 162.23. `/app` carries it:
+  182.84, under the ceiling it had as `/`.
+- Component primitives (`components/ui`) are not imported by any production route yet; their CSS (`ui.css`) is
+  global but ships no JS. The dev gallery `/primitives` is a `page.dev.tsx` route and is not built for production.
+
+The ratchet itself is unchanged: ceilings only go down, entries under 170 KB must be deleted, and the `/` → `/app`
+entry is a rename of the same workspace code with a lower ceiling, not a new allowance.
+
+### WS4 (2026-11-18, old measure)
 
 Ceilings are the measured gzip size rounded up to the next whole KB. WS4 (web shell, 2026-11-18, fresh builds on
 Windows, Node 24.19.0) ratcheted them down:
@@ -61,15 +99,16 @@ What changed (details in `docs/superpowers/specs/2026-11-18-ws4-web-shell-design
   boundaries 3.08, route chunks 42.42) and `/clinical-review` about 23 KB.
 - The 38.70 KB polyfill chunk is loaded with `noModule`, so module-capable browsers do not download it. In the
   Browser pane `/` fetched 10 scripts totalling 186.1 KB compressed (earlier WS4 build at 224.85 KB measured), i.e.
-  the measured value minus the polyfills; no split chunk loaded at first paint. The measurement keeps counting
-  polyfills (conservative); that choice is unchanged.
+  the measured value minus the polyfills; no split chunk loaded at first paint. (WS4 kept counting polyfills;
+  Wave 3 M2 stopped, see above.)
 - The largest pieces left in the `/` route chunks: the full trilingual page dictionary (`translations.ts` including
   the shared i18n strings, ~11.2 KB), the read-aloud copy for three languages (`listenCopy.ts`, ~5.9 KB), the upload
   form + BillNyay view (~12.7 KB) and the explanation strings (~2.4 KB). Loading the hi/mr dictionaries only when
   chosen is the next lever (page-content work, Wave 3).
 
-`/_not-found` has 0.16 KB of headroom under its ceiling and `/clinical-review` 0.68 KB; if the first Linux CI build
-measures slightly higher, record the Linux value as a re-baseline (as for `/` in WS0), not a widening.
+(WS4-era note, superseded by Wave 3 M2:) `/_not-found` had 0.16 KB of headroom and `/clinical-review` 0.68 KB. `/app` now
+has 0.16 KB under 183; if the first Linux CI build measures slightly higher, record the Linux value as a re-baseline
+(as for `/` in WS0), not a widening.
 
 ### Removing a KNOWN_VIOLATIONS entry
 
@@ -148,6 +187,24 @@ Ruling 2026-11-18 (Wave 1 controller): budget **2,600,000 B** = the WS5-shell si
 | Shell using Reanimated-based `src/motion` (not shipped) | 3,146,268 (+785,115; 172 Reanimated modules) | 1,100 | FAIL vs the old 2,900,000 |
 | Shell using RN `Animated`-based `src/motion` | 2,394,806 (+33,653) | 929 | PASS |
 | After the review fixes and removing Reanimated + Gesture Handler from `package.json` (final) | 2,397,558 | 929 | PASS vs 2,600,000 (202,442 B margin) |
+
+**Wave 3 M2 mobile foundation (2026-11-24, same method, Windows, Node 24.19.0):**
+
+| State | Bytes | vs budget |
+|---|---|---|
+| Before M2 (`wave3/integration` 7f07477) | 2,399,502 | PASS (200,498 B margin) |
+| Probe: + `react-native-svg` 15.8.0 only (imported from `App.tsx`) | 2,627,202 (+227,700) | **FAIL** by 27,202 |
+| Probe: + `react-native-svg` + `lucide-react-native` 1.71.0, 38 icons (per-icon CommonJS imports) | 2,662,807 (+263,305) | **FAIL** by 62,807 |
+| Final M2 (AA fixes, glyph icon map; only what production code imports) | **2,416,556** (+17,054) | PASS (183,444 B margin) |
+| Probe: final + every `components/ui` primitive imported in production | 2,452,640 (+53,138 vs before) | PASS (147,360 B margin) |
+
+Decision taken by the M2 mobile stream under the plan's rule ("adopt only if it stays within budget with headroom"):
+**no SVG icon library on mobile**. The icon map uses text glyphs (`apps/mobile/src/icons/glyphs.ts`), and
+`tests/primitives.test.ts` fails if `react-native-svg` or `lucide-react-native` is added to `package.json` without a
+new ruling here. Adopting SVG icons later means raising the budget by at least about 270 KB (or removing a similar
+amount elsewhere), and also accepting native APK/AAB growth. The dev primitives gallery is not in the release bundle
+(it is loaded behind `__DEV__`, and its strings are absent from the `.hbc`). The probes were temporary edits to
+`App.tsx`, reverted before committing.
 
 Rulings (2026-11-18):
 - The mobile motion system uses React Native's built-in `Animated` with the native driver (opacity/transform only).

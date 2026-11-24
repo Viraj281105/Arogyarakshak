@@ -625,7 +625,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/kadi/cases": {
+    "/api/v1/kadi/auth/login": {
         parameters: {
             query?: never;
             header?: never;
@@ -635,8 +635,188 @@ export interface paths {
         get?: never;
         put?: never;
         /**
+         * Login
+         * @description Signs in. Every failure is the same 401.
+         */
+        post: operations["login_api_v1_kadi_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revokes the presented session (and clears the cookie for a cookie session).
+         */
+        post: operations["logout_api_v1_kadi_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_api_v1_kadi_auth_me_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Account
+         * @description Erases the account: every owned case (ADR-010 cascade), the account's own BimaNyay
+         *     records without a case, sessions, tokens, the user.
+         */
+        delete: operations["delete_account_api_v1_kadi_auth_me_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Changes the password, revokes every session and returns one fresh session.
+         */
+        post: operations["change_password_api_v1_kadi_auth_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Password Reset
+         * @description Sets a new password and signs out every session. Does not sign in.
+         */
+        post: operations["confirm_password_reset_api_v1_kadi_auth_password_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/password-reset/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Password Reset */
+        post: operations["request_password_reset_api_v1_kadi_auth_password_reset_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register
+         * @description Creates an account. The same 202 answers a new and an already-registered address;
+         *     registration does not sign in (call login next).
+         */
+        post: operations["register_api_v1_kadi_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/verification/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Verification */
+        post: operations["confirm_verification_api_v1_kadi_auth_verification_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/auth/verification/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Verification */
+        post: operations["request_verification_api_v1_kadi_auth_verification_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Cases
+         * @description The signed-in account's live cases, newest first. Never includes case tokens.
+         *     Expired cases are already purged or about to be (D1a is open, ADR-026 §11).
+         */
+        get: operations["list_my_cases_api_v1_kadi_cases_get"];
+        put?: never;
+        /**
          * Create Case
          * @description Creates a new patient case session and its one-time access token (ADR-009).
+         *     Signed in (ADR-026): the case is owned by the account and no case token is issued.
          */
         post: operations["create_case_api_v1_kadi_cases_post"];
         delete?: never;
@@ -707,6 +887,27 @@ export interface paths {
          *     entities go through the same entity resolution as uploads.
          */
         post: operations["import_abdm_records_api_v1_kadi_cases__case_id__abdm_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/cases/{case_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Case
+         * @description Moves a guest case into the signed-in account. Needs the session AND the case's
+         *     X-Case-Access-Token; afterwards that token no longer opens the case.
+         */
+        post: operations["claim_case_api_v1_kadi_cases__case_id__claim_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2110,6 +2311,17 @@ export interface components {
             /** Coi Disclosure */
             coi_disclosure?: string | null;
         };
+        /** AcceptedResponse */
+        AcceptedResponse: {
+            /** Message */
+            message: string;
+            /**
+             * Status
+             * @default accepted
+             * @constant
+             */
+            status: "accepted";
+        };
         /** AppealResponse */
         AppealResponse: {
             /** Appeal Letter */
@@ -2308,15 +2520,21 @@ export interface components {
         CaseCreatedResponse: {
             /**
              * Access Token
-             * @description Case access token (ADR-009). Store it — it is shown only once and is required on every subsequent request for this case.
+             * @description Case access token (ADR-009). Store it — it is shown only once and is required on every subsequent request for this case. null when the case was created while signed in: an owned case is opened with the account session, never a case token (ADR-026).
              */
-            access_token: string;
+            access_token: string | null;
             /** Consent Opt In */
             consent_opt_in: boolean;
             /** Created At */
             created_at: unknown;
             /** Id */
             id: string;
+            /**
+             * Owned
+             * @description True when the case belongs to the signed-in account (ADR-026).
+             * @default false
+             */
+            owned: boolean;
             /** Status */
             status: string;
             /** Total Charged */
@@ -2419,6 +2637,13 @@ export interface components {
             status: string;
             /** Total Charged */
             total_charged: number;
+        };
+        /** ChangePasswordRequest */
+        ChangePasswordRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
         };
         /** Citation */
         Citation: {
@@ -2540,6 +2765,21 @@ export interface components {
              */
             status: string;
         };
+        /** ClaimResponse */
+        ClaimResponse: {
+            /**
+             * Claimed
+             * @description False when the case already belonged to this account.
+             */
+            claimed: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Owned
+             * @default true
+             */
+            owned: boolean;
+        };
         /** ClinicalConfirmationRequest */
         ClinicalConfirmationRequest: {
             /** Insurer Name */
@@ -2603,6 +2843,21 @@ export interface components {
         DeclineRequest: {
             /** Reason */
             reason?: string | null;
+        };
+        /** DeleteAccountRequest */
+        DeleteAccountRequest: {
+            /** Password */
+            password: string;
+        };
+        /** DeleteAccountResponse */
+        DeleteAccountResponse: {
+            /** Cases Erased */
+            cases_erased: number;
+            /**
+             * Deleted
+             * @default true
+             */
+            deleted: boolean;
         };
         /** DemoResetRequest */
         DemoResetRequest: {
@@ -2701,6 +2956,14 @@ export interface components {
             target_year: number;
             /** Trend Slope Per Year */
             trend_slope_per_year: number;
+        };
+        /** EmailRequest */
+        EmailRequest: {
+            /**
+             * Email
+             * @description Login email address.
+             */
+            email: string;
         };
         /** EntityResponse */
         EntityResponse: {
@@ -3162,6 +3425,23 @@ export interface components {
              */
             violations: number;
         };
+        /** LoginRequest */
+        LoginRequest: {
+            /**
+             * Email
+             * @description Login email address.
+             */
+            email: string;
+            /** Password */
+            password: string;
+            /**
+             * Session Transport
+             * @description cookie (web): httpOnly session cookie, no token in the body. bearer (mobile): the token is returned once in `token`; send it as `Authorization: Bearer`.
+             * @default cookie
+             * @enum {string}
+             */
+            session_transport: "cookie" | "bearer";
+        };
         /** MedicineBenchmark */
         MedicineBenchmark: {
             /** Active Ingredient */
@@ -3313,6 +3593,28 @@ export interface components {
              * @enum {string}
              */
             forum: "insurer_grievance" | "insurance_ombudsman" | "consumer_commission";
+        };
+        /** OwnedCaseList */
+        OwnedCaseList: {
+            /** Cases */
+            cases: components["schemas"]["OwnedCaseSummary"][];
+        };
+        /** OwnedCaseSummary */
+        OwnedCaseSummary: {
+            /** Consent Opt In */
+            consent_opt_in: boolean;
+            /** Created At */
+            created_at?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Id */
+            id: string;
+            /** Status */
+            status: string;
+            /** Total Charged */
+            total_charged: number;
+            /** Updated At */
+            updated_at?: string | null;
         };
         /** PlaybookWrite */
         PlaybookWrite: {
@@ -3504,6 +3806,16 @@ export interface components {
             /** Threshold Or Rule */
             threshold_or_rule: string;
         };
+        /** RegisterRequest */
+        RegisterRequest: {
+            /**
+             * Email
+             * @description Login email address.
+             */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /** RegistrationStatusResult */
         RegistrationStatusResult: {
             /** Checked At */
@@ -3534,6 +3846,13 @@ export interface components {
             statute_or_circular: string;
             /** Violation Summary */
             violation_summary: string;
+        };
+        /** ResetPasswordRequest */
+        ResetPasswordRequest: {
+            /** New Password */
+            new_password: string;
+            /** Token */
+            token: string;
         };
         /** ResolutionDecisionResponse */
         ResolutionDecisionResponse: {
@@ -3760,6 +4079,31 @@ export interface components {
              */
             sources: components["schemas"]["Citation"][];
         };
+        /** SessionInfo */
+        SessionInfo: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Idle Timeout Minutes */
+            idle_timeout_minutes: number;
+            /**
+             * Transport
+             * @enum {string}
+             */
+            transport: "cookie" | "bearer";
+        };
+        /** SessionResponse */
+        SessionResponse: {
+            session: components["schemas"]["SessionInfo"];
+            /**
+             * Token
+             * @description Bearer sessions only, returned once. Always null for cookie sessions.
+             */
+            token?: string | null;
+            user: components["schemas"]["UserResponse"];
+        };
         /**
          * SourceModule
          * @enum {string}
@@ -3773,6 +4117,11 @@ export interface components {
             limitations: string;
             /** Reviewer Statement */
             reviewer_statement: string;
+        };
+        /** StatusResponse */
+        StatusResponse: {
+            /** Status */
+            status: string;
         };
         /** StoredIncomeProfile */
         StoredIncomeProfile: {
@@ -3808,6 +4157,11 @@ export interface components {
              * @description Insurance company name
              */
             insurer_name: string;
+        };
+        /** TokenRequest */
+        TokenRequest: {
+            /** Token */
+            token: string;
         };
         /** TranscriptionAssign */
         TranscriptionAssign: {
@@ -3920,6 +4274,22 @@ export interface components {
             code: string;
             /** Reason */
             reason: string;
+        };
+        /** UserResponse */
+        UserResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Email Verified At */
+            email_verified_at?: string | null;
+            /** Id */
+            id: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -5032,6 +5402,328 @@ export interface operations {
             };
         };
     };
+    login_api_v1_kadi_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_kadi_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_api_v1_kadi_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    delete_account_api_v1_kadi_auth_me_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteAccountResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_kadi_auth_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_password_reset_api_v1_kadi_auth_password_reset_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_password_reset_api_v1_kadi_auth_password_reset_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_api_v1_kadi_auth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_verification_api_v1_kadi_auth_verification_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_verification_api_v1_kadi_auth_verification_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_cases_api_v1_kadi_cases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnedCaseList"];
+                };
+            };
+        };
+    };
     create_case_api_v1_kadi_cases_post: {
         parameters: {
             query?: never;
@@ -5155,6 +5847,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AbdmImportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_case_api_v1_kadi_cases__case_id__claim_post: {
+        parameters: {
+            query?: {
+                access_token?: string | null;
+            };
+            header?: {
+                "X-Case-Access-Token"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClaimResponse"];
                 };
             };
             /** @description Validation Error */

@@ -27,6 +27,10 @@ class BimaNyayCase(Base):
 
     id = Column(String, primary_key=True, index=True)
     case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=True, index=True)
+    # ADR-026: the signed-in account that created this record without a case link, so
+    # account deletion erases it too. NULL for guest use and for case-linked records
+    # (those go with their case through purge_case).
+    owner_user_id = Column(String, ForeignKey("kadi_users.id"), nullable=True, index=True)
     policy_number = Column(String, index=True, nullable=False)
     insurer_name = Column(String, index=True, nullable=False)
     policy_age_years = Column(Float, default=0.0)
@@ -50,6 +54,10 @@ class BimaNyayGrievance(Base):
 
     id = Column(String, primary_key=True, index=True)
     case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=True, index=True)
+    # ADR-026: the signed-in account that created this record without a case link, so
+    # account deletion erases it too. NULL for guest use and for case-linked records
+    # (those go with their case through purge_case).
+    owner_user_id = Column(String, ForeignKey("kadi_users.id"), nullable=True, index=True)
     claim_number = Column(String, index=True, nullable=True)
     insurer_name = Column(String, index=True, nullable=False)
     current_tier = Column(String, default="LEVEL_1_GRO")

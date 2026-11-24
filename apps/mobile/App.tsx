@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { DevSettings, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -14,6 +14,33 @@ import { navigationTheme } from './src/shell/logic';
 
 const MOTION_PRIME_TIMEOUT_MS = 1500;
 
+// DEV ONLY primitives gallery (Wave 3 M2). The require sits inside a `__DEV__` conditional, so
+// Metro's production transform folds it away and the gallery is not in release bundles
+// (tests/primitives.test.ts keeps this shape; the M2 handoff records the bundle check).
+const PrimitivesGallery: React.ComponentType<{ onExit?: () => void }> | null = __DEV__
+  ? require('./src/dev/PrimitivesGallery').PrimitivesGallery
+  : null;
+
+/** Web preview: `?gallery` in the URL opens the gallery. Native: the dev menu item below. */
+function galleryRequested(): boolean {
+  if (!__DEV__ || Platform.OS !== 'web') return false;
+  try {
+    return new URLSearchParams(globalThis.location?.search ?? '').has('gallery');
+  } catch {
+    return false;
+  }
+}
+
+function useDevGallery(): [boolean, (open: boolean) => void] {
+  const [open, setOpen] = useState(galleryRequested);
+  useEffect(() => {
+    if (__DEV__ && Platform.OS !== 'web') {
+      DevSettings.addMenuItem('Primitives gallery', () => setOpen((v) => !v));
+    }
+  }, []);
+  return [open, setOpen];
+}
+
 // Keep the native splash screen up until the bundled fonts are ready.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -26,6 +53,11 @@ const AppShell: React.FC = () => {
   const { isDark, colors } = useTheme();
   const { language, setLanguage, t } = useLanguage('en');
   const navTheme = useMemo(() => navigationTheme(isDark, colors), [isDark, colors]);
+  const [galleryOpen, setGalleryOpen] = useDevGallery();
+
+  if (__DEV__ && PrimitivesGallery && galleryOpen) {
+    return <PrimitivesGallery onExit={Platform.OS === 'web' ? undefined : () => setGalleryOpen(false)} />;
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgBase }}>

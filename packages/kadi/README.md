@@ -9,7 +9,7 @@
 - **Document Extraction (`kadi/extraction.py`)**:
   - Ingests raw document text or OCR tokens.
   - Normalizes hospital details, diagnoses, procedures, line items, and medications into a structured schema.
-  - The patient name is extracted in memory for the active request only and is never persisted (see `redaction.py` and ADR-003).
+  - The patient name is extracted in memory for the active request only and is never persisted (see `privacy/redaction.py` and ADR-003).
 - **Shared OCR Engine (`kadi/ocr/ocr_parser.py`)**:
   - Handles multi-format document parsing (bills, prescriptions, insurance schedules).
   - Devanagari and Latin script text extraction.
@@ -33,7 +33,10 @@
 packages/kadi/
 ├── kadi/
 │   ├── extraction.py        # Extraction engine (LLM-grounded + heuristic normalization)
-│   ├── redaction.py         # Direct-identifier removal before persistence
+│   ├── privacy/             # Dependency-free leaf package (ADR-027): imports nothing else from kadi
+│   │   └── redaction.py     # Direct-identifier removal before persistence
+│   ├── redaction.py         # Compatibility alias: `from kadi.redaction import redact_pii` still works
+│   ├── llm/                 # Resilient Groq client, cache, breaker, shadow runs (ADR-024); imports only kadi.llm and kadi.privacy
 │   ├── line_items.py        # Shared billing line-item parsing
 │   ├── resolution/          # Entity resolution: similarity, transliteration, phonetic, semantic, resolver, calibration, evaluation
 │   ├── graph.py             # Case knowledge-graph projection (#86)
@@ -42,7 +45,7 @@ packages/kadi/
 │   ├── ocr/
 │   │   ├── ocr_parser.py    # Optical character recognition parser
 │   │   └── tests/           # OCR parser test suite
-│   └── __init__.py          # Public package exports
+│   └── __init__.py          # Public package exports (`parse_document` is re-exported lazily, ADR-027)
 ├── pyproject.toml           # Package configuration & build specification
 └── README.md
 ```

@@ -19,15 +19,21 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+/**
+ * `forcedMode` pins a nested provider to one theme regardless of the system scheme (used by the
+ * dev primitives gallery to show both themes on one screen). The app root does not pass it.
+ */
+export const ThemeProvider = ({ children, forcedMode }: { children: ReactNode; forcedMode?: ThemeMode }) => {
   const systemScheme = useColorScheme();
-  const [mode, setMode] = useState<ThemeMode>(systemScheme === 'light' ? 'light' : 'dark');
+  const [mode, setMode] = useState<ThemeMode>(forcedMode ?? (systemScheme === 'light' ? 'light' : 'dark'));
 
   useEffect(() => {
-    if (systemScheme) {
+    if (forcedMode) {
+      setMode(forcedMode);
+    } else if (systemScheme) {
       setMode(systemScheme);
     }
-  }, [systemScheme]);
+  }, [systemScheme, forcedMode]);
 
   const toggleTheme = () => {
     setMode((prev) => (prev === 'dark' ? 'light' : 'dark'));

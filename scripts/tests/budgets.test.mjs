@@ -7,6 +7,7 @@ import {
   WEB_INITIAL_JS_KB,
   evaluateWebBudget,
   checkWebBundleBudget,
+  KNOWN_VIOLATIONS,
 } from "../build-checks/web-bundle-budget.mjs";
 import {
   MOBILE_BUNDLE_BUDGET_BYTES,
@@ -53,6 +54,13 @@ test("an empty measurement fails even with an empty KNOWN_VIOLATIONS map", () =>
   const errors = evaluateWebBudget({}, {});
   assert.equal(errors.length, 1);
   assert.match(errors[0], /No routes were measured/);
+});
+
+test("shipped KNOWN_VIOLATIONS ceilings are whole KB and all above the budget (ratchet entries only)", () => {
+  for (const [route, ceiling] of Object.entries(KNOWN_VIOLATIONS)) {
+    assert.ok(Number.isInteger(ceiling), `${route}: ${ceiling} is not a whole KB`);
+    assert.ok(ceiling > WEB_INITIAL_JS_KB, `${route}: a ${ceiling} KB ceiling belongs out of the map`);
+  }
 });
 
 test("web check throws (does not pass silently) when .next is missing", () => {

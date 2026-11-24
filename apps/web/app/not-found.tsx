@@ -18,7 +18,7 @@ export default function NotFound() {
           <DocumentLink href="/" className="btn btn-primary btn-lg">
             Go to the home page
           </DocumentLink>
-          <DocumentLink href="/#intake-dropzone" className="btn btn-ghost btn-lg">
+          <DocumentLink href="/app#intake-dropzone" className="btn btn-ghost btn-lg">
             Check a document
           </DocumentLink>
         </>
@@ -26,7 +26,7 @@ export default function NotFound() {
     >
       <p>
         The link may be mistyped or out of date. ArogyaRakshak has two places to go: the home page, where you check a bill,
-        insurer letter or prescription, and the <DocumentLink href="/clinical-review">clinical reviewer workspace</DocumentLink>.
+        insurer letter or prescription, and the <DocumentLink href="/review">clinical reviewer workspace</DocumentLink>.
       </p>
       <p>
         If you were in the middle of a check: its access key is kept only in the memory of the tab where you started it, so

@@ -5,7 +5,6 @@ Handles health insurance denial audits, statutory clause analysis,
 and multi-tier IRDAI grievance timeline tracking.
 """
 
-import hmac
 import logging
 import uuid
 from typing import Optional
@@ -14,12 +13,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.case_auth import CASE_ACCESS_TOKEN_HEADER, hash_case_access_token, require_case_access
+from app.account_auth import get_optional_principal
+from app.case_auth import CASE_ACCESS_TOKEN_HEADER, INVALID_TOKEN_DETAIL, authorize_case, require_case_access
 from app.clinical.serializers import annex_dict, statement_view
 from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.consent import require_case_consent
 from app.database import get_db
 from app.models import BimaNyayCase, BimaNyayGrievance, BimaNyayTimelineEvent, KadiCase
+from app.services.accounts import Principal
 from kadi.clinical_review.annex import NO_HUMAN_STATEMENT_NOTICE, render_annex
 from bimanyay import (
     ClaimDenialInput,
@@ -37,6 +38,7 @@ async def _authorize_optional_case(
     case_id: Optional[str],
     x_case_access_token: Optional[str],
     db: AsyncSession,
+    principal: Optional[Principal] = None,
 ) -> Optional[KadiCase]:
     """SEC-04: BimaNyay previously created dispute records with no case linkage at all —
     unauthorized, unauthenticated, and outside the case-deletion cascade (ADR-009/#66
@@ -57,13 +59,11 @@ async def _authorize_optional_case(
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
-    stored_hash = case.access_token_hash or ""
-    presented_hash = hash_case_access_token(x_case_access_token or "")
-    if not x_case_access_token or not stored_hash or not hmac.compare_digest(presented_hash, stored_hash):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The provided case access token is invalid for this case.",
-        )
+    # ADR-026: the same rule as every /cases/{case_id} route (an owned case needs its
+    # owner's session). A guest case without a token stays 403 here, as before.
+    if not case.owner_user_id and not x_case_access_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INVALID_TOKEN_DETAIL)
+    authorize_case(case, method="POST", header_token=x_case_access_token, principal=principal)
 
     return require_case_consent(case)
 
@@ -83,13 +83,14 @@ async def analyze_denial(
         None, description="Optional: link this dispute record to an existing Kadi case (SEC-04)."
     ),
     x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: Optional[Principal] = Depends(get_optional_principal),
 ):
     """
     Audits an insurance claim repudiation or deduction against IRDAI regulations.
     Generates 3-tier appeal documents: GRO, IRDAI Bima Bharosa, and Ombudsman in English, Hindi, or Marathi.
     """
-    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db)
+    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db, principal)
     try:
         result = analyze_insurance_denial(req, language=language)
 
@@ -98,6 +99,9 @@ async def analyze_denial(
         case_record = BimaNyayCase(
             id=record_id,
             case_id=linked_case.id if linked_case else None,
+            # ADR-026: a signed-in caller's stand-alone record belongs to the account, so
+            # account deletion erases it. Case-linked records go with their case.
+            owner_user_id=principal.user.id if principal and not linked_case else None,
             policy_number=req.policy_number,
             insurer_name=req.insurer_name,
             policy_age_years=req.policy_age_years,
@@ -128,12 +132,13 @@ async def track_timeline(
         None, description="Optional: link this grievance record to an existing Kadi case (SEC-04)."
     ),
     x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: Optional[Principal] = Depends(get_optional_principal),
 ):
     """
     Calculates statutory milestone deadlines and SLA tracking for dispute escalation.
     """
-    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db)
+    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db, principal)
     try:
         timeline = calculate_grievance_timeline(
             insurer_name=req.insurer_name,
@@ -147,6 +152,7 @@ async def track_timeline(
         grievance_record = BimaNyayGrievance(
             id=grievance_id,
             case_id=linked_case.id if linked_case else None,
+            owner_user_id=principal.user.id if principal and not linked_case else None,
             claim_number=req.claim_number,
             insurer_name=req.insurer_name,
             current_tier=req.current_tier,

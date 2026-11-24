@@ -4,7 +4,7 @@
 
 ## Starting state
 - API in demo mode, `GROQ_API_KEY` unset (see `demo/README.md`).
-- Browser A: patient app `http://localhost:3000`. Browser B (or another tab): `/clinical-review`.
+- Browser A: patient workspace `http://localhost:3000/app`. Browser B (or another tab): `/review` (the old `/clinical-review` redirects).
 - Demo controls → **Reset demo** (copy Clinician A's reviewer ID and token from the panel).
 
 ## Action sequence

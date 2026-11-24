@@ -384,21 +384,30 @@ async def _route_uncertain_readings(session, case: KadiCase, case_id: str, parse
     return None
 
 
-async def create_case_record(db: AsyncSession, consent_opt_in: bool) -> "tuple[KadiCase, str]":
+async def create_case_record(
+    db: AsyncSession, consent_opt_in: bool, owner_user_id: "Optional[str]" = None
+) -> "tuple[KadiCase, Optional[str]]":
     """Creates a case and its one-time access token (ADR-009); commits. Shared by the
-    route below and the demo scenario loader (app.clinical.demo_control)."""
+    route below and the demo scenario loader (app.clinical.demo_control).
+
+    ADR-026: with ``owner_user_id`` the case belongs to that account from the start and
+    NO case token is issued (an owned case never accepts one); the token is then None."""
     # 16 hex chars (64 bits) rather than 8 (32 bits): raises the cost of blindly guessing
     # a case id, but — per ADR-008/ADR-009 — entropy alone is not authorization. The
     # access_token below is the actual authorization boundary; every subsequent
     # case-scoped request must present it.
     case_id = f"CASE-{secrets.token_hex(8)}"
-    plaintext_token, token_hash = generate_case_access_token()
+    if owner_user_id:
+        plaintext_token, token_hash = None, None
+    else:
+        plaintext_token, token_hash = generate_case_access_token()
     case = KadiCase(
         id=case_id,
         consent_opt_in=consent_opt_in,
         status="active",
         total_charged=0.0,
         access_token_hash=token_hash,
+        owner_user_id=owner_user_id,
         # SEC-03: server-side retention deadline, independent of the client ever coming
         # back with its token — see app.case_retention.
         expires_at=datetime.utcnow() + timedelta(days=settings.case_ttl_days),

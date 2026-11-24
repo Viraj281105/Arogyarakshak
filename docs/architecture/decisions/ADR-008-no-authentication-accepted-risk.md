@@ -1,7 +1,7 @@
 # ADR-008: No Authentication Layer — Accepted Risk, with Compensating Controls
 
 ## Status
-Accepted
+Accepted. **Superseded for signed-in use by [ADR-026](ADR-026-user-accounts-and-case-ownership.md)** (user accounts, 2026-11-23). Still in force for guest (no-account) use: unowned cases and the per-IP limiter work as described here.
 
 ## Context
 The API has never had an authentication or authorization layer. Any caller who knows or

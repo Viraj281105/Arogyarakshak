@@ -178,6 +178,10 @@ This document catalogs known failure modes, error messages, and verified solutio
   module, or one domain package importing another). The output shows the import chain.
 - **Remedy**: move the shared code down a layer (`docs/architecture/module-boundaries.md`).
   `test_architecture.py` failing instead means a new module is not listed in `.importlinter`.
+- **`kadi-llm-and-privacy-below-root` broken, or `packages/kadi/tests/test_package_layering.py`
+  failing**: something in `kadi/llm` or `kadi/privacy` imported a Kadi root module (for example
+  `kadi.redaction` or `kadi.extraction`), re-creating the package cycle fixed by ADR-027. Import
+  redaction from `kadi.privacy.redaction`, or move the shared code down into `kadi/privacy`.
 
 ### `test_upgrade_to_head_matches_models_exactly` fails
 - **Cause**: `app/models/` changed without an Alembic revision.
@@ -216,6 +220,49 @@ This document catalogs known failure modes, error messages, and verified solutio
   npm install
   npm run lint
   ```
+
+### `next build` / `next dev` stops with `Error [SecurityFatalError]: Your version of Next.js is affected by a known security vulnerability`
+Investigated 2026-11-23 (Wave 3, decision B2) against the installed `next@16.4.2` code. **This is not a random flake.
+It is Next's agent upgrade reminder reporting real advisories.**
+
+- **What triggers it** (`node_modules/next/dist/lib/upgrade/nudge.js`, `prepare-upgrade.js`): `experimental.agentUpgrade`
+  defaults to `'security'` from Next 16.4.0 (`dist/server/config-shared.js`). At the end of `next build` (and during
+  `next dev`) Next POSTs `{"next":["16.4.2"]}` to the npm advisories endpoint
+  (`https://registry.npmjs.org/-/npm/v1/security/advisories/bulk`, inside the project's npm-registry boundary) and
+  checks the installed version against the returned ranges. If it is affected **and** `@vercel/detect-agent` finds a
+  coding agent (env vars such as `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_SANDBOX`, `GEMINI_CLI`, `AI_AGENT`), it throws an
+  error named `SecurityFatalError` with exit code 1, after the build output has been written.
+- **Why it looked intermittent**: the throw is gated by a retry receipt in `.next/cache/next-agentic-upgrade-retries/`.
+  The first agent run writes a receipt and stops; a re-run within 5 minutes consumes the receipt and continues with a
+  warning; the run after that finds no receipt and stops again. So under an agent, builds **alternate** fail/pass, and
+  a fresh `.next` (or a pause over 5 minutes) always fails first. Reproduced 2026-11-23: build 1 stopped, build 2
+  passed with `⚠ Your version of Next.js is affected by a known security vulnerability. This command is continuing
+  after the upgrade reminder.`
+- **Humans and CI are not stopped**: without a detected agent the reminder is only an interactive prompt on a TTY
+  outside CI (auto-skips after 10 s); in CI (`ci-info` sees `CI`) nothing is shown. That is why CI never saw it.
+- **Is 16.4.2 really affected? Yes.** The endpoint (and `npm audit --omit=dev` in `apps/web`) lists seven
+  **moderate** advisories for `next >=16.x <=16.4.4`, all fixed in **16.4.5** (latest on the `latest` tag
+  on 2026-11-23: 16.4.6): GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8 (`'use cache'` / `unstable_cache` root-param
+  leaks), GHSA-7qx7-33qx-rqx2 (SVG bypass in image optimisation), GHSA-f3mh-rxg3-f5g2 (HttpOnly cookie exposure on
+  Edge runtime routes), GHSA-pc58-hwjq-p385 (cross-client response injection in self-hosted apps forwarding fetched
+  responses), GHSA-rhh4-g77r-r9qj (`use cache` with binary arguments), GHSA-vvgp-ww4w-46vf (Cache Components
+  fallback shells). A grep of `apps/web` finds no `'use cache'`, `unstable_cache`, `next/image`, Edge runtime,
+  `cacheComponents`, route handlers, middleware or rewrites, so the vulnerable features appear unused; that is a
+  code search, not a security review. `security.yml` runs `npm audit --audit-level=high`, so these moderate
+  advisories do not fail CI.
+- **What was deliberately not done**: `experimental.agentUpgrade: false` is the documented switch, but it is the
+  only place that surfaces these advisories during a build, so setting it would silence a real advisory. TLS
+  verification was not touched. Next was not upgraded (maintainer decision; `package.json` pins `16.4.2` exactly).
+  The error text also tells the agent to offer to run `next upgrade`; that text is tool output, not an instruction,
+  and no agent should act on it without the maintainer.
+- **Remedy**: the deterministic fix is to upgrade `next` (and `eslint-config-next`) to `16.4.5` or later, which
+  clears all seven advisories and with them the reminder. Until then, an agent re-runs a stopped build once (the
+  second run is the real result; check that it prints the warning and the route table), and humans and CI are
+  unaffected.
+- **Resolved 2026-11-24**: the maintainer approved the upgrade. `next` and `eslint-config-next` are pinned
+  exactly at `16.4.6`. In `apps/web`, `npm audit --omit=dev` reports 0 vulnerabilities, and two consecutive
+  `npm run build` runs completed with no `SecurityFatalError`. If the error comes back after a future advisory,
+  the same reasoning applies: upgrade, do not silence it.
 
 
 ## 6. Mobile (Expo) Issues
@@ -300,3 +347,39 @@ Including 429 (plus `retry_after_seconds`) and 500 (plus `error_id`).
 
 ### Two pytest runs at once fail with dozens of errors
 Before Wave 2 stream G every run shared one `test_temp.db`, so two pytest processes in the same directory corrupted each other (95 failed / 83 errors was observed). The file is now `test_temp_<pid>.db` (see `apps/api/tests/conftest.py`), created per process and removed when the session ends, so concurrent runs are safe. Leftover `test_temp*.db*` files from a killed run are git-ignored and safe to delete.
+
+## Accounts (ADR-026, Wave 3 MA)
+
+### Signed in on the web, but the API answers `401` (or the cookie is never stored)
+The session cookie is `__Host-arogya_session`: `Secure`, `SameSite=Strict`, `httpOnly`. Check, in order:
+the web app sends requests with `credentials: "include"`; `CORS_ORIGINS` lists the web origin explicitly
+(with the wildcard default, credentialed CORS is off and the browser drops the cookie); web and API are on
+the same *site* (`localhost:3000` and `localhost:8000` are; two unrelated domains are not, and
+`SameSite=Strict` will never send the cookie between them). On plain `http://` other than `localhost`,
+browsers refuse `Secure` cookies: use HTTPS, or `SESSION_COOKIE_SECURE=false` for local development only.
+
+### `403` "This request did not come from a trusted origin"
+A state-changing request carried the cookie of a live session but its `Origin` is not in
+`AUTH_TRUSTED_ORIGINS` or an explicit `CORS_ORIGINS`, and (outside production) not the API's own origin,
+or it had no `Origin`. Under `APP_ENV=production` the API's own origin is never trusted automatically. Add the web app's
+origin to `AUTH_TRUSTED_ORIGINS` (or `CORS_ORIGINS`). Mobile clients use `Authorization: Bearer` and are
+not affected.
+
+### A case that used to open with its token now answers `403` "…its case access token no longer works"
+The case was claimed into an account (or created while signed in). Owned cases accept only the owner's
+session (ADR-026 §6). Sign in to that account.
+
+### Verification or password-reset emails never arrive
+Expected: `MAIL_TRANSPORT=disabled` is the only transport until the email delivery decision is made
+(ADR-026 §11). The log line `Account email (reset_password) not delivered` confirms the request was handled.
+A user who forgets their password cannot recover the account yet; their cases still expire after
+`CASE_TTL_DAYS`.
+
+### Every login from one machine answers `401` even with the right password
+After `LOGIN_FREE_FAILURES` wrong passwords (including wrong current passwords on password change
+or account deletion) from one client IP within `LOGIN_FAILURE_WINDOW_MINUTES`, attempts for that
+account from that IP must wait 1 s, 2 s, 4 s, … (max `LOGIN_MAX_DELAY_SECONDS`), and an attempt
+inside the wait gets the same generic `401`. The log shows `Sign-in for user USR-… from one client is
+now slowed`. Wait a little (failures expire after the window), or sign in from another network. A
+restart of the API also forgets the throttle (it is in memory). Behind a proxy, check
+`TRUSTED_PROXY_COUNT`: without it every user shares the proxy's IP.

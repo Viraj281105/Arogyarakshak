@@ -44,6 +44,9 @@ PROBE_PATHS = {"/health", "/health/live", "/health/ready"}
 STORAGE_ERRNOS = {errno.ENOSPC, errno.EDQUOT, errno.EROFS}
 STORAGE_FULL_DETAIL = "The server cannot accept this upload right now. Please try again later."
 
+# Account routes (ADR-026): validation errors are returned without the submitted values.
+ACCOUNT_ROUTE_PREFIX = "/api/v1/kadi/auth/"
+
 # Outcome of the start-up schema step, reported by /health/ready.
 schema_state = {"ok": False, "revision": None, "detail": "not checked yet"}
 
@@ -285,9 +288,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         route_template(request),
         [{k: e.get(k) for k in ("loc", "type", "msg")} for e in exc.errors()],
     )
+    errors = exc.errors()
+    if request.url.path.startswith(ACCOUNT_ROUTE_PREFIX):
+        # ADR-026: never echo a submitted password or token back in an error payload.
+        errors = [{k: v for k, v in e.items() if k not in ("input", "ctx")} for e in errors]
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        content={"detail": exc.errors(), "message": "Request validation failed"},
+        content={"detail": errors, "message": "Request validation failed"},
     )
 
 
@@ -312,7 +319,8 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     content = {"detail": exc.detail}
     if isinstance(exc.detail, str):
         content["message"] = exc.detail
-    return JSONResponse(status_code=exc.status_code, content=content)
+    # Keep headers a route set deliberately (e.g. Retry-After on ADR-026's auth bucket).
+    return JSONResponse(status_code=exc.status_code, content=content, headers=getattr(exc, "headers", None))
 
 
 @app.exception_handler(Exception)

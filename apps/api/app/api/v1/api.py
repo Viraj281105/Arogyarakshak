@@ -7,6 +7,7 @@ Combines all sub-routers under /api/v1 prefix.
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    accounts,
     billnyay,
     bimanyay,
     claim_pack,
@@ -23,6 +24,8 @@ from app.api.v1.endpoints import (
 api_router = APIRouter()
 
 api_router.include_router(kadi.router, prefix="/kadi", tags=["Kadi (Shared Layer)"])
+# ADR-026: user accounts are Kadi shared infrastructure (kadi_users, kadi_sessions).
+api_router.include_router(accounts.router, prefix="/kadi", tags=["Kadi — Accounts"])
 # ADR-011: human clinical review, safety governance and OCR resolution are Kadi
 # capabilities (cross-module case context), so they share the /kadi prefix.
 api_router.include_router(clinical_review.router, prefix="/kadi", tags=["Kadi — Clinical Review"])

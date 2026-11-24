@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, textStyles, font, textStyleFor } from '../theme';
 import { Language } from '../translations';
 import { Pressable } from '../motion';
+import { segmentSwatch } from './ui/tones';
 
 export interface HeaderProps {
   title?: string;
@@ -59,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           {LANGUAGES.map((lang) => {
             const active = currentLanguage === lang;
+            const seg = segmentSwatch(colors, active);
             return (
               <Pressable
                 key={lang}
@@ -73,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
                     minHeight: spacing.minTouchTarget,
                     minWidth: spacing.minTouchTarget,
                     borderRadius: radii.md - 2,
-                    backgroundColor: active ? colors.brandForest : 'transparent',
+                    backgroundColor: active ? seg.bg ?? undefined : 'transparent',
                   },
                 ]}
               >
@@ -81,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                   style={[
                     font('sans', active ? '700' : '500'),
                     styles.segmentText,
-                    { color: active ? '#ffffff' : colors.textSecondary },
+                    { color: seg.fg },
                   ]}
                 >
                   {lang.toUpperCase()}

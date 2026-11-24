@@ -22,7 +22,7 @@ import time
 from collections import OrderedDict
 from typing import Any, Callable, List, Optional, Tuple
 
-from kadi.redaction import redact_pii
+from kadi.privacy.redaction import redact_pii
 
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 

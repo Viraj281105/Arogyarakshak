@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useRef } from "react";
-import type { ModuleTab } from "../ModuleTabs";
 import type { Translations } from "../../translations";
 import { useScrollReveal } from "../../hooks/useScrollMotion";
 import { WorkedExample } from "./WorkedExample";
 import { ModuleOverview } from "./ModuleOverview";
 
 /**
- * The landing story above the intake form. English only for now: the Hindi and Marathi
+ * The landing story (`/`). Module cards link into the workspace at `/app#module-<id>`. English only for now: the Hindi and Marathi
  * versions of this copy are pending native-speaker review (apps/web/AGENTS.md), so the
  * language switch currently changes the module names and descriptions here, not the prose.
  *
@@ -18,11 +17,10 @@ import { ModuleOverview } from "./ModuleOverview";
  */
 export const Landing: React.FC<{
   t: Translations;
-  onOpenModule: (tab: ModuleTab) => void;
   hero: React.ReactNode;
   journey: React.ReactNode;
   coverage: React.ReactNode;
-}> = ({ t, onOpenModule, hero, journey, coverage }) => {
+}> = ({ t, hero, journey, coverage }) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
   return (
@@ -30,7 +28,7 @@ export const Landing: React.FC<{
       {hero}
       {journey}
       <WorkedExample />
-      <ModuleOverview t={t} onOpen={onOpenModule} />
+      <ModuleOverview t={t} />
       {coverage}
     </div>
   );

@@ -67,7 +67,8 @@ To uphold patient privacy and HIPAA/DISHA data hygiene, patient records are gove
   and file type.
 - Records in `kadi_entities` hold clinical and billing metadata (diagnosis, hospital, procedures,
   medicines, line items) linked to the `case_id`. The patient name is **not** persisted, and the
-  retained document excerpt is passed through `kadi.redaction.redact_pii`, which strips names,
+  retained document excerpt is passed through `kadi.redaction.redact_pii` (implemented in
+  `kadi.privacy.redaction`; `kadi.redaction` is the alias, ADR-027), which strips names,
   phone numbers, emails, Aadhaar/PAN identifiers and addresses.
 - This removes *direct* identifiers only; it is not formal anonymisation.
 

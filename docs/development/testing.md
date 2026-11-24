@@ -41,6 +41,11 @@ python -m pytest
 PYTHONPATH=apps/api lint-imports
 ```
 
+Structural (coupling, cycle, complexity) reports for a package are produced with the optional
+Archify tool and kept in `docs/architecture/code-analysis/`
+([how to re-run](../architecture/code-analysis/README.md)); they are measurements, not tests,
+and are not part of CI.
+
 Foundation tests added 2026-10-19: `test_architecture.py` (contracts cover every module),
 `test_migrations.py` (Alembic == models; set `MIGRATION_TEST_DATABASE_URL` to an empty
 PostgreSQL database to run it there too), `test_openapi_contract.py` (live schema ==

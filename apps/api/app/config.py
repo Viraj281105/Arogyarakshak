@@ -77,6 +77,34 @@ class Settings(BaseSettings):
     # expired case is not retained much longer than the stated TTL.
     case_purge_interval_seconds: int = 6 * 60 * 60  # 6 hours
 
+    # --- User accounts (ADR-026) ---------------------------------------------------
+    # Session lifetime: absolute cap and idle timeout (DB-backed; ADR-019 single process).
+    session_lifetime_hours: int = 168
+    session_idle_timeout_minutes: int = 120
+    # httpOnly SameSite=Strict session cookie for the web client. Secure (and the __Host-
+    # name prefix) by default; false only for plain-http local development, refused in
+    # production.
+    session_cookie_secure: bool = True
+    # Extra origins allowed to send cookie-authenticated state-changing requests (and
+    # login/registration). Empty = the explicit entries of CORS_ORIGINS. Outside production
+    # the API's own (Host-derived) origin is also allowed; under APP_ENV=production it is not.
+    auth_trusted_origins: str = ""
+    # stdlib hashlib.scrypt parameters (OWASP equivalent-strength row N=2^15, r=8, p=3).
+    password_scrypt_n: int = 2**15
+    password_scrypt_r: int = 8
+    password_scrypt_p: int = 3
+    # Stricter per-client-IP bucket for register/login/verification/reset routes.
+    auth_rate_limit_per_minute: int = 10
+    # Sign-in throttle per (account, client IP) — failures expire after the window; after
+    # the free failures each attempt waits an increasing delay (app/services/login_throttle.py).
+    login_free_failures: int = 5
+    login_failure_window_minutes: int = 15
+    login_max_delay_seconds: int = 900
+    account_verification_token_ttl_hours: int = 24
+    password_reset_token_ttl_minutes: int = 30
+    # Email delivery is an OPEN decision (ADR-026 §11): "disabled" is the only transport.
+    mail_transport: Literal["disabled"] = "disabled"
+
     # --- Clinical review & safety governance (ADR-011) --------------------------
     # Operator secret for governance actions only: seating safety-board members,
     # recording a verification attempt, and seeding demo fixtures. Empty (default) means
@@ -135,7 +163,20 @@ class Settings(BaseSettings):
             errors.append("SCHEMA_MANAGEMENT=create_all never migrates existing tables; use migrate or none.")
         if self.clinical_demo_mode:
             errors.append("CLINICAL_DEMO_MODE must be off.")
+        if not self.session_cookie_secure:
+            errors.append("SESSION_COOKIE_SECURE is false; session cookies would travel over plain HTTP.")
         return errors
+
+    @model_validator(mode="after")
+    def _scrypt_parameters_valid(self) -> "Settings":
+        n = self.password_scrypt_n
+        if n < 2 or n & (n - 1):
+            raise ValueError("PASSWORD_SCRYPT_N must be a power of two greater than 1.")
+        if self.password_scrypt_r < 1 or self.password_scrypt_p < 1:
+            raise ValueError("PASSWORD_SCRYPT_R and PASSWORD_SCRYPT_P must be at least 1.")
+        if 128 * n * self.password_scrypt_r > 64 * 1024 * 1024:
+            raise ValueError("PASSWORD_SCRYPT_N * PASSWORD_SCRYPT_R needs more than the 64 MiB scrypt memory cap.")
+        return self
 
     @model_validator(mode="after")
     def _demo_mode_never_in_production(self) -> "Settings":

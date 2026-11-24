@@ -1,6 +1,6 @@
 """Case lifecycle routes: create, upload, progress stream, read, timeline, delete, latency metrics."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import hashlib
 import os
 import time
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config import settings
+from app.account_auth import get_optional_principal
 from app.case_auth import require_case_access
 from app.database import get_db
 from app.latency_metrics import tracker as latency_tracker, LatencySummary, PublicLatencySample
@@ -23,6 +24,7 @@ from app.models import (
 )
 from app.background import get_background_session
 from app.services import document_jobs
+from app.services.accounts import Principal
 from app.services.case_context import load_case_entities
 from app.services.case_ingestion import (  # noqa: F401 — re-exported for existing importers
     DUPLICATE_DOCUMENT_LOG,
@@ -66,10 +68,17 @@ ALLOWED_UPLOAD_EXTENSIONS = {
 
 
 @router.post("/cases", response_model=CaseCreatedResponse, status_code=status.HTTP_201_CREATED)
-async def create_case(case_in: CaseCreate, db: AsyncSession = Depends(get_db)):
-    """Creates a new patient case session and its one-time access token (ADR-009)."""
-    case, plaintext_token = await create_case_record(db, case_in.consent_opt_in)
+async def create_case(
+    case_in: CaseCreate,
+    db: AsyncSession = Depends(get_db),
+    principal: Optional[Principal] = Depends(get_optional_principal),
+):
+    """Creates a new patient case session and its one-time access token (ADR-009).
+    Signed in (ADR-026): the case is owned by the account and no case token is issued."""
+    owner_user_id = principal.user.id if principal else None
+    case, plaintext_token = await create_case_record(db, case_in.consent_opt_in, owner_user_id=owner_user_id)
     return CaseCreatedResponse(
+        owned=owner_user_id is not None,
         id=case.id,
         status=case.status,
         consent_opt_in=case.consent_opt_in,

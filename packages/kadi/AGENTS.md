@@ -30,7 +30,12 @@ Kadi (कड़ी — "link in a chain") is the shared intelligence and context
 4. **Vector Store & In-Memory Indices**:
    - FAISS/pgvector indexes are planned, not implemented. The unwired `kadi/vector_store.py` scaffold was removed (2026-10-19); add a new module only together with a real caller.
 
-5. **Validation**:
+5. **Internal layering (ADR-027)**:
+   - `kadi/privacy/` is a dependency-free leaf (no imports from the rest of `kadi`); `kadi/llm/` may import only `kadi.llm` and `kadi.privacy`. Neither may import a root module such as `kadi.extraction` (enforced by `.importlinter` and `tests/test_package_layering.py`).
+   - Inside `kadi/llm`, import redaction from `kadi.privacy.redaction`; `kadi.redaction` is only a compatibility alias for outside callers.
+   - `kadi/__init__.py` re-exports `parse_document` **lazily** (PEP 562) because `kadi/ocr` imports root modules; never import `kadi.ocr` at the top of `kadi/__init__.py` (a test fails if you do). The static report still lists that edge as a warning (`docs/architecture/code-analysis/kadi/README.md`).
+
+6. **Validation**:
    - Run tests from package root:
      ```bash
      python -m pytest packages/kadi/
