@@ -208,6 +208,12 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Task (2026-11-24) — Kadi package cycles fixed (`llm` ↔ root, `kadi` ↔ `ocr`); analysis reports filed in `docs/` (branch `wave3/integration`, uncommitted)
+- [x] Archify Code Analysis of `packages/kadi` run (first run) and filed under `docs/architecture/code-analysis/kadi/` with an index and re-run instructions.
+- [x] Cycle `kadi` → `kadi/llm` → `kadi` removed: `redaction.py` moved to the dependency-free `kadi/privacy/redaction.py` (alias kept at `kadi/redaction.py`), `kadi/llm/cache.py` imports it from there (ADR-027). Guards: `.importlinter` contract `kadi-llm-and-privacy-below-root` and `packages/kadi/tests/test_package_layering.py` (both mutation-checked: reverting the import breaks both).
+- [x] `kadi` ↔ `kadi/ocr` cycle (it was part of the same 3-module loop): `kadi/__init__.py` now re-exports `parse_document` lazily (PEP 562), so `import kadi` no longer loads `kadi.ocr`; `kadi.parse_document` and `from kadi import parse_document` behave as before. The report now lists it as a **warning** (deferred/type-only edge), 0 errors. Pinned by 3 more tests in `test_package_layering.py` (reverting to the eager import fails one).
+- [ ] Nothing committed. Archify is optional local tooling installed globally (not a project dependency; see `docs/architecture/code-analysis/README.md`).
+
 ### Active Task (2026-11-21) — Phase 4 expansion (see `docs/planning/phase4-expansion-plan.md`)
 - [x] Plan written; five issue comments posted; Devanagari OCR model and six real public documents downloaded (verified TLS).
 - [ ] Workstream A1 next: baseline OCR on the six documents (`["en"]` vs `["hi","mr","en"]`), after the human transcriptions in workstream B exist. Start recruiting two native annotators and two reviewers now (the critical path is people, not code).
@@ -339,6 +345,11 @@ None. Ready for Product Phase 2 when directed by user.
 ---
 
 ## 9. Next Tasks
+
+### Kadi structure follow-ups (2026-11-24, from the Archify report in `docs/architecture/code-analysis/kadi/README.md`)
+- [ ] Optional: remove the last static warning (`kadi` ↔ `kadi/ocr`, lazy import) entirely by moving `line_items` and `pdf_text_quality` into a leaf package both `ocr` and the root can import (ADR-027 "Alternatives"). Not needed for correctness.
+- [ ] Optional: review the five warning-level complex functions the report lists (`assess_text_layer` 54, `parse_fhir_bundle` 51, `build_case_timeline` 35, `resolve_mention` 30, `calibrate_thresholds` 26). They are maintenance signals, not defects.
+- [ ] Optional: run the same report for the other packages (`billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`) and file each under `docs/architecture/code-analysis/<package>/`.
 
 ### Wave 1 outcome and what remains (2026-11-20)
 - **Done on `wave1/integration`, with the caveats in section 2**: WS1 observability (ADR-023), WS2 LLM reliability + CI evaluation gate (ADR-024), WS4-shell (bundle ceilings lowered, CLS fixed), WS5-shell (mobile shell, real fonts, browser preview; the deferred WS0 mobile font/`Pressable`/`Reveal` items are fixed). The unticked items below that carry a "Wave 1" note were advanced by it, not closed.
@@ -489,6 +500,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 - **ADR-020 (Alembic):** migrations are the schema source of truth; `SCHEMA_MANAGEMENT=migrate|none|create_all`; legacy `create_all` databases are stamped at `0001_baseline`, never recreated.
 - **ADR-021 (Modular monolith & deployment topology):** no service extraction (OCR worker blocked by ADR-003); single-replica kustomize path, no HPA/PDB/Helm; nothing deployed.
 - **ADR-022 (Shared TypeScript code is vendored):** shared web/mobile code lives in `packages/<name>/src` and is copied into each app by `scripts/sync-shared.mjs`; copies are committed, never hand-edited, and `npm run check:generated` fails CI when stale. No npm workspaces; the web Docker context stays `apps/web`.
+- **ADR-027 (Kadi privacy leaf package):** `redact_pii` lives in the dependency-free `kadi/privacy/redaction.py` so `kadi.llm` can use it without a package-level import cycle; `kadi.redaction` stays as an alias. `kadi.llm` and `kadi.privacy` must never import Kadi root modules (contract + test). (026 is reserved by the Wave 3 plan for accounts.)
 - **ADR-017 (Explanation trail):** every finding carries a deterministic `Explanation` (evidence + provenance class, exact rule/row, trust, undetermined, derived `not_recorded`), built by the owning package from the decision's own values, delivered additively on existing authorised responses; never an LLM, never an invented reason.
 - **ADR-015 (Claim Pack):** read-only, in-memory cross-module ZIP under `/api/v1/kadi/cases/{id}/claim-pack`; no LLM/network/DB writes, no original files, missing sections say "Not available for this case", provenance classes in the manifest; opt-in browser-side encryption (ADR-014).
 
@@ -578,6 +590,8 @@ Phase 5: Submission & Demo Polish (FUTURE)
 | **Engineering foundation report (2026-10)** | [`docs/architecture/engineering-foundation-2026-10.md`](docs/architecture/engineering-foundation-2026-10.md) |
 | **Module boundaries / where code goes** | [`docs/architecture/module-boundaries.md`](docs/architecture/module-boundaries.md) |
 | **Service catalog** | [`docs/architecture/service-catalog.md`](docs/architecture/service-catalog.md) |
+| **Code Analysis reports (Archify; how to re-run)** | [`docs/architecture/code-analysis/README.md`](docs/architecture/code-analysis/README.md), [`kadi/README.md`](docs/architecture/code-analysis/kadi/README.md) |
+| **ADR-027 Kadi privacy leaf package** | [`docs/architecture/decisions/ADR-027-kadi-privacy-leaf-package.md`](docs/architecture/decisions/ADR-027-kadi-privacy-leaf-package.md) |
 | **Database migrations** | [`docs/operations/database-migrations.md`](docs/operations/database-migrations.md) |
 | **Operational runbook (incl. backup/restore draft)** | [`docs/operations/runbook.md`](docs/operations/runbook.md) |
 | **Kubernetes path** | [`docs/operations/kubernetes.md`](docs/operations/kubernetes.md) |
@@ -589,6 +603,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-11-24 — Kadi package cycle fix and Code Analysis reports (branch `wave3/integration`, uncommitted)
+- **Added**: `packages/kadi/kadi/privacy/` (`__init__.py`, `redaction.py` moved with `git mv`, byte-identical); `packages/kadi/tests/test_package_layering.py` (3 tests); `.importlinter` contract `kadi-llm-and-privacy-below-root`; `docs/architecture/decisions/ADR-027-kadi-privacy-leaf-package.md`; `docs/architecture/code-analysis/` (index, `kadi/README.md`, tracked `analysis*/` JSON evidence); `.gitignore` rules for `.archify/` and the machine-specific/large generated files.
+- **Changed**: `kadi/redaction.py` is now a re-export alias of `kadi.privacy.redaction`; `kadi/llm/cache.py` imports from `kadi.privacy.redaction`; `kadi/__init__.py` re-exports `parse_document` lazily (PEP 562), so `import kadi` no longer loads `kadi.ocr` (the only observable change; `kadi.parse_document` works as before). No API, schema or environment-variable change. Docs updated: `docs/README.md`, `architecture/{components,data-flow,module-boundaries}.md`, `development/{testing,troubleshooting}.md`, `packages/kadi/{README,AGENTS}.md`.
+- **Verified**: `pytest packages/kadi` 678 passed, 6 skipped (was 672 + 6; +6 layering tests, one mutation-checked per guard); `lint-imports` 6 kept (was 5); `scripts/ci_guardrails.py` 8/8; `pytest apps/api` (run from `apps/api`) 697 passed, 3 skipped after fix 1 (re-run after fix 2: see the line below if present). Re-analysis: baseline 1 error / 9 warnings / 22 info -> 0 / 8 / 24. The `kadi` ↔ `kadi/ocr` loop remains as a warning (a deferred import is still an import).
 
 ### 2026-11-21 — Multilingual QA (branch `wave1/integration`, uncommitted)
 - **Added**: `packages/kadi/kadi/injection.py`; `apps/api/app/evaluation/terminology.py`; `scripts/terminology_audit.py` and `scripts/terminology/dump_ts_copy.mjs`; `data/terminology/glossary.json`; `data/evaluation/devanagari_ocr_corpus.jsonl`; `docs/evaluation/multilingual-qa.md` and the generated `docs/evaluation/terminology-audit.md`; a prompt-injection section in `packages/kadi/README.md`; three test files (63 tests).
@@ -840,7 +859,12 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 18. Agent Handoff Notes
 
-### Latest handoff (2026-11-22, Wave 2)
+### Latest handoff (2026-11-24, Kadi cycle fix and analysis reports)
+- **State**: uncommitted on `wave3/integration`. Both error-level Kadi package cycles are fixed (ADR-027: `redaction` moved to `kadi/privacy`; `parse_document` re-exported lazily); `docs/architecture/code-analysis/` holds the Archify report with a baseline snapshot. Read `docs/architecture/code-analysis/kadi/README.md` first.
+- **Rules for the next agent**: inside `kadi/llm` and `kadi/privacy` import only from those two packages; import redaction from `kadi.privacy.redaction`. Archify is optional tooling (installed globally under the user's home, not a dependency): set `ARCHIFY_UPDATE_CHECK_DISABLED=1`, write only into `docs/architecture/code-analysis/<package>/`, never use its PR mode or PR-attach. A report finding disappearing is not proof of a fix; re-run the tests. Stray `apps/api/test_temp*.db-journal` files come from test runs; delete, do not commit.
+- **Next**: nothing required. Optional follow-ups are in section 9 (complexity hotspots, other packages' reports, a leaf package for `line_items`/`pdf_text_quality`). Do not import `kadi.ocr` at the top of `kadi/__init__.py`.
+
+### Handoff (2026-11-22, Wave 2)
 - **State**: all seven streams are merged on `wave2/integration` and verified (combined suite first combined run on the integrated branch: 2,237 passed, 1 failed, 9 skipped; the one failure was a test expectation changed by stream G's intended 500-handling fix, since updated (its file now passes, 5 passed); a full re-run was started and is not yet reported here); one PR to `main`. Read `docs/superpowers/plans/2026-11-21-wave2.md`, the `wave2-*` handoffs and `docs/evaluation/{devanagari-ocr,retrieval,context-reuse,localised-letters,matcher-fixes}.md`.
 - **Rules for the next agent**: never trust an agent-reported test count or measured number; re-run it. Run all suites in ONE `pytest` invocation. Never disable TLS verification. Do not describe any Hindi/Marathi text, glossary entry, stop-word list or injection phrase as reviewed. Retrieval and the citation verifier must never decide eligibility or invent a citation. The OCR parser must never download models at request time. Keep every new regex linear-time and every new input bounded.
 - **Open before merge/release**: GitHub CI has never run any of this; SHA-pin the actions in `supply-chain.yml`; configure the `release` environment and protected-tag ruleset (listed in `docs/operations/load-and-chaos.md`); decide ADR-025 (job queue); enable Devanagari OCR only after baking the weights (`OCR_BAKE_LANGUAGES=en,hi,mr`) and raising the memory limit.

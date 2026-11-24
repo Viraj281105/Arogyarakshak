@@ -18,6 +18,9 @@ docs/
 │   ├── bimanyay-and-mobile.md         # BimaNyay post-denial & mobile app blueprint
 │   ├── clinical-review.md             # ADR-011 human clinical review & safety governance
 │   ├── repository-structure.md        # Monorepo restructuring migration record
+│   ├── code-analysis/                 # Static coupling/cycle/complexity reports (Archify), one folder per package
+│   │   ├── README.md                  # Layout, how to re-run, what is git-ignored
+│   │   └── kadi/                      # packages/kadi report (README summary + analysis JSON)
 │   ├── diagrams/                      # System architecture & data flow diagrams
 │   │   ├── Application Services Diagram.jpeg
 │   │   ├── Architecture Diagram.jpeg
@@ -65,6 +68,7 @@ docs/
 | **Data Pipelines** | [Data Flow & SSE Streaming](architecture/data-flow.md) | Pipeline & frontend engineers |
 | **BimaNyay & Mobile** | [BimaNyay & Mobile Blueprint](architecture/bimanyay-and-mobile.md) | Insurance & mobile engineers |
 | **Clinical Review** | [Clinical Review, Safety Governance & OCR Resolution](architecture/clinical-review.md) · [ADR-011](architecture/decisions/ADR-011-clinical-review-and-safety-governance.md) | Everyone touching clinical judgment, appeals or reviewers |
+| **Code Analysis Reports** | [Code Analysis index](architecture/code-analysis/README.md) · [Kadi report](architecture/code-analysis/kadi/README.md) · [ADR-027](architecture/decisions/ADR-027-kadi-privacy-leaf-package.md) | Architects & Kadi maintainers |
 | **Architecture Diagrams** | [System Diagrams](architecture/diagrams/) | Architects & reviewers |
 | **Architectural Decisions** | [Architecture Decisions (ADRs)](architecture/decisions/ADR-001-monorepo-structure.md) | System architects & reviewers |
 | **Local Setup** | [Developer Setup Guide](development/setup.md) | New contributors |

@@ -1,0 +1,1772 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "revision": null,
+    "baseRevision": "ddef7e5c01d16c209da01609514840361e7f81e8",
+    "sourceKind": "working-tree",
+    "root": "packages/kadi",
+    "url": "https://github.com/Viraj281105/Arogyarakshak.git",
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "adapterRevision": 17,
+    "snapshotId": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f"
+  },
+  "rules": [
+    "coupling/import-cycle",
+    "coupling/cycle",
+    "coupling/hub",
+    "coupling/concentration",
+    "coupling/internal-leak",
+    "complexity/function"
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 8,
+    "info": 24,
+    "suppressed": 0
+  },
+  "analysis": {
+    "analyzer": {
+      "name": "@archify/code-analysis",
+      "version": "0.1.0-dev.1"
+    },
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "adapterRevision": 17,
+    "configDigest": "6352ac7c60ad60d648d6bc7c05bf1960a6db7ad20370d972b422f9e8c9d446a2",
+    "ruleVersions": {
+      "complexity/function": 1,
+      "coupling/concentration": 1,
+      "coupling/cycle": 2,
+      "coupling/hub": 1,
+      "coupling/import-cycle": 3,
+      "coupling/internal-leak": 1
+    },
+    "coverage": {
+      "files": 50,
+      "excludedRoles": [
+        "generated",
+        "test"
+      ],
+      "parseErrors": []
+    }
+  },
+  "diagnostics": [
+    {
+      "id": "COMP-d292ca1dd569",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_display_value in kadi/clinical_review/evidence.py has cyclomatic complexity 20 (24 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/clinical_review/evidence.py",
+        "function": "_display_value",
+        "line": 95,
+        "endLine": 118
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 20,
+        "nesting": 2,
+        "deepestLine": 99,
+        "length": 24
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/clinical_review/evidence.py"
+        ],
+        "lines": [
+          95,
+          118
+        ],
+        "sha256": "00356550d3eed436a1a7918d44fd54acd9fadac7aca5491c52d894661d95a4ff"
+      }
+    },
+    {
+      "id": "COMP-eb99877107df",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "decide_medicine_trust in kadi/clinical_review/medicine_trust.py has cyclomatic complexity 18 (81 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/clinical_review/medicine_trust.py",
+        "function": "decide_medicine_trust",
+        "line": 79,
+        "endLine": 159
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 18,
+        "nesting": 2,
+        "deepestLine": 102,
+        "length": 81
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/clinical_review/medicine_trust.py"
+        ],
+        "lines": [
+          79,
+          159
+        ],
+        "sha256": "1d1fcdb21f1e3879457d7d4cd18fada0fea2994453ec1825f709634e0818ebb8"
+      }
+    },
+    {
+      "id": "COMP-4ae433d6f074",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "plan_ocr_uncertainty in kadi/clinical_review/transcription.py has cyclomatic complexity 22 (64 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/clinical_review/transcription.py",
+        "function": "plan_ocr_uncertainty",
+        "line": 423,
+        "endLine": 486
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 22,
+        "nesting": 4,
+        "deepestLine": 484,
+        "length": 64
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/clinical_review/transcription.py"
+        ],
+        "lines": [
+          423,
+          486
+        ],
+        "sha256": "8929cccd3e212e60649573f0acb17549f40addf624c2a635700d43e89c479965"
+      }
+    },
+    {
+      "id": "COMP-7afcfc665082",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "select_uncertain_segments in kadi/clinical_review/transcription.py has cyclomatic complexity 18 (58 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/clinical_review/transcription.py",
+        "function": "select_uncertain_segments",
+        "line": 173,
+        "endLine": 230
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 18,
+        "nesting": 3,
+        "deepestLine": 212,
+        "length": 58
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/clinical_review/transcription.py"
+        ],
+        "lines": [
+          173,
+          230
+        ],
+        "sha256": "6460204f5209421ac6489849f2ad43a1b21b121abfc5b0aaab58e96888155e68"
+      }
+    },
+    {
+      "id": "COMP-78b0dc1fa966",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "parse_fhir_bundle in kadi/fhir_import.py has cyclomatic complexity 51 (130 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/fhir_import.py",
+        "function": "parse_fhir_bundle",
+        "line": 119,
+        "endLine": 248
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 51,
+        "nesting": 4,
+        "deepestLine": 175,
+        "length": 130
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/fhir_import.py"
+        ],
+        "lines": [
+          119,
+          248
+        ],
+        "sha256": "b4fa9f048f92fbbc2cf2a40f4f56727dea8ca35d1fc2c174bc27845088e1de4e"
+      }
+    },
+    {
+      "id": "COMP-896f3c7125b5",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "build_case_graph in kadi/graph.py has cyclomatic complexity 20 (102 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/graph.py",
+        "function": "build_case_graph",
+        "line": 118,
+        "endLine": 219
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 20,
+        "nesting": 3,
+        "deepestLine": 169,
+        "length": 102
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/graph.py"
+        ],
+        "lines": [
+          118,
+          219
+        ],
+        "sha256": "6d3bc204bc6c60052dfdb6125ddf45eb6bfd460ed98cdfac6f2cd34559feab8f"
+      }
+    },
+    {
+      "id": "COMP-222350544139",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "ground_medicine_source_lines in kadi/line_items.py has cyclomatic complexity 15 (32 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/line_items.py",
+        "function": "ground_medicine_source_lines",
+        "line": 358,
+        "endLine": 389
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 15,
+        "nesting": 2,
+        "deepestLine": 371,
+        "length": 32
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/line_items.py"
+        ],
+        "lines": [
+          358,
+          389
+        ],
+        "sha256": "151bb35120a4f562a07bfa2f041789e2bd8d5bfa2d5203b46d72abd0c88d71cc"
+      }
+    },
+    {
+      "id": "COMP-242514446a9e",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "ResilientLlmClient._complete in kadi/llm/client.py has cyclomatic complexity 20 (49 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/llm/client.py",
+        "function": "ResilientLlmClient._complete",
+        "line": 229,
+        "endLine": 277
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 20,
+        "nesting": 3,
+        "deepestLine": 265,
+        "length": 49
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/llm/client.py"
+        ],
+        "lines": [
+          229,
+          277
+        ],
+        "sha256": "9b04e0ea02b92d027556735859d9a7c935fb3f830f09014ace184987c216ad67"
+      }
+    },
+    {
+      "id": "COMP-9007e27d49ad",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "agreement in kadi/llm/shadow.py has cyclomatic complexity 15 (27 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/llm/shadow.py",
+        "function": "agreement",
+        "line": 33,
+        "endLine": 59
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 15,
+        "nesting": 3,
+        "deepestLine": 51,
+        "length": 27
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/llm/shadow.py"
+        ],
+        "lines": [
+          33,
+          59
+        ],
+        "sha256": "12e9055e062762f56bac33b208e357fe5ae137e08817d6af5a0342894591d4a3"
+      }
+    },
+    {
+      "id": "COMP-63f3cc30ed66",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_parse_pdf in kadi/ocr/ocr_parser.py has cyclomatic complexity 16 (76 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/ocr/ocr_parser.py",
+        "function": "_parse_pdf",
+        "line": 447,
+        "endLine": 522
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 4,
+        "deepestLine": 469,
+        "length": 76
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/ocr/ocr_parser.py"
+        ],
+        "lines": [
+          447,
+          522
+        ],
+        "sha256": "e9a00d7aae8a62f4711d88941aa5b54e9c210b98a0efc986cbafa5e998713171"
+      }
+    },
+    {
+      "id": "COMP-9ae19258c59c",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "assess_text_layer in kadi/pdf_text_quality.py has cyclomatic complexity 54 (89 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/pdf_text_quality.py",
+        "function": "assess_text_layer",
+        "line": 211,
+        "endLine": 299
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 54,
+        "nesting": 2,
+        "deepestLine": 220,
+        "length": 89
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/pdf_text_quality.py"
+        ],
+        "lines": [
+          211,
+          299
+        ],
+        "sha256": "d65420fa97a3f185d6ba8656a0dddc5cf3bfaeca69bb134a872fbb774af073a8"
+      }
+    },
+    {
+      "id": "COMP-ed63752fddb1",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "calibrate_thresholds in kadi/resolution/calibration.py has cyclomatic complexity 26 (88 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/calibration.py",
+        "function": "calibrate_thresholds",
+        "line": 167,
+        "endLine": 254
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 26,
+        "nesting": 2,
+        "deepestLine": 218,
+        "length": 88
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/calibration.py"
+        ],
+        "lines": [
+          167,
+          254
+        ],
+        "sha256": "2401e8be9bc9dc5c377e231eec5d24c59247129c8605d967e5ef18bf95d93a16"
+      }
+    },
+    {
+      "id": "COMP-d9691c98ed08",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "compute_metrics in kadi/resolution/calibration.py has cyclomatic complexity 16 (21 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/calibration.py",
+        "function": "compute_metrics",
+        "line": 107,
+        "endLine": 127
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 0,
+        "deepestLine": 107,
+        "length": 21
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/calibration.py"
+        ],
+        "lines": [
+          107,
+          127
+        ],
+        "sha256": "99c1021d5ec5422fa7804f276fd62f0f563a15ca5cc094a17b9b8435cbd5eb5a"
+      }
+    },
+    {
+      "id": "COMP-c31f4a4f49db",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "evaluate_pairs in kadi/resolution/evaluation.py has cyclomatic complexity 21 (112 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/evaluation.py",
+        "function": "evaluate_pairs",
+        "line": 142,
+        "endLine": 253
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 21,
+        "nesting": 3,
+        "deepestLine": 173,
+        "length": 112
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/evaluation.py"
+        ],
+        "lines": [
+          142,
+          253
+        ],
+        "sha256": "104cb2c70af62b00331c28c062b7808820a8e0ddca62ea9e7c4d937ebd4970aa"
+      }
+    },
+    {
+      "id": "COMP-457a7a0f40e8",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "resolve_mention in kadi/resolution/resolver.py has cyclomatic complexity 30 (100 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/resolver.py",
+        "function": "resolve_mention",
+        "line": 239,
+        "endLine": 338
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 30,
+        "nesting": 3,
+        "deepestLine": 268,
+        "length": 100
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/resolver.py"
+        ],
+        "lines": [
+          239,
+          338
+        ],
+        "sha256": "7909b72d1759b78c9ba327400294c816097d61f69a9f8de7e28135f497501f05"
+      }
+    },
+    {
+      "id": "COMP-bcb32fe41bcf",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "jaro_winkler in kadi/resolution/similarity.py has cyclomatic complexity 16 (28 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/similarity.py",
+        "function": "jaro_winkler",
+        "line": 146,
+        "endLine": 173
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 3,
+        "deepestLine": 158,
+        "length": 28
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/similarity.py"
+        ],
+        "lines": [
+          146,
+          173
+        ],
+        "sha256": "86da47cc95056f5ded367861147b1fe810097a2d6be016b2190615ded6dfe719"
+      }
+    },
+    {
+      "id": "COMP-9ec49dc7c475",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "opposing_prefix_conflict in kadi/resolution/similarity.py has nesting depth 5 (16 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/similarity.py",
+        "function": "opposing_prefix_conflict",
+        "line": 238,
+        "endLine": 253
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 11,
+        "nesting": 5,
+        "deepestLine": 251,
+        "length": 16
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/similarity.py"
+        ],
+        "lines": [
+          238,
+          253
+        ],
+        "sha256": "656937d3bd1b29344ce987fd5acbc4b7f10faf96f5af505bb7d923c13e1623f0"
+      }
+    },
+    {
+      "id": "COMP-232511b3b268",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_delete_schwas in kadi/resolution/transliteration.py has cyclomatic complexity 17 (23 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/transliteration.py",
+        "function": "_delete_schwas",
+        "line": 102,
+        "endLine": 124
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 17,
+        "nesting": 2,
+        "deepestLine": 117,
+        "length": 23
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/transliteration.py"
+        ],
+        "lines": [
+          102,
+          124
+        ],
+        "sha256": "1d2525f9937f1f066d4a75f1959e8513fbe950656a346728b3f4b19a40889ea0"
+      }
+    },
+    {
+      "id": "COMP-3ee2ea7aed9c",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_romanize_run in kadi/resolution/transliteration.py has cyclomatic complexity 20 (63 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/resolution/transliteration.py",
+        "function": "_romanize_run",
+        "line": 140,
+        "endLine": 202
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 20,
+        "nesting": 3,
+        "deepestLine": 167,
+        "length": 63
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/transliteration.py"
+        ],
+        "lines": [
+          140,
+          202
+        ],
+        "sha256": "f6ace3ebdca07621323e8a8bed063d5034ec000e2666b2ccd25e21d188ea056f"
+      }
+    },
+    {
+      "id": "COMP-57bd08e56dd9",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_sentence_spans in kadi/retrieval/chunking.py has cyclomatic complexity 15 (22 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/retrieval/chunking.py",
+        "function": "_sentence_spans",
+        "line": 83,
+        "endLine": 104
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 15,
+        "nesting": 3,
+        "deepestLine": 98,
+        "length": 22
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/retrieval/chunking.py"
+        ],
+        "lines": [
+          83,
+          104
+        ],
+        "sha256": "3a7fcff84dec15fa8feb783ee4910288000161b0db9d6549a18d750f7882b43f"
+      }
+    },
+    {
+      "id": "COMP-2c0403b1fdd2",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "chunk_document in kadi/retrieval/chunking.py has cyclomatic complexity 16 (40 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/retrieval/chunking.py",
+        "function": "chunk_document",
+        "line": 142,
+        "endLine": 181
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 4,
+        "deepestLine": 173,
+        "length": 40
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/retrieval/chunking.py"
+        ],
+        "lines": [
+          142,
+          181
+        ],
+        "sha256": "2c4e270f0095de52eda4503e0d92b5268aa128108281032d37c1a5119c068cca"
+      }
+    },
+    {
+      "id": "COMP-11055f167d11",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "tokenize in kadi/retrieval/tokens.py has cyclomatic complexity 15 (23 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/retrieval/tokens.py",
+        "function": "tokenize",
+        "line": 101,
+        "endLine": 123
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 15,
+        "nesting": 2,
+        "deepestLine": 107,
+        "length": 23
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/retrieval/tokens.py"
+        ],
+        "lines": [
+          101,
+          123
+        ],
+        "sha256": "a89926af64c9854d0127abff2c74e0862fc672da0a0a5717f7598bdd2b8aac3e"
+      }
+    },
+    {
+      "id": "COMP-078461e7a923",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "build_case_timeline in kadi/timeline.py has cyclomatic complexity 35 (99 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi/timeline.py",
+        "function": "build_case_timeline",
+        "line": 127,
+        "endLine": 225
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 35,
+        "nesting": 3,
+        "deepestLine": 153,
+        "length": 99
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/timeline.py"
+        ],
+        "lines": [
+          127,
+          225
+        ],
+        "sha256": "d5f61b9c50a7172c50e2665e46fcfee0c295fb259828ffd181c6cd7856d8f46e"
+      }
+    },
+    {
+      "id": "COUP-b062224dbc3a",
+      "code": "coupling/concentration",
+      "dimension": "coupling",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "kadi/llm: 3 of the other 6 modules depend on it directly or through other modules (50%). This is a static fact about where the project is concentrated, not proof that the module should be split.",
+      "subject": {
+        "module": "kadi-llm"
+      },
+      "evidence": {
+        "reasons": [
+          "reach"
+        ],
+        "reach": {
+          "dependents": 3,
+          "direct": 1,
+          "dependencies": 1,
+          "modules": 6,
+          "share": 0.5,
+          "sample": [
+            "kadi",
+            "kadi-clinical_review",
+            "kadi-ocr"
+          ]
+        },
+        "threshold": {
+          "reachShare": 0.5,
+          "sizeShare": 0.4,
+          "minModules": 6
+        }
+      },
+      "supportedFixes": [
+        "keep what dependents use small and stable: every change to it has to be checked against all of them",
+        "check whether most dependents need everything in it; a part only one or two modules use can live next to them",
+        "if this concentration is intended (a shared kernel, one cohesive responsibility), accept the finding with that reason"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/llm/__init__.py",
+          "kadi/llm/breaker.py",
+          "kadi/llm/budget.py",
+          "kadi/llm/cache.py",
+          "kadi/llm/client.py",
+          "kadi/llm/config.py",
+          "kadi/llm/errors.py",
+          "kadi/llm/observer.py",
+          "kadi/llm/prompts.py",
+          "kadi/llm/retry.py",
+          "kadi/llm/shadow.py",
+          "kadi/llm/transport.py"
+        ],
+        "sha256": "5358c2b6ad77ff51af34c796d51f9b335b2ec76675ff1f71cd80f61d87de8eed"
+      }
+    },
+    {
+      "id": "COUP-2b971a639d90",
+      "code": "coupling/concentration",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "kadi/privacy: 4 of the other 6 modules depend on it directly or through other modules (67%). It depends on no other module, the usual shape of a shared kernel: keep it small and stable.",
+      "subject": {
+        "module": "kadi-privacy"
+      },
+      "evidence": {
+        "reasons": [
+          "reach"
+        ],
+        "reach": {
+          "dependents": 4,
+          "direct": 2,
+          "dependencies": 0,
+          "modules": 6,
+          "share": 0.67,
+          "sample": [
+            "kadi",
+            "kadi-clinical_review",
+            "kadi-llm",
+            "kadi-ocr"
+          ]
+        },
+        "threshold": {
+          "reachShare": 0.5,
+          "sizeShare": 0.4,
+          "minModules": 6
+        }
+      },
+      "supportedFixes": [
+        "keep what dependents use small and stable: every change to it has to be checked against all of them",
+        "check whether most dependents need everything in it; a part only one or two modules use can live next to them",
+        "if this concentration is intended (a shared kernel, one cohesive responsibility), accept the finding with that reason"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/privacy/__init__.py",
+          "kadi/privacy/redaction.py"
+        ],
+        "sha256": "668eee57b65d33b8e2b2e9fd1cf3b7a3ae9ed2c155956743daeb0d39e5acb2a5"
+      }
+    },
+    {
+      "id": "COUP-bdf1ec6dd471",
+      "code": "coupling/concentration",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "kadi/resolution: 3 of the other 6 modules depend on it directly or through other modules (50%). It depends on no other module, the usual shape of a shared kernel: keep it small and stable.",
+      "subject": {
+        "module": "kadi-resolution"
+      },
+      "evidence": {
+        "reasons": [
+          "reach"
+        ],
+        "reach": {
+          "dependents": 3,
+          "direct": 1,
+          "dependencies": 0,
+          "modules": 6,
+          "share": 0.5,
+          "sample": [
+            "kadi",
+            "kadi-clinical_review",
+            "kadi-ocr"
+          ]
+        },
+        "threshold": {
+          "reachShare": 0.5,
+          "sizeShare": 0.4,
+          "minModules": 6
+        }
+      },
+      "supportedFixes": [
+        "keep what dependents use small and stable: every change to it has to be checked against all of them",
+        "check whether most dependents need everything in it; a part only one or two modules use can live next to them",
+        "if this concentration is intended (a shared kernel, one cohesive responsibility), accept the finding with that reason"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/resolution/__init__.py",
+          "kadi/resolution/calibration.py",
+          "kadi/resolution/evaluation.py",
+          "kadi/resolution/phonetic.py",
+          "kadi/resolution/resolver.py",
+          "kadi/resolution/semantic.py",
+          "kadi/resolution/similarity.py",
+          "kadi/resolution/transliteration.py",
+          "kadi/resolution/types.py"
+        ],
+        "sha256": "eabb7787dccd008ae4c2e60318fa2cddba0bb4c05dbfa58ecdeb6a1babab3796"
+      }
+    },
+    {
+      "id": "COUP-010095ea6236",
+      "code": "coupling/cycle",
+      "dimension": "coupling",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "2 modules form a package-level dependency component containing deferred, conditional, or type-only edges: kadi → kadi/ocr → kadi. This grouping does not establish initialization behavior; it may also contain module-scope subcycles.",
+      "subject": {
+        "modules": [
+          "kadi",
+          "kadi-ocr"
+        ]
+      },
+      "evidence": {
+        "kind": "mixed",
+        "path": [
+          "kadi",
+          "kadi-ocr"
+        ],
+        "edges": [
+          {
+            "from": "kadi",
+            "to": "kadi-ocr",
+            "weight": 4,
+            "lazy": 2,
+            "deferred": true
+          },
+          {
+            "from": "kadi-ocr",
+            "to": "kadi",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          }
+        ],
+        "closingLazyImports": [],
+        "imports": [
+          {
+            "file": "kadi/__init__.py",
+            "line": 17,
+            "to": "kadi/ocr/__init__.py",
+            "typeOnly": true
+          },
+          {
+            "file": "kadi/__init__.py",
+            "line": 17,
+            "to": "kadi/ocr/ocr_parser.py",
+            "typeOnly": true
+          },
+          {
+            "file": "kadi/ocr/ocr_parser.py",
+            "line": 15,
+            "to": "kadi/line_items.py"
+          },
+          {
+            "file": "kadi/ocr/ocr_parser.py",
+            "line": 16,
+            "to": "kadi/pdf_text_quality.py"
+          }
+        ],
+        "totalImports": 6,
+        "threshold": null
+      },
+      "supportedFixes": [
+        "move the shared piece both sides need into a new leaf module",
+        "invert one edge by passing the dependency in as a parameter",
+        "if one direction is a single import, check whether it is a convenience re-export that can be dropped"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/__init__.py",
+          "kadi/explanation.py",
+          "kadi/extraction.py",
+          "kadi/fhir_import.py",
+          "kadi/graph.py",
+          "kadi/injection.py",
+          "kadi/line_items.py",
+          "kadi/ocr/__init__.py",
+          "kadi/ocr/ocr_parser.py",
+          "kadi/pdf_text_quality.py",
+          "kadi/redaction.py",
+          "kadi/timeline.py",
+          "kadi/triggers.py"
+        ],
+        "sha256": "59b7414c39657634664537ad8e431e5481a7c3d00ee2dc5448cd0ef88af96a94"
+      }
+    },
+    {
+      "id": "COUP-dce307e7c336",
+      "code": "coupling/import-cycle",
+      "dimension": "coupling",
+      "confidence": 0.7,
+      "severity": "warning",
+      "message": "2 files form a dependency cycle containing deferred or conditional imports: kadi/llm/client.py → kadi/llm/shadow.py → kadi/llm/client.py. Initialization-time behavior is not proven: functions can be called during import, and dynamic imports or guards need execution context. Any module-scope subcycles are reported separately.",
+      "subject": {
+        "files": [
+          "kadi/llm/client.py",
+          "kadi/llm/shadow.py"
+        ]
+      },
+      "evidence": {
+        "kind": "deferred",
+        "risk": {
+          "loading": "not-proven",
+          "coupling": "present",
+          "loadingNote": "call timing and conditional execution are not modeled; no import-safety guarantee"
+        },
+        "path": [
+          "kadi/llm/client.py",
+          "kadi/llm/shadow.py"
+        ],
+        "pathImports": [
+          {
+            "file": "kadi/llm/client.py",
+            "to": "kadi/llm/shadow.py",
+            "line": 91,
+            "deferred": true
+          },
+          {
+            "file": "kadi/llm/shadow.py",
+            "to": "kadi/llm/client.py",
+            "line": 117,
+            "deferred": true
+          }
+        ],
+        "imports": [
+          {
+            "file": "kadi/llm/client.py",
+            "line": 91,
+            "to": "kadi/llm/shadow.py",
+            "names": [
+              "ShadowRunner"
+            ],
+            "lazy": true,
+            "conditional": true,
+            "kind": "static"
+          },
+          {
+            "file": "kadi/llm/shadow.py",
+            "line": 117,
+            "to": "kadi/llm/client.py",
+            "names": [
+              "ResilientLlmClient"
+            ],
+            "lazy": true,
+            "kind": "static"
+          }
+        ],
+        "lazyImports": 2,
+        "totalImports": 2,
+        "threshold": null
+      },
+      "supportedFixes": [
+        "keep the lazy import if the call-back is intentional, and say so in a comment at the import",
+        "if the two sides should be testable in isolation, inject the callee (a callback or protocol) from the composition root instead of importing it"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/llm/client.py",
+          "kadi/llm/shadow.py"
+        ],
+        "sha256": "4df89ad9bd31f78534fa7a3e2faff07d8221ce4055dc10f75165163993cb4d8c"
+      }
+    },
+    {
+      "id": "COUP-d6deb4af3ce5",
+      "code": "coupling/internal-leak",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "kadi has an entry point (kadi/__init__.py), but 5 imports from 2 modules reach 4 of its internal files directly.",
+      "subject": {
+        "module": "kadi"
+      },
+      "evidence": {
+        "entries": [
+          "kadi/__init__.py"
+        ],
+        "entrySource": "detected",
+        "internalFiles": [
+          "kadi/explanation.py",
+          "kadi/line_items.py",
+          "kadi/pdf_text_quality.py",
+          "kadi/redaction.py"
+        ],
+        "moduleFiles": 11,
+        "consumers": [
+          "kadi-clinical_review",
+          "kadi-ocr"
+        ],
+        "viaEntry": 0,
+        "totalImports": 5,
+        "files": [
+          "kadi/clinical_review/evidence.py",
+          "kadi/clinical_review/medicine_trust.py",
+          "kadi/clinical_review/transcription.py",
+          "kadi/ocr/ocr_parser.py"
+        ],
+        "imports": [
+          {
+            "file": "kadi/clinical_review/evidence.py",
+            "line": 13,
+            "to": "kadi/redaction.py"
+          },
+          {
+            "file": "kadi/clinical_review/medicine_trust.py",
+            "line": 30,
+            "to": "kadi/explanation.py"
+          },
+          {
+            "file": "kadi/clinical_review/transcription.py",
+            "line": 24,
+            "to": "kadi/redaction.py"
+          },
+          {
+            "file": "kadi/ocr/ocr_parser.py",
+            "line": 15,
+            "to": "kadi/line_items.py"
+          },
+          {
+            "file": "kadi/ocr/ocr_parser.py",
+            "line": 16,
+            "to": "kadi/pdf_text_quality.py"
+          }
+        ],
+        "threshold": {
+          "minFiles": 3
+        }
+      },
+      "supportedFixes": [
+        "export what consumers need from kadi/__init__.py and change the cited imports to use it",
+        "if a file is meant to be public, add it to rules.coupling.internalLeak.entries"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/clinical_review/evidence.py",
+          "kadi/clinical_review/medicine_trust.py",
+          "kadi/clinical_review/transcription.py",
+          "kadi/explanation.py",
+          "kadi/line_items.py",
+          "kadi/ocr/ocr_parser.py",
+          "kadi/pdf_text_quality.py",
+          "kadi/redaction.py"
+        ],
+        "sha256": "7dd9d0db8bd122b7da81ed4ed58ed150eefdebfcb32e4671b8cff0d4615078b7"
+      }
+    },
+    {
+      "id": "COUP-124374328f34",
+      "code": "coupling/internal-leak",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "kadi/ocr has an entry point (kadi/ocr/__init__.py), but 2 imports from 1 module reach 1 of its internal files directly.",
+      "subject": {
+        "module": "kadi-ocr"
+      },
+      "evidence": {
+        "entries": [
+          "kadi/ocr/__init__.py"
+        ],
+        "entrySource": "detected",
+        "internalFiles": [
+          "kadi/ocr/ocr_parser.py"
+        ],
+        "moduleFiles": 2,
+        "consumers": [
+          "kadi"
+        ],
+        "viaEntry": 2,
+        "totalImports": 2,
+        "files": [
+          "kadi/__init__.py"
+        ],
+        "imports": [
+          {
+            "file": "kadi/__init__.py",
+            "line": 17,
+            "to": "kadi/ocr/ocr_parser.py",
+            "typeOnly": true
+          },
+          {
+            "file": "kadi/__init__.py",
+            "line": 30,
+            "to": "kadi/ocr/ocr_parser.py",
+            "lazy": true,
+            "conditional": true
+          }
+        ],
+        "threshold": {
+          "minFiles": 3
+        }
+      },
+      "supportedFixes": [
+        "export what consumers need from kadi/ocr/__init__.py and change the cited imports to use it",
+        "if a file is meant to be public, add it to rules.coupling.internalLeak.entries"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/__init__.py",
+          "kadi/ocr/ocr_parser.py"
+        ],
+        "sha256": "314cc1f5ae90bd9f8bd03bf3b4c249e9d463d6a88a5b926053f1cf55ab164b8d"
+      }
+    },
+    {
+      "id": "COUP-a4b3d1d87d1e",
+      "code": "coupling/internal-leak",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "kadi/privacy has an entry point (kadi/privacy/__init__.py), but 2 imports from 2 modules reach 1 of its internal files directly.",
+      "subject": {
+        "module": "kadi-privacy"
+      },
+      "evidence": {
+        "entries": [
+          "kadi/privacy/__init__.py"
+        ],
+        "entrySource": "detected",
+        "internalFiles": [
+          "kadi/privacy/redaction.py"
+        ],
+        "moduleFiles": 2,
+        "consumers": [
+          "kadi",
+          "kadi-llm"
+        ],
+        "viaEntry": 2,
+        "totalImports": 2,
+        "files": [
+          "kadi/llm/cache.py",
+          "kadi/redaction.py"
+        ],
+        "imports": [
+          {
+            "file": "kadi/llm/cache.py",
+            "line": 25,
+            "to": "kadi/privacy/redaction.py"
+          },
+          {
+            "file": "kadi/redaction.py",
+            "line": 10,
+            "to": "kadi/privacy/redaction.py"
+          }
+        ],
+        "threshold": {
+          "minFiles": 3
+        }
+      },
+      "supportedFixes": [
+        "export what consumers need from kadi/privacy/__init__.py and change the cited imports to use it",
+        "if a file is meant to be public, add it to rules.coupling.internalLeak.entries"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/llm/cache.py",
+          "kadi/privacy/redaction.py",
+          "kadi/redaction.py"
+        ],
+        "sha256": "8e38547094ddbd6cbea09a17425619c48ee07822caf5927003feecfaf39f5f87"
+      }
+    },
+    {
+      "id": "COUP-ccc624797468",
+      "code": "coupling/internal-leak",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "kadi/resolution has an entry point (kadi/resolution/__init__.py), but 1 import from 1 module reach 1 of its internal files directly.",
+      "subject": {
+        "module": "kadi-resolution"
+      },
+      "evidence": {
+        "entries": [
+          "kadi/resolution/__init__.py"
+        ],
+        "entrySource": "detected",
+        "internalFiles": [
+          "kadi/resolution/resolver.py"
+        ],
+        "moduleFiles": 9,
+        "consumers": [
+          "kadi"
+        ],
+        "viaEntry": 1,
+        "totalImports": 1,
+        "files": [
+          "kadi/graph.py"
+        ],
+        "imports": [
+          {
+            "file": "kadi/graph.py",
+            "line": 31,
+            "to": "kadi/resolution/resolver.py"
+          }
+        ],
+        "threshold": {
+          "minFiles": 3
+        }
+      },
+      "supportedFixes": [
+        "export what consumers need from kadi/resolution/__init__.py and change the cited imports to use it",
+        "if a file is meant to be public, add it to rules.coupling.internalLeak.entries"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi/graph.py",
+          "kadi/resolution/resolver.py"
+        ],
+        "sha256": "0e014ed9c2207966bbf0d2c55d7739ef1c8e631b7692fabdacb4968dcab6fb55"
+      }
+    }
+  ]
+}

@@ -178,6 +178,10 @@ This document catalogs known failure modes, error messages, and verified solutio
   module, or one domain package importing another). The output shows the import chain.
 - **Remedy**: move the shared code down a layer (`docs/architecture/module-boundaries.md`).
   `test_architecture.py` failing instead means a new module is not listed in `.importlinter`.
+- **`kadi-llm-and-privacy-below-root` broken, or `packages/kadi/tests/test_package_layering.py`
+  failing**: something in `kadi/llm` or `kadi/privacy` imported a Kadi root module (for example
+  `kadi.redaction` or `kadi.extraction`), re-creating the package cycle fixed by ADR-027. Import
+  redaction from `kadi.privacy.redaction`, or move the shared code down into `kadi/privacy`.
 
 ### `test_upgrade_to_head_matches_models_exactly` fails
 - **Cause**: `app/models/` changed without an Alembic revision.

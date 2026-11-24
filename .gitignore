@@ -264,3 +264,13 @@ test_temp.db
 
 # Real public Devanagari PDFs for QA (#35): provenance and hashes are in data/raw/devanagari_public_docs/README.md
 data/raw/devanagari_public_docs/**/*.pdf
+
+# ──────────────────────────────────────────────────────────────────────
+# Archify Code Analysis (docs/architecture/code-analysis/README.md).
+# The viewer and view-context embed the generating machine's absolute paths and
+# raw-facts.json is a ~3 MB derivable capture; the small *.json evidence is tracked.
+# ──────────────────────────────────────────────────────────────────────
+.archify/
+docs/architecture/code-analysis/**/repo.analysis.html
+docs/architecture/code-analysis/**/view-context.json
+docs/architecture/code-analysis/**/raw-facts.json

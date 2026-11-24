@@ -21,6 +21,15 @@ packages/<module>              ── domain rules: pure Python + Pydantic. No F
 packages/kadi                  ── shared intelligence layer. Never imports a domain module.
 ```
 
+Inside Kadi, `kadi.llm` and `kadi.privacy` sit **below** the root modules (`kadi.extraction`,
+`kadi.timeline`, …): they never import them back, which would form a package-level cycle
+(ADR-027; contract `kadi-llm-and-privacy-below-root`, plus
+`packages/kadi/tests/test_package_layering.py`). A privacy primitive another Kadi subpackage
+needs goes in `kadi/privacy`, which imports nothing else from `kadi`. `kadi/__init__.py`
+re-exports `parse_document` lazily so the package root never imports `kadi.ocr` (which imports
+root modules) while it is itself being imported. Structural measurements of
+a package, such as this cycle, are kept in [code-analysis/](code-analysis/README.md).
+
 Domain modules (`billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`) do not import
 each other. Cross-module work happens through Kadi (shared models and case context) or in the
 API layer (`app/services`, `app/auto_triggers`, `app/claim_pack`).

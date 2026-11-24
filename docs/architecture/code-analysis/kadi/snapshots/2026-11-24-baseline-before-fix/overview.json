@@ -1,0 +1,911 @@
+{
+  "verdict": "attention",
+  "counts": {
+    "findings": 32,
+    "error": 1,
+    "warning": 9,
+    "info": 22,
+    "accepted": 0,
+    "acceptedErrors": 0,
+    "offDiagram": null
+  },
+  "review": null,
+  "groups": [
+    {
+      "code": "coupling/cycle",
+      "severity": "error",
+      "count": 1,
+      "ids": [
+        "COUP-209e06f65d1c"
+      ]
+    },
+    {
+      "code": "complexity/function",
+      "severity": "warning",
+      "count": 23,
+      "ids": [
+        "COMP-9ae19258c59c",
+        "COMP-78b0dc1fa966",
+        "COMP-078461e7a923",
+        "COMP-457a7a0f40e8",
+        "COMP-ed63752fddb1",
+        "COMP-4ae433d6f074",
+        "COMP-c31f4a4f49db",
+        "COMP-896f3c7125b5",
+        "COMP-242514446a9e",
+        "COMP-3ee2ea7aed9c",
+        "COMP-d292ca1dd569",
+        "COMP-7afcfc665082",
+        "COMP-eb99877107df",
+        "COMP-232511b3b268",
+        "COMP-bcb32fe41bcf",
+        "COMP-d9691c98ed08",
+        "COMP-63f3cc30ed66",
+        "COMP-2c0403b1fdd2",
+        "COMP-222350544139",
+        "COMP-9007e27d49ad",
+        "COMP-11055f167d11",
+        "COMP-57bd08e56dd9",
+        "COMP-9ec49dc7c475"
+      ]
+    },
+    {
+      "code": "coupling/concentration",
+      "severity": "warning",
+      "count": 4,
+      "ids": [
+        "COUP-fbdea46f0e25",
+        "COUP-b062224dbc3a",
+        "COUP-bc2fa9792286",
+        "COUP-bdf1ec6dd471"
+      ]
+    },
+    {
+      "code": "coupling/import-cycle",
+      "severity": "warning",
+      "count": 1,
+      "ids": [
+        "COUP-dce307e7c336"
+      ]
+    },
+    {
+      "code": "coupling/internal-leak",
+      "severity": "info",
+      "count": 3,
+      "ids": [
+        "COUP-d6deb4af3ce5",
+        "COUP-ccc624797468",
+        "COUP-124374328f34"
+      ]
+    }
+  ],
+  "priorities": [
+    "COUP-209e06f65d1c",
+    "COMP-9ae19258c59c",
+    "COMP-78b0dc1fa966"
+  ],
+  "investigation": {
+    "leads": [
+      {
+        "id": "COUP-209e06f65d1c",
+        "code": "coupling/cycle",
+        "severity": "error",
+        "message": "3 modules depend on each other at package level: kadi → kadi/llm → kadi. See coupling/import-cycle for whether any file actually cycles.",
+        "where": "kadi/extraction.py:17",
+        "symbol": null,
+        "impact": {
+          "modules": 3,
+          "size": 0,
+          "fanIn": 5,
+          "files": 25
+        }
+      },
+      {
+        "id": "COMP-9ae19258c59c",
+        "code": "complexity/function",
+        "severity": "warning",
+        "message": "assess_text_layer in kadi/pdf_text_quality.py has cyclomatic complexity 54 (89 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+        "where": "kadi/pdf_text_quality.py:211",
+        "symbol": "assess_text_layer",
+        "impact": {
+          "modules": 1,
+          "size": 54,
+          "fanIn": 3,
+          "files": 11
+        }
+      },
+      {
+        "id": "COMP-78b0dc1fa966",
+        "code": "complexity/function",
+        "severity": "warning",
+        "message": "parse_fhir_bundle in kadi/fhir_import.py has cyclomatic complexity 51 (130 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+        "where": "kadi/fhir_import.py:119",
+        "symbol": "parse_fhir_bundle",
+        "impact": {
+          "modules": 1,
+          "size": 51,
+          "fanIn": 3,
+          "files": 11
+        }
+      }
+    ],
+    "architecture": {
+      "modules": 6,
+      "edges": 6,
+      "hotspots": [
+        {
+          "id": "kadi",
+          "path": "kadi",
+          "files": 11,
+          "loc": 2398,
+          "fanIn": 3,
+          "fanOut": 3,
+          "instability": 0.5,
+          "entry": [
+            "kadi/redaction.py",
+            "kadi/explanation.py",
+            "kadi/line_items.py"
+          ],
+          "readingWeight": 7194
+        },
+        {
+          "id": "kadi-resolution",
+          "path": "kadi/resolution",
+          "files": 9,
+          "loc": 1907,
+          "fanIn": 1,
+          "fanOut": 0,
+          "instability": 0,
+          "entry": [
+            "kadi/resolution/__init__.py",
+            "kadi/resolution/resolver.py",
+            "kadi/resolution/calibration.py"
+          ],
+          "readingWeight": 3814
+        },
+        {
+          "id": "kadi-llm",
+          "path": "kadi/llm",
+          "files": 12,
+          "loc": 1266,
+          "fanIn": 1,
+          "fanOut": 1,
+          "instability": 0.5,
+          "entry": [
+            "kadi/llm/__init__.py",
+            "kadi/llm/breaker.py",
+            "kadi/llm/budget.py"
+          ],
+          "readingWeight": 2532
+        },
+        {
+          "id": "kadi-clinical_review",
+          "path": "kadi/clinical_review",
+          "files": 9,
+          "loc": 1829,
+          "fanIn": 0,
+          "fanOut": 1,
+          "instability": 1,
+          "entry": [
+            "kadi/clinical_review/__init__.py",
+            "kadi/clinical_review/annex.py",
+            "kadi/clinical_review/evidence.py"
+          ],
+          "readingWeight": 1829
+        },
+        {
+          "id": "kadi-ocr",
+          "path": "kadi/ocr",
+          "files": 2,
+          "loc": 529,
+          "fanIn": 1,
+          "fanOut": 1,
+          "instability": 0.5,
+          "entry": [
+            "kadi/ocr/__init__.py",
+            "kadi/ocr/ocr_parser.py"
+          ],
+          "readingWeight": 1058
+        }
+      ],
+      "hotspotRanking": "Connected modules ordered by loc * (1 + log2(1 + fanIn)), then fanIn, fanOut and id. A bounded reading order, not inferred business importance, defect severity or refactoring advice.",
+      "strongestEdges": [
+        {
+          "from": "kadi-clinical_review",
+          "to": "kadi",
+          "weight": 3,
+          "sample": "kadi/clinical_review/evidence.py:13"
+        },
+        {
+          "from": "kadi",
+          "to": "kadi-ocr",
+          "weight": 2,
+          "sample": "kadi/__init__.py:5"
+        },
+        {
+          "from": "kadi",
+          "to": "kadi-resolution",
+          "weight": 2,
+          "sample": "kadi/graph.py:31"
+        },
+        {
+          "from": "kadi-ocr",
+          "to": "kadi",
+          "weight": 2,
+          "sample": "kadi/ocr/ocr_parser.py:15"
+        },
+        {
+          "from": "kadi",
+          "to": "kadi-llm",
+          "weight": 1,
+          "sample": "kadi/extraction.py:17"
+        }
+      ],
+      "structuralSignals": [
+        {
+          "id": "COUP-fbdea46f0e25",
+          "code": "coupling/concentration",
+          "severity": "warning",
+          "message": "kadi: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split.",
+          "where": "module kadi",
+          "impact": {
+            "modules": 1,
+            "size": 0,
+            "fanIn": 3,
+            "files": 11
+          }
+        },
+        {
+          "id": "COUP-dce307e7c336",
+          "code": "coupling/import-cycle",
+          "severity": "warning",
+          "message": "2 files form a dependency cycle containing deferred or conditional imports: kadi/llm/client.py → kadi/llm/shadow.py → kadi/llm/client.py. Initialization-time behavior is not proven: functions can be called during import, and dynamic imports or guards need execution context. Any module-scope subcycles are reported separately.",
+          "where": "kadi/llm/client.py:91",
+          "impact": {
+            "modules": 1,
+            "size": 0,
+            "fanIn": 1,
+            "files": 2
+          }
+        },
+        {
+          "id": "COUP-d6deb4af3ce5",
+          "code": "coupling/internal-leak",
+          "severity": "info",
+          "message": "kadi has an entry point (kadi/__init__.py), but 6 imports from 3 modules reach 4 of its internal files directly.",
+          "where": "kadi/clinical_review/evidence.py:13",
+          "impact": {
+            "modules": 1,
+            "size": 0,
+            "fanIn": 3,
+            "files": 11
+          }
+        },
+        {
+          "id": "COUP-b062224dbc3a",
+          "code": "coupling/concentration",
+          "severity": "warning",
+          "message": "kadi/llm: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split.",
+          "where": "module kadi-llm",
+          "impact": {
+            "modules": 1,
+            "size": 0,
+            "fanIn": 1,
+            "files": 12
+          }
+        },
+        {
+          "id": "COUP-bc2fa9792286",
+          "code": "coupling/concentration",
+          "severity": "warning",
+          "message": "kadi/ocr: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split.",
+          "where": "module kadi-ocr",
+          "impact": {
+            "modules": 1,
+            "size": 0,
+            "fanIn": 1,
+            "files": 2
+          }
+        }
+      ]
+    }
+  },
+  "findings": [
+    {
+      "id": "COUP-209e06f65d1c",
+      "code": "coupling/cycle",
+      "severity": "error",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi",
+        "kadi-llm",
+        "kadi-ocr"
+      ],
+      "impact": {
+        "modules": 3,
+        "size": 0,
+        "fanIn": 5,
+        "files": 25
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-9ae19258c59c",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 54,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-78b0dc1fa966",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 51,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-078461e7a923",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 35,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-457a7a0f40e8",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 30,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-ed63752fddb1",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 26,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-fbdea46f0e25",
+      "code": "coupling/concentration",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-b062224dbc3a",
+      "code": "coupling/concentration",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-llm"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 1,
+        "files": 12
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-bc2fa9792286",
+      "code": "coupling/concentration",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-ocr"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 1,
+        "files": 2
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-dce307e7c336",
+      "code": "coupling/import-cycle",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-llm"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 1,
+        "files": 2
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-4ae433d6f074",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-clinical_review"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 22,
+        "fanIn": 0,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-c31f4a4f49db",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 21,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-896f3c7125b5",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 20,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-242514446a9e",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-llm"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 20,
+        "fanIn": 1,
+        "files": 12
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-3ee2ea7aed9c",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 20,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-d292ca1dd569",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-clinical_review"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 20,
+        "fanIn": 0,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-7afcfc665082",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-clinical_review"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 18,
+        "fanIn": 0,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-eb99877107df",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-clinical_review"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 18,
+        "fanIn": 0,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-232511b3b268",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 17,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-bcb32fe41bcf",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-d9691c98ed08",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-63f3cc30ed66",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-ocr"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 1,
+        "files": 2
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-2c0403b1fdd2",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-retrieval"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 0,
+        "files": 5
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-222350544139",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 15,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-9007e27d49ad",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-llm"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 15,
+        "fanIn": 1,
+        "files": 12
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-11055f167d11",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-retrieval"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 15,
+        "fanIn": 0,
+        "files": 5
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-57bd08e56dd9",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-retrieval"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 15,
+        "fanIn": 0,
+        "files": 5
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-9ec49dc7c475",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 11,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-d6deb4af3ce5",
+      "code": "coupling/internal-leak",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 3,
+        "files": 11
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-bdf1ec6dd471",
+      "code": "coupling/concentration",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-ccc624797468",
+      "code": "coupling/internal-leak",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 1,
+        "files": 9
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COUP-124374328f34",
+      "code": "coupling/internal-leak",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi-ocr"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 0,
+        "fanIn": 1,
+        "files": 2
+      },
+      "relatedIds": [],
+      "status": "open"
+    }
+  ],
+  "coverage": {
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "files": {
+      "analyzed": 48,
+      "excludedByRole": 37,
+      "excludedRoles": [
+        "generated",
+        "test"
+      ],
+      "excludePatterns": [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/target/**/*.java",
+        "**/coverage/**",
+        "**/*.d.ts",
+        "**/venv/**",
+        "**/venv-*/**",
+        "**/.venv/**",
+        "**/site-packages/**",
+        "**/__pycache__/**",
+        "**/.pytest_cache/**",
+        "**/.git/**",
+        "**/_archive/**"
+      ],
+      "parseErrors": []
+    },
+    "otherLanguages": [],
+    "unresolved": {
+      "external": 275,
+      "outside": 0,
+      "unknown": 0,
+      "opaque": 0
+    },
+    "rules": {
+      "run": [
+        "coupling/import-cycle",
+        "coupling/cycle",
+        "coupling/hub",
+        "coupling/concentration",
+        "coupling/internal-leak",
+        "complexity/function"
+      ],
+      "suppressed": []
+    },
+    "unmappedModules": [],
+    "boundaries": null,
+    "duplicates": null
+  }
+}

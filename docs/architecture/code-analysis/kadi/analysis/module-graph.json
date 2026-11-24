@@ -1,0 +1,366 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "revision": null,
+    "baseRevision": "ddef7e5c01d16c209da01609514840361e7f81e8",
+    "sourceKind": "working-tree",
+    "root": "packages/kadi",
+    "url": "https://github.com/Viraj281105/Arogyarakshak.git",
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "adapterRevision": 17,
+    "snapshotId": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f"
+  },
+  "grouping": {
+    "depth": 2,
+    "packageBoundaries": true,
+    "groups": []
+  },
+  "excluded": {
+    "roles": [
+      "generated",
+      "test"
+    ],
+    "files": 38
+  },
+  "modules": [
+    {
+      "id": "kadi",
+      "label": "kadi",
+      "path": "kadi",
+      "files": 11,
+      "loc": 2285,
+      "fanIn": 2,
+      "fanOut": 4,
+      "instability": 0.667,
+      "entry": [
+        "kadi/redaction.py",
+        "kadi/explanation.py",
+        "kadi/line_items.py"
+      ]
+    },
+    {
+      "id": "kadi-clinical_review",
+      "label": "kadi/clinical_review",
+      "path": "kadi/clinical_review",
+      "files": 9,
+      "loc": 1829,
+      "fanIn": 0,
+      "fanOut": 1,
+      "instability": 1,
+      "entry": [
+        "kadi/clinical_review/__init__.py",
+        "kadi/clinical_review/annex.py",
+        "kadi/clinical_review/evidence.py"
+      ]
+    },
+    {
+      "id": "kadi-llm",
+      "label": "kadi/llm",
+      "path": "kadi/llm",
+      "files": 12,
+      "loc": 1266,
+      "fanIn": 1,
+      "fanOut": 1,
+      "instability": 0.5,
+      "entry": [
+        "kadi/llm/__init__.py",
+        "kadi/llm/breaker.py",
+        "kadi/llm/budget.py"
+      ]
+    },
+    {
+      "id": "kadi-ocr",
+      "label": "kadi/ocr",
+      "path": "kadi/ocr",
+      "files": 2,
+      "loc": 529,
+      "fanIn": 1,
+      "fanOut": 1,
+      "instability": 0.5,
+      "entry": [
+        "kadi/ocr/__init__.py",
+        "kadi/ocr/ocr_parser.py"
+      ]
+    },
+    {
+      "id": "kadi-privacy",
+      "label": "kadi/privacy",
+      "path": "kadi/privacy",
+      "files": 2,
+      "loc": 150,
+      "fanIn": 2,
+      "fanOut": 0,
+      "instability": 0,
+      "entry": [
+        "kadi/privacy/__init__.py",
+        "kadi/privacy/redaction.py"
+      ]
+    },
+    {
+      "id": "kadi-resolution",
+      "label": "kadi/resolution",
+      "path": "kadi/resolution",
+      "files": 9,
+      "loc": 1907,
+      "fanIn": 1,
+      "fanOut": 0,
+      "instability": 0,
+      "entry": [
+        "kadi/resolution/__init__.py",
+        "kadi/resolution/resolver.py",
+        "kadi/resolution/calibration.py"
+      ]
+    },
+    {
+      "id": "kadi-retrieval",
+      "label": "kadi/retrieval",
+      "path": "kadi/retrieval",
+      "files": 5,
+      "loc": 610,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "kadi/retrieval/__init__.py",
+        "kadi/retrieval/bm25.py",
+        "kadi/retrieval/case_index.py"
+      ]
+    }
+  ],
+  "fileModules": {
+    "kadi/__init__.py": "kadi",
+    "kadi/clinical_review/__init__.py": "kadi-clinical_review",
+    "kadi/clinical_review/annex.py": "kadi-clinical_review",
+    "kadi/clinical_review/evidence.py": "kadi-clinical_review",
+    "kadi/clinical_review/lifecycle.py": "kadi-clinical_review",
+    "kadi/clinical_review/medicine_trust.py": "kadi-clinical_review",
+    "kadi/clinical_review/safety.py": "kadi-clinical_review",
+    "kadi/clinical_review/transcription.py": "kadi-clinical_review",
+    "kadi/clinical_review/types.py": "kadi-clinical_review",
+    "kadi/clinical_review/verification.py": "kadi-clinical_review",
+    "kadi/explanation.py": "kadi",
+    "kadi/extraction.py": "kadi",
+    "kadi/fhir_import.py": "kadi",
+    "kadi/graph.py": "kadi",
+    "kadi/injection.py": "kadi",
+    "kadi/line_items.py": "kadi",
+    "kadi/llm/__init__.py": "kadi-llm",
+    "kadi/llm/breaker.py": "kadi-llm",
+    "kadi/llm/budget.py": "kadi-llm",
+    "kadi/llm/cache.py": "kadi-llm",
+    "kadi/llm/client.py": "kadi-llm",
+    "kadi/llm/config.py": "kadi-llm",
+    "kadi/llm/errors.py": "kadi-llm",
+    "kadi/llm/observer.py": "kadi-llm",
+    "kadi/llm/prompts.py": "kadi-llm",
+    "kadi/llm/retry.py": "kadi-llm",
+    "kadi/llm/shadow.py": "kadi-llm",
+    "kadi/llm/transport.py": "kadi-llm",
+    "kadi/ocr/__init__.py": "kadi-ocr",
+    "kadi/ocr/ocr_parser.py": "kadi-ocr",
+    "kadi/pdf_text_quality.py": "kadi",
+    "kadi/privacy/__init__.py": "kadi-privacy",
+    "kadi/privacy/redaction.py": "kadi-privacy",
+    "kadi/redaction.py": "kadi",
+    "kadi/resolution/__init__.py": "kadi-resolution",
+    "kadi/resolution/calibration.py": "kadi-resolution",
+    "kadi/resolution/evaluation.py": "kadi-resolution",
+    "kadi/resolution/phonetic.py": "kadi-resolution",
+    "kadi/resolution/resolver.py": "kadi-resolution",
+    "kadi/resolution/semantic.py": "kadi-resolution",
+    "kadi/resolution/similarity.py": "kadi-resolution",
+    "kadi/resolution/transliteration.py": "kadi-resolution",
+    "kadi/resolution/types.py": "kadi-resolution",
+    "kadi/retrieval/__init__.py": "kadi-retrieval",
+    "kadi/retrieval/bm25.py": "kadi-retrieval",
+    "kadi/retrieval/case_index.py": "kadi-retrieval",
+    "kadi/retrieval/chunking.py": "kadi-retrieval",
+    "kadi/retrieval/tokens.py": "kadi-retrieval",
+    "kadi/timeline.py": "kadi",
+    "kadi/triggers.py": "kadi"
+  },
+  "edges": [
+    {
+      "from": "kadi",
+      "to": "kadi-llm",
+      "weight": 1,
+      "kinds": {
+        "eager": 1,
+        "static": 1
+      },
+      "evidence": [
+        {
+          "file": "kadi/extraction.py",
+          "line": 17,
+          "to": "kadi/llm/__init__.py"
+        }
+      ]
+    },
+    {
+      "from": "kadi",
+      "to": "kadi-ocr",
+      "weight": 4,
+      "kinds": {
+        "conditional": 2,
+        "eager": 0,
+        "implicit": 2,
+        "lazy": 2,
+        "static": 4,
+        "typeOnly": 2
+      },
+      "evidence": [
+        {
+          "file": "kadi/__init__.py",
+          "line": 17,
+          "to": "kadi/ocr/__init__.py",
+          "typeOnly": true,
+          "implicit": true
+        },
+        {
+          "file": "kadi/__init__.py",
+          "line": 17,
+          "to": "kadi/ocr/ocr_parser.py",
+          "typeOnly": true
+        },
+        {
+          "file": "kadi/__init__.py",
+          "line": 30,
+          "to": "kadi/ocr/__init__.py",
+          "lazy": true,
+          "conditional": true,
+          "implicit": true
+        },
+        {
+          "file": "kadi/__init__.py",
+          "line": 30,
+          "to": "kadi/ocr/ocr_parser.py",
+          "lazy": true,
+          "conditional": true
+        }
+      ]
+    },
+    {
+      "from": "kadi",
+      "to": "kadi-privacy",
+      "weight": 2,
+      "kinds": {
+        "eager": 2,
+        "implicit": 1,
+        "static": 2
+      },
+      "evidence": [
+        {
+          "file": "kadi/redaction.py",
+          "line": 10,
+          "to": "kadi/privacy/__init__.py",
+          "implicit": true
+        },
+        {
+          "file": "kadi/redaction.py",
+          "line": 10,
+          "to": "kadi/privacy/redaction.py"
+        }
+      ]
+    },
+    {
+      "from": "kadi",
+      "to": "kadi-resolution",
+      "weight": 2,
+      "kinds": {
+        "eager": 2,
+        "implicit": 1,
+        "static": 2
+      },
+      "evidence": [
+        {
+          "file": "kadi/graph.py",
+          "line": 31,
+          "to": "kadi/resolution/__init__.py",
+          "implicit": true
+        },
+        {
+          "file": "kadi/graph.py",
+          "line": 31,
+          "to": "kadi/resolution/resolver.py"
+        }
+      ]
+    },
+    {
+      "from": "kadi-clinical_review",
+      "to": "kadi",
+      "weight": 3,
+      "kinds": {
+        "eager": 3,
+        "static": 3
+      },
+      "evidence": [
+        {
+          "file": "kadi/clinical_review/evidence.py",
+          "line": 13,
+          "to": "kadi/redaction.py"
+        },
+        {
+          "file": "kadi/clinical_review/medicine_trust.py",
+          "line": 30,
+          "to": "kadi/explanation.py"
+        },
+        {
+          "file": "kadi/clinical_review/transcription.py",
+          "line": 24,
+          "to": "kadi/redaction.py"
+        }
+      ]
+    },
+    {
+      "from": "kadi-llm",
+      "to": "kadi-privacy",
+      "weight": 2,
+      "kinds": {
+        "eager": 2,
+        "implicit": 1,
+        "static": 2
+      },
+      "evidence": [
+        {
+          "file": "kadi/llm/cache.py",
+          "line": 25,
+          "to": "kadi/privacy/__init__.py",
+          "implicit": true
+        },
+        {
+          "file": "kadi/llm/cache.py",
+          "line": 25,
+          "to": "kadi/privacy/redaction.py"
+        }
+      ]
+    },
+    {
+      "from": "kadi-ocr",
+      "to": "kadi",
+      "weight": 2,
+      "kinds": {
+        "eager": 2,
+        "static": 2
+      },
+      "evidence": [
+        {
+          "file": "kadi/ocr/ocr_parser.py",
+          "line": 15,
+          "to": "kadi/line_items.py"
+        },
+        {
+          "file": "kadi/ocr/ocr_parser.py",
+          "line": 16,
+          "to": "kadi/pdf_text_quality.py"
+        }
+      ]
+    }
+  ],
+  "unresolved": {
+    "external": 278,
+    "outside": 0,
+    "unknown": 0,
+    "opaque": 0
+  }
+}

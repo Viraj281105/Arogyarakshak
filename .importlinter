@@ -46,6 +46,28 @@ forbidden_modules =
     schemesetu
     dawacheck
 
+[importlinter:contract:kadi-llm-and-privacy-below-root]
+name = Kadi LLM client and privacy primitives sit below the Kadi root modules (no package-level cycle, ADR-027)
+type = forbidden
+source_modules =
+    kadi.llm
+    kadi.privacy
+forbidden_modules =
+    kadi.redaction
+    kadi.extraction
+    kadi.explanation
+    kadi.fhir_import
+    kadi.graph
+    kadi.injection
+    kadi.line_items
+    kadi.pdf_text_quality
+    kadi.timeline
+    kadi.triggers
+    kadi.clinical_review
+    kadi.ocr
+    kadi.resolution
+    kadi.retrieval
+
 [importlinter:contract:domain-modules-independent]
 name = Domain modules do not import each other (cross-module work goes through Kadi or the API layer)
 type = independence
