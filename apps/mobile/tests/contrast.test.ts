@@ -45,8 +45,15 @@ const SHARED = [
   'Badge.tsx',
   'Header.tsx',
   'OfflineBanner.tsx',
+  'EmptyState.tsx',
   'Skeleton.tsx',
   'TabBar.tsx',
+  'ui/Badges.tsx',
+  'ui/States.tsx',
+  'ui/Overlays.tsx',
+  'ui/Toast.tsx',
+  'ui/Steps.tsx',
+  'ui/Icon.tsx',
 ];
 
 test('shared components contain no colour literals (all colours come from tokens via tones.ts)', () => {
