@@ -17,6 +17,20 @@
   padding-bottom: clamp(3rem, 7vw, 6rem);
 }
 
+.lp-hero-has-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-hero-has-bg > :not(.illo-bg) {
+  position: relative;
+  z-index: 1;
+}
+
+.lp-hero-emblem {
+  margin-bottom: var(--space-sm);
+}
+
 /* Module personalities: one accent each, one system. */
 [data-module="kadi"] { --pub-accent: var(--chart-series-2); }
 [data-module="billnyay"] { --pub-accent: var(--chart-series-1); }

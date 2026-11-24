@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../components/auth/auth.css";
+import { AuthSplit } from "../components/auth/AuthSplit";
 import { VerifyEmailForm } from "../components/auth/VerifyEmailForm";
 
 export const metadata: Metadata = {
@@ -9,5 +10,9 @@ export const metadata: Metadata = {
 
 /** Email verification with the one-time code from the link fragment (#token=...). */
 export default function Page() {
-  return <VerifyEmailForm />;
+  return (
+    <AuthSplit>
+      <VerifyEmailForm />
+    </AuthSplit>
+  );
 }

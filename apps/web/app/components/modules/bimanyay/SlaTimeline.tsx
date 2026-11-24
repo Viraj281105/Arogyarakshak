@@ -6,6 +6,7 @@ import { ListenSummary } from "../../ListenSummary";
 import { buildDeadlineSummary } from "../../../lib/listenSummaries";
 import { ExplainTrail } from "../../ExplainTrail";
 import { StatePanel } from "../../clinical/StatePanel";
+import { TimelineChart } from "../../ui/Charts";
 import type { GrievanceTrackerResponse } from "./types";
 
 // Statutory SLA tier states (bimanyay.tracker) in plain language.
@@ -73,7 +74,19 @@ export function SlaTimeline({
       {error && <StatePanel kind="error">Could not calculate the deadlines: {error}</StatePanel>}
 
       {events.length > 0 ? (
-        <ol className="timeline bm-deadlines">
+        <>
+          <TimelineChart
+            title="Statutory escalation deadlines"
+            source="IRDAI Master Circular (29 May 2024)"
+            units="Calendar date"
+            period={countedFrom ? `Counted from ${formatDate(countedFrom)}` : "3-tier progression"}
+            events={events.map((ev) => ({
+              date: ev.deadline_date,
+              label: ev.title,
+              detail: SLA_STATUS_LABEL[ev.status] ?? ev.status,
+            }))}
+          />
+          <ol className="timeline bm-deadlines">
           {events.map((event, idx) => {
             const days = daysUntil(event.deadline_date);
             return (
@@ -101,6 +114,7 @@ export function SlaTimeline({
             );
           })}
         </ol>
+        </>
       ) : loading ? (
         <StatePanel kind="loading">Calculating the escalation deadlines…</StatePanel>
       ) : (

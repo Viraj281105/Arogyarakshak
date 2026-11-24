@@ -196,3 +196,33 @@ def test_forwarded_for_cannot_be_forged_past_a_trusted_proxy(monkeypatch):
     # test exists to make that trade-off explicit and verified, not to claim it away.
     request = _fake_request(client_host="10.0.0.1", forwarded_for="99.99.99.99")
     assert resolve_client_ip(request) == "99.99.99.99"
+
+
+def test_429_carries_cors_headers_so_browsers_can_read_it(monkeypatch):
+    """Regression (2026-11-25 transformation review): the limiter used to wrap CORSMiddleware,
+    so its 429 had no Access-Control-Allow-Origin and browsers reported a CORS failure instead
+    of 'too many requests'. CORS must wrap the limiter."""
+    limiter.reset()
+    monkeypatch.setattr(settings, "rate_limit_per_minute", 1)
+    origin = {"Origin": "http://localhost:3000"}
+    client.get("/api/v1/kadi/cases/CASE-doesnotexist", headers=origin)
+    response = client.get("/api/v1/kadi/cases/CASE-doesnotexist", headers=origin)
+    assert response.status_code == 429
+    assert response.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
+    assert "retry-after" in response.headers.get("access-control-expose-headers", "").lower()
+    limiter.reset()
+
+
+def test_cors_preflight_does_not_spend_the_rate_limit_budget(monkeypatch):
+    limiter.reset()
+    monkeypatch.setattr(settings, "rate_limit_per_minute", 1)
+    preflight = {
+        "Origin": "http://localhost:3000",
+        "Access-Control-Request-Method": "DELETE",
+        "Access-Control-Request-Headers": "x-case-access-token",
+    }
+    for _ in range(3):
+        assert client.options("/api/v1/kadi/cases/CASE-x", headers=preflight).status_code == 200
+    # The one allowed real request is still available.
+    assert client.get("/api/v1/kadi/cases/CASE-doesnotexist").status_code == 404
+    limiter.reset()

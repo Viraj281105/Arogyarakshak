@@ -4,6 +4,32 @@ import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 import { StatePanel } from "../clinical/StatePanel";
+import { PatientIllustration } from "../illustrations/Illustrations";
+import { EvidenceBadge, StatusBadge } from "../ui/Badges";
+
+// POST /api/v1/schemesetu/eligibility/reasoning -> schemesetu.reasoning_agent.EligibilityReasoning.
+interface ReasoningStep {
+  criterion: string;
+  scheme: string;
+  threshold_or_rule: string;
+  applicant_value: string;
+  determinative: boolean;
+  /** null when the criterion cannot decide the verdict or its input is not collected. */
+  satisfied: boolean | null;
+}
+interface EligibilityReasoningResponse {
+  reasoning_trace: ReasoningStep[];
+  criteria_considered: string[];
+  non_determinative_factors: string[];
+  criteria_not_considered: string[];
+}
+
+function stepOutcome(step: ReasoningStep): string {
+  if (!step.determinative) return "Recorded, cannot change the result";
+  if (step.satisfied === true) return "Met";
+  if (step.satisfied === false) return "Not met";
+  return "Not decided (input not collected)";
+}
 
 // --- API Response Type (matching backend SchemeResult schema) ---
 interface SchemeSource {
@@ -87,6 +113,19 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
   // Opt-in, unchecked by default: income is stored against a case only when the patient asks.
   const [saveToCase, setSaveToCase] = useState(false);
   const profileApi = useApi<IncomeProfileSaveResult>();
+  const reasoningApi = useApi<EligibilityReasoningResponse>();
+
+  const handleReasoning = async () => {
+    if (!canCheck) return;
+    await reasoningApi.execute("/api/v1/schemesetu/eligibility/reasoning", {
+      body: {
+        income: incomeVal,
+        location_state: state,
+        ...(category ? { category } : {}),
+        medical_need: medicalNeed.trim(),
+      },
+    });
+  };
 
   const incomeVal = parseFloat(income);
   const canCheck = !Number.isNaN(incomeVal) && incomeVal >= 0 && !!state.trim();
@@ -116,10 +155,19 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
 
   return (
     <div className="module-panel">
-      <header className="module-head">
-        <p className="lp-kicker">SchemeSetu · government health schemes</p>
-        <h2>{t.title}</h2>
-        <p>{t.desc}</p>
+      <header className="ws-mod-hero ws-mod-schemesetu">
+        <div className="ws-mod-hero-copy">
+          <p className="lp-kicker">SchemeSetu · government health schemes</p>
+          <h2>{t.title}</h2>
+          <p>{t.desc}</p>
+          <div className="ws-kadi-badges">
+            <StatusBadge tone="neutral">Provisional eligibility only</StatusBadge>
+            <StatusBadge tone="neutral">Official criteria cited</StatusBadge>
+          </div>
+        </div>
+        <div className="ws-mod-hero-art" aria-hidden="true">
+          <PatientIllustration size={100} />
+        </div>
       </header>
 
       <section className="case-panel bn-card" aria-labelledby="ss-form-title">
@@ -193,8 +241,60 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
               t.checkBtn
             )}
           </button>
+          <button type="button" className="btn btn-secondary" onClick={handleReasoning} disabled={reasoningApi.loading || !canCheck}>
+            {reasoningApi.loading ? "Loading rule trace…" : "Inspect rule reasoning"}
+          </button>
           {!canCheck && <span className="ds-hint">Enter your annual income and choose your state.</span>}
         </div>
+        {reasoningApi.error && <StatePanel kind="error">{reasoningApi.error}</StatePanel>}
+        {reasoningApi.data && (
+          <details className="ws-fields" open>
+            <summary className="ws-fields-summary">
+              <span>How each rule was applied</span>
+              <EvidenceBadge state="rule-engine" size="sm" />
+            </summary>
+            {reasoningApi.data.reasoning_trace.length > 0 ? (
+              <div className="ws-table-scroll" tabIndex={0} role="region" aria-label="Eligibility rules applied">
+                <table className="ws-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Scheme</th>
+                      <th scope="col">Criterion</th>
+                      <th scope="col">Rule</th>
+                      <th scope="col">Your value</th>
+                      <th scope="col">Outcome</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reasoningApi.data.reasoning_trace.map((st, idx) => (
+                      <tr key={`${st.scheme}-${st.criterion}-${idx}`}>
+                        <td>{st.scheme}</td>
+                        <td>{st.criterion.replace(/_/g, " ")}</td>
+                        <td>{st.threshold_or_rule}</td>
+                        <td>{st.applicant_value}</td>
+                        <td>{stepOutcome(st)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="ws-muted">The server returned no rule steps for these details.</p>
+            )}
+            {reasoningApi.data.criteria_not_considered.length > 0 && (
+              <>
+                <p className="ws-muted">
+                  <strong>Not checked by SchemeSetu</strong> (so this is not a full eligibility decision):
+                </p>
+                <ul className="ws-muted">
+                  {reasoningApi.data.criteria_not_considered.map((c) => (
+                    <li key={c}>{c}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </details>
+        )}
 
         {api.error && (
           <StatePanel kind="error" onRetry={handleCheck}>

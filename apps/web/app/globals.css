@@ -6,8 +6,7 @@
    Each stylesheet declares per-subset @font-face rules with unicode-range, so the
    browser fetches only the latin / latin-ext files it actually needs; Devanagari
    falls through to the stack's system fallbacks (see tokens.json font stacks). */
-@import "@fontsource-variable/fraunces/opsz.css";
-@import "@fontsource-variable/plus-jakarta-sans/wght.css";
+@import "@fontsource-variable/manrope/wght.css";
 @import "@fontsource-variable/inter/wght.css";
 @import "@fontsource-variable/jetbrains-mono/wght.css";
 

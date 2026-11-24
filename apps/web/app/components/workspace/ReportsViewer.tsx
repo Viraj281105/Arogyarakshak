@@ -39,7 +39,7 @@ type Availability<T = undefined> = { state: "loading" } | { state: "available"; 
  * form from the case timeline's "claim" step (the claim row exists), the Claim Pack whenever the
  * case consented to cross-module use.
  */
-export function ReportsViewer() {
+export function ReportsViewer({ heroArt }: { heroArt?: React.ReactNode } = {}) {
   const [lang] = useLanguage();
   const c = { ...caseCopy[lang], ...reportsCopy[lang] };
   const cs = useCase();
@@ -60,10 +60,10 @@ export function ReportsViewer() {
     );
   if (cs.problem) return null;
   if (!cs.ready) return <LoadingState label={c.module.processing} />;
-  return <Reports key={`${cs.ref.id}-${cs.version}`} c={c} caseRef={cs.ref} consent={cs.detail?.case.consent_opt_in ?? false} />;
+  return <Reports key={`${cs.ref.id}-${cs.version}`} c={c} caseRef={cs.ref} consent={cs.detail?.case.consent_opt_in ?? false} heroArt={heroArt} />;
 }
 
-function Reports({ c, caseRef, consent }: { c: WsCopy; caseRef: CaseRef; consent: boolean }) {
+function Reports({ c, caseRef, consent, heroArt }: { c: WsCopy; caseRef: CaseRef; consent: boolean; heroArt?: React.ReactNode }) {
   const [appealState, setAppeal] = useState<Availability<AppealVerify>>({ state: "loading" });
   const [claimState, setClaim] = useState<Availability>({ state: "loading" });
   // Without cross-module consent the API refuses these routes (403), so they are not asked.
@@ -91,8 +91,18 @@ function Reports({ c, caseRef, consent }: { c: WsCopy; caseRef: CaseRef; consent
   const id = encodeURIComponent(caseRef.id);
   return (
     <div className="ws-reports">
-      <h1 className="ws-page-title">{c.reports.title}</h1>
-      <p className="ws-section-lede">{c.reports.lede}</p>
+      <header className="ws-mod-hero ws-mod-kadi">
+        <div className="ws-mod-hero-copy">
+          <p className="ui-kicker">Case reports &amp; packages</p>
+          <h1 className="ws-page-title">{c.reports.title}</h1>
+          <p className="ws-section-lede">{c.reports.lede}</p>
+        </div>
+        {heroArt && (
+          <div className="ws-mod-hero-art" aria-hidden="true">
+            {heroArt}
+          </div>
+        )}
+      </header>
 
       <ReportCard
         c={c}

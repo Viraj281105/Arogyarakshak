@@ -63,7 +63,15 @@ export const CHECK_MODULE: Record<string, ModuleTab> = {
  * checks it already ran), the documents' extracted details that are kept, the timeline and the
  * evidence graph. Every figure is from a case route; nothing is computed or assumed here.
  */
-export function CaseOverview() {
+export function CaseOverview({
+  heroBg,
+  heroArt,
+  docsEmptyArt,
+}: {
+  heroBg?: React.ReactNode;
+  heroArt?: React.ReactNode;
+  docsEmptyArt?: React.ReactNode;
+} = {}) {
   const [lang] = useLanguage();
   const c = { ...caseCopy[lang], ...overviewCopy[lang] };
   const cs = useCase();
@@ -89,13 +97,30 @@ export function CaseOverview() {
   const token = ref.token ?? undefined;
   const consent = cs.detail?.case.consent_opt_in ?? false;
 
+  const entityCount = cs.detail?.entities.filter((e) => e.type !== "document_text").length ?? 0;
+  const docCount = cs.detail?.entities.filter((e) => e.type === "document_text").length ?? 0;
+
   return (
     <div className="ws-overview">
-      <h1 className="ws-page-title">{c.overview.title}</h1>
+      <header className="ws-kadi-hero">
+        {heroBg}
+        <div className="ws-kadi-hero-copy">
+          <p className="ui-kicker">Kadi · Document Intelligence</p>
+          <h1 className="ws-page-title">{c.overview.title}</h1>
+          <div className="ws-kadi-badges">
+            <StatusBadge tone="neutral">{docCount} excerpt(s) · {entityCount} extracted field(s)</StatusBadge>
+          </div>
+        </div>
+        {heroArt && (
+          <div className="ws-kadi-hero-art" aria-hidden="true">
+            {heroArt}
+          </div>
+        )}
+      </header>
       <SafetyEscalationBanner key={`safety-${ref.id}-${cs.version}`} caseId={ref.id} caseToken={token} />
       <InsightsAndActions key={`ins-${ref.id}-${cs.version}`} c={c} lang={lang} consent={consent} />
       <EntityResolutionReview key={`res-${ref.id}-${cs.version}`} caseId={ref.id} caseToken={token} currentLang={lang} />
-      {cs.detail && <DocumentsKept c={c} lang={lang} entities={cs.detail.entities} />}
+      {cs.detail && <DocumentsKept c={c} lang={lang} entities={cs.detail.entities} emptyArt={docsEmptyArt} />}
       <TimelineExplorer key={`tl-${ref.id}`} refreshKey={cs.version} />
       <EvidenceGraph key={`graph-${ref.id}-${cs.version}`} />
     </div>

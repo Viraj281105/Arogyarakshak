@@ -47,6 +47,15 @@ This document catalogs known failure modes, error messages, and verified solutio
 
 ---
 
+### Browser shows "blocked by CORS policy" for API calls that work in curl
+Seen 2026-11-25 during the transformation QA sweep (many page loads in a short time). The API log showed
+`429 Too Many Requests` for those requests. Cause: the rate-limit middleware was registered after `CORSMiddleware`,
+and Starlette makes the last-registered middleware the outermost, so the limiter answered before CORS could add its
+headers; the browser then reported a CORS failure and the web app could not read the 429.
+**Fixed 2026-11-25** (`apps/api/app/main.py`): the limiter is registered before CORS, so CORS wraps it; 429s carry
+`Access-Control-Allow-Origin` and expose `Retry-After`, and preflights no longer spend the caller's budget
+(`tests/test_rate_limiting.py`). If you still see this, check the API log for 429 first, then `CORS_ORIGINS`.
+
 ## 3. Groq API & LLM Issues
 
 ### `404/400 Error: Model 'llama3-70b' or 'llama-3.3-70b-versatile' is not found / deprecated`

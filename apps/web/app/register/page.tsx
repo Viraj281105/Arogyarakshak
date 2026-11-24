@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../components/auth/auth.css";
+import { AuthSplit } from "../components/auth/AuthSplit";
 import { RegisterForm } from "../components/auth/RegisterForm";
 
 export const metadata: Metadata = {
@@ -9,5 +10,9 @@ export const metadata: Metadata = {
 
 /** Registration page (ADR-026). The API answers the same for a new and an existing address. */
 export default function Page() {
-  return <RegisterForm />;
+  return (
+    <AuthSplit>
+      <RegisterForm />
+    </AuthSplit>
+  );
 }

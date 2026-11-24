@@ -27,13 +27,14 @@ export function themeColors(tokens, theme) {
 export const AA_TEXT = 4.5; // WCAG 1.4.3, normal-size text
 export const AA_NON_TEXT = 3; // WCAG 1.4.11, UI parts and graphical objects
 
-/** The eight evidence states (EvidenceBadge). Order is the display order in docs and the demo. */
+/** The nine evidence states (EvidenceBadge). Order is the display order in docs and the demo. */
 export const EVIDENCE_STATES = [
   "verified",
   "provisional",
   "unevaluated",
   "insufficient-evidence",
   "ai-generated",
+  "human-reviewed",
   "rule-engine",
   "user-provided",
   "external",
@@ -58,6 +59,8 @@ const CHART_MARKS = [
   "chart-over",
   "chart-bundled",
   "chart-unmatched",
+  "chart-ai",
+  "chart-human",
   "chart-series-1",
   "chart-series-2",
   "chart-series-3",

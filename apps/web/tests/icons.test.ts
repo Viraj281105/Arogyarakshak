@@ -24,10 +24,10 @@ describe('icon map (lucide-react, decision D3)', () => {
     }
   });
 
-  test('evidence icons cover exactly the eight evidence states', () => {
+  test('evidence icons cover exactly the nine evidence states', () => {
     assert.deepStrictEqual(Object.keys(EVIDENCE_ICONS), [
       'verified', 'provisional', 'unevaluated', 'insufficient-evidence',
-      'ai-generated', 'rule-engine', 'user-provided', 'external',
+      'ai-generated', 'human-reviewed', 'rule-engine', 'user-provided', 'external',
     ]);
     assert.ok(Object.keys(ACTION_ICONS).length >= 10);
   });

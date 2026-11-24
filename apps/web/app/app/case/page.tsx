@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { CaseOverview } from "../../components/workspace/CaseOverview";
+import { DocumentIntelligenceBackground } from "../../components/illustrations/Backgrounds";
+import { DocumentScanIllustration, OcrIllustration } from "../../components/illustrations/Illustrations";
 
 export const metadata: Metadata = {
   title: "Case overview — ArogyaRakshak",
@@ -7,5 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default function CaseOverviewPage() {
-  return <CaseOverview />;
+  return (
+    <CaseOverview
+      heroBg={<DocumentIntelligenceBackground intensity={0.35} />}
+      heroArt={<DocumentScanIllustration size={120} animate />}
+      docsEmptyArt={<OcrIllustration size={112} />}
+    />
+  );
 }

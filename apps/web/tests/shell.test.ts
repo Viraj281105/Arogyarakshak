@@ -216,7 +216,8 @@ describe('root layout frame', () => {
   test('viewport allows safe-area insets and the manifest and SVG icon are linked', () => {
     assert.match(layout, /viewportFit: "cover"/);
     assert.match(layout, /manifest: "\/manifest\.webmanifest"/);
-    assert.match(layout, /url: "\/icons\/icon\.svg"/);
+    assert.match(layout, /url: "\/icons\/favicon\.svg"/);
+    assert.match(layout, /apple-touch-icon\.png/);
   });
 });
 

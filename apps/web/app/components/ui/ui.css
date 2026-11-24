@@ -54,6 +54,13 @@
   border-color: var(--evidence-provisional-border);
 }
 
+/* A figure read as written from the user's document: not an estimate, not independently checked. */
+.ui-document-badge {
+  color: var(--evidence-unevaluated-fg);
+  background: var(--evidence-unevaluated-bg);
+  border-color: var(--evidence-unevaluated-border);
+}
+
 /* ---------- Confidence ---------- */
 .ui-confidence {
   display: inline-flex;

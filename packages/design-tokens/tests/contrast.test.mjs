@@ -19,8 +19,8 @@ const fmt = (r) => `${r.theme}: ${r.fg} (${r.fgValue}) on ${r.bg} (${r.bgValue})
 test("contrastRatio matches known WCAG values", () => {
   assert.equal(contrastRatio("#000000", "#FFFFFF").toFixed(2), "21.00");
   assert.equal(contrastRatio("#FFFFFF", "#FFFFFF").toFixed(2), "1.00");
-  // The brief's Clinical Teal fails as text on white (the reason the palette darkens it).
-  assert.ok(contrastRatio("#13A89E", "#FFFFFF") < AA_TEXT);
+  // The brief's Needs-attention amber fails as text on white (the reason badges use an ink-grade shade).
+  assert.ok(contrastRatio("#C28A35", "#FFFFFF") < AA_TEXT);
   assert.throws(() => contrastRatio("rgba(0,0,0,1)", "#FFFFFF"), /opaque/);
 });
 
@@ -41,10 +41,10 @@ test("the check fails when a token drops under AA (guards against a vacuous pass
   assert.ok(failures.some((r) => r.fg === "text-secondary"));
 });
 
-test("exactly eight evidence states, each with fg/bg/border in both themes", () => {
+test("exactly nine evidence states, each with fg/bg/border in both themes", () => {
   assert.deepEqual(EVIDENCE_STATES, [
     "verified", "provisional", "unevaluated", "insufficient-evidence",
-    "ai-generated", "rule-engine", "user-provided", "external",
+    "ai-generated", "human-reviewed", "rule-engine", "user-provided", "external",
   ]);
   for (const theme of ["light", "dark"]) {
     const c = themeColors(tokens, theme);
@@ -54,7 +54,7 @@ test("exactly eight evidence states, each with fg/bg/border in both themes", () 
       }
     }
     const fgs = EVIDENCE_STATES.map((s) => c[`evidence-${s}-fg`].toUpperCase());
-    assert.equal(new Set(fgs).size, 8, `${theme}: evidence foregrounds must be distinct`);
+    assert.equal(new Set(fgs).size, 9, `${theme}: evidence foregrounds must be distinct`);
   }
 });
 
@@ -66,17 +66,22 @@ test("dark theme is designed, not a copy of light: core surfaces and actions dif
   }
 });
 
-test("the brief's palette is present verbatim as reference tokens", () => {
+test("the official Deep Forest / Warm Ivory palette is present verbatim", () => {
   const d = tokens.color.dark;
   assert.deepEqual(
-    [d["palette-midnight-navy"], d["palette-deep-navy"], d["palette-slate-blue"], d["palette-clinical-teal"],
-      d["palette-electric-cyan"], d["palette-soft-mint"]],
-    ["#101B2A", "#15263A", "#263C52", "#13A89E", "#43C6D5", "#B6E7D8"],
+    [d["palette-deep-forest"], d["palette-secondary-forest"], d["palette-muted-sage"], d["palette-pale-sage"],
+      d["palette-warm-ivory"], d["palette-white"], d["palette-ink"], d["palette-ink-secondary"], d["palette-hairline"]],
+    ["#142F2B", "#244C42", "#91B49C", "#D5E7D9", "#F4F1E8", "#FFFFFF", "#1D2925", "#64766C", "#E2E2D8"],
+  );
+  assert.deepEqual(
+    [d["semantic-verified"], d["semantic-ai"], d["semantic-human"], d["semantic-attention"], d["semantic-critical"],
+      d["semantic-not-assessed"]],
+    ["#397A58", "#52769B", "#8066A5", "#C28A35", "#C4544F", "#89918C"],
   );
   const l = tokens.color.light;
   assert.deepEqual(
-    [l["bg-base"], l["bg-surface"], l["bg-surface-secondary"], l["border-subtle"], l["text-primary"]],
-    ["#F5F7FA", "#FFFFFF", "#EEF2F6", "#E0E6ED", "#172433"],
+    [l["bg-base"], l["bg-surface"], l["border-subtle"], l["text-primary"], l["action-primary"]],
+    ["#F4F1E8", "#FFFFFF", "#E2E2D8", "#1D2925", "#142F2B"],
   );
 });
 

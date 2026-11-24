@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
+import { ScientificGridBackground } from "../illustrations/Backgrounds";
+import { EvidenceVerificationIllustration } from "../illustrations/Illustrations";
 import { casePath, getCaseJson } from "../../lib/caseApi";
 import { useLanguage } from "../../shell/ShellProvider";
 import { useCase } from "./CaseProvider";
@@ -29,6 +31,7 @@ export function EvidenceGraph() {
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!ref) return;
@@ -75,58 +78,80 @@ export function EvidenceGraph() {
       ) : !graph ? (
         <LoadingState label={c.common.loading} minHeight="12rem" />
       ) : graph.nodes.length <= 1 ? (
-        <EmptyState title={c.graph.empty}>
-          <p>{c.graph.emptyBody}</p>
-        </EmptyState>
+        <div className="ws-empty-with-art">
+          <EvidenceVerificationIllustration size={112} />
+          <EmptyState title={c.graph.empty}>
+            <p>{c.graph.emptyBody}</p>
+          </EmptyState>
+        </div>
       ) : (
         <>
-          <p className="ws-muted">{fillCopy(c.graph.stats, { nodes: graph.stats.nodes ?? graph.nodes.length, edges: graph.stats.edges ?? graph.edges.length })}</p>
-          <div className="ws-graph">
-            <svg
-              viewBox={`0 0 ${SIZE} ${SIZE}`}
-              role="group"
-              aria-label={fillCopy(c.graph.svgLabel, { nodes: graph.nodes.length, edges: edges.length })}
-              className="ws-graph-svg"
-            >
-              {edges.map((e, i) => {
-                const a = pos.get(e.source)!;
-                const b = pos.get(e.target)!;
-                const hot = selected !== null && (e.source === selected || e.target === selected);
-                return (
-                  <line
-                    key={`${e.source}-${e.target}-${e.relation}-${i}`}
-                    x1={a.x}
-                    y1={a.y}
-                    x2={b.x}
-                    y2={b.y}
-                    className={`ws-graph-edge ws-graph-edge-${e.relation.toLowerCase()}${hot ? " is-hot" : ""}`}
-                  />
-                );
-              })}
-              {placed.map((p) => (
-                <g
-                  key={p.node.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selected === p.node.id}
-                  aria-label={`${kindLabel(p.node.kind)}: ${p.node.label}`}
-                  className={`ws-graph-node ws-graph-node-${p.node.kind}${selected === p.node.id ? " is-selected" : ""}`}
-                  transform={`translate(${p.x} ${p.y})`}
-                  onClick={() => setSelected((s) => (s === p.node.id ? null : p.node.id))}
-                  onKeyDown={(ev) => {
-                    if (ev.key === "Enter" || ev.key === " ") {
-                      ev.preventDefault();
-                      setSelected((s) => (s === p.node.id ? null : p.node.id));
-                    }
-                  }}
-                >
-                  <circle r={p.node.kind === "hospital_stay" ? 22 : 12} />
-                  <text y={p.node.kind === "hospital_stay" ? 38 : 26} textAnchor="middle">
-                    {truncate(p.node.kind === "hospital_stay" ? kindLabel(p.node.kind) : p.node.label)}
-                  </text>
-                </g>
+          <div className="ws-graph-toolbar">
+            <p className="ws-muted">{fillCopy(c.graph.stats, { nodes: graph.stats.nodes ?? graph.nodes.length, edges: graph.stats.edges ?? graph.edges.length })}</p>
+            <div className="ws-filters" role="group" aria-label={c.graph.legend}>
+              <button type="button" className="ws-chip" aria-pressed={kindFilter === "all"} onClick={() => setKindFilter("all")}>
+                All
+              </button>
+              {[...new Set(graph.nodes.map((n) => n.kind))].map((k) => (
+                <button key={k} type="button" className="ws-chip" aria-pressed={kindFilter === k} onClick={() => setKindFilter((cur) => (cur === k ? "all" : k))}>
+                  {kindLabel(k)}
+                </button>
               ))}
-            </svg>
+            </div>
+          </div>
+          <div className="ws-graph">
+            <div className="ws-graph-canvas">
+              <ScientificGridBackground intensity={0.4} />
+              <svg
+                viewBox={`0 0 ${SIZE} ${SIZE}`}
+                role="group"
+                aria-label={fillCopy(c.graph.svgLabel, { nodes: graph.nodes.length, edges: edges.length })}
+                className="ws-graph-svg"
+              >
+                {edges.map((e, i) => {
+                  const a = pos.get(e.source)!;
+                  const b = pos.get(e.target)!;
+                  const hot = selected !== null && (e.source === selected || e.target === selected);
+                  const dimmed = kindFilter !== "all" && a.node.kind !== kindFilter && b.node.kind !== kindFilter;
+                  return (
+                    <line
+                      key={`${e.source}-${e.target}-${e.relation}-${i}`}
+                      x1={a.x}
+                      y1={a.y}
+                      x2={b.x}
+                      y2={b.y}
+                      className={`ws-graph-edge ws-graph-edge-${e.relation.toLowerCase()}${hot ? " is-hot" : ""}${dimmed ? " is-dim" : ""}`}
+                    />
+                  );
+                })}
+                {placed.map((p) => {
+                  const dimmed = kindFilter !== "all" && p.node.kind !== kindFilter && p.node.kind !== "hospital_stay";
+                  return (
+                    <g
+                      key={p.node.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={selected === p.node.id}
+                      aria-label={`${kindLabel(p.node.kind)}: ${p.node.label}`}
+                      className={`ws-graph-node ws-graph-node-${p.node.kind}${selected === p.node.id ? " is-selected" : ""}${dimmed ? " is-dim" : ""}`}
+                      transform={`translate(${p.x} ${p.y})`}
+                      onClick={() => setSelected((s) => (s === p.node.id ? null : p.node.id))}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          setSelected((s) => (s === p.node.id ? null : p.node.id));
+                        }
+                      }}
+                    >
+                      <circle r={p.node.kind === "hospital_stay" ? 22 : 12} />
+                      <text y={p.node.kind === "hospital_stay" ? 38 : 26} textAnchor="middle">
+                        {truncate(p.node.kind === "hospital_stay" ? kindLabel(p.node.kind) : p.node.label)}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
             <ul className="ws-graph-legend" aria-label={c.graph.legend}>
               {[...new Set(graph.nodes.map((n) => n.kind))].map((k) => (
                 <li key={k}>

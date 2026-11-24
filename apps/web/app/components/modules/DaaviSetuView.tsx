@@ -14,6 +14,8 @@ import {
   passwordProblem,
 } from "../../lib/packageCrypto";
 import { apiFetch } from "../../lib/apiFetch";
+import { DocumentScanIllustration } from "../illustrations/Illustrations";
+import { StatusBadge } from "../ui/Badges";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -199,18 +201,25 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
 
   return (
     <div className="module-panel">
-      <header className="module-head">
-        <p className="lp-kicker">DaaviSetu · cashless pre-authorisation</p>
-        <h2>{t.title}</h2>
-        <p>{t.desc}</p>
+      <header className="ws-mod-hero ws-mod-daavisetu">
+        <div className="ws-mod-hero-copy">
+          <p className="lp-kicker">DaaviSetu · cashless pre-authorisation</p>
+          <h2>{t.title}</h2>
+          <p>{t.desc}</p>
+          <div className="ws-kadi-badges">
+            <StatusBadge tone="neutral">Readiness checklist from your documents</StatusBadge>
+            <StatusBadge tone="neutral">Ends at Package ready: you submit it yourself</StatusBadge>
+          </div>
+        </div>
+        <div className="ws-mod-hero-art" aria-hidden="true">
+          <DocumentScanIllustration size={100} />
+        </div>
       </header>
 
       {!caseId && (
         <div className="module-empty">
           <span className="module-empty-icon" aria-hidden="true">
-            <svg width="26" height="26" viewBox="0 0 24 24" className="lp-icon">
-              <path d="M8 4h8v3H8zM6 6H5v15h14V6h-1M9 12h6M9 16h4" />
-            </svg>
+            <DocumentScanIllustration size={84} />
           </span>
           <div>
             <strong>No document checked yet</strong>

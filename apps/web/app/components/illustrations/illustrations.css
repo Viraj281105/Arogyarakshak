@@ -1,0 +1,237 @@
+/* Illustration and ambient-background library (Illustrations.tsx, Backgrounds.tsx).
+   Colours come only from design tokens, so both themes work. Every animation is opt-in and stops under
+   prefers-reduced-motion and the in-app setting (data-motion="reduce"). Imported in app/layout.tsx. */
+
+.illo {
+  --illo-line: var(--palette-secondary-forest);
+  --illo-wash: var(--palette-pale-sage);
+  --illo-accent: var(--palette-muted-sage);
+  --illo-surface: var(--bg-surface);
+  --illo-signal: var(--semantic-verified);
+  --illo-attention: var(--semantic-attention);
+  --illo-heart: var(--semantic-critical);
+  --illo-ai: var(--semantic-ai);
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+[data-theme="dark"] .illo {
+  --illo-line: var(--palette-muted-sage);
+  --illo-wash: var(--bg-surface-secondary);
+  --illo-surface: var(--bg-surface-elevated);
+}
+
+/* Baseline: nothing is filled unless a fill class says so. */
+.illo :where(path, circle, rect, ellipse, line) {
+  fill: none;
+}
+
+/* Fills */
+.illo .illo-wash { fill: var(--illo-wash); }
+.illo .illo-surface { fill: var(--illo-surface); }
+.illo .illo-panel { fill: var(--illo-surface); stroke: var(--border-subtle); stroke-width: 1; }
+.illo .illo-accent-fill { fill: color-mix(in srgb, var(--illo-accent) 55%, transparent); }
+.illo .illo-accent-strong { fill: var(--illo-accent); }
+.illo .illo-signal-fill { fill: color-mix(in srgb, var(--illo-signal) 30%, transparent); }
+.illo .illo-ground { fill: color-mix(in srgb, var(--illo-line) 9%, transparent); }
+.illo .illo-dot { fill: var(--illo-accent); }
+.illo .illo-solid { fill: var(--illo-line); }
+.illo .illo-heart { fill: var(--illo-heart); }
+.illo .illo-leaf { fill: var(--illo-accent); }
+.illo .illo-window { fill: var(--illo-surface); stroke: var(--illo-line); stroke-width: 1; }
+.illo .illo-shield { fill: var(--palette-deep-forest); }
+.illo .illo-seal { fill: var(--semantic-verified); }
+.illo .illo-atom { fill: var(--illo-surface); stroke: var(--illo-line); stroke-width: 1.6; }
+.illo .illo-atom-accent { fill: var(--illo-accent); }
+.illo .illo-atom-signal { fill: var(--illo-ai); stroke: var(--illo-ai); }
+.illo .illo-dot-verified { fill: var(--semantic-verified); }
+.illo .illo-dot-attention { fill: var(--illo-attention); }
+.illo .illo-beam-glow { fill: color-mix(in srgb, var(--illo-signal) 14%, transparent); }
+
+/* Strokes */
+.illo .illo-line { stroke: var(--illo-line); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.illo .illo-line-thin { stroke: var(--illo-line); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.illo .illo-line-accent { stroke: var(--illo-accent); stroke-width: 1.8; stroke-linecap: round; }
+.illo .illo-solid-light { fill: var(--illo-wash); }
+.illo .illo-dash { stroke-dasharray: 3 3; stroke-opacity: 0.6; }
+.illo .illo-text { stroke: color-mix(in srgb, var(--illo-line) 38%, transparent); stroke-width: 3; stroke-linecap: round; }
+.illo .illo-rung { stroke: var(--illo-accent); stroke-width: 2; stroke-linecap: round; }
+.illo .illo-rung-alt { stroke: var(--illo-ai); stroke-opacity: 0.55; }
+.illo .illo-grid { stroke: var(--border-subtle); stroke-width: 0.8; }
+.illo .illo-signal-line { stroke: var(--illo-signal); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.illo .illo-rx { stroke-width: 2.4; }
+/* Green, never red: a red cross on white is a protected emblem (Geneva Conventions). */
+.illo .illo-cross { stroke: var(--semantic-verified); stroke-width: 4; stroke-linecap: round; }
+.illo .illo-cross-small { stroke: var(--illo-line); stroke-width: 2; stroke-linecap: round; }
+.illo .illo-check { stroke: var(--palette-warm-ivory); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.illo .illo-check-light { stroke: #ffffff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.illo .illo-highlight { stroke: #ffffff; stroke-opacity: 0.7; stroke-width: 2.4; stroke-linecap: round; }
+.illo .illo-empty { stroke-dasharray: 2 2; }
+.illo .illo-corner { stroke: var(--illo-signal); stroke-width: 2.4; stroke-linecap: round; }
+.illo .illo-beam { stroke: var(--illo-signal); stroke-width: 1.6; }
+.illo .illo-box { stroke-width: 1.4; fill-opacity: 0.12; }
+.illo .illo-box-a { stroke: var(--semantic-verified); fill: var(--semantic-verified); }
+.illo .illo-box-b { stroke: var(--illo-attention); fill: var(--illo-attention); }
+.illo .illo-box-c { stroke: var(--illo-ai); fill: var(--illo-ai); }
+.illo .illo-arrow { stroke: var(--illo-line); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- Opt-in motion (animate prop) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .illo--animate .illo-draw {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: illo-draw 1.6s var(--motion-easing-emphasized, cubic-bezier(0.3, 0, 0, 1)) 0.2s forwards;
+  }
+  .illo--animate .illo-draw-late { animation-delay: 0.6s; }
+  .illo--animate .illo-trace {
+    stroke-dasharray: 100;
+    animation: illo-trace 3.2s linear infinite;
+  }
+  .illo--animate .illo-float {
+    transform-box: fill-box;
+    animation: illo-float 5s ease-in-out infinite;
+  }
+  .illo--animate .illo-float-late { animation-delay: -2.5s; }
+  .illo--animate .illo-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: illo-pulse 1.4s ease-in-out infinite;
+  }
+  .illo--animate .illo-scanbeam { animation: illo-scan 3.6s ease-in-out infinite alternate; }
+  .illo--animate .illo-flow { animation: illo-flow 1s linear infinite; }
+  .illo--animate .illo-box { animation: illo-box 3s ease-in-out infinite; }
+  .illo--animate .illo-box-b { animation-delay: 0.6s; }
+  .illo--animate .illo-box-c { animation-delay: 1.2s; }
+  .illo--animate .illo-field { animation: illo-field 3s ease-in-out infinite; }
+  .illo--animate .illo-field-1 { animation-delay: 0.6s; }
+  .illo--animate .illo-field-2 { animation-delay: 1.2s; }
+}
+
+@keyframes illo-draw { to { stroke-dashoffset: 0; } }
+@keyframes illo-trace {
+  0% { stroke-dashoffset: 100; }
+  70%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes illo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes illo-pulse {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.14); }
+  30% { transform: scale(0.98); }
+}
+@keyframes illo-scan {
+  from { transform: translateY(-30px); }
+  to { transform: translateY(44px); }
+}
+@keyframes illo-flow { to { stroke-dashoffset: -6; } }
+@keyframes illo-box {
+  0%, 100% { fill-opacity: 0.08; }
+  50% { fill-opacity: 0.24; }
+}
+@keyframes illo-field {
+  0%, 100% { opacity: 0.55; }
+  40%, 70% { opacity: 1; }
+}
+
+/* ======================================================= Ambient backgrounds */
+.illo-bg {
+  --illo-bg-intensity: 0.5;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--illo-bg-intensity);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 40%, transparent 100%);
+}
+
+.illo-bg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Network */
+.illo-bg-bond { stroke: var(--palette-muted-sage); stroke-width: 0.22; stroke-opacity: 0.7; }
+.illo-bg-node { fill: var(--palette-muted-sage); }
+.illo-bg-hub { fill: var(--palette-secondary-forest); fill-opacity: 0.55; }
+[data-theme="dark"] .illo-bg-hub { fill: var(--palette-pale-sage); }
+
+/* Grid */
+.illo-bg-grid-lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--palette-muted-sage) 40%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--palette-muted-sage) 40%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--palette-muted-sage) 18%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--palette-muted-sage) 18%, transparent) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+}
+.illo-bg-grid-sweep {
+  position: absolute;
+  inset: -20% 0;
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--palette-pale-sage) 70%, transparent) 50%, transparent 100%);
+  background-size: 100% 30%;
+  background-repeat: no-repeat;
+  opacity: 0;
+}
+
+/* Botanical */
+.illo-bg-leaf path { fill: none; stroke: var(--palette-muted-sage); stroke-width: 0.35; stroke-linecap: round; }
+.illo-bg-leaf path:first-child { fill: color-mix(in srgb, var(--palette-pale-sage) 45%, transparent); }
+.illo-bg-ring { fill: none; stroke: var(--palette-muted-sage); stroke-width: 0.12; stroke-dasharray: 0.8 1.6; }
+
+/* Waveform */
+.illo-bg-wave { fill: none; stroke: var(--palette-muted-sage); stroke-width: 1.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* Documents */
+.illo-bg-doc rect:first-child { fill: color-mix(in srgb, var(--bg-surface) 80%, transparent); stroke: var(--palette-muted-sage); stroke-width: 0.3; }
+.illo-bg-doc path { stroke: color-mix(in srgb, var(--palette-muted-sage) 70%, transparent); stroke-width: 0.9; stroke-linecap: round; }
+.illo-bg-docbox { fill: color-mix(in srgb, var(--semantic-verified) 14%, transparent); stroke: var(--semantic-verified); stroke-width: 0.2; }
+.illo-bg-docbeam { fill: color-mix(in srgb, var(--semantic-verified) 35%, transparent); opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .illo-bg-drift { animation: illo-bg-drift 40s ease-in-out infinite alternate; transform-origin: 50% 50%; }
+  .illo-bg-bond-live { stroke-dasharray: 18 82; stroke-opacity: 1; stroke: var(--semantic-verified); animation: illo-bg-bond 6s linear infinite; }
+  .illo-bg-grid-sweep { opacity: 1; animation: illo-bg-sweep 9s ease-in-out infinite; }
+  .illo-bg-leaf { transform-box: fill-box; transform-origin: 50% 100%; animation: illo-bg-sway 14s ease-in-out infinite; }
+  .illo-bg-wave-track { animation: illo-bg-wave 14s linear infinite; }
+  .illo-bg-doc { animation: illo-bg-doc 12s ease-in-out infinite; }
+  .illo-bg-docbeam { opacity: 1; animation: illo-bg-docbeam 7s ease-in-out infinite; }
+}
+
+@keyframes illo-bg-drift { to { transform: translate(-1.5%, 1%) scale(1.03); } }
+@keyframes illo-bg-bond { to { stroke-dashoffset: -100; } }
+@keyframes illo-bg-sweep {
+  from { background-position: 0 -40%; }
+  to { background-position: 0 140%; }
+}
+@keyframes illo-bg-sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(6deg); }
+}
+@keyframes illo-bg-wave { to { transform: translateX(-280px); } }
+@keyframes illo-bg-doc {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.2px); }
+}
+@keyframes illo-bg-docbeam {
+  0% { transform: translateY(8px); }
+  100% { transform: translateY(72px); }
+}
+
+/* In-app reduced motion (settings) stops everything in both libraries. */
+[data-motion="reduce"] .illo *,
+[data-motion="reduce"] .illo-bg,
+[data-motion="reduce"] .illo-bg * {
+  animation: none !important;
+}
+[data-motion="reduce"] .illo .illo-draw {
+  stroke-dashoffset: 0 !important;
+}
