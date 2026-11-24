@@ -160,3 +160,7 @@ Worked examples on module pages are labelled "Synthetic example" and say "made-u
    `copy/en.ts` / `copy/modules.ts` (the limitations are stated as facts about this build).
 5. Consider making lucide icons usable from Server Components project-wide (static geometry like `publicIcons.ts`) to
    remove the client-reference chunk split for other server pages too.
+
+## Maintainer sign-off
+
+Approved by the maintainer on 2026-11-24, after a review in the browser of `/`, `/platform`, `/platform/billnyay` and `/security` (desktop, dark) and `/platform` (390 px, light), together with the integrator's independent re-run: 275 web tests, lint, build, budget, root tests and `check:generated`.
