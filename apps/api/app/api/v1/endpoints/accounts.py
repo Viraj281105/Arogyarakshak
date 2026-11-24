@@ -11,7 +11,7 @@ the login/password-change response a mobile client explicitly asked for.
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,7 @@ from app.account_auth import (
     require_principal,
     set_session_cookie,
 )
-from app.case_auth import require_case_access
+from app.case_auth import CASE_ACCESS_TOKEN_HEADER, require_case_access
 from app.config import settings
 from app.database import get_db
 from app.models import KadiCase, KadiUser
@@ -51,7 +51,7 @@ ACCEPTED_EMAIL_REQUEST = (
     "server yet (ADR-026), so no message will arrive."
 )
 INVALID_CREDENTIALS_DETAIL = (
-    "Email or password is incorrect. After repeated failures, sign-in is paused for a few minutes."
+    "Email or password is incorrect. After repeated failures, sign-in from this device is slowed down for a few minutes."
 )
 INVALID_EMAIL_DETAIL = "Enter a valid email address."
 INVALID_TOKEN_DETAIL = "This link is invalid or has expired. Request a new one."
@@ -230,10 +230,12 @@ async def register(
 
 
 @router.post(f"{AUTH_PREFIX}/login", response_model=SessionResponse, dependencies=[Depends(auth_attempt_guard)])
-async def login(req: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(req: LoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Signs in. Every failure is the same 401."""
     try:
-        issued = await accounts.login(db, req.email, req.password, req.session_transport)
+        issued = await accounts.login(
+            db, req.email, req.password, req.session_transport, client=resolve_client_ip(request)
+        )
     except InvalidCredentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=INVALID_CREDENTIALS_DETAIL)
     return _session_response(issued, response)
@@ -259,13 +261,16 @@ async def me(principal: Principal = Depends(require_principal)):
 @router.post(f"{AUTH_PREFIX}/password", response_model=SessionResponse, dependencies=[Depends(auth_attempt_guard)])
 async def change_password(
     req: ChangePasswordRequest,
+    request: Request,
     response: Response,
     principal: Principal = Depends(require_principal),
     db: AsyncSession = Depends(get_db),
 ):
     """Changes the password, revokes every session and returns one fresh session."""
     try:
-        issued = await accounts.change_password(db, principal, req.current_password, req.new_password)
+        issued = await accounts.change_password(
+            db, principal, req.current_password, req.new_password, client=resolve_client_ip(request)
+        )
     except InvalidCredentials:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The current password is incorrect.")
     except PasswordPolicyError as exc:
@@ -331,13 +336,15 @@ async def confirm_password_reset(req: ResetPasswordRequest, db: AsyncSession = D
 @router.delete(f"{AUTH_PREFIX}/me", response_model=DeleteAccountResponse, dependencies=[Depends(auth_attempt_guard)])
 async def delete_account(
     req: DeleteAccountRequest,
+    request: Request,
     response: Response,
     principal: Principal = Depends(require_principal),
     db: AsyncSession = Depends(get_db),
 ):
-    """Erases the account: every owned case (ADR-010 cascade), sessions, tokens, the user."""
+    """Erases the account: every owned case (ADR-010 cascade), the account's own BimaNyay
+    records without a case, sessions, tokens, the user."""
     try:
-        erased = await accounts.delete_account(db, principal, req.password)
+        erased = await accounts.delete_account(db, principal, req.password, client=resolve_client_ip(request))
     except InvalidCredentials:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The password is incorrect.")
     if principal.session.transport == accounts.TRANSPORT_COOKIE:
@@ -359,11 +366,12 @@ async def claim_case(
     principal: Principal = Depends(require_principal),
     case: KadiCase = Depends(require_case_access),
     db: AsyncSession = Depends(get_db),
+    x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
 ):
     """Moves a guest case into the signed-in account. Needs the session AND the case's
     X-Case-Access-Token; afterwards that token no longer opens the case."""
     try:
-        claimed = await accounts.claim_case(db, case, principal.user)
+        claimed = await accounts.claim_case(db, case, principal.user, x_case_access_token)
     except CaseOwnedElsewhere:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=CASE_OWNED_ELSEWHERE_DETAIL)
     return ClaimResponse(id=case.id, claimed=claimed)

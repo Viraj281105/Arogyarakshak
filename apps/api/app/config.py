@@ -86,8 +86,8 @@ class Settings(BaseSettings):
     # production.
     session_cookie_secure: bool = True
     # Extra origins allowed to send cookie-authenticated state-changing requests (and
-    # login/registration). Empty = the explicit entries of CORS_ORIGINS. The API's own
-    # origin is always allowed.
+    # login/registration). Empty = the explicit entries of CORS_ORIGINS. Outside production
+    # the API's own (Host-derived) origin is also allowed; under APP_ENV=production it is not.
     auth_trusted_origins: str = ""
     # stdlib hashlib.scrypt parameters (OWASP equivalent-strength row N=2^15, r=8, p=3).
     password_scrypt_n: int = 2**15
@@ -95,9 +95,11 @@ class Settings(BaseSettings):
     password_scrypt_p: int = 3
     # Stricter per-client-IP bucket for register/login/verification/reset routes.
     auth_rate_limit_per_minute: int = 10
-    # Per-account pause after consecutive wrong passwords.
-    login_max_failures: int = 10
-    login_lockout_minutes: int = 15
+    # Sign-in throttle per (account, client IP) — failures expire after the window; after
+    # the free failures each attempt waits an increasing delay (app/services/login_throttle.py).
+    login_free_failures: int = 5
+    login_failure_window_minutes: int = 15
+    login_max_delay_seconds: int = 900
     account_verification_token_ttl_hours: int = 24
     password_reset_token_ttl_minutes: int = 30
     # Email delivery is an OPEN decision (ADR-026 §11): "disabled" is the only transport.

@@ -6786,7 +6786,7 @@
     },
     "/api/v1/kadi/auth/me": {
       "delete": {
-        "description": "Erases the account: every owned case (ADR-010 cascade), sessions, tokens, the user.",
+        "description": "Erases the account: every owned case (ADR-010 cascade), the account's own BimaNyay\nrecords without a case, sessions, tokens, the user.",
         "operationId": "delete_account_api_v1_kadi_auth_me_delete",
         "requestBody": {
           "content": {

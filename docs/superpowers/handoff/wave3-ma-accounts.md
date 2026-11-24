@@ -33,8 +33,8 @@ No `packages/*` change, so the main checkout's editable installs were fine for t
 - **Enumeration resistance:** uniform 202 for register / verification request / reset request,
   uniform 401 for every login failure, one scrypt derivation on every path (tested by counting).
 - **Rate limits:** a stricter `auth:<ip>` bucket (10/min) inside the existing limiter (so the
-  conftest reset covers it), also on password change and account deletion; per-account pause after 10 failures for 15 min that answers the
-  same generic 401.
+  conftest reset covers it), also on password change and account deletion; a sign-in throttle
+  per (account, client IP) with expiring failures and a doubling delay (see the review section).
 - **Mail:** `MailTransport` protocol, `DisabledMailTransport` (the only configurable value,
   `MAIL_TRANSPORT=disabled`), `InMemoryMailTransport` for tests via the `get_mail_transport`
   dependency. Logs purpose + user id only.
@@ -42,6 +42,22 @@ No `packages/*` change, so the main checkout's editable installs were fine for t
   expired account tokens.
 - **Error payloads:** `/kadi/auth/*` validation errors drop `input`/`ctx`; the HTTP exception
   handler now forwards deliberate headers (used for `Retry-After` on the auth bucket).
+
+## Security review fixes (round 2, after the independent review of `75d8050`)
+
+| Finding | Fix | Tests (`apps/api/tests/test_account_hardening.py`) |
+|---|---|---|
+| M1 lockout DoS | Hard per-account lock removed (columns dropped from the unshipped `0003_accounts`). New `app/services/login_throttle.py`: failures per (user id, client IP), expire after `LOGIN_FAILURE_WINDOW_MINUTES` (15), after `LOGIN_FREE_FAILURES` (5) a doubling delay capped at `LOGIN_MAX_DELAY_SECONDS` (900); throttled attempts get the same 401 and still spend one scrypt. In memory, bounded, reset in conftest. | attacker on one IP cannot stop the victim on another; same 401 body; delay grows, is capped, expires; success clears |
+| M2 claim race | `claim_case` is one conditional `UPDATE ... WHERE owner_user_id IS NULL AND access_token_hash = :presented_hash`; rowcount != 1 → 403 | stale-object claim after another claim → `CaseOwnedElsewhere`, owner unchanged; wrong presented hash → refused |
+| L1 token race | `_consume_account_token_atomically`: `UPDATE ... SET used_at WHERE used_at IS NULL AND expires_at > now`, exactly one row or 400; reset consumes only after the policy passes | double consume; a reset that loses the race sets no password |
+| L3 | wrong current passwords on `POST /auth/password` and `DELETE /auth/me` feed the same throttle | both routes, then login from that IP refused, other IP fine |
+| L4 | deletion pops `processing_status` for every erased case; signed-in stand-alone BimaNyay records get `owner_user_id` (new nullable FK on `bimanyay_cases`/`bimanyay_grievances`, in `0003_accounts`) and are erased with the account | status cleared, owned records gone, guest record kept; case-linked record not owner-linked |
+| L7 | Origin check only after the cookie resolves to a live cookie session | garbage, planted and revoked cookies on guest writes → 201 |
+| L8 | under `APP_ENV=production` the Host-derived own origin is not trusted; a separate mandatory `AUTH_TRUSTED_ORIGINS` was not added (production already requires an explicit `CORS_ORIGINS`, the fallback; reasoning in ADR-026 §5) | production refuses own origin, accepts listed origin, `AUTH_TRUSTED_ORIGINS` overrides |
+| L2, L5, L6 | documented in ADR-026 §7, §11 and §6 | — |
+
+Login error text is now "…sign-in from this device is slowed down for a few minutes." Claim reads
+`X-Case-Access-Token` as a declared header (one-line OpenAPI change; clients regenerated).
 
 ## Files
 
@@ -74,7 +90,7 @@ ADR-008/009 status lines.
 
 ## Verification
 
-- Full backend suite, one invocation from the worktree root at `eb64a71`:
+- Round 1, full backend suite, one invocation from the worktree root at `eb64a71`:
   `PYTHONPATH=apps/api D:/FinalYearProject/Arogyarakshak/.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`
   → **2348 passed, 9 skipped, 0 failed** (5 min 44 s).
   Without `PYTHONPATH=apps/api` the same command gives 1 extra failure,
@@ -82,7 +98,11 @@ ADR-008/009 status lines.
   bare `python -c "import app..."` subprocess, which cannot find `app` from the repo root
   (`ModuleNotFoundError`). Environmental and pre-existing (the test is untouched); it passes with
   `PYTHONPATH=apps/api`, as CI sets it.
-- New tests: `test_accounts.py` (50) and `test_case_ownership.py` (56, of which 43 are the
+- **Round 2 (after the review fixes), same command at the final tip: 2363 passed, 9 skipped,
+  0 failed (5 min 24 s).** `lint-imports` 5 kept / 0 broken; CI ruff selection clean;
+  `npm run generate` + `check:generated` (3 passed).
+- Account tests now: `test_accounts.py` (48; the two old lockout tests moved and rewritten),
+  `test_account_hardening.py` (17, review fixes) and `test_case_ownership.py` (56, of which 43 are the
   ownership sweep over **every** route whose dependency tree contains `require_case_access`,
   found automatically: owner allowed, other account 403, case token alone 403, nobody 401).
 - `test_migrations.py` also run against a throwaway PostgreSQL 16 container
@@ -114,6 +134,11 @@ ADR-008/009 status lines.
 - Concurrent duplicate registration (unique-constraint race) has a code path but no test.
 
 ## Open items
+
+0. **M4 must build an authenticated download path for owned cases.** Mobile PDF/ZIP/SSE downloads
+   use `?access_token=`, which can never open an owned case. Fetch with the `Authorization`
+   header (or the web cookie) and save the bytes; never accept session or bearer tokens in a
+   query string.
 
 1. **D1a** (derived figures beyond the 90-day purge): open, not implemented. Owned cases expire
    exactly like guest cases; `GET /cases` shows live cases only.

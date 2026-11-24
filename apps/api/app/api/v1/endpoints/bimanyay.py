@@ -99,6 +99,9 @@ async def analyze_denial(
         case_record = BimaNyayCase(
             id=record_id,
             case_id=linked_case.id if linked_case else None,
+            # ADR-026: a signed-in caller's stand-alone record belongs to the account, so
+            # account deletion erases it. Case-linked records go with their case.
+            owner_user_id=principal.user.id if principal and not linked_case else None,
             policy_number=req.policy_number,
             insurer_name=req.insurer_name,
             policy_age_years=req.policy_age_years,
@@ -149,6 +152,7 @@ async def track_timeline(
         grievance_record = BimaNyayGrievance(
             id=grievance_id,
             case_id=linked_case.id if linked_case else None,
+            owner_user_id=principal.user.id if principal and not linked_case else None,
             claim_number=req.claim_number,
             insurer_name=req.insurer_name,
             current_tier=req.current_tier,

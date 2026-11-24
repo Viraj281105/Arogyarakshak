@@ -23,13 +23,14 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `SESSION_LIFETIME_HOURS` | No | `168` (7 days) | Absolute lifetime of an account session (ADR-026). Sessions are stored in the database (hash only) and survive restarts. |
 | `SESSION_IDLE_TIMEOUT_MINUTES` | No | `120` | A session unused for this long stops working. Activity refreshes it (at most one write a minute). |
 | `SESSION_COOKIE_SECURE` | Production: **must stay `true`** | `true` | Web session cookie is `__Host-arogya_session`, `httpOnly`, `Secure`, `SameSite=Strict`. `false` (plain `http://` local development only) drops `Secure` and the `__Host-` prefix (`arogya_session`); refused under `APP_ENV=production`. |
-| `AUTH_TRUSTED_ORIGINS` | No | `""` (= explicit `CORS_ORIGINS`) | Comma-separated origins allowed to send cookie-authenticated state-changing requests and browser logins (CSRF check, ADR-026 §5). The API's own origin is always allowed. A cross-origin web client also needs an explicit `CORS_ORIGINS`, or the browser will not send the cookie. |
+| `AUTH_TRUSTED_ORIGINS` | No | `""` (= explicit `CORS_ORIGINS`) | Comma-separated origins allowed to send cookie-authenticated state-changing requests and browser logins (CSRF check, ADR-026 §5). Outside production the API's own origin is also allowed; under `APP_ENV=production` it is not (it comes from the `Host` header), so list the web origin here or in `CORS_ORIGINS`. A cross-origin web client also needs an explicit `CORS_ORIGINS`, or the browser will not send the cookie. |
 | `PASSWORD_SCRYPT_N` | No | `32768` (2^15) | stdlib `hashlib.scrypt` cost (power of two). With r=8 one hash needs ~32 MiB; 128·N·r must stay within 64 MiB. Raising it re-hashes each password at its next login. |
 | `PASSWORD_SCRYPT_R` | No | `8` | scrypt block size. |
 | `PASSWORD_SCRYPT_P` | No | `3` | scrypt parallelism (N=2^15, r=8, p=3 is an OWASP equivalent-strength setting). |
 | `AUTH_RATE_LIMIT_PER_MINUTE` | No | `10` | Per-client-IP requests per minute to register, login, verification and password-reset routes (a separate, stricter bucket in the same in-memory limiter). `429` with `Retry-After`. |
-| `LOGIN_MAX_FAILURES` | No | `10` | Consecutive wrong passwords before an account's sign-in is paused. The pause answers with the same generic `401`. |
-| `LOGIN_LOCKOUT_MINUTES` | No | `15` | Length of that pause. |
+| `LOGIN_FREE_FAILURES` | No | `5` | Wrong passwords per (account, client IP) before each further attempt from that pair must wait an increasing delay (ADR-026 §7). Wrong current passwords on password change and account deletion count too. Attempts inside the delay get the same generic `401`. Other IPs are unaffected, so this is not a lockout. |
+| `LOGIN_FAILURE_WINDOW_MINUTES` | No | `15` | Failures of a pair expire after this long without a new failure. |
+| `LOGIN_MAX_DELAY_SECONDS` | No | `900` | Cap of the doubling delay (1 s, 2 s, 4 s, …). |
 | `ACCOUNT_VERIFICATION_TOKEN_TTL_HOURS` | No | `24` | Email-verification token lifetime (single use, hash stored). |
 | `PASSWORD_RESET_TOKEN_TTL_MINUTES` | No | `30` | Password-reset token lifetime (single use, hash stored). |
 | `MAIL_TRANSPORT` | No | `disabled` | The only accepted value. Email delivery is an OPEN decision (ADR-026 §11, a new network boundary): verification and reset requests create the token and log that nothing was delivered (never the address or token). |

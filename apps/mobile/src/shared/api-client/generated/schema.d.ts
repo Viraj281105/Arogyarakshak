@@ -680,7 +680,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Account
-         * @description Erases the account: every owned case (ADR-010 cascade), sessions, tokens, the user.
+         * @description Erases the account: every owned case (ADR-010 cascade), the account's own BimaNyay
+         *     records without a case, sessions, tokens, the user.
          */
         delete: operations["delete_account_api_v1_kadi_auth_me_delete"];
         options?: never;

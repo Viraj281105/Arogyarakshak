@@ -312,8 +312,9 @@ the same *site* (`localhost:3000` and `localhost:8000` are; two unrelated domain
 browsers refuse `Secure` cookies: use HTTPS, or `SESSION_COOKIE_SECURE=false` for local development only.
 
 ### `403` "This request did not come from a trusted origin"
-A state-changing request carried the session cookie but its `Origin` is not the API's own origin, not in
-`AUTH_TRUSTED_ORIGINS`, and not in an explicit `CORS_ORIGINS` (or it had no `Origin`). Add the web app's
+A state-changing request carried the cookie of a live session but its `Origin` is not in
+`AUTH_TRUSTED_ORIGINS` or an explicit `CORS_ORIGINS`, and (outside production) not the API's own origin,
+or it had no `Origin`. Under `APP_ENV=production` the API's own origin is never trusted automatically. Add the web app's
 origin to `AUTH_TRUSTED_ORIGINS` (or `CORS_ORIGINS`). Mobile clients use `Authorization: Bearer` and are
 not affected.
 
@@ -327,7 +328,11 @@ Expected: `MAIL_TRANSPORT=disabled` is the only transport until the email delive
 A user who forgets their password cannot recover the account yet; their cases still expire after
 `CASE_TTL_DAYS`.
 
-### Every login answers `401` even with the right password
-After `LOGIN_MAX_FAILURES` consecutive wrong passwords, sign-in for that account pauses for
-`LOGIN_LOCKOUT_MINUTES`, with the same generic `401` (so the pause reveals nothing). The log shows
-`Sign-in paused for user USR-…`. Wait, or complete a password reset (which clears the pause).
+### Every login from one machine answers `401` even with the right password
+After `LOGIN_FREE_FAILURES` wrong passwords (including wrong current passwords on password change
+or account deletion) from one client IP within `LOGIN_FAILURE_WINDOW_MINUTES`, attempts for that
+account from that IP must wait 1 s, 2 s, 4 s, … (max `LOGIN_MAX_DELAY_SECONDS`), and an attempt
+inside the wait gets the same generic `401`. The log shows `Sign-in for user USR-… from one client is
+now slowed`. Wait a little (failures expire after the window), or sign in from another network. A
+restart of the API also forgets the throttle (it is in memory). Behind a proxy, check
+`TRUSTED_PROXY_COUNT`: without it every user shares the proxy's IP.

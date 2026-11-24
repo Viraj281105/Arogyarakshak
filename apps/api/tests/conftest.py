@@ -164,6 +164,7 @@ fastapi_app.dependency_overrides[get_db] = override_get_db
 # relaxed per-IP auth bucket. Helpers live in tests/account_helpers.py.
 from app.config import settings as _settings  # noqa: E402
 from app.services import accounts as _account_service  # noqa: E402
+from app.services.login_throttle import throttle as _login_throttle  # noqa: E402
 from app.services.mail import InMemoryMailTransport, get_mail_transport  # noqa: E402
 from tests.account_helpers import FakeClock  # noqa: E402
 
@@ -194,3 +195,11 @@ def outbox():
 @pytest.fixture
 def relaxed_auth_limit(monkeypatch):
     monkeypatch.setattr(_settings, "auth_rate_limit_per_minute", 10_000)
+
+
+@pytest.fixture(autouse=True)
+def reset_login_throttle():
+    """The sign-in throttle is an in-memory singleton like the rate limiter."""
+    _login_throttle.reset()
+    yield
+    _login_throttle.reset()

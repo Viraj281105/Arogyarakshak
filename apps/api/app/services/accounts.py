@@ -20,7 +20,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import KadiAccountToken, KadiCase, KadiSession, KadiUser
+from app.models import (
+    BimaNyayCase,
+    BimaNyayGrievance,
+    BimaNyayTimelineEvent,
+    KadiAccountToken,
+    KadiCase,
+    KadiSession,
+    KadiUser,
+)
+from app.services.login_throttle import throttle as login_throttle
 from app.services.mail import PURPOSE_RESET_PASSWORD, PURPOSE_VERIFY_EMAIL, AccountMail, MailTransport
 from app.services.passwords import (
     PasswordPolicyError,
@@ -191,7 +200,9 @@ def _deliver(mail: MailTransport, message: AccountMail, user_id: str) -> None:
         logger.info("Account message (%s) handed to the mail transport for user %s.", message.purpose, user_id)
 
 
-async def _consume_account_token(db: AsyncSession, token: str, purpose: str, now: datetime) -> KadiAccountToken:
+async def _find_usable_account_token(db: AsyncSession, token: str, purpose: str, now: datetime) -> KadiAccountToken:
+    """Looks a token up without consuming it (so a reset can fail its password policy and
+    the token stays usable)."""
     if not token:
         raise InvalidAccountToken()
     result = await db.execute(
@@ -204,6 +215,46 @@ async def _consume_account_token(db: AsyncSession, token: str, purpose: str, now
     if row is None or row.used_at is not None or row.expires_at <= now:
         raise InvalidAccountToken()
     return row
+
+
+async def _consume_account_token_atomically(db: AsyncSession, token_hash: str, purpose: str, now: datetime) -> None:
+    """Single use under concurrency: one conditional UPDATE; only the request that flips
+    used_at from NULL proceeds (works the same on SQLite and PostgreSQL)."""
+    result = await db.execute(
+        update(KadiAccountToken)
+        .where(
+            KadiAccountToken.token_hash == token_hash,
+            KadiAccountToken.purpose == purpose,
+            KadiAccountToken.used_at.is_(None),
+            KadiAccountToken.expires_at > now,
+        )
+        .values(used_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        await db.rollback()
+        raise InvalidAccountToken()
+
+
+async def _check_password_or_throttle(user: KadiUser, password: str, client: str, now: datetime) -> bool:
+    """Verifies ``password`` for ``user`` under the (account, client IP) throttle
+    (app.services.login_throttle). Raises InvalidCredentials when throttled or wrong;
+    a throttled attempt still spends one scrypt so it looks like any other failure.
+    Returns needs_rehash on success. Used by login, password change and deletion."""
+    if login_throttle.retry_after_seconds(user.id, client, now) > 0:
+        await dummy_verify_async(password or "")
+        raise InvalidCredentials()
+    matches, needs_rehash = await verify_password_async(password or "", user.password_hash)
+    if not matches:
+        failures = login_throttle.record_failure(user.id, client, now)
+        if failures == settings.login_free_failures:
+            logger.warning(
+                "Sign-in for user %s from one client is now slowed after %d failures in %d minute(s).",
+                user.id, failures, settings.login_failure_window_minutes,
+            )
+        raise InvalidCredentials()
+    login_throttle.record_success(user.id, client)
+    return needs_rehash
 
 
 # --- registration and sign-in -------------------------------------------------------------
@@ -228,7 +279,6 @@ async def register(db: AsyncSession, email: str, password: str, mail: MailTransp
         email=email,
         password_hash=password_hash,
         password_changed_at=now,
-        failed_login_count=0,
         created_at=now,
         updated_at=now,
     )
@@ -246,9 +296,12 @@ async def register(db: AsyncSession, email: str, password: str, mail: MailTransp
     _deliver(mail, message, user.id)
 
 
-async def login(db: AsyncSession, email: str, password: str, transport: str) -> IssuedSession:
+async def login(
+    db: AsyncSession, email: str, password: str, transport: str, client: str = "unknown"
+) -> IssuedSession:
     """Raises InvalidCredentials for every failure: unknown email, wrong password, or a
-    paused account. Each path spends one scrypt verification."""
+    throttled (account, client IP) pair. Each path spends one scrypt verification.
+    ``client`` is the resolved client IP (app.rate_limit.resolve_client_ip)."""
     try:
         email = normalise_email(email)
     except InvalidEmail:
@@ -260,25 +313,7 @@ async def login(db: AsyncSession, email: str, password: str, transport: str) -> 
         raise InvalidCredentials()
 
     now = utcnow()
-    if user.login_locked_until is not None and user.login_locked_until > now:
-        await dummy_verify_async(password or "")
-        raise InvalidCredentials()
-
-    matches, needs_rehash = await verify_password_async(password or "", user.password_hash)
-    if not matches:
-        user.failed_login_count = (user.failed_login_count or 0) + 1
-        if user.failed_login_count >= settings.login_max_failures:
-            user.login_locked_until = now + timedelta(minutes=settings.login_lockout_minutes)
-            user.failed_login_count = 0
-            logger.warning(
-                "Sign-in paused for user %s for %d minute(s) after %d consecutive failures.",
-                user.id, settings.login_lockout_minutes, settings.login_max_failures,
-            )
-        await db.commit()
-        raise InvalidCredentials()
-
-    user.failed_login_count = 0
-    user.login_locked_until = None
+    needs_rehash = await _check_password_or_throttle(user, password, client, now)
     if needs_rehash:
         user.password_hash = await hash_password_async(password)
     issued = _create_session(db, user, transport, now)
@@ -316,15 +351,14 @@ async def logout(db: AsyncSession, principal: Principal) -> None:
 
 
 async def change_password(
-    db: AsyncSession, principal: Principal, current_password: str, new_password: str
+    db: AsyncSession, principal: Principal, current_password: str, new_password: str, client: str = "unknown"
 ) -> IssuedSession:
-    """Revokes every session of the user and issues one fresh session (same transport)."""
+    """Revokes every session of the user and issues one fresh session (same transport).
+    Wrong current passwords count toward the sign-in throttle (review L3)."""
     user = principal.user
-    matches, _ = await verify_password_async(current_password or "", user.password_hash)
-    if not matches:
-        raise InvalidCredentials()
-    normalised = check_password_policy(new_password, email=user.email)
     now = utcnow()
+    await _check_password_or_throttle(user, current_password, client, now)
+    normalised = check_password_policy(new_password, email=user.email)
     user.password_hash = await hash_password_async(normalised)
     user.password_changed_at = now
     await _revoke_all_sessions(db, user.id, now)
@@ -358,9 +392,9 @@ async def request_verification(db: AsyncSession, email: str, mail: MailTransport
 
 async def confirm_verification(db: AsyncSession, token: str) -> None:
     now = utcnow()
-    row = await _consume_account_token(db, token, PURPOSE_VERIFY_EMAIL, now)
+    row = await _find_usable_account_token(db, token, PURPOSE_VERIFY_EMAIL, now)
+    await _consume_account_token_atomically(db, row.token_hash, PURPOSE_VERIFY_EMAIL, now)
     user = await db.get(KadiUser, row.user_id)
-    row.used_at = now
     if user is not None and user.email_verified_at is None:
         user.email_verified_at = now
     await db.commit()
@@ -384,16 +418,16 @@ async def confirm_password_reset(db: AsyncSession, token: str, new_password: str
     """Sets the new password, consumes the token, revokes every session and clears a
     sign-in pause. Signs nobody in."""
     now = utcnow()
-    row = await _consume_account_token(db, token, PURPOSE_RESET_PASSWORD, now)
+    row = await _find_usable_account_token(db, token, PURPOSE_RESET_PASSWORD, now)
     user = await db.get(KadiUser, row.user_id)
     if user is None:
         raise InvalidAccountToken()
     normalised = check_password_policy(new_password, email=user.email)
-    user.password_hash = await hash_password_async(normalised)
+    password_hash = await hash_password_async(normalised)
+    # Consumed only now (the policy passed), and atomically: a concurrent second use loses.
+    await _consume_account_token_atomically(db, row.token_hash, PURPOSE_RESET_PASSWORD, now)
+    user.password_hash = password_hash
     user.password_changed_at = now
-    user.failed_login_count = 0
-    user.login_locked_until = None
-    row.used_at = now
     await _revoke_all_sessions(db, user.id, now)
     await db.commit()
     logger.info("User %s reset their password; all sessions revoked.", user.id)
@@ -412,40 +446,70 @@ async def list_owned_live_cases(db: AsyncSession, user: KadiUser) -> List[KadiCa
     return list(result.scalars().all())
 
 
-async def claim_case(db: AsyncSession, case: KadiCase, user: KadiUser) -> bool:
+async def claim_case(db: AsyncSession, case: KadiCase, user: KadiUser, presented_token: Optional[str]) -> bool:
     """Makes `user` the owner of an unowned case and disables its access token. The
     caller has already proven possession of that token (app.case_auth). Returns True when
-    ownership changed, False when the user already owned it."""
+    ownership changed, False when the user already owned it.
+
+    One conditional UPDATE (review M2): it succeeds only while the case is still unowned
+    AND still carries the presented token's hash, so of two concurrent claims exactly one
+    wins and the other gets CaseOwnedElsewhere, never a false "claimed"."""
     if case.owner_user_id == user.id:
         return False
-    if case.owner_user_id is not None:
+    if case.owner_user_id is not None or not presented_token:
         raise CaseOwnedElsewhere()
-    case.owner_user_id = user.id
-    case.access_token_hash = None
+    result = await db.execute(
+        update(KadiCase)
+        .where(
+            KadiCase.id == case.id,
+            KadiCase.owner_user_id.is_(None),
+            # Case tokens are hashed exactly like account tokens (SHA-256 hex, ADR-009).
+            KadiCase.access_token_hash == hash_token(presented_token),
+        )
+        .values(owner_user_id=user.id, access_token_hash=None, updated_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        await db.rollback()
+        raise CaseOwnedElsewhere()
     await db.commit()
     logger.info("User %s claimed case %s; its case access token is now disabled.", user.id, case.id)
     return True
 
 
-async def delete_account(db: AsyncSession, principal: Principal, password: str) -> int:
-    """Erases every owned case through the ADR-010 cascade, then the user's sessions,
-    tokens and the user row, in one transaction. Returns the number of cases erased."""
+async def delete_account(db: AsyncSession, principal: Principal, password: str, client: str = "unknown") -> int:
+    """Erases every owned case through the ADR-010 cascade, the user's own BimaNyay
+    records that have no case, then the user's sessions, tokens and the user row, in one
+    transaction; afterwards drops each erased case's in-memory processing status, as
+    DELETE /kadi/cases/{id} does. Returns the number of cases erased. Wrong passwords
+    count toward the sign-in throttle (review L3)."""
+    from app.services.case_ingestion import processing_status
     from app.services.case_purge import purge_case
 
     user = principal.user
-    matches, _ = await verify_password_async(password or "", user.password_hash)
-    if not matches:
-        raise InvalidCredentials()
+    await _check_password_or_throttle(user, password, client, utcnow())
     result = await db.execute(select(KadiCase.id).where(KadiCase.owner_user_id == user.id))
     case_ids = [row[0] for row in result.all()]
     for case_id in case_ids:
         await purge_case(db, case_id)
+    await _purge_owned_bimanyay_records(db, user.id)
     await db.execute(delete(KadiAccountToken).where(KadiAccountToken.user_id == user.id))
     await db.execute(delete(KadiSession).where(KadiSession.user_id == user.id))
     await db.execute(delete(KadiUser).where(KadiUser.id == user.id))
     await db.commit()
+    for case_id in case_ids:
+        processing_status.pop(case_id, None)
     logger.info("Account %s deleted with %d owned case(s).", user.id, len(case_ids))
     return len(case_ids)
+
+
+async def _purge_owned_bimanyay_records(db: AsyncSession, user_id: str) -> None:
+    rows = await db.execute(select(BimaNyayGrievance.id).where(BimaNyayGrievance.owner_user_id == user_id))
+    grievance_ids = [row[0] for row in rows.all()]
+    if grievance_ids:
+        await db.execute(delete(BimaNyayTimelineEvent).where(BimaNyayTimelineEvent.grievance_id.in_(grievance_ids)))
+    await db.execute(delete(BimaNyayGrievance).where(BimaNyayGrievance.owner_user_id == user_id))
+    await db.execute(delete(BimaNyayCase).where(BimaNyayCase.owner_user_id == user_id))
 
 
 async def sweep_expired_account_records(db: AsyncSession) -> int:

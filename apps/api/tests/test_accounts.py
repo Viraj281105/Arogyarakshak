@@ -295,31 +295,7 @@ def test_auth_routes_have_a_stricter_per_ip_bucket(monkeypatch):
     assert client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).status_code == 201
 
 
-def test_repeated_failures_pause_sign_in_without_revealing_it(clock, monkeypatch, relaxed_auth_limit):
-    monkeypatch.setattr(settings, "login_max_failures", 3)
-    client = plain_client()
-    email = fresh_email()
-    register(client, email)
-    failures = [login(client, email, "wrong password here") for _ in range(3)]
-    assert all(r.status_code == 401 for r in failures)
-    paused = login(client, email, PASSWORD)  # correct password, but paused
-    assert paused.status_code == 401
-    assert paused.json() == failures[0].json()
-    clock.advance(minutes=settings.login_lockout_minutes + 1)
-    assert login(client, email, PASSWORD).status_code == 200
-
-
-def test_a_successful_login_resets_the_failure_count(monkeypatch, relaxed_auth_limit):
-    monkeypatch.setattr(settings, "login_max_failures", 3)
-    client = plain_client()
-    email = fresh_email()
-    register(client, email)
-    for _ in range(2):
-        login(client, email, "wrong password here")
-    assert login(client, email, PASSWORD).status_code == 200
-    for _ in range(2):
-        login(client, email, "wrong password here")
-    assert login(client, email, PASSWORD).status_code == 200
+# Sign-in throttle tests (per account and client IP): test_account_hardening.py
 
 
 # ---------------------------------------------------------------------------

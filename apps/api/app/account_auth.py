@@ -62,9 +62,14 @@ def clear_session_cookie(response: Response) -> None:
 
 
 def _trusted_origins(request: Request) -> Set[str]:
+    """AUTH_TRUSTED_ORIGINS, else the explicit CORS_ORIGINS. Outside production the API's
+    own origin is added for convenience; under APP_ENV=production it is NOT, because it is
+    derived from the request's Host header (review L8). Production already refuses a
+    wildcard CORS_ORIGINS, so this set is always an operator-written list there."""
     configured = settings.auth_trusted_origins or settings.cors_origins
     origins = {o.strip().rstrip("/") for o in configured.split(",") if o.strip() and o.strip() != "*"}
-    origins.add(f"{request.url.scheme}://{request.url.netloc}")
+    if not settings.is_production:
+        origins.add(f"{request.url.scheme}://{request.url.netloc}")
     return origins
 
 
@@ -98,8 +103,14 @@ def presented_credential(request: Request) -> Optional[PresentedCredential]:
 
 
 async def get_optional_principal(request: Request, db: AsyncSession = Depends(get_db)) -> Optional[Principal]:
+    """The live session behind the presented credential, or None. The Origin check runs
+    only when a cookie maps to a live cookie session (review L7): a garbage, expired or
+    planted cookie is simply ignored, so it can never break a guest write."""
     credential = presented_credential(request)
     if credential is None:
+        return None
+    principal = await accounts.resolve_session_token(db, credential.token)
+    if principal is None or principal.session.transport != credential.transport:
         return None
     if (
         credential.transport == accounts.TRANSPORT_COOKIE
@@ -107,9 +118,6 @@ async def get_optional_principal(request: Request, db: AsyncSession = Depends(ge
         and not origin_is_trusted(request)
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=UNTRUSTED_ORIGIN_DETAIL)
-    principal = await accounts.resolve_session_token(db, credential.token)
-    if principal is None or principal.session.transport != credential.transport:
-        return None
     return principal
 
 

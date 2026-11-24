@@ -7,7 +7,7 @@ only. Case ownership is ``KadiCase.owner_user_id`` (app/models/kadi.py).
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, String
 
 from app.database import Base
 
@@ -22,8 +22,6 @@ class KadiUser(Base):
     password_hash = Column(String, nullable=False)
     email_verified_at = Column(DateTime, nullable=True)
     password_changed_at = Column(DateTime, nullable=True)
-    failed_login_count = Column(Integer, nullable=False, default=0)
-    login_locked_until = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 

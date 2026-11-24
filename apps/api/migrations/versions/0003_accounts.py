@@ -1,4 +1,4 @@
-"""User accounts, sessions, account tokens and case ownership (ADR-026).
+"""User accounts, sessions, account tokens, case ownership and owned BimaNyay records (ADR-026).
 
 Revision ID: 0003_accounts
 Revises: 0002_document_jobs
@@ -23,8 +23,6 @@ def upgrade() -> None:
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('email_verified_at', sa.DateTime(), nullable=True),
     sa.Column('password_changed_at', sa.DateTime(), nullable=True),
-    sa.Column('failed_login_count', sa.Integer(), nullable=False),
-    sa.Column('login_locked_until', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
@@ -68,8 +66,20 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_kadi_cases_owner_user_id'), ['owner_user_id'], unique=False)
         batch_op.create_foreign_key('fk_kadi_cases_owner_user_id_kadi_users', 'kadi_users', ['owner_user_id'], ['id'])
 
+    for table in ('bimanyay_cases', 'bimanyay_grievances'):
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            batch_op.add_column(sa.Column('owner_user_id', sa.String(), nullable=True))
+            batch_op.create_index(batch_op.f(f'ix_{table}_owner_user_id'), ['owner_user_id'], unique=False)
+            batch_op.create_foreign_key(f'fk_{table}_owner_user_id_kadi_users', 'kadi_users', ['owner_user_id'], ['id'])
+
 
 def downgrade() -> None:
+    for table in ('bimanyay_grievances', 'bimanyay_cases'):
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            batch_op.drop_constraint(f'fk_{table}_owner_user_id_kadi_users', type_='foreignkey')
+            batch_op.drop_index(batch_op.f(f'ix_{table}_owner_user_id'))
+            batch_op.drop_column('owner_user_id')
+
     with op.batch_alter_table('kadi_cases', schema=None) as batch_op:
         batch_op.drop_constraint('fk_kadi_cases_owner_user_id_kadi_users', type_='foreignkey')
         batch_op.drop_index(batch_op.f('ix_kadi_cases_owner_user_id'))
