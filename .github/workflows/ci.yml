@@ -56,7 +56,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -191,7 +191,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -230,7 +230,7 @@ jobs:
       # @lhci/cli and the Lighthouse it bundles require Node >= 22.19 (engines), so the
       # Lighthouse step alone runs on Node 22; the rest of this job stays on Node 20.
       - name: Set up Node.js 22 (Lighthouse CI)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
 
@@ -253,7 +253,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -451,7 +451,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
