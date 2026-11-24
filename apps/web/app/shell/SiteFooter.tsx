@@ -1,12 +1,16 @@
 "use client";
 
 import React from "react";
+import { PUBLIC_FOOTER_LINKS } from "../components/public/publicRoutes";
 import { NAV_ITEMS } from "./nav";
 import { useLanguage } from "./ShellProvider";
 import { shellCopy } from "./shellCopy";
 import { TransitionLink } from "./TransitionLink";
 
-/** Site footer: what the tool is, where its references come from, and the same nav as the header. */
+/**
+ * Site footer: what the tool is, where its references come from, the same nav as the header and
+ * (Wave 3 M3) the public pages, from the deliberately tiny components/public/publicRoutes.ts.
+ */
 export function SiteFooter() {
   const [lang] = useLanguage();
   const copy = shellCopy[lang];
@@ -34,6 +38,11 @@ export function SiteFooter() {
             {NAV_ITEMS.map((item) => (
               <li key={item.key}>
                 <TransitionLink href={item.href}>{copy.nav[item.key]}</TransitionLink>
+              </li>
+            ))}
+            {PUBLIC_FOOTER_LINKS.map(([href, label]) => (
+              <li key={href}>
+                <TransitionLink href={href}>{label}</TransitionLink>
               </li>
             ))}
           </ul>
