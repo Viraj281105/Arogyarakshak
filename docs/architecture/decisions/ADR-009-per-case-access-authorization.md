@@ -1,7 +1,7 @@
 # ADR-009: Per-Case Access Authorization (Token, Not Login)
 
 ## Status
-Accepted
+Accepted. **Superseded for signed-in use by [ADR-026](ADR-026-user-accounts-and-case-ownership.md)** (user accounts and case ownership, 2026-11-23). Still in force for guest cases: an unowned case is authorised by its token exactly as below. An owned case no longer accepts its token (ADR-026 section 6).
 
 ## Context
 ADR-008 (Phase 4) raised case-id entropy from 32 to 64 bits and added per-IP rate

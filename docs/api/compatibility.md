@@ -31,3 +31,8 @@ additively; `/api/v1` then stays until both clients have moved.
   `contentMediaType` instead of `format: binary`; `ValidationError` gained optional `input` and
   `ctx`. No operation, request field or response field changed. Added `/health/live` and
   `/health/ready`.
+- 2026-11-23, accounts (ADR-026): added `/api/v1/kadi/auth/*`, `GET /api/v1/kadi/cases` and
+  `POST /api/v1/kadi/cases/{case_id}/claim`. `CaseCreatedResponse.access_token` became nullable
+  and gained `owned`: it is `null` only when the request carried a valid account session, so
+  existing guest clients (which send no session) always still receive a string. Owned cases
+  refuse case tokens on every case route (`403`), which guest clients never meet.

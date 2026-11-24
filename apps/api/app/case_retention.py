@@ -73,6 +73,23 @@ async def sweep_expired_cases(db: AsyncSession) -> int:
     return purged
 
 
+async def sweep_expired_account_records(db: AsyncSession) -> int:
+    """ADR-026: deletes revoked, expired or idle sessions and used or expired account
+    tokens so those tables stay bounded. Accounts themselves never expire."""
+    from app.services.accounts import sweep_expired_account_records as sweep
+
+    try:
+        removed = await sweep(db)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Account record sweep failed; will retry on the next sweep.")
+        return 0
+    if removed:
+        logger.info("Retention sweep removed %d stale session/account-token row(s).", removed)
+    return removed
+
+
 async def run_retention_sweep_loop(stop_event: asyncio.Event) -> None:
     """Runs `sweep_expired_cases` on a fixed interval until `stop_event` is set — the
     long-running background task started from the FastAPI lifespan (app/main.py)."""
@@ -82,6 +99,7 @@ async def run_retention_sweep_loop(stop_event: asyncio.Event) -> None:
         try:
             async with get_background_session() as session:
                 await sweep_expired_cases(session)
+                await sweep_expired_account_records(session)
         except Exception:
             logger.exception("Retention sweep iteration failed; will retry on the next interval.")
 

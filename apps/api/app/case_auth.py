@@ -18,6 +18,12 @@ This is deliberately NOT a user-account/login system — there is still no conce
 a case created in another tab/device without the token being carried over. That is an
 intentional, disclosed scope boundary (see ADR-009), not an oversight: building real
 accounts is a materially larger feature explicitly out of scope for this remediation pass.
+
+ADR-026 (2026-11-23) adds user accounts on top. The guest flow above is unchanged for
+UNOWNED cases. An OWNED case (``KadiCase.owner_user_id`` set) is reachable only by its
+owner's session (app.account_auth); its case token is disabled (cleared on claim, never
+issued when the case is created signed in). ``authorize_case`` holds the whole rule so
+every route that loads a case — including BimaNyay's optional case link — applies it.
 """
 
 import hashlib
@@ -30,8 +36,10 @@ from fastapi import Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.account_auth import get_optional_principal
 from app.database import get_db
 from app.models import KadiCase
+from app.services.accounts import Principal
 
 logger = logging.getLogger("arogyarakshak.api.case_auth")
 
@@ -51,6 +59,12 @@ MISSING_TOKEN_DETAIL = (
     "not sufficient authorization (ADR-009)."
 )
 INVALID_TOKEN_DETAIL = "The provided case access token is invalid for this case."
+OWNED_CASE_SIGN_IN_DETAIL = "This case belongs to an account. Sign in to that account to open it (ADR-026)."
+OWNED_CASE_TOKEN_DETAIL = (
+    "This case belongs to an account, so its case access token no longer works. Sign in to "
+    "that account to open it (ADR-026)."
+)
+OTHER_ACCOUNT_DETAIL = "This case is not available to the signed-in account."
 QUERY_TOKEN_NOT_ALLOWED_DETAIL = (
     "A query-string access_token cannot authorize this request. Send the token via the "
     f"'{CASE_ACCESS_TOKEN_HEADER}' header instead — query-string tokens are accepted only "
@@ -74,8 +88,9 @@ async def require_case_access(
     db: AsyncSession = Depends(get_db),
     x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
     access_token_qs: Optional[str] = Query(None, alias="access_token"),
+    principal: Optional[Principal] = Depends(get_optional_principal),
 ) -> KadiCase:
-    """FastAPI dependency: loads the case and enforces its access token.
+    """FastAPI dependency: loads the case and authorises the caller (``authorize_case``).
 
     Accepts the token via the ``X-Case-Access-Token`` header (every route should use
     this) or, for safe read-only requests ONLY (GET/HEAD — e.g. GET
@@ -91,25 +106,60 @@ async def require_case_access(
     401/403): existence is not itself a secret worth hiding behind a uniform error, since
     the case id is already a 64-bit random token an attacker would need to have guessed
     correctly to reach this check at all.
-
-    Uses constant-time comparison (hmac.compare_digest) so response timing cannot be used
-    to brute-force a token character-by-character.
     """
     result = await db.execute(select(KadiCase).where(KadiCase.id == case_id))
     case = result.scalar_one_or_none()
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    return authorize_case(
+        case,
+        method=request.method,
+        header_token=x_case_access_token,
+        query_token=access_token_qs,
+        principal=principal,
+    )
 
-    if access_token_qs and request.method.upper() not in _QUERY_TOKEN_SAFE_METHODS:
+
+def authorize_case(
+    case: KadiCase,
+    *,
+    method: str,
+    header_token: Optional[str],
+    query_token: Optional[str] = None,
+    principal: Optional[Principal] = None,
+) -> KadiCase:
+    """The single access rule for a loaded case (ADR-009 + ADR-026 section 6).
+
+    Owned case: only the owner's session; a case token is refused (403), another account
+    is refused (403), nothing presented is 401. Unowned case: its case token exactly as
+    ADR-009 — a session alone does not open a guest case.
+
+    Uses constant-time comparison (hmac.compare_digest) so response timing cannot be used
+    to brute-force a token character-by-character.
+    """
+    case_id = case.id
+    safe_method = method.upper() in _QUERY_TOKEN_SAFE_METHODS
+    if query_token and not safe_method:
         logger.info(
             "Denied access to case %s: query-string token rejected for %s (state-changing).",
-            case_id, request.method,
+            case_id, method,
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=QUERY_TOKEN_NOT_ALLOWED_DETAIL)
 
-    presented_token = x_case_access_token or (
-        access_token_qs if request.method.upper() in _QUERY_TOKEN_SAFE_METHODS else None
-    )
+    presented_token = header_token or (query_token if safe_method else None)
+
+    if case.owner_user_id:
+        if principal is not None and hmac.compare_digest(principal.user.id, case.owner_user_id):
+            return case
+        if principal is not None:
+            logger.info("Denied access to case %s: signed-in account is not its owner.", case_id)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=OTHER_ACCOUNT_DETAIL)
+        if presented_token:
+            logger.info("Denied access to case %s: case token presented for an owned case.", case_id)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=OWNED_CASE_TOKEN_DETAIL)
+        logger.info("Denied access to case %s: owned case, no session presented.", case_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=OWNED_CASE_SIGN_IN_DETAIL)
+
     if not presented_token:
         logger.info("Denied access to case %s: no access token presented.", case_id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=MISSING_TOKEN_DETAIL)

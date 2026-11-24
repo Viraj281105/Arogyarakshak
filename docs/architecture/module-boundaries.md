@@ -9,7 +9,7 @@ and `apps/api/tests/test_architecture.py`. Background: ADR-018.
 apps/web, apps/mobile          ── HTTP/JSON only (docs/api/openapi.json). Never import backend code.
         │
 apps/api/app/main.py           ── entrypoint: middleware, exception handlers, health probes, lifespan
-apps/api/app/api/v1/endpoints  ── HTTP layer: auth (case token / reviewer / institution), consent,
+apps/api/app/api/v1/endpoints  ── HTTP layer: auth (case token / account session / reviewer / institution), consent,
         │                         request validation, status codes. Thin. Never imported by anything
         │                         below it, and route modules never import each other.
 apps/api/app/services          ── application use cases shared by >1 entry point (routes, auto-
@@ -45,6 +45,16 @@ API layer (`app/services`, `app/auto_triggers`, `app/claim_pack`).
 | A table or column | `apps/api/app/models/<owning module>.py` (export it from `app/models/__init__.py`) **and** an Alembic revision (`docs/operations/database-migrations.md`) |
 | A setting | `apps/api/app/config.py` (`Settings`) + `docs/configuration/environment-variables.md` + `.env.example` |
 | A new top-level `app` module | add it to the `no-route-imports-below-http` contract (the architecture test tells you) |
+
+## Accounts (ADR-026)
+
+- Use cases: `app/services/accounts.py` (sessions, verification/reset, ownership, deletion),
+  `app/services/passwords.py` (scrypt), `app/services/mail.py` (`MailTransport`; only `disabled`).
+- HTTP credentials: `app/account_auth.py` (cookie/bearer, Origin check). It sits below the HTTP
+  layer so `app/case_auth.py` can use it; both are in the `no-route-imports-below-http` contract.
+- Case access for every route: `app.case_auth.require_case_access` / `authorize_case`. Do not
+  re-implement a token or ownership check in a route.
+- Routes: `app/api/v1/endpoints/accounts.py`, mounted under `/api/v1/kadi`.
 
 ## Known exceptions
 

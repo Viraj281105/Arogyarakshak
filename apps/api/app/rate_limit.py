@@ -29,7 +29,7 @@ actual code, not assumed from the report):
 
 import time
 from collections import OrderedDict
-from typing import Tuple
+from typing import Optional, Tuple
 
 from starlette.requests import Request
 
@@ -88,8 +88,13 @@ class RateLimiter:
         across the whole pytest session, same as `processing_status`."""
         self._windows.clear()
 
-    def check(self, client_key: str) -> Tuple[bool, int]:
-        """Returns (allowed, retry_after_seconds). retry_after_seconds is 0 when allowed."""
+    def check(self, client_key: str, limit: Optional[int] = None) -> Tuple[bool, int]:
+        """Returns (allowed, retry_after_seconds). retry_after_seconds is 0 when allowed.
+
+        ``limit`` overrides ``settings.rate_limit_per_minute`` for a separately namespaced
+        key — e.g. ADR-026's stricter ``auth:<ip>`` bucket for sign-in, registration and
+        reset routes, which lives in this same bounded map (and the same test reset)."""
+        limit = settings.rate_limit_per_minute if limit is None else limit
         now = int(time.time())
         window_start = now - (now % 60)
 
@@ -113,7 +118,7 @@ class RateLimiter:
         count += 1
         self._windows[client_key] = (start, count)
 
-        if count > settings.rate_limit_per_minute:
+        if count > limit:
             return False, max(1, start + 60 - now)
         return True, 0
 

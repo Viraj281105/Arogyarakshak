@@ -114,6 +114,25 @@
         "title": "AcceptRequest",
         "type": "object"
       },
+      "AcceptedResponse": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "const": "accepted",
+            "default": "accepted",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "AcceptedResponse",
+        "type": "object"
+      },
       "AppealResponse": {
         "properties": {
           "appeal_letter": {
@@ -550,9 +569,16 @@
       "CaseCreatedResponse": {
         "properties": {
           "access_token": {
-            "description": "Case access token (ADR-009). Store it — it is shown only once and is required on every subsequent request for this case.",
-            "title": "Access Token",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Case access token (ADR-009). Store it — it is shown only once and is required on every subsequent request for this case. null when the case was created while signed in: an owned case is opened with the account session, never a case token (ADR-026).",
+            "title": "Access Token"
           },
           "consent_opt_in": {
             "title": "Consent Opt In",
@@ -564,6 +590,12 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "owned": {
+            "default": false,
+            "description": "True when the case belongs to the signed-in account (ADR-026).",
+            "title": "Owned",
+            "type": "boolean"
           },
           "status": {
             "title": "Status",
@@ -807,6 +839,28 @@
         "title": "CaseResponse",
         "type": "object"
       },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
+        "type": "object"
+      },
       "Citation": {
         "properties": {
           "date": {
@@ -1021,6 +1075,30 @@
         "title": "ClaimPackage",
         "type": "object"
       },
+      "ClaimResponse": {
+        "properties": {
+          "claimed": {
+            "description": "False when the case already belonged to this account.",
+            "title": "Claimed",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owned": {
+            "default": true,
+            "title": "Owned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "claimed"
+        ],
+        "title": "ClaimResponse",
+        "type": "object"
+      },
       "ClinicalConfirmationRequest": {
         "properties": {
           "insurer_name": {
@@ -1189,6 +1267,39 @@
           }
         },
         "title": "DeclineRequest",
+        "type": "object"
+      },
+      "DeleteAccountRequest": {
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "DeleteAccountRequest",
+        "type": "object"
+      },
+      "DeleteAccountResponse": {
+        "properties": {
+          "cases_erased": {
+            "title": "Cases Erased",
+            "type": "integer"
+          },
+          "deleted": {
+            "default": true,
+            "title": "Deleted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cases_erased"
+        ],
+        "title": "DeleteAccountResponse",
         "type": "object"
       },
       "DemoResetRequest": {
@@ -1403,6 +1514,22 @@
           "is_extrapolation"
         ],
         "title": "EligibilityTrendResult",
+        "type": "object"
+      },
+      "EmailRequest": {
+        "properties": {
+          "email": {
+            "description": "Login email address.",
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "EmailRequest",
         "type": "object"
       },
       "EntityResponse": {
@@ -2425,6 +2552,39 @@
         "title": "LatencySummary",
         "type": "object"
       },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "description": "Login email address.",
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "session_transport": {
+            "default": "cookie",
+            "description": "cookie (web): httpOnly session cookie, no token in the body. bearer (mobile): the token is returned once in `token`; send it as `Authorization: Bearer`.",
+            "enum": [
+              "cookie",
+              "bearer"
+            ],
+            "title": "Session Transport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
       "MedicineBenchmark": {
         "properties": {
           "active_ingredient": {
@@ -2741,6 +2901,86 @@
           "dispute_category"
         ],
         "title": "OutcomeEstimateRequest",
+        "type": "object"
+      },
+      "OwnedCaseList": {
+        "properties": {
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/OwnedCaseSummary"
+            },
+            "title": "Cases",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cases"
+        ],
+        "title": "OwnedCaseList",
+        "type": "object"
+      },
+      "OwnedCaseSummary": {
+        "properties": {
+          "consent_opt_in": {
+            "title": "Consent Opt In",
+            "type": "boolean"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_charged": {
+            "title": "Total Charged",
+            "type": "number"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "consent_opt_in",
+          "total_charged"
+        ],
+        "title": "OwnedCaseSummary",
         "type": "object"
       },
       "PlaybookWrite": {
@@ -3171,6 +3411,29 @@
         "title": "ReasoningStep",
         "type": "object"
       },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "description": "Login email address.",
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
       "RegistrationStatusResult": {
         "properties": {
           "checked_at": {
@@ -3232,6 +3495,28 @@
           "legal_remedy"
         ],
         "title": "RegulatoryViolation",
+        "type": "object"
+      },
+      "ResetPasswordRequest": {
+        "properties": {
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "ResetPasswordRequest",
         "type": "object"
       },
       "ResolutionDecisionResponse": {
@@ -3889,6 +4174,62 @@
         "title": "SchemeResult",
         "type": "object"
       },
+      "SessionInfo": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "idle_timeout_minutes": {
+            "title": "Idle Timeout Minutes",
+            "type": "integer"
+          },
+          "transport": {
+            "enum": [
+              "cookie",
+              "bearer"
+            ],
+            "title": "Transport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transport",
+          "expires_at",
+          "idle_timeout_minutes"
+        ],
+        "title": "SessionInfo",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SessionInfo"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bearer sessions only, returned once. Always null for cookie sessions.",
+            "title": "Token"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "required": [
+          "user",
+          "session"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
       "SourceModule": {
         "enum": [
           "billnyay",
@@ -3927,6 +4268,19 @@
           "limitations"
         ],
         "title": "StatementWrite",
+        "type": "object"
+      },
+      "StatusResponse": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusResponse",
         "type": "object"
       },
       "StoredIncomeProfile": {
@@ -3992,6 +4346,21 @@
           "date_initiated"
         ],
         "title": "TimelineRequest",
+        "type": "object"
+      },
+      "TokenRequest": {
+        "properties": {
+          "token": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "TokenRequest",
         "type": "object"
       },
       "TranscriptionAssign": {
@@ -4203,6 +4572,47 @@
           "reason"
         ],
         "title": "Undetermined",
+        "type": "object"
+      },
+      "UserResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "email_verified": {
+            "title": "Email Verified",
+            "type": "boolean"
+          },
+          "email_verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Verified At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "email_verified",
+          "created_at"
+        ],
+        "title": "UserResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -6317,9 +6727,396 @@
         ]
       }
     },
-    "/api/v1/kadi/cases": {
+    "/api/v1/kadi/auth/login": {
       "post": {
-        "description": "Creates a new patient case session and its one-time access token (ADR-009).",
+        "description": "Signs in. Every failure is the same 401.",
+        "operationId": "login_api_v1_kadi_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/logout": {
+      "post": {
+        "description": "Revokes the presented session (and clears the cookie for a cookie session).",
+        "operationId": "logout_api_v1_kadi_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/me": {
+      "delete": {
+        "description": "Erases the account: every owned case (ADR-010 cascade), the account's own BimaNyay\nrecords without a case, sessions, tokens, the user.",
+        "operationId": "delete_account_api_v1_kadi_auth_me_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Account",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      },
+      "get": {
+        "operationId": "me_api_v1_kadi_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/password": {
+      "post": {
+        "description": "Changes the password, revokes every session and returns one fresh session.",
+        "operationId": "change_password_api_v1_kadi_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/password-reset/confirm": {
+      "post": {
+        "description": "Sets a new password and signs out every session. Does not sign in.",
+        "operationId": "confirm_password_reset_api_v1_kadi_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Password Reset",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/password-reset/request": {
+      "post": {
+        "operationId": "request_password_reset_api_v1_kadi_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Password Reset",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/register": {
+      "post": {
+        "description": "Creates an account. The same 202 answers a new and an already-registered address;\nregistration does not sign in (call login next).",
+        "operationId": "register_api_v1_kadi_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/verification/confirm": {
+      "post": {
+        "operationId": "confirm_verification_api_v1_kadi_auth_verification_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Verification",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/verification/request": {
+      "post": {
+        "operationId": "request_verification_api_v1_kadi_auth_verification_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Verification",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      }
+    },
+    "/api/v1/kadi/cases": {
+      "get": {
+        "description": "The signed-in account's live cases, newest first. Never includes case tokens.\nExpired cases are already purged or about to be (D1a is open, ADR-026 §11).",
+        "operationId": "list_my_cases_api_v1_kadi_cases_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnedCaseList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List My Cases",
+        "tags": [
+          "Kadi — Accounts"
+        ]
+      },
+      "post": {
+        "description": "Creates a new patient case session and its one-time access token (ADR-009).\nSigned in (ADR-026): the case is owned by the account and no case token is issued.",
         "operationId": "create_case_api_v1_kadi_cases_post",
         "requestBody": {
           "content": {
@@ -6572,6 +7369,81 @@
         "summary": "Import Abdm Records",
         "tags": [
           "Kadi (Shared Layer)"
+        ]
+      }
+    },
+    "/api/v1/kadi/cases/{case_id}/claim": {
+      "post": {
+        "description": "Moves a guest case into the signed-in account. Needs the session AND the case's\nX-Case-Access-Token; afterwards that token no longer opens the case.",
+        "operationId": "claim_case_api_v1_kadi_cases__case_id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Case-Access-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Case-Access-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Case",
+        "tags": [
+          "Kadi — Accounts"
         ]
       }
     },
