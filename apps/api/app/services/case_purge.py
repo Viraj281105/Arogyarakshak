@@ -22,6 +22,8 @@ from app.models import (
     BimaNyayTimelineEvent,
     DaaviSetuClaim,
     KadiCase,
+    KadiCaseAction,
+    KadiCaseActionEvent,
     KadiCaseDocument,
     KadiDocumentJob,
     KadiEntity,
@@ -58,6 +60,9 @@ async def purge_case(db: AsyncSession, case_id: str) -> None:
             await db.execute(delete(KadiEntity).where(KadiEntity.id.in_(now_orphaned)))
 
     await db.execute(delete(KadiCaseDocument).where(KadiCaseDocument.case_id == case_id))
+    # ADR-031: the user's own action records (events first: they reference the actions).
+    await db.execute(delete(KadiCaseActionEvent).where(KadiCaseActionEvent.case_id == case_id))
+    await db.execute(delete(KadiCaseAction).where(KadiCaseAction.case_id == case_id))
     await db.execute(delete(KadiDocumentJob).where(KadiDocumentJob.case_id == case_id))
     await db.execute(delete(KadiResolutionDecision).where(KadiResolutionDecision.case_id == case_id))
     await db.execute(delete(KadiModuleInsight).where(KadiModuleInsight.case_id == case_id))

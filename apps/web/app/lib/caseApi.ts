@@ -1,5 +1,5 @@
 // Case lifecycle calls shared by the case desk and the case workspace. Every call goes through
-// apiFetch (session cookie when signed in) and carries the case token only in a header.
+// apiFetch (the session cookie); no credential is ever placed in a URL.
 import { accountPaths, type OwnedCaseSummary } from "../shared/api-client";
 import { API_BASE } from "./apiBase";
 import { apiErrorMessage, apiFetch } from "./apiFetch";
@@ -22,10 +22,7 @@ async function failed(res: Response): Promise<CaseApiError> {
   return new CaseApiError(await apiErrorMessage(res), res.status);
 }
 
-/**
- * Creates a case. Signed in: an OWNED case (`owned: true`, `access_token: null`, ADR-026).
- * Guest: a token returned exactly once (ADR-009).
- */
+/** Creates a case owned by the signed-in account (ADR-029). No case token exists. */
 export async function createCase(consentOptIn: boolean): Promise<CaseRef> {
   const res = await apiFetch(`${K}/cases`, {
     method: "POST",
@@ -33,10 +30,8 @@ export async function createCase(consentOptIn: boolean): Promise<CaseRef> {
     body: JSON.stringify({ consent_opt_in: consentOptIn }),
   });
   if (!res.ok) throw await failed(res);
-  const body = (await res.json()) as { id: string; access_token: string | null; owned?: boolean };
-  if (body.owned) return { id: body.id, token: null, owned: true };
-  if (!body.access_token) throw new CaseApiError("The server did not return an access token for this case.", res.status);
-  return { id: body.id, token: body.access_token, owned: false };
+  const body = (await res.json()) as { id: string };
+  return { id: body.id, token: null, owned: true };
 }
 
 export async function uploadDocument(ref: CaseRef, file: File): Promise<void> {
@@ -96,14 +91,11 @@ export async function getCaseJson<T>(ref: CaseRef, path: string): Promise<T> {
 }
 
 /**
- * The processing stream (SSE). A guest case's token goes in the query string because the
- * browser's EventSource cannot send headers (ADR-009, unchanged); an owned case sends NO token:
- * `withCredentials` carries the session cookie (ADR-026). A session token is never put in a URL.
+ * The processing stream (SSE). `withCredentials` carries the session cookie (ADR-026); nothing
+ * in the URL authorizes anything, and a session token is never put in one.
  */
 export function openCaseStream(ref: CaseRef): EventSource {
-  const base = `${API_BASE}${casePath(ref.id)}/stream`;
-  if (ref.token) return new EventSource(`${base}?access_token=${encodeURIComponent(ref.token)}`);
-  return new EventSource(base, { withCredentials: true });
+  return new EventSource(`${API_BASE}${casePath(ref.id)}/stream`, { withCredentials: true });
 }
 
 /**

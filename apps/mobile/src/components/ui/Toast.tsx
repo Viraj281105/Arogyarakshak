@@ -6,6 +6,7 @@ import { Pressable, Reveal } from '../../motion';
 import { Icon } from './Icon';
 import { toastIsAssertive, toastReducer, type ToastInput, type ToastItem } from './logic';
 import { toastSwatch, type ToastTone } from './tones';
+import { tr, useTranslation } from '../../translations/tr';
 
 const ToastContext = createContext<((t: ToastInput) => void) | null>(null);
 
@@ -57,6 +58,7 @@ export function ToastProvider({ children, bottomOffset = 0 }: { children: React.
 }
 
 function ToastView({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: number) => void }) {
+  useTranslation();
   const { colors, spacing, radii } = useTheme();
   const s = toastSwatch(colors, toast.tone);
 
@@ -91,7 +93,7 @@ function ToastView({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: num
         <Pressable
           onPress={() => onDismiss(toast.id)}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss notification"
+          accessibilityLabel={tr('Dismiss notification')}
           style={[styles.dismiss, { minWidth: spacing.minTouchTarget, minHeight: spacing.minTouchTarget }]}
         >
           <Icon name={{ action: 'close' }} size={16} color={colors.textSecondary} />

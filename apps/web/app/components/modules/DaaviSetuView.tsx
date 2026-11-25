@@ -16,6 +16,7 @@ import {
 import { apiFetch } from "../../lib/apiFetch";
 import { DocumentScanIllustration } from "../illustrations/Illustrations";
 import { StatusBadge } from "../ui/Badges";
+import { useT } from "../../i18n/useT";
 
 // --- API Response Type (matching backend ClaimPackage schema) ---
 interface ClaimFormData {
@@ -41,6 +42,7 @@ interface DaaviSetuViewProps {
 }
 
 export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseId, caseToken }) => {
+  const tr = useT();
   const t = translations[currentLang].modules.daavisetu;
   const api = useApi<ClaimPackageResponse>();
 
@@ -66,23 +68,23 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
   const saveBytes = (bytes: BlobPart, filename: string, type: string) => saveBlob(new Blob([bytes], { type }), filename);
 
   const protectionProblem = protect
-    ? passwordProblem(protectPassword) ?? (protectPassword !== protectConfirm ? "The two passwords do not match." : null)
+    ? passwordProblem(protectPassword) ?? (protectPassword !== protectConfirm ? tr("The two passwords do not match.") : null)
     : null;
 
   const handleUnlock = async (file: File | undefined) => {
     setUnlockMessage(null);
     if (!file) return;
     if (!unlockPassword) {
-      setUnlockMessage("Enter the password first, then choose the file.");
+      setUnlockMessage(tr("Enter the password first, then choose the file."));
       return;
     }
     try {
       const plain = await decryptPackage(await file.arrayBuffer(), unlockPassword);
       const original = file.name.endsWith(ENCRYPTED_EXTENSION) ? file.name.slice(0, -ENCRYPTED_EXTENSION.length) : `${file.name}.decrypted`;
       saveBytes(plain as BlobPart, original, "application/octet-stream");
-      setUnlockMessage("Unlocked on this device. Nothing was sent anywhere.");
+      setUnlockMessage(tr("Unlocked on this device. Nothing was sent anywhere."));
     } catch (e) {
-      setUnlockMessage(e instanceof PackageCryptoError ? e.message : "Could not unlock the file.");
+      setUnlockMessage(e instanceof PackageCryptoError ? tr(e.message) : tr("Could not unlock the file."));
     }
   };
 
@@ -109,7 +111,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
     if (!caseId) return;
     setDownloadError(null);
     if (protect && protectionProblem) {
-      setDownloadError(protectionProblem);
+      setDownloadError(tr(protectionProblem));
       return;
     }
     try {
@@ -119,14 +121,14 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
         headers: caseAuthHeaders(caseToken),
       });
       if (!res.ok) {
-        setDownloadError(`Could not download the ${notFoundLabel} (HTTP ${res.status}).`);
+        setDownloadError(tr("Could not download the {notFoundLabel} (HTTP {status}).", { notFoundLabel: notFoundLabel, status: res.status }));
         return;
       }
       const blob = await res.blob();
       if (protect) {
         const problem = protectionProblem;
         if (problem) {
-          setDownloadError(problem);
+          setDownloadError(tr(problem));
           return;
         }
         setBusy(true);
@@ -136,7 +138,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
         saveBytes(blob, filename, blob.type);
       }
     } catch {
-      setDownloadError(`Could not download the ${notFoundLabel}. Is the backend reachable?`);
+      setDownloadError(tr("Could not download the {notFoundLabel}. Is the backend reachable?", { notFoundLabel: notFoundLabel }));
     } finally {
       setBusy(false);
     }
@@ -169,7 +171,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      setDownloadError("Could not copy to the clipboard.");
+      setDownloadError(tr("Could not copy to the clipboard."));
     }
   };
 
@@ -183,7 +185,7 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
     <div className="ds-field">
       <label className="input-label" htmlFor={id}>
         {label}
-        <span className={opts.required ? "ds-required" : "ds-optional"}>{opts.required ? "required" : "optional"}</span>
+        <span className={opts.required ? "ds-required" : "ds-optional"}>{opts.required ? tr("required") : tr("optional")}</span>
       </label>
       <input
         id={id}
@@ -203,12 +205,12 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
     <div className="module-panel">
       <header className="ws-mod-hero ws-mod-daavisetu">
         <div className="ws-mod-hero-copy">
-          <p className="lp-kicker">DaaviSetu · cashless pre-authorisation</p>
+          <p className="lp-kicker">{tr("DaaviSetu · cashless pre-authorisation")}</p>
           <h2>{t.title}</h2>
           <p>{t.desc}</p>
           <div className="ws-kadi-badges">
-            <StatusBadge tone="neutral">Readiness checklist from your documents</StatusBadge>
-            <StatusBadge tone="neutral">Ends at Package ready: you submit it yourself</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Readiness checklist from your documents")}</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Ends at Package ready: you submit it yourself")}</StatusBadge>
           </div>
         </div>
         <div className="ws-mod-hero-art" aria-hidden="true">
@@ -222,14 +224,9 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
             <DocumentScanIllustration size={84} />
           </span>
           <div>
-            <strong>No document checked yet</strong>
-            <p>
-              Upload a hospital document first to create a case. DaaviSetu then checks which commonly requested documents it
-              can find, and fills the pre-authorisation form from what you type and what the document says.
-            </p>
-            <a href="/app#intake-dropzone" className="btn btn-secondary btn-compact">
-              Add a document
-            </a>
+            <strong>{tr("No document checked yet")}</strong>
+            <p>{tr("Upload a hospital document first to create a case. DaaviSetu then checks which commonly requested documents it can find, and fills the pre-authorisation form from what you type and what the document says.")}</p>
+            <a href="/app#intake-dropzone" className="btn btn-secondary btn-compact">{tr("Add a document")}</a>
           </div>
         </div>
       )}
@@ -249,45 +246,38 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
           <span className="ds-step-num" aria-hidden="true">{caseId ? 2 : 1}</span>
           <div className="ds-step-body">
             <section className="case-panel bn-card" aria-labelledby="ds-form-title">
-              <h3 id="ds-form-title">Fill the pre-authorisation form</h3>
-              <p className="bn-fine">
-                Name and policy number come from you. Hospital, treatment, diagnosis and cost are taken from your document
-                when left blank; if the document does not say, no form is made and you are told what is missing.
-              </p>
+              <h3 id="ds-form-title">{tr("Fill the pre-authorisation form")}</h3>
+              <p className="bn-fine">{tr("Name and policy number come from you. Hospital, treatment, diagnosis and cost are taken from your document when left blank; if the document does not say, no form is made and you are told what is missing.")}</p>
               <div className="ds-grid">
                 {field("ds-patient", t.patientName, patientName, setPatientName, { placeholder: t.patientNamePlaceholder, required: true })}
                 {field("ds-policy", t.policyId, policyId, setPolicyId, { placeholder: t.policyIdPlaceholder, required: true })}
                 {field("ds-hospital", t.hospital, hospital, setHospital, { placeholder: t.optionalFromDocument })}
                 {field("ds-treatment", t.treatment, treatment, setTreatment, { placeholder: t.optionalFromDocument })}
                 {field("ds-diagnosis", t.diagnosis, diagnosis, setDiagnosis, { placeholder: t.optionalFromDocument })}
-                {field("ds-cost", "Estimated cost (₹)", estimatedCost, setEstimatedCost, {
+                {field("ds-cost", tr("Estimated cost (₹)"), estimatedCost, setEstimatedCost, {
                   number: true,
-                  placeholder: "Leave blank to use the bill total",
+                  placeholder: tr("Leave blank to use the bill total"),
                 })}
               </div>
               <div className="ds-form-actions">
                 <button type="button" className="btn btn-primary" onClick={handleGenerate} disabled={api.loading || !canGenerate}>
                   {api.loading ? (
                     <>
-                      <span className="spinner" aria-hidden="true" />
-                      Filling the form…
-                    </>
+                      <span className="spinner" aria-hidden="true" />{tr("Filling the form…")}</>
                   ) : (
                     t.generateBtn
                   )}
                 </button>
                 <span className="ds-hint">
                   {!caseId
-                    ? "Available once a document has been read."
+                    ? tr("Available once a document has been read.")
                     : !canGenerate
-                      ? "Enter the patient's name and policy number to continue."
+                      ? tr("Enter the patient's name and policy number to continue.")
                       : null}
                 </span>
               </div>
               {api.error && (
-                <StatePanel kind="error" onRetry={handleGenerate}>
-                  Could not fill the form: {api.error}
-                </StatePanel>
+                <StatePanel kind="error" onRetry={handleGenerate}>{tr("Could not fill the form: {error}", { error: api.error })}</StatePanel>
               )}
             </section>
           </div>
@@ -305,87 +295,77 @@ export const DaaviSetuView: React.FC<DaaviSetuViewProps> = ({ currentLang, caseI
                 <div className="case-panel-head">
                   <h3 id="ds-result-title">{t.preAuthSummary}</h3>
                   <span className="bn-badges">
-                    <span className="badge badge-info" title="Laid out after the IRDAI Annexure-B pre-authorisation form">
-                      Annexure-B layout
-                    </span>
+                    <span className="badge badge-info" title={tr("Laid out after the IRDAI Annexure-B pre-authorisation form")}>{tr("Annexure-B layout")}</span>
                     <span className="badge badge-demo code-tabular">{result.claim_id}</span>
                   </span>
                 </div>
 
                 <dl className="ds-summary">
                   <div>
-                    <dt>Patient</dt>
+                    <dt>{tr("Patient")}</dt>
                     <dd>{result.form_data.patient_name}</dd>
                   </div>
                   <div>
-                    <dt>Policy number</dt>
+                    <dt>{tr("Policy number")}</dt>
                     <dd className="code-tabular">{result.form_data.policy_number}</dd>
                   </div>
                   <div>
-                    <dt>Hospital</dt>
+                    <dt>{tr("Hospital")}</dt>
                     <dd>{result.form_data.hospital_name}</dd>
                   </div>
                   <div>
-                    <dt>Treatment plan</dt>
+                    <dt>{tr("Treatment plan")}</dt>
                     <dd>{result.form_data.treatment_plan}</dd>
                   </div>
                   <div>
-                    <dt>Diagnosis</dt>
+                    <dt>{tr("Diagnosis")}</dt>
                     <dd>{result.form_data.diagnosis}</dd>
                   </div>
                   <div>
-                    <dt>Estimated cost</dt>
+                    <dt>{tr("Estimated cost")}</dt>
                     <dd className="code-tabular">₹{result.form_data.estimated_cost.toLocaleString("en-IN")}</dd>
                   </div>
                 </dl>
 
                 <p className={`ds-status ${result.status === "ready_for_review" ? "is-ready" : ""}`}>
                   {result.status === "ready_for_review"
-                    ? "Ready for you to review — check every field before the hospital desk sends it to the insurer."
-                    : `Status: ${result.status}`}
+                    ? tr("Ready for you to review — check every field before the hospital desk sends it to the insurer.")
+                    : tr("Status: {status}", { status: result.status })}
                 </p>
 
                 <div className="bn-actions-row">
                   <button type="button" onClick={handleDownloadPdf} className="btn btn-primary" disabled={busy}>
                     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
                       <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-                    </svg>
-                    Download pre-authorisation PDF
-                  </button>
+                    </svg>{tr("Download pre-authorisation PDF")}</button>
                   <button type="button" onClick={handleDownloadPackage} className="btn btn-secondary" disabled={busy}>
                     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" className="lp-icon">
                       <path d="M4 7h16v13H4zM9 7V4h6v3M4 12h16" />
-                    </svg>
-                    Download claim package (ZIP)
-                  </button>
+                    </svg>{tr("Download claim package (ZIP)")}</button>
                   <button type="button" className="btn btn-ghost" onClick={() => void copySummary()}>
-                    {copied ? "Copied" : "Copy summary"}
+                    {copied ? tr("Copied") : tr("Copy summary")}
                   </button>
                 </div>
 
                 <label className="consent-wrapper ds-protect">
                   <input type="checkbox" className="consent-checkbox" checked={protect} onChange={(e) => setProtect(e.target.checked)} />
-                  <span>Protect downloads with a password (encrypted on this device)</span>
+                  <span>{tr("Protect downloads with a password (encrypted on this device)")}</span>
                 </label>
                 {protect && (
                   <div className="claim-pack-password">
                     <div className="grid-2">
-                      <input type="password" className="input-field" autoComplete="new-password" placeholder="Password (8+ characters)" aria-label="Download password" value={protectPassword} onChange={(e) => setProtectPassword(e.target.value)} />
-                      <input type="password" className="input-field" autoComplete="new-password" placeholder="Repeat password" aria-label="Repeat download password" value={protectConfirm} onChange={(e) => setProtectConfirm(e.target.value)} />
+                      <input type="password" className="input-field" autoComplete="new-password" placeholder={tr("Password (8+ characters)")} aria-label={tr("Download password")} value={protectPassword} onChange={(e) => setProtectPassword(e.target.value)} />
+                      <input type="password" className="input-field" autoComplete="new-password" placeholder={tr("Repeat password")} aria-label={tr("Repeat download password")} value={protectConfirm} onChange={(e) => setProtectConfirm(e.target.value)} />
                     </div>
-                    <p className="claim-pack-note">
-                      The password is never sent to our servers and cannot be recovered. If you forget it, the file cannot be
-                      opened. The downloaded file ends in {ENCRYPTED_EXTENSION}; open it with &ldquo;Unlock a protected
-                      file&rdquo; below.
-                      {busy ? " Encrypting…" : ""}
+                    <p className="claim-pack-note">{tr("The password is never sent to our servers and cannot be recovered. If you forget it, the file cannot be opened. The downloaded file ends in {extension}; open it with “Unlock a protected file” below.", { extension: ENCRYPTED_EXTENSION })}{busy ? tr(" Encrypting…") : ""}
                     </p>
                   </div>
                 )}
                 <details className="ds-unlock">
-                  <summary>Unlock a protected file</summary>
+                  <summary>{tr("Unlock a protected file")}</summary>
                   <div className="grid-2">
-                    <input type="password" className="input-field" autoComplete="off" placeholder="Password" aria-label="Unlock password" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} />
-                    <input type="file" className="input-field" accept={ENCRYPTED_EXTENSION} aria-label="Protected file" onChange={(e) => { void handleUnlock(e.target.files?.[0]); e.target.value = ""; }} />
+                    <input type="password" className="input-field" autoComplete="off" placeholder={tr("Password")} aria-label={tr("Unlock password")} value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} />
+                    <input type="file" className="input-field" accept={ENCRYPTED_EXTENSION} aria-label={tr("Protected file")} onChange={(e) => { void handleUnlock(e.target.files?.[0]); e.target.value = ""; }} />
                   </div>
                   {unlockMessage && <p className="claim-pack-note">{unlockMessage}</p>}
                 </details>

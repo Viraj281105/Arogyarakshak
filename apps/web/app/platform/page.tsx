@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
 import { ArrowIcon, CtaBand, EvidenceLegend, ModuleCard, ModuleMark, PublicHero, PublicPage, Section } from "../components/public/PublicParts";
-import { pageTitle, publicCopy } from "../components/public/publicCopy";
+import { localisedPublicCopy, pageTitle } from "../components/public/publicCopy";
 import { PUBLIC_MODULE_IDS, platformModuleHref } from "../components/public/publicNav";
+import { requestLanguage } from "../i18n/server";
 
-const c = publicCopy();
-const p = c.platform;
 
-export const metadata: Metadata = { title: pageTitle(p.meta.title), description: p.meta.description };
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await localisedPublicCopy(await requestLanguage())).platform;
+  return { title: pageTitle(meta.title), description: meta.description };
+}
 
 const CHECKS = PUBLIC_MODULE_IDS.filter((id) => id !== "kadi");
 const SLOTS = ["a", "b", "c", "d", "e"] as const;
 
 /** /platform (Server Component): how the parts fit together. */
-export default function PlatformPage() {
+export default async function PlatformPage() {
+  const c = await localisedPublicCopy(await requestLanguage());
+  const p = c.platform;
   return (
     <PublicPage module="kadi">
       <PublicHero
@@ -142,14 +146,12 @@ export default function PlatformPage() {
               <tr>
                 <td />
                 <th scope="col">{p.access.columns[1]}</th>
-                <th scope="col">{p.access.columns[2]}</th>
               </tr>
             </thead>
             <tbody>
               {p.access.rows.map((r) => (
                 <tr key={r.aspect}>
                   <th scope="row">{r.aspect}</th>
-                  <td>{r.guest}</td>
                   <td>{r.account}</td>
                 </tr>
               ))}

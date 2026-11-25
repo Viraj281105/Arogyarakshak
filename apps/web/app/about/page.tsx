@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { CtaBand, ModuleCard, PublicHero, PublicPage, Section } from "../components/public/PublicParts";
-import { pageTitle, publicCopy } from "../components/public/publicCopy";
+import { localisedPublicCopy, pageTitle } from "../components/public/publicCopy";
 import { PUBLIC_MODULE_IDS, PUBLIC_ROUTES } from "../components/public/publicNav";
+import { requestLanguage } from "../i18n/server";
 
-const c = publicCopy();
-const a = c.about;
 
-export const metadata: Metadata = { title: pageTitle(a.meta.title), description: a.meta.description };
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await localisedPublicCopy(await requestLanguage())).about;
+  return { title: pageTitle(meta.title), description: meta.description };
+}
 
 /** /about (Server Component): mission, principles, names, what it is not, how it is built. */
-export default function AboutPage() {
+export default async function AboutPage() {
+  const c = await localisedPublicCopy(await requestLanguage());
+  const a = c.about;
   return (
     <PublicPage module="schemesetu">
       <PublicHero

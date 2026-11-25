@@ -3,7 +3,6 @@ import { apiTypesSource, screenSource } from './sourceTree';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { extractCaseIdFromPath } from '../src/api/caseAuth';
 
 const read = (...p: string[]) => readFileSync(join(process.cwd(), ...p), 'utf-8');
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -26,10 +25,9 @@ describe('ADR-011 mobile clinical review — honesty contracts', () => {
     assert.ok(/verification_label: string/.test(types));
   });
 
-  it('case-holder clinical routes name the case so the case token is auto-attached', () => {
+  it('case-holder clinical routes name the case', () => {
     const paths = endpoints.match(/`\/api\/v1\/kadi\/cases\/\$\{enc\(caseId\)\}\/[a-z-]+/g) ?? [];
     assert.ok(paths.length >= 5, 'expected clinical routes under /kadi/cases/{id}');
-    assert.strictEqual(extractCaseIdFromPath('/api/v1/kadi/cases/CASE-9/clinical-reviews'), 'CASE-9');
   });
 
   it('sharing consent is an explicit patient choice, never defaulted to true', () => {
@@ -47,13 +45,13 @@ describe('ADR-011 mobile clinical review — honesty contracts', () => {
   });
 
   it('a statement is shown with COI, limitations and its not-an-insurer-finding notice', () => {
-    assert.ok(/Conflict of interest: \{statement\.coi_label\}/.test(reviewCard));
-    assert.ok(/Limitations: \{statement\.limitations\}/.test(reviewCard));
+    assert.ok(/tr\('Conflict of interest: \{label\}', \{ label: statement\.coi_label/.test(reviewCard));
+    assert.ok(/tr\('Limitations: \{limitations\}', \{ limitations: statement\.limitations \}\)/.test(reviewCard));
     assert.ok(/not an insurer determination/.test(reviewCard));
   });
 
   it('plausibility is labelled machine-derived and shows its disclaimer', () => {
-    assert.ok(/label="Machine-derived"/.test(billNyay));
+    assert.ok(/label=\{tr\('Machine-derived'\)\}/.test(billNyay));
     assert.ok(/plausibility\.assessment\.disclaimer/.test(billNyay));
   });
 });

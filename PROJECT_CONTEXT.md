@@ -20,6 +20,7 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress, with the post-foundation roadmap ("Wave 1": WS1 observability, WS2 LLM reliability, WS4-shell web shell, WS5-shell mobile shell) merged on branch `wave1/integration` (2026-11-19, not yet merged to `main`; see the 2026-11-20 bullet below and section 18). WS0 Foundation was merged to `main` via PR #161 (2026-11-15). Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; figures as of 2026-10-20 were 1,119 backend pytest tests passing, 7 skipped; 126 mobile; 133 web; those are superseded by the totals measured on `wave1/integration` on 2026-11-20, in the bullet below: apps/api 609 passed / 1 failed / 3 skipped, packages 709 passed / 6 skipped, web 233, mobile 194, import-linter 5/5 kept, guardrails passing).
+- **Newest (2026-11-25, product evolution — branch `wave3/transformation`, committed locally, not pushed):** sign-in is now required for every case and module (ADR-029; the guest flow is gone, old guest cases can only be claimed); optional Gmail delivery for account email (ADR-030, never run against Google); a synthetic demo account (`docs/DEMO_GUIDE.md`); user-recorded action and outcome tracking (ADR-031, migration `0004_case_actions`) with an outcome-led result layout on the web; Hindi and Marathi for all marked web and mobile strings (**machine translation, unreviewed**); accessibility fixes from automated checks (**screen reader not tested**). Not production-ready: see section 18.
 - **Latest (2026-11-25, review follow-ups — branch `wave3/transformation`):** fixed the open items from the review: (1) the API's 429 responses now carry CORS headers and expose `Retry-After` (rate limiter registered before `CORSMiddleware`; preflights no longer rate-limited; 2 tests, both fail on the old order); (2) `MetricCard` has a third basis, `"document"` ("From your document"), used for BillNyay's "Total billed". Also exercised what the first pass had not: DaaviSetu PDF and ZIP downloads (ZIP holds manifest, form, redacted summary, readiness; no original document; wrong token 403); `/reset-password` and `/verify` with a `#token=` link (token removed from the address bar; invalid link reported; "email cannot be sent" notice); `/review` refuses a wrong credential; and every account/ownership/deletion/no-retention check plus the ICD, CGHS and reasoning endpoints against **PostgreSQL 16 with Alembic migrations** (`0003_accounts`) in a throwaway local container. Still needs people: native-speaker hi/mr copy for the new strings, a screen-reader pass, Stitch parity (needs the maintainer's sign-in). Details: `docs/transformation/IMPLEMENTATION_STATUS.md` section 5.
 - **Previous (2026-11-25, post-Antigravity independent review and hardening — branch `wave3/transformation`, uncommitted):** Antigravity built the pages (24 files on top of foundation commit `1080110`); Claude Code reviewed every change and fixed what it found. Full record: `docs/transformation/IMPLEMENTATION_STATUS.md` section 4.
   - **Fixed:** two critical contract defects (the ICD-10 audit and SchemeSetu reasoning views read invented response fields, so a "mismatched" result and the whole reasoning trace never showed); false evidence labels (static "human-reviewed"/"provisional"/"AI-generated" badges on page headers and on every extracted field); overstated privacy copy on the sign-in panel; a duplicate DaaviSetu step strip that marked a step done too early; sidebar label overflow; dark-mode header/footer emblem (foundation defect); a bundle regression (brand code in client modules), now every route is 1.2–2.6 KB smaller (`/app` 167.14, `/app/settings` 166.04).
@@ -220,6 +221,13 @@ arogyarakshak/
 
 ## 8. Current Work
 
+### Task (2026-11-25) — Product evolution: sign-in, demo, tracking, localisation, accessibility (committed locally, not pushed)
+- [x] Mandatory sign-in on the API, web and mobile (ADR-029); Gmail transport (ADR-030); demo account; action tracking (ADR-031); outcome-led result pages.
+- [x] Web localisation with completeness tests (`docs/localization.md`); automated accessibility audit and fixes (`docs/accessibility/audit-2026-11-25.md`); `docs/BUSINESS_MODEL.md` (proposal only, no payments).
+- [ ] Human work: native Hindi and Marathi review; NVDA + Chrome pass; Gmail credentials and first real send; visual sign-off.
+- [x] Mobile localisation: remaining screens, cards and service messages translated, with a scan test; checked in the web export, not on a device.
+- [ ] Open code work: mobile tracker; web tracker fields for evidence, next step and disputed amount; localised API text.
+
 ### Task (2026-11-24) — Kadi package cycles fixed (`llm` ↔ root, `kadi` ↔ `ocr`); analysis reports filed in `docs/` (branch `wave3/integration`, uncommitted)
 - [x] Archify Code Analysis of `packages/kadi` run (first run) and filed under `docs/architecture/code-analysis/kadi/` with an index and re-run instructions.
 - [x] Cycle `kadi` → `kadi/llm` → `kadi` removed: `redaction.py` moved to the dependency-free `kadi/privacy/redaction.py` (alias kept at `kadi/redaction.py`), `kadi/llm/cache.py` imports it from there (ADR-027). Guards: `.importlinter` contract `kadi-llm-and-privacy-below-root` and `packages/kadi/tests/test_package_layering.py` (both mutation-checked: reverting the import breaks both).
@@ -357,6 +365,13 @@ None. Ready for Product Phase 2 when directed by user.
 ---
 
 ## 9. Next Tasks
+
+### After the 2026-11-25 product evolution
+- [ ] Decide on pushing and opening the pull request (committed locally on 2026-11-25, not pushed).
+- [ ] Native-speaker review of Hindi and Marathi (web and mobile).
+- [ ] NVDA pass using the script in the accessibility audit; run the mobile app on a device.
+- [ ] Configure Gmail (`docs/configuration/email-gmail.md`) and add the `GMAIL_*` variables to the Kubernetes manifests.
+- [ ] Localise API-supplied text (errors, timeline events, rule explanations, safety disclaimers).
 
 ### Kadi structure follow-ups (2026-11-24, from the Archify report in `docs/architecture/code-analysis/kadi/README.md`)
 - [ ] Optional: remove the last static warning (`kadi` ↔ `kadi/ocr`, lazy import) entirely by moving `line_items` and `pdf_text_quality` into a leaf package both `ocr` and the root can import (ADR-027 "Alternatives"). Not needed for correctness.
@@ -524,6 +539,9 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 13. Important Decisions (ADR Summary)
 
+- **ADR-029 (Mandatory sign-in):** every `/api/v1` route needs a session except public account routes and staff-credential routes; cases open only for their owner. Supersedes the guest flow of ADR-008/009/026.
+- **ADR-030 (Gmail account email):** optional `MAIL_TRANSPORT=gmail_api`; a new outbound boundary to Google; no healthcare data in mail.
+- **ADR-031 (Action records):** the person records actions and outcomes; no "submitted" state; nothing is sent for them.
 - **ADR-001 (Monorepo Architecture):** Unified monorepo with editable packages (`pip install -e`) chosen over 7+ fragmented micro-repos for atomic PRs and zero publishing overhead.
 - **ADR-002 (Kadi as Shared Infrastructure):** Kadi is the central data extraction and entity resolution foundation, not an isolated 4th module. Document parsing is de-duplicated.
 - **ADR-003 (Bring-Your-Own-Document Privacy):** Zero persistent storage of patient health documents. Raw files exist only in transient memory during extraction.
@@ -550,7 +568,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
    - Python package names: strictly lowercase (`billnyay`, `daavisetu`, `bimanyay`, `schemesetu`, `dawacheck`, `kadi`).
    - Database tables: prefix with module namespace (`kadi_*`, `billnyay_*`, `daavisetu_*`, `bimanyay_*`, `schemesetu_*`, `dawacheck_*`).
    - API endpoints: `/api/v1/<module>/...`.
-4. **Network Boundaries**: Do not introduce dependencies that communicate with network endpoints outside Groq Cloud, the local Postgres container, and official package registries (PyPI, npm).
+4. **Network Boundaries**: Do not introduce dependencies that communicate with network endpoints outside Groq Cloud, the local Postgres container, and official package registries (PyPI, npm). One accepted exception: `oauth2.googleapis.com` and `gmail.googleapis.com` for account email, only when an operator enables it (ADR-030).
 5. **Multi-Agent Pipeline Separation**: Multi-agent chains must keep each agent's logic and prompt in a separate function/file. Inter-agent communication must use typed Pydantic models.
 6. **No Manufactured Clinical Authority (ADR-011)**: AI never writes, finalizes, signs or implies a clinician's statement; human statements reach packages only verbatim via `kadi.clinical_review.annex`; clients show only the server's `verification_label` (never "Verified Doctor"); no output claims medical necessity, approval probability or comprehensive safety coverage.
 
@@ -558,6 +576,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 ## 15. Testing Status
 
+- **Current totals (2026-11-25, product evolution):** one combined backend `pytest` (`PYTHONPATH=apps/api`, PostgreSQL migration tests on) **2,546 passed, 8 skipped, 0 failed**; web `tsc` and lint clean, tests **343/343**, build and bundle budget PASS; mobile type-check clean, **226/226**, Android export 2.50 MB (budget 2.6 MB); root **79/79**, `check:generated` 3/3; Ruff gate, `lint-imports` 6/6, `ci_guardrails`, evaluation regression PASS; demo smoke on PostgreSQL 60/60. GitHub CI, Docker image builds and k6 load tests were not run.
 - **Current totals (2026-11-21, `wave1/integration`, multilingual QA uncommitted):** `pytest apps/api` with `PYTHONPATH=apps/api` **648 passed, 3 skipped**; `pytest packages` **755 passed, 6 skipped**; Ruff gate, `lint-imports` 5/5, `ci_guardrails` and `check_eval_regression.py` pass. Web, mobile and root `npm test` were not re-run (untouched). New suites: `packages/kadi/tests/test_injection_multilingual.py` (42), `packages/billnyay/tests/test_prompt_safety_multilingual.py` (4), `apps/api/tests/test_evaluation_terminology.py` (17).
 - **Previous totals (2026-11-21, `wave1/integration`, with the #107/#115 harnesses uncommitted):** `pytest apps/api` with `PYTHONPATH=apps/api` **631 passed, 3 skipped**; `pytest packages` unchanged at 709 passed, 6 skipped (not re-run after the harness work, which does not touch `packages/`); web `tsc` 0, lint 0, `next build` OK, `check:web-budget` PASS; mobile Android export 2,397,694 B vs the 2,600,000 B budget PASS; root `npm test` 61/61; Ruff gate, `lint-imports` 5/5, `ci_guardrails` and `check_eval_regression.py` pass. New suite: `apps/api/tests/test_evaluation_appeal_grounding.py`.
 - **Previous totals (2026-11-20, `wave1/integration` @ `04acb3b`, measured today):** `pytest packages` **709 passed, 6 skipped**; `pytest apps/api` with `PYTHONPATH=apps/api` **611 passed, 3 skipped** (the order-dependent `test_llm_metrics_wiring.py` failure was fixed; see section 2); web `npm test` **233**, lint 0; mobile `npm test` **194**, `tsc` 0; `lint-imports` 5/5; `ci_guardrails` pass; `check:generated` 3/3. Not re-run: web `tsc`/build/budget/Lighthouse, mobile export/budget, root `npm test`, Ruff gate. Local note: `pip install -r apps/api/requirements.txt` is required after WS1 (adds `prometheus-client` and OpenTelemetry), otherwise `apps/api` fails at collection. New suites: `apps/api/tests/test_telemetry_metrics.py`, `test_telemetry_tracing.py`, `test_observability_stack_config.py`, `test_llm_metrics_wiring.py`, `test_no_live_network.py`, `test_eval_regression.py`, `packages/kadi/tests/test_llm_*.py` (including `test_llm_review_fixes.py`), `apps/web/tests/shell.test.ts`, `apps/mobile/tests/shell.test.ts`.
@@ -604,6 +623,10 @@ Phase 5: Submission & Demo Polish (FUTURE)
 
 | Area | Primary Document |
 |---|---|
+| **Demo, localisation, business model** | [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md), [`docs/localization.md`](docs/localization.md), [`docs/BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md) |
+| **Action and resolution tracking** | [`docs/features/action-and-resolution.md`](docs/features/action-and-resolution.md) |
+| **Accessibility audit** | [`docs/accessibility/audit-2026-11-25.md`](docs/accessibility/audit-2026-11-25.md) |
+| **Account email** | [`docs/configuration/email-gmail.md`](docs/configuration/email-gmail.md) |
 | **Portal Sitemap** | [`docs/README.md`](docs/README.md) |
 | **System Architecture** | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
 | **Component Specifications** | [`docs/architecture/components.md`](docs/architecture/components.md) |
@@ -637,6 +660,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 17. Recent Changes
+
+### 2026-11-25 — Product evolution (branch `wave3/transformation`)
+- **Added**: `app/auth_gate.py`, `services/mail_gmail.py`, `services/case_actions.py`, `clinical/demo_account.py`, `scripts/demo_account.py`, `kadi/resolution_tracking.py`, migration `0004_case_actions`, web `app/i18n/`, `components/actions/`, mobile sign-in; ADR-029 to ADR-031.
+- **Changed**: owner-only case access; `?access_token=` removed; default `CORS_ORIGINS` is `http://localhost:3000` (production refuses an unset or wildcard list); all web routes render per request (language cookie); new first-party mobile dependency `expo-sharing`.
+- **Fixed**: nobody could sign in against a default local API (wildcard CORS); public sections named `evidence` were never translated; invented "Active Dossier" and unsupported claims removed from the mobile home screen; seven classes of automated accessibility violations and demo-banner focus covering.
 
 ### 2026-11-24 — Kadi package cycle fix and Code Analysis reports (branch `wave3/integration`, uncommitted)
 - **Added**: `packages/kadi/kadi/privacy/` (`__init__.py`, `redaction.py` moved with `git mv`, byte-identical); `packages/kadi/tests/test_package_layering.py` (3 tests); `.importlinter` contract `kadi-llm-and-privacy-below-root`; `docs/architecture/decisions/ADR-027-kadi-privacy-leaf-package.md`; `docs/architecture/code-analysis/` (index, `kadi/README.md`, tracked `analysis*/` JSON evidence); `.gitignore` rules for `.archify/` and the machine-specific/large generated files.
@@ -892,6 +920,11 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 18. Agent Handoff Notes
+
+### Latest handoff (2026-11-25, product evolution)
+- **State**: committed locally on `wave3/transformation` (the maintainer asked for the commit on 2026-11-25); not pushed or merged. Push, pull request and merge each need an explicit request. Record: `docs/transformation/IMPLEMENTATION_STATUS.md` section 6.
+- **Rules for the next agent**: every new API route is protected by default; add to `PUBLIC_API_PATHS` only for pre-session routes. New web strings go through `tr()` with `hi` and `mr` entries. Never describe Hindi or Marathi as reviewed, or the screen reader as tested. No status may claim something was submitted or received unless the person recorded it.
+- **Release view**: usable for development and a supervised synthetic-data demo; a pull request needs the maintainer's go-ahead and CI; **not** production-ready.
 
 ### Latest handoff (2026-11-24, Kadi cycle fix and analysis reports)
 - **State**: uncommitted on `wave3/integration`. Both error-level Kadi package cycles are fixed (ADR-027: `redaction` moved to `kadi/privacy`; `parse_document` re-exported lazily); `docs/architecture/code-analysis/` holds the Archify report with a baseline snapshot. Read `docs/architecture/code-analysis/kadi/README.md` first.

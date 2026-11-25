@@ -1404,6 +1404,17 @@ def test_cors_does_not_pair_wildcard_origin_with_credentials():
     assert "*" not in kwargs["allow_methods"], "methods must be an explicit allow-list"
 
 
+def test_cors_default_lets_the_local_web_client_sign_in():
+    """Sign-in is required (ADR-029) and the browser sends the session cookie only to an
+    explicitly allowed origin, so the shipped default must name the local web client rather
+    than a wildcard: with ``*`` nobody could sign in on a default local run."""
+    from app.config import Settings
+
+    default = Settings.model_fields["cors_origins"].default
+    assert default == "http://localhost:3000"
+    assert "*" not in default
+
+
 def test_cors_allows_put_and_delete_for_income_profile_and_case_deletion():
     """P2 (CONFIRMED, and self-inflicted by this session's own new routes): CORS
     allow_methods previously listed only GET/POST/OPTIONS. SchemeSetu's income-profile

@@ -10,6 +10,11 @@ Welcome to the official technical documentation for **ArogyaRakshak (आरो�
 docs/
 ├── README.md                          # This documentation portal & sitemap
 ├── ArogyaRakshak_Task_Backlog.md      # Phased engineering issue backlog & tracking
+├── DEMO_GUIDE.md                      # Synthetic demo account and walkthrough
+├── localization.md                    # English, Hindi, Marathi: method, glossary, gaps
+├── BUSINESS_MODEL.md                  # Proposal only; nothing implemented
+├── accessibility/                     # Dated accessibility audits
+├── features/                          # Feature notes (action and resolution tracking)
 │
 ├── architecture/                      # System design and specifications
 │   ├── overview.md                    # Platform architecture, stack & principles
@@ -31,12 +36,14 @@ docs/
 │       ├── ADR-003-bring-your-own-document-privacy.md
 │       ├── ADR-004-groq-model-selection.md
 │       └── ADR-005-bimanyay-and-daavisetu-lifecycle-division.md
+│           (… later records in this folder, up to ADR-031)
 │
 ├── api/                               # Backend REST & streaming documentation
 │   └── overview.md                    # Versioned API routes & SSE protocol
 │
 ├── configuration/                     # Environment and secrets management
 │   └── environment-variables.md       # Full environment variable reference
+│   └── email-gmail.md                 # Account email through Gmail (ADR-030)
 │
 ├── development/                       # Developer experience & operations
 │   ├── setup.md                       # Local environment & multi-client setup

@@ -14,7 +14,7 @@ const en = {
     yes: "Yes",
     no: "No",
     owned: "In your account",
-    guest: "This tab only",
+    guest: "Older case",
   },
   nav: {
     label: "Case pages",
@@ -68,7 +68,7 @@ export const caseCopy: Record<Language, CaseCopy> = {
       yes: "हाँ",
       no: "नहीं",
       owned: "आपके खाते में",
-      guest: "केवल यह टैब",
+      guest: "पुराना केस",
     },
     nav: {
       label: "केस पेज",
@@ -117,7 +117,7 @@ export const caseCopy: Record<Language, CaseCopy> = {
       yes: "होय",
       no: "नाही",
       owned: "तुमच्या खात्यात",
-      guest: "फक्त हा टॅब",
+      guest: "जुनी केस",
     },
     nav: {
       label: "केस पाने",

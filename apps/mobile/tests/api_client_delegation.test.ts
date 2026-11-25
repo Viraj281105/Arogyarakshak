@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { request } from '../src/api/client';
-import { setCaseAccessToken } from '../src/api/caseAuth';
+import { resetSessionForTests } from '../src/api/session';
 
 type Captured = { url: string; headers: Record<string, string> };
 
@@ -20,20 +20,20 @@ describe('mobile request() delegates to the shared api-client', () => {
     globalThis.fetch = realFetch;
   });
 
-  it('attaches the case token on a case path', async () => {
-    setCaseAccessToken('CASE-deleg1', 'tok-1');
+  it('attaches the account session to every request and never a case key', async () => {
+    resetSessionForTests('signed-in', 'session-token');
     await request('/api/v1/billnyay/cases/CASE-deleg1/audit');
-    assert.strictEqual(captured[0].headers['X-Case-Access-Token'], 'tok-1');
+    await request('/api/v1/dawacheck/benchmark');
+    for (const c of captured) {
+      assert.strictEqual(c.headers.Authorization, 'Bearer session-token');
+      assert.strictEqual(c.headers['X-Case-Access-Token'], undefined);
+    }
   });
 
-  it('does NOT attach a case token on a non-case path, even when tokens exist', async () => {
-    setCaseAccessToken('CASE-deleg2', 'tok-2');
-    await request('/api/v1/dawacheck/benchmark');
+  it('sends no credential when signed out', async () => {
+    resetSessionForTests();
     await request('/health');
-    for (const c of captured) {
-      assert.strictEqual(c.headers['X-Case-Access-Token'], undefined);
-      assert.ok(!Object.keys(c.headers).some((k) => k.toLowerCase().includes('token')));
-    }
+    assert.strictEqual(captured[0].headers.Authorization, undefined);
   });
 
   it('rejects with an ApiError (statusCode 0) on a network failure, never a TypeError', async () => {

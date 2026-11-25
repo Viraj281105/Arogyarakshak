@@ -1,26 +1,9 @@
 /**
- * Per-case access token store (ADR-009).
+ * Keys of cases created before sign-in was required (ADR-009, ADR-029).
  *
- * Every case-scoped route requires the token returned once by
- * `POST /api/v1/kadi/cases`. Rather than threading it as a prop through every screen
- * that calls a case-scoped endpoint, it is held here — in an in-memory Map for fast
- * synchronous lookup by `client.ts`'s `request()` — and mirrored to `expo-secure-store`
- * (SEC-14), the same secure storage mechanism `useOfflineStorage`/`useOfflineQueue`
- * already use for the persisted offline-action queue.
- *
- * Why persistence changed (SEC-14): the offline-action queue is persisted to disk so a
- * pending SUBMIT_PREAUTH/ANALYZE_DENIAL action survives an app restart and replays once
- * back online. Before this fix, the token store here was memory-only ("deliberately not
- * persisted... by design"), so after a restart the queue's actions were still there but
- * every case's token was gone — a replay would attach no token at all, get a 401, and
- * (depending on retry accounting) eventually be silently dropped after MAX_RETRIES
- * attempts that could never have succeeded. Persisting the token alongside the queue
- * that depends on it is what actually delivers "resumes safely after restart" rather
- * than "resumes and then quietly fails."
- *
- * `hydrateCaseAccessTokens()` must be awaited once at app/hook start (see
- * `useOfflineQueue`) to repopulate the in-memory Map from disk before anything tries to
- * replay a queued action — the synchronous Map lookups everywhere else stay unchanged.
+ * A saved key can now do one thing: move its case into the signed-in account
+ * (api/session.ts `claimStoredCases`), after which it is deleted. No request is authorised by a
+ * case key, and no new key is ever created. Persisted in `expo-secure-store` (SEC-14).
  */
 
 // Loaded lazily via require() (not a static top-level import — same pattern as
@@ -140,15 +123,7 @@ export async function hydrateCaseAccessTokens(): Promise<void> {
   );
 }
 
-/** Extracts a case id from a request path like "/api/v1/billnyay/cases/CASE-xxxx/audit". */
-export function extractCaseIdFromPath(path: string): string | undefined {
-  const match = path.match(/\/cases\/([^/?]+)/);
-  return match ? decodeURIComponent(match[1]) : undefined;
-}
-
-export function tokenHeaderForPath(path: string): Record<string, string> {
-  const caseId = extractCaseIdFromPath(path);
-  if (!caseId) return {};
-  const token = caseTokens.get(caseId);
-  return token ? { 'X-Case-Access-Token': token } : {};
+/** Every saved (case id, key) pair currently loaded; call `hydrateCaseAccessTokens` first. */
+export function storedCaseTokens(): [string, string][] {
+  return [...caseTokens.entries()];
 }

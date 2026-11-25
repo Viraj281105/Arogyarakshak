@@ -6,6 +6,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge } from '../components';
+import { tr } from '../translations/tr';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -54,7 +55,7 @@ export const HomeScreen: React.FC = () => {
                 fontWeight: typography.weights.semibold,
               }}
             >
-              Sovereign Health Intelligence • DPDP Act 2023
+              {t.home.promise}
             </Text>
           </View>
         </View>
@@ -124,7 +125,7 @@ export const HomeScreen: React.FC = () => {
               marginTop: spacing.xs,
             }}
           >
-            Scan Hospital Bill or Claim Letter
+            {t.home.scanTitle}
           </Text>
           <Text
             style={{
@@ -136,7 +137,7 @@ export const HomeScreen: React.FC = () => {
               marginBottom: spacing.md,
             }}
           >
-            Instant Zero-Retention OCR Audit against CGHS 2024 tariffs &amp; NPPA price caps
+            {t.home.scanDescription}
           </Text>
 
           <Button
@@ -149,43 +150,7 @@ export const HomeScreen: React.FC = () => {
         </View>
       </Card>
 
-      {/* Active Recovery Case Dossier Preview */}
-      <Card
-        style={{
-          marginBottom: spacing.lg,
-          backgroundColor: colors.bgSurface,
-          borderColor: colors.statusDanger,
-          borderLeftWidth: 4,
-          borderLeftColor: colors.statusDanger,
-        }}
-      >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-          <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.sm, fontWeight: typography.weights.bold }}>
-            Active Dossier: Rameshwar Shinde
-          </Text>
-          <Badge label="3 FLAGS" variant="danger" />
-        </View>
-        <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginBottom: spacing.xs }}>
-          PTCA Stenting • Metro Heart Super Speciality
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: spacing.sm, flexWrap: 'wrap' }}>
-          <View style={[styles.metricPill, { backgroundColor: isDark ? 'rgba(224, 122, 95, 0.16)' : 'rgba(184, 93, 67, 0.12)' }]}>
-            <Text style={{ color: colors.statusDanger, fontSize: 11, fontWeight: '700' }}>₹1,88,350 Disallowed</Text>
-          </View>
-          <View style={[styles.metricPill, { backgroundColor: isDark ? 'rgba(229, 168, 75, 0.16)' : 'rgba(196, 125, 43, 0.12)' }]}>
-            <Text style={{ color: colors.statusWarning, fontSize: 11, fontWeight: '700' }}>Stent Cap Breach</Text>
-          </View>
-        </View>
-        <Button
-          title="Inspect Bill Audit Findings →"
-          onPress={() => (navigation as any).navigate('MainTabs', { screen: 'BillNyay' })}
-          variant="secondary"
-          size="sm"
-          style={{ width: '100%' }}
-        />
-      </Card>
-
-      {/* 4-Stage Forensic Intelligence Narrative Summary */}
+      {/* How a case moves, from the document to the follow-up */}
       <Card
         style={{
           marginBottom: spacing.lg,
@@ -195,52 +160,22 @@ export const HomeScreen: React.FC = () => {
       >
         <Text
           style={{
-            color: colors.brandEmerald,
-            fontSize: 10,
-            fontFamily: 'monospace',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: spacing.xs,
-          }}
-        >
-          Forensic Adjudication Lifecycle
-        </Text>
-        <Text
-          style={{
             color: colors.textPrimary,
             fontSize: typography.sizes.sm,
             fontWeight: typography.weights.bold,
             marginBottom: spacing.sm,
           }}
         >
-          From Raw Medical Invoices to Sovereign Rights
+          {t.home.journeyTitle}
         </Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 4, marginBottom: spacing.sm }}>
-          <View style={[styles.lifecycleStep, { backgroundColor: isDark ? 'rgba(224, 122, 95, 0.14)' : 'rgba(184, 93, 67, 0.1)', borderColor: colors.borderSubtle }]}>
-            <Text style={{ color: colors.statusDanger, fontSize: 9, fontWeight: '700' }}>01 INTAKE</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 8 }}>Raw Chaos</Text>
-          </View>
-          <View style={[styles.lifecycleStep, { backgroundColor: isDark ? 'rgba(112, 151, 176, 0.14)' : 'rgba(74, 107, 130, 0.1)', borderColor: colors.borderSubtle }]}>
-            <Text style={{ color: colors.brandCyan, fontSize: 9, fontWeight: '700' }}>02 PARSE</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 8 }}>WASM PII</Text>
-          </View>
-          <View style={[styles.lifecycleStep, { backgroundColor: isDark ? 'rgba(229, 168, 75, 0.14)' : 'rgba(196, 125, 43, 0.1)', borderColor: colors.borderSubtle }]}>
-            <Text style={{ color: colors.statusWarning, fontSize: 9, fontWeight: '700' }}>03 AUDIT</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 8 }}>CGHS Caps</Text>
-          </View>
-          <View style={[styles.lifecycleStep, { backgroundColor: isDark ? 'rgba(82, 183, 136, 0.14)' : 'rgba(45, 106, 79, 0.1)', borderColor: colors.borderSubtle }]}>
-            <Text style={{ color: colors.brandEmerald, fontSize: 9, fontWeight: '700' }}>04 REMEDY</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 8 }}>Form VI</Text>
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
-          <Text style={{ color: colors.textMuted, fontSize: 9 }}>✓ Sec 45 Incontestable</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 9 }}>•</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 9 }}>✓ IRDAI 60-Min SLA</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 9 }}>•</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 9 }}>✓ NPPA S.O. 1335(E)</Text>
-        </View>
+        {t.home.journey.map((step, i) => (
+          <Text key={step} style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, lineHeight: 20 }}>
+            {i + 1}. {step}
+          </Text>
+        ))}
+        <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginTop: spacing.sm }}>
+          {t.home.journeyNote}
+        </Text>
       </Card>
 
       {/* Module Navigation Overview */}
@@ -255,7 +190,7 @@ export const HomeScreen: React.FC = () => {
           },
         ]}
       >
-        ArogyaRakshak Modules
+        {t.home.modulesTitle}
       </Text>
 
       {/* 1. BillNyay */}
@@ -286,7 +221,7 @@ export const HomeScreen: React.FC = () => {
             <Text style={[styles.moduleTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>
               📋 {t.modules.daavisetu.title}
             </Text>
-            <Badge label="Pre-Auth" variant="brand" />
+            <Badge label={tr('Pre-Auth')} variant="brand" />
           </View>
           <Text style={[styles.moduleDesc, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
             {t.modules.daavisetu.desc}
@@ -340,7 +275,7 @@ export const HomeScreen: React.FC = () => {
             <Text style={[styles.moduleTitle, { color: colors.textPrimary, fontSize: typography.sizes.md }]}>
               💊 {t.modules.dawacheck.title}
             </Text>
-            <Badge label="NPPA Ceiling" variant="warning" />
+            <Badge label={tr('NPPA Ceiling')} variant="warning" />
           </View>
           <Text style={[styles.moduleDesc, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
             {t.modules.dawacheck.desc}
@@ -399,11 +334,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  metricPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
   sectionHeading: {
     letterSpacing: -0.2,
   },
@@ -421,13 +351,5 @@ const styles = StyleSheet.create({
   },
   moduleDesc: {
     lineHeight: 20,
-  },
-  lifecycleStep: {
-    flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
   },
 });

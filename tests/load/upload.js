@@ -26,7 +26,7 @@ export const options = {
 };
 
 export default function () {
-  const { id, token } = createCase();
+  const { id } = createCase();
   if (!id) {
     return; // rate limited or create failed; already counted by createCase
   }
@@ -35,7 +35,7 @@ export default function () {
     http.post(
       `${API}/cases/${id}/upload`,
       { file: bill },
-      { headers: authHeaders(token), tags: { name: 'POST /upload' } },
+      { headers: authHeaders(), tags: { name: 'POST /upload' } },
     ),
   );
   check(res, { 'accepted (202) or limited (429)': (r) => r.status === 202 || r.status === 429 });

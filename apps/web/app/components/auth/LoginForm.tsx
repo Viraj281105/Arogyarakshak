@@ -11,9 +11,21 @@ import { TransitionLink } from "../../shell/TransitionLink";
 import { AuthCard, OutcomeMessage, PasswordField, TextField, postAuth, type Outcome } from "./AuthShared";
 import { authCopy, fillCopy } from "./authCopy";
 
-// Where a successful sign-in may continue to. Anything else (an external URL, a protocol-relative
-// "//host") is ignored, so the page cannot be used as an open redirect.
-const NEXT_ALLOWED = ["/app", "/app/case", "/app/case/reports", "/app/settings", "/review"];
+// Where a successful sign-in may continue to: the workspace pages and the reviewer desk.
+// Anything else (an external URL, a protocol-relative "//host", a query or fragment) is ignored,
+// so the page cannot be used as an open redirect.
+const NEXT_ALLOWED = [
+  "/app",
+  "/app/case",
+  "/app/case/billnyay",
+  "/app/case/daavisetu",
+  "/app/case/bimanyay",
+  "/app/case/schemesetu",
+  "/app/case/dawacheck",
+  "/app/case/reports",
+  "/app/settings",
+  "/review",
+];
 
 const noSubscribe = () => () => {};
 

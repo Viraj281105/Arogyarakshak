@@ -5,6 +5,7 @@ import { ReviewerProfile, SAFETY_FLOOR_DISCLAIMER, clinicalPaths } from "../../l
 import { StatePanel } from "../../components/clinical/StatePanel";
 import { TONE_CLASS, humanizeEnum } from "../../lib/labels";
 import { Guard, ReviewerCall, RuleView } from "../types";
+import { useT } from "../../i18n/useT";
 
 const EMPTY_RULE_FORM = {
   rule_key: "",
@@ -28,6 +29,7 @@ type RuleAction = "submit" | "activate" | "new-version" | "retire" | "APPROVE" |
 /** Safety-rule governance: everyone sees the public rules; board members see the
  *  workspace, approve/reject, activate, re-version, retire (four-eyes) and propose. */
 export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCall; me: ReviewerProfile }) {
+  const tr = useT();
   const [rules, setRules] = useState<RuleView[]>([]);
   const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
   const [ruleComment, setRuleComment] = useState<Record<string, string>>({});
@@ -61,7 +63,7 @@ export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCal
         review_due_date: ruleForm.review_due_date,
       });
       await loadRules();
-    }, "Draft rule created. It needs independent approval before it can be activated.");
+    }, tr("Draft rule created. It needs independent approval before it can be activated."));
 
   const ruleAction = (rule: RuleView, action: RuleAction) =>
     guard(async () => {
@@ -78,26 +80,24 @@ export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCal
 
   return (
     <section className="case-panel bn-card">
-      <h3>Clinical safety governance</h3>
-      <p style={{ fontSize: "0.85rem" }}>{SAFETY_FLOOR_DISCLAIMER}</p>
-      {rules.length === 0 && <StatePanel kind="empty">No rules to show.</StatePanel>}
+      <h3>{tr("Clinical safety governance")}</h3>
+      <p style={{ fontSize: "0.85rem" }}>{tr(SAFETY_FLOOR_DISCLAIMER)}</p>
+      {rules.length === 0 && <StatePanel kind="empty">{tr("No rules to show.")}</StatePanel>}
       {rules.map((rule) => (
         <div key={rule.rule_id} style={{ borderTop: "1px solid var(--border-subtle)", padding: "0.75rem 0" }}>
           <p>
-            <strong>{rule.title}</strong> · version {rule.version} · <span className={TONE_CLASS.neutral}>{humanizeEnum(rule.status)}</span>
-            {rule.is_demo && <span className={TONE_CLASS.demo} style={{ marginLeft: "0.4rem" }}>Demo fixture</span>}
+            <strong>{rule.title}</strong>{" "}{tr("· version")}{" "}{rule.version} · <span className={TONE_CLASS.neutral}>{tr(humanizeEnum(rule.status))}</span>
+            {rule.is_demo && <span className={TONE_CLASS.demo} style={{ marginLeft: "0.4rem" }}>{tr("Demo fixture")}</span>}
             {rule.retirement_requested_by && (
-              <span className={TONE_CLASS.warning} style={{ marginLeft: "0.4rem" }}>Retirement requested — awaiting a second board member</span>
+              <span className={TONE_CLASS.warning} style={{ marginLeft: "0.4rem" }}>{tr("Retirement requested — awaiting a second board member")}</span>
             )}
-            {rule.review_overdue && <span className="badge badge-danger" style={{ marginLeft: "0.4rem" }}>review overdue</span>}
+            {rule.review_overdue && <span className="badge badge-danger" style={{ marginLeft: "0.4rem" }}>{tr("review overdue")}</span>}
           </p>
           <p style={{ fontSize: "0.85rem" }}>{rule.description}</p>
-          <p style={{ fontSize: "0.8rem" }}>
-            Trigger words: {rule.trigger.match_any.join(", ")} · Source: {rule.source.name}
-            {rule.source.version ? ` (${rule.source.version})` : ""} · Limitations: {rule.limitations}
+          <p style={{ fontSize: "0.8rem" }}>{tr("Trigger words:")}{" "}{rule.trigger.match_any.join(", ")}{" "}{tr("· Source:")}{" "}{rule.source.name}
+            {rule.source.version ? ` (${rule.source.version})` : ""}{" "}{tr("· Limitations:")}{" "}{rule.limitations}
           </p>
-          <p style={{ fontSize: "0.8rem" }}>
-            Proposed by {rule.proposed_by?.name} ({rule.proposed_by?.verification_label}).{" "}
+          <p style={{ fontSize: "0.8rem" }}>{tr("Proposed by")}{" "}{rule.proposed_by?.name} ({rule.proposed_by?.verification_label}).{" "}
             {rule.approvals
               .map((a) => `${a.decision === "APPROVE" ? "Approved" : "Rejected"} by ${a.reviewer.name}${a.applies_to_current_content ? "" : " (earlier submission)"}`)
               .join("; ")}
@@ -107,48 +107,38 @@ export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCal
               <input
                 className="input-field"
                 style={{ maxWidth: 320 }}
-                placeholder="Comment / reason"
+                placeholder={tr("Comment / reason")}
                 value={ruleComment[rule.rule_id] ?? ""}
                 onChange={(e) => setRuleComment({ ...ruleComment, [rule.rule_id]: e.target.value })}
               />
               {rule.status === "DRAFT" && rule.proposed_by?.reviewer_id === me.id && (
-                <button type="button" className="btn btn-secondary" onClick={() => ruleAction(rule, "submit")}>
-                  Submit for review
-                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => ruleAction(rule, "submit")}>{tr("Submit for review")}</button>
               )}
               {rule.status === "UNDER_REVIEW" && rule.proposed_by?.reviewer_id !== me.id && (
                 <>
-                  <button type="button" className="btn btn-primary" onClick={() => ruleAction(rule, "APPROVE")}>
-                    Approve
-                  </button>
-                  <button type="button" className="btn" style={{ border: "1px solid var(--status-danger)" }} onClick={() => ruleAction(rule, "REJECT")}>
-                    Reject
-                  </button>
+                  <button type="button" className="btn btn-primary" onClick={() => ruleAction(rule, "APPROVE")}>{tr("Approve")}</button>
+                  <button type="button" className="btn" style={{ border: "1px solid var(--status-danger)" }} onClick={() => ruleAction(rule, "REJECT")}>{tr("Reject")}</button>
                 </>
               )}
               {rule.status === "APPROVED" && (
-                <button type="button" className="btn btn-primary" onClick={() => ruleAction(rule, "activate")}>
-                  Activate
-                </button>
+                <button type="button" className="btn btn-primary" onClick={() => ruleAction(rule, "activate")}>{tr("Activate")}</button>
               )}
               {rule.status === "ACTIVE" && (
                 <>
-                  <button type="button" className="btn btn-secondary" onClick={() => ruleAction(rule, "new-version")}>
-                    New version
-                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => ruleAction(rule, "new-version")}>{tr("New version")}</button>
                   <button
                     type="button"
                     className="btn"
                     style={{ border: "1px solid var(--status-danger)" }}
                     disabled={rule.retirement_requested_by === me.id}
-                    title="Retirement needs two board members: one requests, a different one confirms."
+                    title={tr("Retirement needs two board members: one requests, a different one confirms.")}
                     onClick={() => ruleAction(rule, "retire")}
                   >
                     {rule.retirement_requested_by
                       ? rule.retirement_requested_by === me.id
-                        ? "Retirement requested by you"
-                        : "Confirm retirement"
-                      : "Request retirement"}
+                        ? tr("Retirement requested by you")
+                        : tr("Confirm retirement")
+                      : tr("Request retirement")}
                   </button>
                 </>
               )}
@@ -159,24 +149,21 @@ export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCal
 
       {me.is_safety_board_member && (
         <div style={{ marginTop: "1.25rem" }}>
-          <h4>Propose a rule adapted from a published protocol</h4>
-          <p style={{ fontSize: "0.8rem" }}>
-            Name the source protocol, its version and section. Do not invent protocol content. A different board member
-            must approve before activation.
-          </p>
+          <h4>{tr("Propose a rule adapted from a published protocol")}</h4>
+          <p style={{ fontSize: "0.8rem" }}>{tr("Name the source protocol, its version and section. Do not invent protocol content. A different board member must approve before activation.")}</p>
           <div className="grid-2">
             {(
               [
-                ["rule_key", "Rule key (slug)"],
+                ["rule_key", tr("Rule key (slug)")],
                 ["title", "Title"],
-                ["terms", "Trigger terms (comma-separated)"],
-                ["message", "Message shown to the user"],
-                ["source_name", "Source protocol name"],
-                ["source_version", "Source version"],
-                ["source_section", "Source section"],
-                ["source_reference", "Source reference"],
-                ["effective_date", "Effective date (YYYY-MM-DD)"],
-                ["review_due_date", "Review due date (YYYY-MM-DD)"],
+                ["terms", tr("Trigger terms (comma-separated)")],
+                ["message", tr("Message shown to the user")],
+                ["source_name", tr("Source protocol name")],
+                ["source_version", tr("Source version")],
+                ["source_section", tr("Source section")],
+                ["source_reference", tr("Source reference")],
+                ["effective_date", tr("Effective date (YYYY-MM-DD)")],
+                ["review_due_date", tr("Review due date (YYYY-MM-DD)")],
               ] as const
             ).map(([key, label]) => (
               <div key={key}>
@@ -187,26 +174,20 @@ export function SafetyTab({ guard, call, me }: { guard: Guard; call: ReviewerCal
               </div>
             ))}
           </div>
-          <label className="input-label" htmlFor="rule-description">
-            Description
-          </label>
+          <label className="input-label" htmlFor="rule-description">{tr("Description")}</label>
           <textarea id="rule-description" className="textarea-field" value={ruleForm.description} onChange={(e) => setRuleForm({ ...ruleForm, description: e.target.value })} />
-          <label className="input-label" htmlFor="rule-limitations">
-            Limitations (required)
-          </label>
+          <label className="input-label" htmlFor="rule-limitations">{tr("Limitations (required)")}</label>
           <textarea id="rule-limitations" className="textarea-field" value={ruleForm.limitations} onChange={(e) => setRuleForm({ ...ruleForm, limitations: e.target.value })} />
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <select className="select-field" aria-label="Severity" value={ruleForm.severity} onChange={(e) => setRuleForm({ ...ruleForm, severity: e.target.value })}>
-              <option value="URGENT">Urgent</option>
-              <option value="ADVISORY">Advisory</option>
+            <select className="select-field" aria-label={tr("Severity")} value={ruleForm.severity} onChange={(e) => setRuleForm({ ...ruleForm, severity: e.target.value })}>
+              <option value="URGENT">{tr("Urgent")}</option>
+              <option value="ADVISORY">{tr("Advisory")}</option>
             </select>
-            <select className="select-field" aria-label="Action" value={ruleForm.action_type} onChange={(e) => setRuleForm({ ...ruleForm, action_type: e.target.value })}>
-              <option value="SHOW_SAFETY_ESCALATION">Show safety escalation</option>
-              <option value="RECOMMEND_CLINICAL_REVIEW">Recommend clinical review</option>
+            <select className="select-field" aria-label={tr("Action")} value={ruleForm.action_type} onChange={(e) => setRuleForm({ ...ruleForm, action_type: e.target.value })}>
+              <option value="SHOW_SAFETY_ESCALATION">{tr("Show safety escalation")}</option>
+              <option value="RECOMMEND_CLINICAL_REVIEW">{tr("Recommend clinical review")}</option>
             </select>
-            <button type="button" className="btn btn-primary" onClick={proposeRule}>
-              Create draft
-            </button>
+            <button type="button" className="btn btn-primary" onClick={proposeRule}>{tr("Create draft")}</button>
           </div>
         </div>
       )}

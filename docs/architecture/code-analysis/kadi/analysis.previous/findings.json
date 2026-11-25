@@ -9,7 +9,7 @@
     "language": "py",
     "adapter": "pyright-parser@1.1.414/python-3.14",
     "adapterRevision": 17,
-    "snapshotId": "0637109f429002ebe118644a86ba87d4180a707957f42d4340963a146759ab7f"
+    "snapshotId": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f"
   },
   "rules": [
     "coupling/import-cycle",
@@ -20,8 +20,8 @@
     "complexity/function"
   ],
   "summary": {
-    "errors": 1,
-    "warnings": 7,
+    "errors": 0,
+    "warnings": 8,
     "info": 24,
     "suppressed": 0
   },
@@ -1300,7 +1300,7 @@
           "kadi/privacy/__init__.py",
           "kadi/privacy/redaction.py"
         ],
-        "sha256": "4fa5e0508297dd11f4f359e080edc17e747acd9b35c8c205c2913f81e9be6c86"
+        "sha256": "668eee57b65d33b8e2b2e9fd1cf3b7a3ae9ed2c155956743daeb0d39e5acb2a5"
       }
     },
     {
@@ -1359,9 +1359,9 @@
       "id": "COUP-010095ea6236",
       "code": "coupling/cycle",
       "dimension": "coupling",
-      "severity": "error",
+      "severity": "warning",
       "confidence": 1,
-      "message": "2 modules depend on each other at package level: kadi → kadi/ocr → kadi. See coupling/import-cycle for whether any file actually cycles.",
+      "message": "2 modules form a package-level dependency component containing deferred, conditional, or type-only edges: kadi → kadi/ocr → kadi. This grouping does not establish initialization behavior; it may also contain module-scope subcycles.",
       "subject": {
         "modules": [
           "kadi",
@@ -1369,7 +1369,7 @@
         ]
       },
       "evidence": {
-        "kind": "eager",
+        "kind": "mixed",
         "path": [
           "kadi",
           "kadi-ocr"
@@ -1378,9 +1378,9 @@
           {
             "from": "kadi",
             "to": "kadi-ocr",
-            "weight": 2,
-            "lazy": 0,
-            "deferred": false
+            "weight": 4,
+            "lazy": 2,
+            "deferred": true
           },
           {
             "from": "kadi-ocr",
@@ -1394,13 +1394,15 @@
         "imports": [
           {
             "file": "kadi/__init__.py",
-            "line": 5,
-            "to": "kadi/ocr/__init__.py"
+            "line": 17,
+            "to": "kadi/ocr/__init__.py",
+            "typeOnly": true
           },
           {
             "file": "kadi/__init__.py",
-            "line": 5,
-            "to": "kadi/ocr/ocr_parser.py"
+            "line": 17,
+            "to": "kadi/ocr/ocr_parser.py",
+            "typeOnly": true
           },
           {
             "file": "kadi/ocr/ocr_parser.py",
@@ -1413,7 +1415,7 @@
             "to": "kadi/pdf_text_quality.py"
           }
         ],
-        "totalImports": 4,
+        "totalImports": 6,
         "threshold": null
       },
       "supportedFixes": [
@@ -1437,7 +1439,7 @@
           "kadi/timeline.py",
           "kadi/triggers.py"
         ],
-        "sha256": "dbd7c47fcd3eef80c0bb2baa0ca8134dbcd2f320002f37797011129302ebc55f"
+        "sha256": "59b7414c39657634664537ad8e431e5481a7c3d00ee2dc5448cd0ef88af96a94"
       }
     },
     {
@@ -1597,7 +1599,7 @@
           "kadi/pdf_text_quality.py",
           "kadi/redaction.py"
         ],
-        "sha256": "16451547e0ad29b1bd9bf010d9ff45333a76695bee97ac7e907a6a2ef811a6f3"
+        "sha256": "7dd9d0db8bd122b7da81ed4ed58ed150eefdebfcb32e4671b8cff0d4615078b7"
       }
     },
     {
@@ -1606,7 +1608,7 @@
       "dimension": "coupling",
       "severity": "info",
       "confidence": 1,
-      "message": "kadi/ocr has an entry point (kadi/ocr/__init__.py), but 1 import from 1 module reach 1 of its internal files directly.",
+      "message": "kadi/ocr has an entry point (kadi/ocr/__init__.py), but 2 imports from 1 module reach 1 of its internal files directly.",
       "subject": {
         "module": "kadi-ocr"
       },
@@ -1622,16 +1624,24 @@
         "consumers": [
           "kadi"
         ],
-        "viaEntry": 1,
-        "totalImports": 1,
+        "viaEntry": 2,
+        "totalImports": 2,
         "files": [
           "kadi/__init__.py"
         ],
         "imports": [
           {
             "file": "kadi/__init__.py",
-            "line": 5,
-            "to": "kadi/ocr/ocr_parser.py"
+            "line": 17,
+            "to": "kadi/ocr/ocr_parser.py",
+            "typeOnly": true
+          },
+          {
+            "file": "kadi/__init__.py",
+            "line": 30,
+            "to": "kadi/ocr/ocr_parser.py",
+            "lazy": true,
+            "conditional": true
           }
         ],
         "threshold": {
@@ -1647,7 +1657,7 @@
           "kadi/__init__.py",
           "kadi/ocr/ocr_parser.py"
         ],
-        "sha256": "0bb60b8b3bcb928d0c2c3068a96792d338f11cb1f0da2107563c9604a4716dc3"
+        "sha256": "314cc1f5ae90bd9f8bd03bf3b4c249e9d463d6a88a5b926053f1cf55ab164b8d"
       }
     },
     {
@@ -1705,7 +1715,7 @@
           "kadi/privacy/redaction.py",
           "kadi/redaction.py"
         ],
-        "sha256": "5b869c586c4207c6115861cec1b605dfe9d98bdac1d0d9b87c3071bd8cca5f7d"
+        "sha256": "8e38547094ddbd6cbea09a17425619c48ee07822caf5927003feecfaf39f5f87"
       }
     },
     {

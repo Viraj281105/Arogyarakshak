@@ -19,6 +19,6 @@ describe('SchemeSetu form and explainer', () => {
 
   it('the pre-check explainer states only facts sourced in schemesetu/thresholds.py', () => {
     assert.ok(!src.includes('1,356'), 'procedure count has no source in the repo');
-    assert.ok(/Source: \{s\.source\}/.test(src));
+    assert.ok(/Source: \{source\}., \{ source: tr\(s\.source\) \}/.test(src));
   });
 });

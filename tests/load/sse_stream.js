@@ -35,7 +35,7 @@ function terminalStatus(body) {
 }
 
 export default function () {
-  const { id, token } = createCase();
+  const { id } = createCase();
   if (!id) {
     return;
   }
@@ -45,7 +45,7 @@ export default function () {
     http.post(
       `${API}/cases/${id}/upload`,
       { file: bill },
-      { headers: authHeaders(token), tags: { name: 'POST /upload' } },
+      { headers: authHeaders(), tags: { name: 'POST /upload' } },
     ),
   );
   if (up.status !== 202) {
@@ -53,7 +53,7 @@ export default function () {
   }
   const stream = track(
     http.get(`${API}/cases/${id}/stream`, {
-      headers: authHeaders(token),
+      headers: authHeaders(),
       timeout: '60s',
       tags: { name: 'GET /stream' },
     }),

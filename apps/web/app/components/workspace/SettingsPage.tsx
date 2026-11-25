@@ -323,7 +323,7 @@ function CaseSection({ c, privacyArt }: { c: WsCopy; privacyArt?: React.ReactNod
         <h2 id="ws-case-settings-title" className="ws-section-title">
           {c.settings.caseTitle}
         </h2>
-        <p className="ws-section-lede">{fillCopy(c.settings.guestCount, { count: guests.length })}</p>
+        {guests.length > 0 && <p className="ws-section-lede">{fillCopy(c.settings.guestCount, { count: guests.length })}</p>}
       </div>
       {privacyArt && (
         <div className="ws-mod-hero-art" aria-hidden="true">

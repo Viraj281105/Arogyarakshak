@@ -180,7 +180,8 @@ control, and the checklist wording is illustrative, not real insurer guidance.
 
 - Reference tables are small curated subsets (7 NPPA formulations, a CGHS subset, a 6-code plausibility table).
 - A *confidently* misread word is not detected — only low-confidence readings go to humans.
-- No reviewer is verified against a real council; there are no user accounts (per-case tokens only).
+- No reviewer is verified against a real council.
+- Sign in first (ADR-029): create the synthetic demo account as in [DEMO_GUIDE.md](DEMO_GUIDE.md), or register one.
 - The mobile app has **not** been run on a device or emulator; the demo uses the web app.
 - Hindi/Marathi wording awaits native-speaker review.
 - Real Groq output was not validated in this release (no key available); the demo does not depend on it.

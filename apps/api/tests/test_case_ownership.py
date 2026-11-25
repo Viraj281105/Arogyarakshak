@@ -14,15 +14,16 @@ import pytest
 from fastapi.routing import APIRoute
 from sqlalchemy import select
 
+from app.account_auth import SIGN_IN_REQUIRED_DETAIL
 from app.case_auth import (
-    MISSING_TOKEN_DETAIL,
     OTHER_ACCOUNT_DETAIL,
-    OWNED_CASE_SIGN_IN_DETAIL,
-    OWNED_CASE_TOKEN_DETAIL,
+    UNCLAIMED_CASE_DETAIL,
     require_case_access,
+    require_claimable_case,
 )
 from app.main import app
 from app.models import KadiCase
+from app.services.case_ingestion import create_case_record
 from tests.account_helpers import (
     bearer_for,
     plain_client,
@@ -30,11 +31,12 @@ from tests.account_helpers import (
     signed_in_web,
 )
 
-OWNERSHIP_DETAILS = {OTHER_ACCOUNT_DETAIL, OWNED_CASE_SIGN_IN_DETAIL, OWNED_CASE_TOKEN_DETAIL}
+OWNERSHIP_DETAILS = {OTHER_ACCOUNT_DETAIL, UNCLAIMED_CASE_DETAIL}
 
 
 def _uses_case_access(dependant) -> bool:
-    return any(d.call is require_case_access or _uses_case_access(d) for d in dependant.dependencies)
+    case_rules = (require_case_access, require_claimable_case)
+    return any(d.call in case_rules or _uses_case_access(d) for d in dependant.dependencies)
 
 
 def _all_api_routes():
@@ -65,10 +67,14 @@ def _url(path: str, case_id: str) -> str:
     return re.sub(r"\{[^}]+\}", "x", path.replace("{case_id}", case_id))
 
 
-def _guest_case(client=None):
-    res = (client or plain_client()).post("/api/v1/kadi/cases", json={"consent_opt_in": True})
-    assert res.status_code == 201
-    return res.json()["id"], res.json()["access_token"]
+def _guest_case():
+    """A case created before sign-in became mandatory: unowned, opened once by a token."""
+
+    async def create(db):
+        case, token = await create_case_record(db, consent_opt_in=True)
+        return case.id, token
+
+    return run_db(create)
 
 
 def _owned_case(headers):
@@ -104,25 +110,17 @@ def test_owned_case_denies_everyone_but_its_owner(method, path):
     case_id, old_token = _claimed_case(owner)
     url = _url(path, case_id)
     client = plain_client()
-    # The claim route also requires a session outright, so a caller without one is
-    # refused with the generic "sign in" 401 before the ownership rule speaks.
-    needs_session = path == "/api/v1/kadi/cases/{case_id}/claim"
 
     nobody = client.request(method, url)
     assert nobody.status_code == 401, nobody.text
-    if not needs_session:
-        assert nobody.json()["detail"] == OWNED_CASE_SIGN_IN_DETAIL
+    assert nobody.json()["detail"] == SIGN_IN_REQUIRED_DETAIL
 
     other = client.request(method, url, headers=stranger)
     assert other.status_code == 403, other.text
     assert other.json()["detail"] == OTHER_ACCOUNT_DETAIL
 
     by_token = client.request(method, url, headers={"X-Case-Access-Token": old_token})
-    if needs_session:
-        assert by_token.status_code == 401, by_token.text
-    else:
-        assert by_token.status_code == 403, by_token.text
-        assert by_token.json()["detail"] == OWNED_CASE_TOKEN_DETAIL
+    assert by_token.status_code == 401, by_token.text
 
     if path.endswith("/stream"):
         return  # an allowed SSE request streams until timeout; covered separately below
@@ -155,39 +153,17 @@ def test_owned_case_with_a_web_cookie_session():
 
 
 # ---------------------------------------------------------------------------
-# Guest flow unchanged
+# Cases from before mandatory sign-in
 # ---------------------------------------------------------------------------
 
 
-def test_guest_case_still_works_by_token_only():
-    case_id, token = _guest_case()
-    client = plain_client()
-    assert client.get(f"/api/v1/kadi/cases/{case_id}", headers={"X-Case-Access-Token": token}).status_code == 200
-    missing = client.get(f"/api/v1/kadi/cases/{case_id}")
-    assert missing.status_code == 401 and missing.json()["detail"] == MISSING_TOKEN_DETAIL
-    assert client.get(f"/api/v1/kadi/cases/{case_id}", headers={"X-Case-Access-Token": "wrong"}).status_code == 403
-
-
-def test_signed_in_user_uses_a_guest_case_by_its_token_without_claiming_it():
+def test_an_unclaimed_case_is_closed_even_with_its_token():
     case_id, token = _guest_case()
     headers, _ = bearer_for()
     client = plain_client()
-    assert client.get(f"/api/v1/kadi/cases/{case_id}", headers=headers).status_code == 401
-    assert client.get(f"/api/v1/kadi/cases/{case_id}", headers={**headers, "X-Case-Access-Token": token}).status_code == 200
+    res = client.get(f"/api/v1/kadi/cases/{case_id}", headers={**headers, "X-Case-Access-Token": token})
+    assert res.status_code == 403 and res.json()["detail"] == UNCLAIMED_CASE_DETAIL
     assert client.get("/api/v1/kadi/cases", headers=headers).json() == {"cases": []}
-
-
-def test_an_invalid_session_does_not_break_the_guest_flow():
-    case_id, token = _guest_case()
-    res = plain_client().get(
-        f"/api/v1/kadi/cases/{case_id}",
-        headers={"Authorization": "Bearer stale-or-forged", "X-Case-Access-Token": token},
-    )
-    assert res.status_code == 200
-    created = plain_client().post(
-        "/api/v1/kadi/cases", json={"consent_opt_in": True}, headers={"Authorization": "Bearer stale"}
-    )
-    assert created.status_code == 201 and created.json()["access_token"]
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +177,7 @@ def test_claim_moves_a_guest_case_into_the_account_and_disables_its_token():
     client = plain_client()
     res = client.post(f"/api/v1/kadi/cases/{case_id}/claim", headers={**headers, "X-Case-Access-Token": token})
     assert res.json() == {"id": case_id, "owned": True, "claimed": True}
-    assert client.get(f"/api/v1/kadi/cases/{case_id}", headers={"X-Case-Access-Token": token}).status_code == 403
+    assert client.get(f"/api/v1/kadi/cases/{case_id}", headers={"X-Case-Access-Token": token}).status_code == 401
     assert client.get(f"/api/v1/kadi/cases/{case_id}", headers=headers).status_code == 200
 
     async def token_hash(session):
@@ -307,6 +283,6 @@ def test_bimanyay_case_link_follows_ownership():
     client = plain_client()
     url = f"/api/v1/bimanyay/analyze?case_id={case_id}"
     assert client.post(url, json=DENIAL_PAYLOAD).status_code == 401
-    assert client.post(url, json=DENIAL_PAYLOAD, headers={"X-Case-Access-Token": old_token}).status_code == 403
+    assert client.post(url, json=DENIAL_PAYLOAD, headers={"X-Case-Access-Token": old_token}).status_code == 401
     assert client.post(url, json=DENIAL_PAYLOAD, headers=stranger).status_code == 403
     assert client.post(url, json=DENIAL_PAYLOAD, headers=owner).status_code == 200

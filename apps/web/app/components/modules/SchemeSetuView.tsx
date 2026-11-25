@@ -4,8 +4,11 @@ import React, { useState } from "react";
 import { Language, translations } from "../../translations";
 import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 import { StatePanel } from "../clinical/StatePanel";
+import { LazyModulePlan } from "../actions/LazyModulePlan";
 import { PatientIllustration } from "../illustrations/Illustrations";
 import { EvidenceBadge, StatusBadge } from "../ui/Badges";
+import { useT } from "../../i18n/useT";
+import { msg } from "../../i18n/format";
 
 // POST /api/v1/schemesetu/eligibility/reasoning -> schemesetu.reasoning_agent.EligibilityReasoning.
 interface ReasoningStep {
@@ -25,10 +28,10 @@ interface EligibilityReasoningResponse {
 }
 
 function stepOutcome(step: ReasoningStep): string {
-  if (!step.determinative) return "Recorded, cannot change the result";
+  if (!step.determinative) return msg("Recorded, cannot change the result");
   if (step.satisfied === true) return "Met";
-  if (step.satisfied === false) return "Not met";
-  return "Not decided (input not collected)";
+  if (step.satisfied === false) return msg("Not met");
+  return msg("Not decided (input not collected)");
 }
 
 // --- API Response Type (matching backend SchemeResult schema) ---
@@ -71,29 +74,29 @@ interface SchemeSetuViewProps {
 // The engine normalises state names itself (schemesetu.dialect_normalizer); only
 // Maharashtra changes the result today (MJPJAY), PM-JAY applies everywhere.
 const STATES = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
-  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
-  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
-  "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+  msg("Andhra Pradesh"), msg("Arunachal Pradesh"), msg("Assam"), msg("Bihar"), msg("Chhattisgarh"), msg("Goa"), msg("Gujarat"), msg("Haryana"),
+  msg("Himachal Pradesh"), msg("Jharkhand"), msg("Karnataka"), msg("Kerala"), msg("Madhya Pradesh"), msg("Maharashtra"), msg("Manipur"), msg("Meghalaya"),
+  msg("Mizoram"), msg("Nagaland"), msg("Odisha"), msg("Punjab"), msg("Rajasthan"), msg("Sikkim"), msg("Tamil Nadu"), msg("Telangana"), msg("Tripura"),
+  msg("Uttar Pradesh"), msg("Uttarakhand"), msg("West Bengal"), msg("Andaman and Nicobar Islands"), msg("Chandigarh"),
+  msg("Dadra and Nagar Haveli and Daman and Diu"), msg("Delhi"), msg("Jammu and Kashmir"), msg("Ladakh"), msg("Lakshadweep"), msg("Puducherry"),
 ];
 
 // What is checked, from schemesetu/thresholds.py (sources retrieved 2026-09-13).
 const SCHEMES_CHECKED = [
   {
     name: "AB PM-JAY (Ayushman Bharat)",
-    where: "All states",
+    where: msg("All states"),
     basis:
-      "Families listed under SECC-2011 or a state-verified database, ASHA / Anganwadi families, and everyone aged 70 or above. No income ceiling.",
-    decided: "Cannot be decided here — none of these facts is asked for, so the result is always “verification needed”.",
-    source: "PIB, written reply in the Lok Sabha, 28 Mar 2025",
+      msg("Families listed under SECC-2011 or a state-verified database, ASHA / Anganwadi families, and everyone aged 70 or above. No income ceiling."),
+    decided: msg("Cannot be decided here — none of these facts is asked for, so the result is always “verification needed”."),
+    source: msg("PIB, written reply in the Lok Sabha, 28 Mar 2025"),
   },
   {
     name: "MJPJAY (Mahatma Jyotirao Phule Jan Arogya Yojana)",
-    where: "Maharashtra",
-    basis: "All families in Maharashtra since the integrated scheme of 1 July 2024, with ₹5 lakh cover per family per year.",
-    decided: "Decided by your stated state of residence, which is not checked against documents.",
-    source: "Government of Maharashtra district portals restating the GR of 28 July 2023",
+    where: msg("Maharashtra"),
+    basis: msg("All families in Maharashtra since the integrated scheme of 1 July 2024, with ₹5 lakh cover per family per year."),
+    decided: msg("Decided by your stated state of residence, which is not checked against documents."),
+    source: msg("Government of Maharashtra district portals restating the GR of 28 July 2023"),
   },
 ];
 
@@ -101,6 +104,7 @@ const SCHEMES_CHECKED = [
 const humanize = (s: string) => (/^[a-z_]+$/.test(s) ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ") : s);
 
 export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, caseId, caseToken }) => {
+  const tr = useT();
   const t = translations[currentLang].modules.schemesetu;
   const api = useApi<SchemeResult[]>();
   // Empty by default: pre-filled values were submitted verbatim by users who did not
@@ -157,12 +161,12 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
     <div className="module-panel">
       <header className="ws-mod-hero ws-mod-schemesetu">
         <div className="ws-mod-hero-copy">
-          <p className="lp-kicker">SchemeSetu · government health schemes</p>
+          <p className="lp-kicker">{tr("SchemeSetu · government health schemes")}</p>
           <h2>{t.title}</h2>
           <p>{t.desc}</p>
           <div className="ws-kadi-badges">
-            <StatusBadge tone="neutral">Provisional eligibility only</StatusBadge>
-            <StatusBadge tone="neutral">Official criteria cited</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Provisional eligibility only")}</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Official criteria cited")}</StatusBadge>
           </div>
         </div>
         <div className="ws-mod-hero-art" aria-hidden="true">
@@ -171,31 +175,26 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
       </header>
 
       <section className="case-panel bn-card" aria-labelledby="ss-form-title">
-        <h3 id="ss-form-title">Your details</h3>
-        <p className="bn-fine">
-          Only your state changes the result today. Income is recorded but never decides eligibility, because neither scheme
-          sets an official income ceiling. Category and medical need are optional and not used to decide.
-        </p>
+        <h3 id="ss-form-title">{tr("Your details")}</h3>
+        <p className="bn-fine">{tr("Only your state changes the result today. Income is recorded but never decides eligibility, because neither scheme sets an official income ceiling. Category and medical need are optional and not used to decide.")}</p>
         <div className="ds-grid">
           <div className="ds-field">
             <label className="input-label" htmlFor="ss-income">
               {t.annualIncome}
-              <span className="ds-required">required</span>
+              <span className="ds-required">{tr("required")}</span>
             </label>
             <input id="ss-income" type="number" inputMode="decimal" min={0} className="input-field" value={income} onChange={(e) => setIncome(e.target.value)} />
           </div>
           <div className="ds-field">
             <label className="input-label" htmlFor="ss-state">
               {t.state}
-              <span className="ds-required">required</span>
+              <span className="ds-required">{tr("required")}</span>
             </label>
             <select id="ss-state" className="select-field" value={state} onChange={(e) => setState(e.target.value)}>
-              <option value="" disabled>
-                Choose your state or union territory
-              </option>
+              <option value="" disabled>{tr("Choose your state or union territory")}</option>
               {STATES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {tr(s)}
                 </option>
               ))}
             </select>
@@ -203,21 +202,21 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
           <div className="ds-field">
             <label className="input-label" htmlFor="ss-category">
               {t.socialCategory}
-              <span className="ds-optional">optional · not used to decide</span>
+              <span className="ds-optional">{tr("optional · not used to decide")}</span>
             </label>
             <select id="ss-category" className="select-field" value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="">Prefer not to say</option>
-              <option value="General">General</option>
-              <option value="OBC">OBC</option>
-              <option value="SC">SC</option>
-              <option value="ST">ST</option>
-              <option value="EWS">EWS</option>
+              <option value="">{tr("Prefer not to say")}</option>
+              <option value="General">{tr("General")}</option>
+              <option value="OBC">{tr("OBC")}</option>
+              <option value="SC">{tr("SC")}</option>
+              <option value="ST">{tr("ST")}</option>
+              <option value="EWS">{tr("EWS")}</option>
             </select>
           </div>
           <div className="ds-field">
             <label className="input-label" htmlFor="ss-need">
               {t.medicalNeed}
-              <span className="ds-optional">optional · not used to decide</span>
+              <span className="ds-optional">{tr("optional · not used to decide")}</span>
             </label>
             <input id="ss-need" type="text" className="input-field" value={medicalNeed} onChange={(e) => setMedicalNeed(e.target.value)} />
           </div>
@@ -234,35 +233,33 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
           <button type="button" className="btn btn-primary" onClick={handleCheck} disabled={api.loading || !canCheck}>
             {api.loading ? (
               <>
-                <span className="spinner" aria-hidden="true" />
-                Checking eligibility…
-              </>
+                <span className="spinner" aria-hidden="true" />{tr("Checking eligibility…")}</>
             ) : (
               t.checkBtn
             )}
           </button>
           <button type="button" className="btn btn-secondary" onClick={handleReasoning} disabled={reasoningApi.loading || !canCheck}>
-            {reasoningApi.loading ? "Loading rule trace…" : "Inspect rule reasoning"}
+            {reasoningApi.loading ? tr("Loading rule trace…") : tr("Inspect rule reasoning")}
           </button>
-          {!canCheck && <span className="ds-hint">Enter your annual income and choose your state.</span>}
+          {!canCheck && <span className="ds-hint">{tr("Enter your annual income and choose your state.")}</span>}
         </div>
         {reasoningApi.error && <StatePanel kind="error">{reasoningApi.error}</StatePanel>}
         {reasoningApi.data && (
           <details className="ws-fields" open>
             <summary className="ws-fields-summary">
-              <span>How each rule was applied</span>
+              <span>{tr("How each rule was applied")}</span>
               <EvidenceBadge state="rule-engine" size="sm" />
             </summary>
             {reasoningApi.data.reasoning_trace.length > 0 ? (
-              <div className="ws-table-scroll" tabIndex={0} role="region" aria-label="Eligibility rules applied">
+              <div className="ws-table-scroll" tabIndex={0} role="region" aria-label={tr("Eligibility rules applied")}>
                 <table className="ws-table">
                   <thead>
                     <tr>
-                      <th scope="col">Scheme</th>
-                      <th scope="col">Criterion</th>
-                      <th scope="col">Rule</th>
-                      <th scope="col">Your value</th>
-                      <th scope="col">Outcome</th>
+                      <th scope="col">{tr("Scheme")}</th>
+                      <th scope="col">{tr("Criterion")}</th>
+                      <th scope="col">{tr("Rule")}</th>
+                      <th scope="col">{tr("Your value")}</th>
+                      <th scope="col">{tr("Outcome")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -272,20 +269,20 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
                         <td>{st.criterion.replace(/_/g, " ")}</td>
                         <td>{st.threshold_or_rule}</td>
                         <td>{st.applicant_value}</td>
-                        <td>{stepOutcome(st)}</td>
+                        <td>{tr(stepOutcome(st))}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p className="ws-muted">The server returned no rule steps for these details.</p>
+              <p className="ws-muted">{tr("The server returned no rule steps for these details.")}</p>
             )}
             {reasoningApi.data.criteria_not_considered.length > 0 && (
               <>
                 <p className="ws-muted">
-                  <strong>Not checked by SchemeSetu</strong> (so this is not a full eligibility decision):
-                </p>
+              <strong>{tr("Not checked by SchemeSetu (so this is not a full eligibility decision):")}</strong>
+            </p>
                 <ul className="ws-muted">
                   {reasoningApi.data.criteria_not_considered.map((c) => (
                     <li key={c}>{c}</li>
@@ -297,9 +294,7 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
         )}
 
         {api.error && (
-          <StatePanel kind="error" onRetry={handleCheck}>
-            Could not check eligibility: {api.error}
-          </StatePanel>
+          <StatePanel kind="error" onRetry={handleCheck}>{tr("Could not check eligibility: {error}", { error: api.error })}</StatePanel>
         )}
         {profileApi.data && (
           <StatePanel kind="success">
@@ -310,10 +305,11 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
                 : t.savedNoChange}
           </StatePanel>
         )}
-        {profileApi.error && <StatePanel kind="error">Could not save the income profile: {profileApi.error}</StatePanel>}
+        {profileApi.error && <StatePanel kind="error">{tr("Could not save the income profile: {error}", { error: profileApi.error })}</StatePanel>}
       </section>
 
       {/* Real Results */}
+      {results && results.length > 0 && <LazyModulePlan module="schemesetu" results={results} caseId={caseId || undefined} />}
       {results && results.length > 0 && (
         <section aria-labelledby="ss-results-title" className="ss-results">
           <h3 id="ss-results-title" className="bn-lines-head">
@@ -333,20 +329,20 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
                   <h4 className="ss-scheme-name">{scheme.scheme_name}</h4>
                   <span className="bn-badges">
                     <span className={`badge ${badgeClass}`}>{badgeText}</span>
-                    <span className="badge badge-demo" title="How the rule behind this result is sourced">
-                      {scheme.criteria_provenance === "OFFICIAL_SOURCE_CITED" ? "Official source cited" : "Official restatement cited"}
+                    <span className="badge badge-demo" title={tr("How the rule behind this result is sourced")}>
+                      {scheme.criteria_provenance === "OFFICIAL_SOURCE_CITED" ? tr("Official source cited") : tr("Official restatement cited")}
                     </span>
                   </span>
                 </div>
                 <p className="bn-summary">{scheme.reason}</p>
 
-                <div className="ss-basis" aria-label="What this result is based on">
+                <div className="ss-basis" aria-label={tr("What this result is based on")}>
                   <div className="ss-basis-col is-decided">
                     <span className="ss-basis-head">{t.criteriaEvaluated}</span>
                     {scheme.criteria_evaluated.length > 0 ? (
                       <ul>{scheme.criteria_evaluated.map((c) => <li key={c}>{humanize(c)}</li>)}</ul>
                     ) : (
-                      <p>Nothing — no deciding fact is collected here.</p>
+                      <p>{tr("Nothing — no deciding fact is collected here.")}</p>
                     )}
                   </div>
                   <div className="ss-basis-col is-recorded">
@@ -399,25 +395,23 @@ export const SchemeSetuView: React.FC<SchemeSetuViewProps> = ({ currentLang, cas
 
       {/* Empty Results */}
       {results && results.length === 0 && (
-        <StatePanel kind="empty">No government health scheme matches found for the given criteria.</StatePanel>
+        <StatePanel kind="empty">{tr("No government health scheme matches found for the given criteria.")}</StatePanel>
       )}
 
       {/* Before the first check: what is checked, from the cited records — not a result. */}
       {!hasChecked && (
         <section className="ss-explainer" aria-labelledby="ss-explainer-title">
-          <h3 id="ss-explainer-title" className="bn-lines-head">
-            What SchemeSetu checks
-          </h3>
+          <h3 id="ss-explainer-title" className="bn-lines-head">{tr("What SchemeSetu checks")}</h3>
           <div className="ss-explainer-grid">
             {SCHEMES_CHECKED.map((s) => (
               <article key={s.name} className="case-panel bn-card">
                 <div className="case-panel-head">
                   <h4 className="ss-scheme-name">{s.name}</h4>
-                  <span className="badge badge-demo">{s.where}</span>
+                  <span className="badge badge-demo">{tr(s.where)}</span>
                 </div>
-                <p className="bn-fine">{s.basis}</p>
-                <p className="ss-decided">{s.decided}</p>
-                <p className="bn-fine">Source: {s.source}</p>
+                <p className="bn-fine">{tr(s.basis)}</p>
+                <p className="ss-decided">{tr(s.decided)}</p>
+                <p className="bn-fine">{tr("Source: {source}", { source: tr(s.source) })}</p>
               </article>
             ))}
           </div>

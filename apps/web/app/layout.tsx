@@ -6,16 +6,15 @@ import "./components/ui/ui.css";
 import "./components/brand/brand.css";
 import "./components/illustrations/illustrations.css";
 import { fontVariables } from "./fonts";
+import { requestLanguage, serverT } from "./i18n/server";
+import { HTML_LANG } from "./shell/shellCopy";
 import { CommandPaletteLauncher } from "./shell/CommandPaletteLauncher";
 import { ShellProvider } from "./shell/ShellProvider";
 import { SiteFooter } from "./shell/SiteFooter";
 import { SiteHeader } from "./shell/SiteHeader";
 import { SkipLink } from "./shell/SkipLink";
 
-export const metadata: Metadata = {
-  title: "ArogyaRakshak (आरोग्यरक्षक) — Healthcare Cost & Rights Intelligence",
-  description:
-    "Patient-facing forensic bill audit, IRDAI insurance dispute appeals, PM-JAY scheme eligibility & NPPA medicine pricing platform.",
+const SITE: Metadata = {
   applicationName: "ArogyaRakshak",
   // Static files in public/ (not metadata routes), written by scripts/brand-assets.ts from the emblem
   // geometry. PNG 192/512, a maskable 512 and an apple-touch-icon exist; installability is still not
@@ -30,6 +29,15 @@ export const metadata: Metadata = {
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { tr } = await serverT();
+  return {
+    ...SITE,
+    title: tr("ArogyaRakshak (आरोग्यरक्षक) — Healthcare Cost & Rights Intelligence"),
+    description: tr("Patient-facing forensic bill audit, IRDAI insurance dispute appeals, PM-JAY scheme eligibility & NPPA medicine pricing platform."),
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -50,13 +58,14 @@ export const viewport: Viewport = {
  * The app shell (WS4): skip link, sticky header, one <main> landmark, footer. Pages render only
  * their content. global-error.tsx replaces this layout and brings its own minimal frame.
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lang = await requestLanguage();
   return (
-    <html lang="en" data-theme="light" className={fontVariables} suppressHydrationWarning>
+    <html lang={HTML_LANG[lang]} data-theme="light" className={fontVariables} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -65,7 +74,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ShellProvider>
+        <ShellProvider initialLang={lang}>
           <SkipLink />
           <SiteHeader />
           <main id="main-content" tabIndex={-1} className="shell-main">

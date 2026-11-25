@@ -375,14 +375,16 @@ origin to `AUTH_TRUSTED_ORIGINS` (or `CORS_ORIGINS`). Mobile clients use `Author
 not affected.
 
 ### A case that used to open with its token now answers `403` "…its case access token no longer works"
-The case was claimed into an account (or created while signed in). Owned cases accept only the owner's
-session (ADR-026 §6). Sign in to that account.
+Sign-in is required (ADR-029). Case tokens open nothing except the claim route: sign in, then claim
+an older case from the case desk. Cases created or claimed by another account answer `403`.
 
 ### Verification or password-reset emails never arrive
-Expected: `MAIL_TRANSPORT=disabled` is the only transport until the email delivery decision is made
-(ADR-026 §11). The log line `Account email (reset_password) not delivered` confirms the request was handled.
-A user who forgets their password cannot recover the account yet; their cases still expire after
-`CASE_TTL_DAYS`.
+With the default `MAIL_TRANSPORT=disabled` nothing is sent; the log line
+`Account email (reset_password) not delivered` confirms the request was handled. Configure Gmail
+([email-gmail.md](../configuration/email-gmail.md), ADR-030). With `gmail_api`, look for
+`Account email (...) was not sent: <ErrorType>`: `HTTPError` usually means a revoked or expired
+refresh token (Google expires tokens of apps in "Testing" after 7 days). There is no retry queue;
+request a new link.
 
 ### Every login from one machine answers `401` even with the right password
 After `LOGIN_FREE_FAILURES` wrong passwords (including wrong current passwords on password change
@@ -392,3 +394,26 @@ inside the wait gets the same generic `401`. The log shows `Sign-in for user USR
 now slowed`. Wait a little (failures expire after the window), or sign in from another network. A
 restart of the API also forgets the throttle (it is in memory). Behind a proxy, check
 `TRUSTED_PROXY_COUNT`: without it every user shares the proxy's IP.
+
+### The web app says it cannot reach the server, or nobody can sign in
+The browser sends the session cookie only to an origin the API names. `CORS_ORIGINS` must list the
+web origin; a wildcard `*` disables credentials (the preflight then lacks
+`access-control-allow-credentials`). Default: `http://localhost:3000`. Open both web and API on
+`localhost`: `127.0.0.1` is a different site and the `SameSite=Strict` cookie is not sent.
+
+### A Hindi or Marathi screen shows an English sentence
+Run `npx tsx scripts/i18n-keys.ts` in `apps/web`. A listed key needs an entry in both
+`app/i18n/locales/hi.ts` and `mr.ts`. If nothing is listed, the text is a literal that bypasses
+`tr()`, comes from the API, or is document content (docs/localization.md §4). In public copy,
+`isIdentifier` in `publicCopy.ts` decides what is never translated; a text section sharing a name
+with an identifier field was once skipped this way.
+
+### The mobile i18n test fails after adding text
+It names the file and line. Wrap the sentence in `tr()` (or `msg()` in a constant) and add Hindi and
+Marathi to `src/translations/ui.ts`. A component that renders `tr()` text must call
+`useTranslation()`. If the string is not user-facing, add it to the scanner's exclusions with a
+reason rather than wrapping it.
+
+### `npm test` in `apps/mobile` passes but `tsc` fails on a file under `apps/web`
+Mobile parity tests import web modules, so those modules are type-checked with the mobile settings.
+Keep dynamic `import()` out of them (that is why `i18n/load.ts` is separate from `i18n/format.ts`).

@@ -8,13 +8,13 @@ and multi-tier IRDAI grievance timeline tracking.
 import logging
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.account_auth import get_optional_principal
-from app.case_auth import CASE_ACCESS_TOKEN_HEADER, INVALID_TOKEN_DETAIL, authorize_case, require_case_access
+from app.account_auth import require_principal
+from app.case_auth import authorize_case, require_case_access
 from app.clinical.serializers import annex_dict, statement_view
 from app.clinical.service import current_statements_for_case, list_case_reviews
 from app.consent import require_case_consent
@@ -35,21 +35,14 @@ router = APIRouter()
 
 
 async def _authorize_optional_case(
-    case_id: Optional[str],
-    x_case_access_token: Optional[str],
-    db: AsyncSession,
-    principal: Optional[Principal] = None,
+    case_id: Optional[str], db: AsyncSession, principal: Principal
 ) -> Optional[KadiCase]:
-    """SEC-04: BimaNyay previously created dispute records with no case linkage at all —
-    unauthorized, unauthenticated, and outside the case-deletion cascade (ADR-009/#66
-    docstring: "BimaNyay's dispute records are a separate, not-yet-linked data domain").
+    """SEC-04: BimaNyay previously created dispute records with no case linkage at all.
 
-    `case_id` stays optional (BimaNyay's own screen has no case-creation flow — see
-    module docstring), preserving stand-alone use. But when a caller DOES supply one, it
-    must be authorized exactly like every other case-scoped route: the case must exist,
-    the caller must present its real access token (never merely knowing the id), and the
-    case must have opted into cross-module consent — this record becomes part of that
-    case's shared context and must be deleted when the case is.
+    `case_id` stays optional (BimaNyay's own screen can be used without a case). When a caller
+    DOES supply one, the case must exist, belong to the signed-in account (ADR-029, the same
+    rule as every /cases/{case_id} route) and have opted into cross-module consent: the record
+    becomes part of that case's shared context and is deleted with it.
     """
     if not case_id:
         return None
@@ -58,12 +51,7 @@ async def _authorize_optional_case(
     case = result.scalar_one_or_none()
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-
-    # ADR-026: the same rule as every /cases/{case_id} route (an owned case needs its
-    # owner's session). A guest case without a token stays 403 here, as before.
-    if not case.owner_user_id and not x_case_access_token:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INVALID_TOKEN_DETAIL)
-    authorize_case(case, method="POST", header_token=x_case_access_token, principal=principal)
+    authorize_case(case, principal=principal)
 
     return require_case_consent(case)
 
@@ -82,15 +70,14 @@ async def analyze_denial(
     case_id: Optional[str] = Query(
         None, description="Optional: link this dispute record to an existing Kadi case (SEC-04)."
     ),
-    x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
     db: AsyncSession = Depends(get_db),
-    principal: Optional[Principal] = Depends(get_optional_principal),
+    principal: Principal = Depends(require_principal),
 ):
     """
     Audits an insurance claim repudiation or deduction against IRDAI regulations.
     Generates 3-tier appeal documents: GRO, IRDAI Bima Bharosa, and Ombudsman in English, Hindi, or Marathi.
     """
-    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db, principal)
+    linked_case = await _authorize_optional_case(case_id, db, principal)
     try:
         result = analyze_insurance_denial(req, language=language)
 
@@ -101,7 +88,7 @@ async def analyze_denial(
             case_id=linked_case.id if linked_case else None,
             # ADR-026: a signed-in caller's stand-alone record belongs to the account, so
             # account deletion erases it. Case-linked records go with their case.
-            owner_user_id=principal.user.id if principal and not linked_case else None,
+            owner_user_id=None if linked_case else principal.user.id,
             policy_number=req.policy_number,
             insurer_name=req.insurer_name,
             policy_age_years=req.policy_age_years,
@@ -131,14 +118,13 @@ async def track_timeline(
     case_id: Optional[str] = Query(
         None, description="Optional: link this grievance record to an existing Kadi case (SEC-04)."
     ),
-    x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
     db: AsyncSession = Depends(get_db),
-    principal: Optional[Principal] = Depends(get_optional_principal),
+    principal: Principal = Depends(require_principal),
 ):
     """
     Calculates statutory milestone deadlines and SLA tracking for dispute escalation.
     """
-    linked_case = await _authorize_optional_case(case_id, x_case_access_token, db, principal)
+    linked_case = await _authorize_optional_case(case_id, db, principal)
     try:
         timeline = calculate_grievance_timeline(
             insurer_name=req.insurer_name,
@@ -152,7 +138,7 @@ async def track_timeline(
         grievance_record = BimaNyayGrievance(
             id=grievance_id,
             case_id=linked_case.id if linked_case else None,
-            owner_user_id=principal.user.id if principal and not linked_case else None,
+            owner_user_id=None if linked_case else principal.user.id,
             claim_number=req.claim_number,
             insurer_name=req.insurer_name,
             current_tier=req.current_tier,

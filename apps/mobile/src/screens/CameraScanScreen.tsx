@@ -11,6 +11,7 @@ import { PermissionGate } from './camera/PermissionGate';
 import { DocumentTypeTabs, ScanStatusOverlay, Viewfinder } from './camera/ScanOverlays';
 import { cameraStyles as styles } from './camera/styles';
 import { useScanUpload } from './camera/useScanUpload';
+import { tr } from '../translations/tr';
 
 type CameraRouteProp = RouteProp<RootStackParamList, 'CameraScan'>;
 
@@ -66,19 +67,19 @@ export const CameraScanScreen: React.FC = () => {
           onPress={() => navigation.goBack()}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Close scanner"
+          accessibilityLabel={tr('Close scanner')}
           style={[styles.iconButton, { minHeight: spacing.minTouchTarget, minWidth: spacing.minTouchTarget }]}
         >
           <Text style={styles.iconText}>✕</Text>
         </TouchableOpacity>
 
-        <Badge label="BYOD Zero Retention" variant="brand" />
+        <Badge label={tr('BYOD Zero Retention')} variant="brand" />
 
         <TouchableOpacity
           onPress={() => setFlashOn((prev) => !prev)}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel={flashOn ? 'Turn flash off' : 'Turn flash on'}
+          accessibilityLabel={flashOn ? tr('Turn flash off') : tr('Turn flash on')}
           style={[styles.iconButton, { minHeight: spacing.minTouchTarget, minWidth: spacing.minTouchTarget }]}
         >
           <Text style={styles.iconText}>{flashOn ? '⚡' : '🔦'}</Text>

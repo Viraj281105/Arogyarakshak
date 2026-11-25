@@ -1,37 +1,39 @@
 import type { Metadata } from "next";
 import { DocumentLink } from "./components/DocumentLink";
 import { StatusPage } from "./components/StatusPage";
+import { serverT } from "./i18n/server";
 
-export const metadata: Metadata = {
-  title: "Page not found — ArogyaRakshak",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { tr } = await serverT();
+  return { title: tr("Page not found — ArogyaRakshak") };
+}
 
 /** 404 for unmatched URLs and notFound() calls. */
-export default function NotFound() {
+export default async function NotFound() {
+  const { tr } = await serverT();
   return (
     <StatusPage
-      code="404 · Not found"
-      title="There is no page at this address."
+      code={tr("404 · Not found")}
+      title={tr("There is no page at this address.")}
       variant="missing"
       actions={
         <>
           <DocumentLink href="/" className="btn btn-primary btn-lg">
-            Go to the home page
+            {tr("Go to the home page")}
           </DocumentLink>
           <DocumentLink href="/app#intake-dropzone" className="btn btn-ghost btn-lg">
-            Check a document
+            {tr("Check a document")}
           </DocumentLink>
         </>
       }
     >
       <p>
-        The link may be mistyped or out of date. ArogyaRakshak has two places to go: the home page, where you check a bill,
-        insurer letter or prescription, and the <DocumentLink href="/review">clinical reviewer workspace</DocumentLink>.
+        {tr("The link may be mistyped or out of date. ArogyaRakshak has two places to go: the home page, and your case desk, where you check a bill, insurer letter or prescription.")}
       </p>
       <p>
-        If you were in the middle of a check: its access key is kept only in the memory of the tab where you started it, so
-        a new page load cannot reopen that case.
+        <DocumentLink href="/review">{tr("Clinical reviewer workspace")}</DocumentLink>
       </p>
+      <p>{tr("Your cases stay in your account: open the case desk to continue where you were.")}</p>
     </StatusPage>
   );
 }

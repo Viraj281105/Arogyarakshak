@@ -16,6 +16,7 @@ import type { TimelineResponse } from "./TimelineExplorer";
 import { caseCopy, type CaseCopy } from "./caseCopy";
 import { reportsCopy, type ReportsCopy } from "./reportsCopy";
 import { fillCopy } from "./workspaceFormat";
+import { useT } from "../../i18n/useT";
 
 type WsCopy = CaseCopy & ReportsCopy;
 
@@ -64,6 +65,7 @@ export function ReportsViewer({ heroArt }: { heroArt?: React.ReactNode } = {}) {
 }
 
 function Reports({ c, caseRef, consent, heroArt }: { c: WsCopy; caseRef: CaseRef; consent: boolean; heroArt?: React.ReactNode }) {
+  const tr = useT();
   const [appealState, setAppeal] = useState<Availability<AppealVerify>>({ state: "loading" });
   const [claimState, setClaim] = useState<Availability>({ state: "loading" });
   // Without cross-module consent the API refuses these routes (403), so they are not asked.
@@ -93,7 +95,7 @@ function Reports({ c, caseRef, consent, heroArt }: { c: WsCopy; caseRef: CaseRef
     <div className="ws-reports">
       <header className="ws-mod-hero ws-mod-kadi">
         <div className="ws-mod-hero-copy">
-          <p className="ui-kicker">Case reports &amp; packages</p>
+          <p className="ui-kicker">{tr("Case reports & packages")}</p>
           <h1 className="ws-page-title">{c.reports.title}</h1>
           <p className="ws-section-lede">{c.reports.lede}</p>
         </div>
@@ -220,6 +222,7 @@ function ReportCard({
 }
 
 function AppealVerification({ c, v }: { c: WsCopy; v: AppealVerify }) {
+  const tr = useT();
   const intact = v.hash_matches_stored_bytes && v.signature_valid;
   return (
     <div className="ws-verify">
@@ -236,7 +239,7 @@ function AppealVerification({ c, v }: { c: WsCopy; v: AppealVerify }) {
           <dd>{v.signature_valid ? c.common.yes : c.common.no}</dd>
         </div>
         <div className="ws-facts-wide">
-          <dt>SHA-256</dt>
+          <dt>{tr("SHA-256")}</dt>
           <dd className="ws-hash">{v.sha256_hash}</dd>
         </div>
       </dl>

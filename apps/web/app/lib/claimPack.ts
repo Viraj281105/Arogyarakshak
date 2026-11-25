@@ -3,6 +3,7 @@
 // never sent anywhere; the request carries only the per-case access token (ADR-009) or, for a
 // case owned by the signed-in account, the session cookie (ADR-026).
 
+import { msg } from "../i18n/format";
 import { ENCRYPTED_EXTENSION, encryptPackage } from "./packageCrypto";
 import { noteUnauthorized, requestCredentials } from "./session";
 
@@ -12,7 +13,12 @@ export interface ClaimPackFile {
   mimeType: string;
 }
 
-export class ClaimPackError extends Error {}
+/** `message` is an interface string (the screen translates it) or text from the server. */
+export class ClaimPackError extends Error {
+  constructor(message: string, readonly vars?: Record<string, number>) {
+    super(message);
+  }
+}
 
 export function claimPackPath(caseId: string): string {
   return `/api/v1/kadi/cases/${encodeURIComponent(caseId)}/claim-pack`;
@@ -30,15 +36,16 @@ export async function fetchClaimPack(
   const res = await doFetch(`${apiBase}${claimPackPath(caseId)}`, { headers, credentials: requestCredentials() });
   if (res.status === 401) noteUnauthorized(claimPackPath(caseId));
   if (!res.ok) {
-    let message = `Could not build the Claim Pack (HTTP ${res.status}).`;
+    let message = msg("Could not build the Claim Pack (HTTP {status}).");
+    let vars: Record<string, number> | undefined = { status: res.status };
     try {
       const body = await res.json();
-      if (typeof body?.message === "string" && body.message) message = body.message;
-      else if (typeof body?.detail === "string" && body.detail) message = body.detail;
+      const fromServer = [body?.message, body?.detail].find((v): v is string => typeof v === "string" && v !== "");
+      if (fromServer) [message, vars] = [fromServer, undefined];
     } catch {
       /* keep the generic message */
     }
-    throw new ClaimPackError(message);
+    throw new ClaimPackError(message, vars);
   }
   const plain = new Uint8Array(await res.arrayBuffer());
   const filename = `claim_pack_${caseId}.zip`;

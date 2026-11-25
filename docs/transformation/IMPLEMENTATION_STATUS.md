@@ -236,3 +236,49 @@ change.) Web: lint 0, `tsc` 0, tests 312/312, `next build` OK, bundle budget PAS
 
 **Ready for the pull request.** Remaining before calling it production-ready: native-speaker hi/mr copy, a
 screen-reader pass, the email-provider decision (Q1), and the maintainer's visual sign-off against the Stitch mockups.
+
+---
+
+## 6. Product evolution: sign-in, outcomes, localisation, accessibility (2026-11-25; committed locally, not pushed)
+
+Supersedes the guest-flow statements in sections 1 to 5.
+
+| Area | State | Not done or not verified |
+|---|---|---|
+| Mandatory sign-in (ADR-029) | Done on API, web, mobile | Mobile not run on a device |
+| Gmail email (ADR-030) | Implemented, off by default | Never run against Google; Kubernetes manifests lack the variables |
+| Demo account | Done, labelled, refused in production | — |
+| Action and outcome tracking (ADR-031) | API and web done | Web lacks evidence, next-step and disputed-amount fields; no mobile tracker |
+| Outcome-led result pages | Web, five modules and case overview | — |
+| Localisation | All marked web and mobile strings in en/hi/mr, tested for completeness | Machine translation, unreviewed; API text English; mobile not run on a device |
+| Accessibility | Automated axe, keyboard, reflow; defects fixed | NVDA, zoom by a person, forced colours, mobile: not tested |
+| Business model | Proposal document | No research behind it; no payments |
+| Stitch parity | Design preserved | Not compared with the mockups |
+
+### 6.1 Gates
+
+Run locally on 2026-11-25 on the working tree, before it was committed.
+
+| Gate | Result |
+|---|---|
+| Backend, one combined `pytest` (`PYTHONPATH=apps/api`, PostgreSQL migration tests on) | PASS: 2,546 passed, 8 skipped (only a docstring changed afterwards) |
+| Ruff CI gate, `lint-imports` (6 contracts), `ci_guardrails.py`, evaluation regression | PASS |
+| PostgreSQL 16: upgrade to `0004`, `alembic check`, downgrade to `0003` and back | PASS |
+| Demo account provisioning and `demo_runtime_smoke.py` on PostgreSQL | PASS, 60/60 |
+| Web: `tsc`, lint, tests, `next build`, bundle budget | PASS, 343/343 |
+| Mobile: type-check, tests, offline Android export, bundle budget | PASS, 226/226, 2.50 MB of 2.6 MB |
+| Mobile web export at 390 px, Hindi and Marathi, six tabs and a medicine check | PASS: only API text in English |
+| Root tests, `check:generated` | PASS, 79/79 and 3/3 |
+| Browser: axe 168 loads, overflow at 320 to 1440 px, keyboard, 13-step signed-in walk | PASS after fixes (see the audit) |
+| Static analysis (Archify): `packages/kadi`, `apps/api/app` | 0 errors; warnings listed in `docs/architecture/code-analysis/` |
+| Security review of the diff | Self-review only; no independent reviewer |
+| GitHub CI, Docker image builds, k6 load tests, Kubernetes apply | NOT RUN |
+| NVDA, device or emulator run, live Gmail, live Groq | NOT TESTED |
+
+The first full backend run had 10 failures in `tests/chaos`: the signed-in test client signed in after
+the simulated database outage began. The harness now signs in first.
+
+### 6.2 Bundle budget
+
+All routes pass 170 KB gzip; the largest is `/app/settings` at 168.74 KB (about 1.3 KB headroom).
+All routes are now rendered per request.

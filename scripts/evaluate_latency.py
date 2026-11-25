@@ -28,6 +28,7 @@ IMPORTANT — read before citing these numbers:
 import argparse
 import asyncio
 import json
+import secrets
 import sys
 import time
 from pathlib import Path
@@ -110,6 +111,12 @@ def _bootstrap_app():
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
     client = TestClient(fastapi_app)
+    # ADR-029: every request needs an account session. A throwaway account in the throwaway
+    # database; its random password is never stored or printed.
+    credentials = {"email": "latency@example.org", "password": secrets.token_urlsafe(18)}
+    client.post("/api/v1/kadi/auth/register", json=credentials)
+    session = client.post("/api/v1/kadi/auth/login", json={**credentials, "session_transport": "bearer"})
+    client.headers["Authorization"] = f"Bearer {session.json()['token']}"
     return client, engine, db_path
 
 
@@ -135,14 +142,10 @@ def main() -> int:
         for _ in range(args.repeats):
             case_res = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
             case_id = case_res.json()["id"]
-            # ADR-009: every case-scoped request needs the case's one-time access token.
-            # Without it every upload was a 401 and the run "passed" with zero samples.
-            token = case_res.json()["access_token"]
             t0 = time.time()
             upload_res = client.post(
                 f"/api/v1/kadi/cases/{case_id}/upload",
                 files={"file": (f"{name}.txt", payload)},
-                headers={"X-Case-Access-Token": token},
             )
             elapsed = time.time() - t0
             if upload_res.status_code != 202:

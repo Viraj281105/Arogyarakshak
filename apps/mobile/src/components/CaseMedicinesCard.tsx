@@ -10,6 +10,7 @@ import { createRequestGuard } from '../services/caseProcessing';
 import { humanizeEnum } from '../services/labels';
 import { ExplainToggle } from './ExplainToggle';
 import { describePriceCheck } from '../services/priceCheck';
+import { tr, useTranslation } from '../translations/tr';
 
 const BLOCKED = new Set(['AWAITING_HUMAN_READING', 'READERS_DISAGREED', 'READING_NOT_APPLIED', 'OCR_UNCERTAIN']);
 const FLAGGABLE = new Set(['READERS_DISAGREED', 'READING_NOT_APPLIED', 'OCR_UNCERTAIN']);
@@ -26,6 +27,7 @@ export const CaseMedicinesCard: React.FC<{
   refreshToken?: unknown;
   onChanged?: () => void;
 }> = ({ caseId, ready, refreshToken, onChanged }) => {
+  useTranslation();
   const { colors, spacing, typography } = useTheme();
   const [rows, setRows] = useState<CaseMedicineBenchmark[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,19 +70,19 @@ export const CaseMedicinesCard: React.FC<{
 
   return (
     <Card style={{ marginVertical: spacing.sm }}>
-      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md }}>💊 Medicines from your documents</Text>
+      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md }}>{tr('💊 Medicines from your documents')}</Text>
       {error && (
         <View style={{ marginVertical: spacing.xs }}>
-          <Text style={{ color: colors.statusDanger, fontSize: typography.sizes.xs }}>⚠️ Could not load the price check: {error}</Text>
-          <Button title="Try again" onPress={() => setTick((n) => n + 1)} variant="outline" size="sm" />
+          <Text style={{ color: colors.statusDanger, fontSize: typography.sizes.xs }}>{tr('⚠️ Could not load the price check: {error}', { error })}</Text>
+          <Button title={tr('Try again')} onPress={() => setTick((n) => n + 1)} variant="outline" size="sm" />
         </View>
       )}
       {!rows && !error && (
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Checking your medicines…</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{tr('Checking your medicines…')}</Text>
       )}
       {rows && rows.length === 0 && (
         <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-          No medicines were extracted from this case&apos;s documents. You can still check one by name below.
+          {tr("No medicines were extracted from this case's documents. You can still check one by name below.")}
         </Text>
       )}
       {(rows ?? []).map((r) => {
@@ -92,7 +94,7 @@ export const CaseMedicinesCard: React.FC<{
             <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{r.brand_name}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               <Badge
-                label={blocked ? r.trust?.label ?? humanizeEnum(state) : r.name_provenance === 'HUMAN_REVIEWED' ? 'Human-reviewed' : 'Machine-extracted'}
+                label={blocked ? r.trust?.label ?? humanizeEnum(state) : r.name_provenance === 'HUMAN_REVIEWED' ? tr('Human-reviewed') : tr('Machine-extracted')}
                 variant={blocked ? 'warning' : r.name_provenance === 'HUMAN_REVIEWED' ? 'success' : 'info'}
               />
               {price && <Badge label={price.badge} variant={price.variant} />}
@@ -106,12 +108,12 @@ export const CaseMedicinesCard: React.FC<{
                 {price.basisNote && <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs }}>{price.basisNote}</Text>}
               </View>
             ) : (
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{r.note ?? 'Not price-checked.'}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{r.note ?? tr('Not price-checked.')}</Text>
             )}
             <ExplainToggle explanation={r.explanation} />
             {blocked && FLAGGABLE.has(state) && (
               <Button
-                title={busy === r.entity_id ? 'Requesting…' : 'Ask for a human reading of this entry'}
+                title={busy === r.entity_id ? tr('Requesting…') : tr('Ask for a human reading of this entry')}
                 onPress={() => ask(r.entity_id)}
                 variant="outline"
                 size="sm"

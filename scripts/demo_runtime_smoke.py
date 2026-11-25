@@ -1,7 +1,7 @@
 """Runtime smoke test of the demo golden paths against a RUNNING API (any database).
 
-Drives Scenarios A–E over real HTTP — the same calls the web client makes — and asserts
-what each step should mean, not just HTTP 200. Used to validate the Postgres runtime:
+Drives Scenarios A–E over real HTTP — the same calls the web client makes, signed in with a
+throwaway account (ADR-029) — and asserts what each step should mean, not just HTTP 200. Used to validate the Postgres runtime:
 
     # API in demo mode against Postgres (docker compose up -d postgres), then:
     python scripts/demo_runtime_smoke.py --api http://127.0.0.1:8001 --admin-key <CLINICAL_GOVERNANCE_ADMIN_KEY>
@@ -12,6 +12,7 @@ Exit code 0 = every check passed.
 
 import argparse
 import json
+import secrets
 import sys
 import urllib.error
 import urllib.request
@@ -29,10 +30,11 @@ class Api:
     def __init__(self, base, admin_key):
         self.base = base.rstrip("/")
         self.admin_key = admin_key
+        self.session = {}
 
     def call(self, method, path, body=None, headers=None, raw=False, files=None):
         url = self.base + path
-        hdrs = dict(headers or {})
+        hdrs = {**self.session, **(headers or {})}
         data = None
         if files is not None:
             boundary = uuid.uuid4().hex
@@ -60,14 +62,18 @@ class Api:
     def admin(self):
         return {"X-Governance-Admin-Key": self.admin_key}
 
+    def sign_in(self):
+        """A throwaway account with a random password that is never stored or printed."""
+        credentials = {"email": f"smoke-{uuid.uuid4().hex[:12]}@example.org", "password": secrets.token_urlsafe(18)}
+        self.call("POST", "/api/v1/kadi/auth/register", credentials)
+        status, body = self.call("POST", "/api/v1/kadi/auth/login", {**credentials, "session_transport": "bearer"})
+        check("Throwaway account signs in", status == 200, str(body)[:200])
+        self.session = {"Authorization": f"Bearer {body['token']}"}
+
 
 def check(name, cond, detail=""):
     CHECKS.append((name, bool(cond)))
     print(("PASS " if cond else "FAIL ") + name + (f" — {detail}" if detail and not cond else ""))
-
-
-def case_headers(token):
-    return {"X-Case-Access-Token": token}
 
 
 def rh(token):
@@ -82,7 +88,7 @@ def load(api, scenario):
 
 def scenario_a(api, creds):
     body = load(api, "A")
-    cid, ch = body["case_id"], case_headers(body["access_token"])
+    cid, ch = body["case_id"], {}
     check("A: both documents processed into one case", [p["status"] for p in body["processing"]] == ["completed", "completed"])
     _, audit = api.call("POST", f"/api/v1/billnyay/cases/{cid}/audit", headers=ch)
     check("A: CGHS audit benchmarks lines", audit.get("benchmarked_count", 0) > 0, str(audit)[:200])
@@ -129,8 +135,8 @@ def scenario_a(api, creds):
     check("A: appeal generated", status == 200, str(appeal)[:200])
     status, pdf = api.call("GET", f"/api/v1/billnyay/cases/{cid}/appeal/pdf", headers=ch, raw=True)
     check("A: signed PDF downloads", status == 200 and bytes(pdf[:4]) == b"%PDF")
-    status, _ = api.call("GET", f"/api/v1/billnyay/cases/{cid}/appeal/pdf", headers=case_headers("wrong-token"), raw=True)
-    check("A: PDF refused with a wrong token", status in (401, 403))
+    status, _ = api.call("GET", f"/api/v1/billnyay/cases/{cid}/appeal/pdf", headers={"Authorization": "Bearer wrong"}, raw=True)
+    check("A: PDF refused without a valid session", status == 401)
     _, tl = api.call("GET", f"/api/v1/kadi/cases/{cid}/timeline", headers=ch)
     labels = [e["label"] for e in tl["events"]]
     check("A: timeline shows finalization after acceptance",
@@ -142,7 +148,7 @@ def scenario_a(api, creds):
 
 def scenario_b(api, creds):
     body = load(api, "B")
-    cid, ch = body["case_id"], case_headers(body["access_token"])
+    cid, ch = body["case_id"], {}
     inst = {**ch, "X-Institution-Token": creds["institution"]["institution_token"]}
     _, r = api.call("POST", f"/api/v1/daavisetu/cases/{cid}/readiness", {"playbook_id": creds["playbook_id"]}, inst)
     items = {i["item_id"]: i for i in r["items"]}
@@ -169,7 +175,7 @@ def scenario_b(api, creds):
 
 def scenario_c(api, creds):
     body = load(api, "C")
-    cid, ch = body["case_id"], case_headers(body["access_token"])
+    cid, ch = body["case_id"], {}
     _, rows = api.call("GET", f"/api/v1/dawacheck/cases/{cid}/benchmark", headers=ch)
     bench = {r["brand_name"]: r for r in rows}
     check("C: Augmentin awaits a human reading", bench["Augmntn 625mg"]["trust"]["state"] == "AWAITING_HUMAN_READING")
@@ -198,7 +204,7 @@ def scenario_c(api, creds):
 
 def scenario_d(api, creds):
     body = load(api, "D")
-    cid, ch = body["case_id"], case_headers(body["access_token"])
+    cid, ch = body["case_id"], {}
     _, esc = api.call("GET", f"/api/v1/kadi/cases/{cid}/safety-escalations", headers=ch)
     titles = [e.get("title") or e.get("rule_title") for e in esc.get("escalations", [])]
     check("D: FAST escalation fires", any("FAST" in (t or "") for t in titles), str(titles))
@@ -214,7 +220,7 @@ def scenario_d(api, creds):
 
 def scenario_e(api, creds):
     body = load(api, "E")
-    cid, ch = body["case_id"], case_headers(body["access_token"])
+    cid, ch = body["case_id"], {}
     inst = {**ch, "X-Institution-Token": creds["institution"]["institution_token"]}
     playbook = creds["diabetes_playbook_id"]
     _, r = api.call("POST", f"/api/v1/daavisetu/cases/{cid}/readiness", {"playbook_id": playbook}, inst)
@@ -252,6 +258,9 @@ def main():
 
     status, health = api.call("GET", "/health")
     check("API health", status == 200 and health.get("status") == "ok")
+    status, _ = api.call("GET", "/api/v1/kadi/cases")
+    check("Signed-out requests are refused", status == 401)
+    api.sign_in()
     _, demo = api.call("GET", "/api/v1/kadi/clinical-demo/status")
     check("Demo mode reported", demo.get("demo_mode") is True)
     status, reset = api.call("POST", "/api/v1/kadi/clinical-demo/reset", {"confirm": "RESET DEMO"}, api.admin())

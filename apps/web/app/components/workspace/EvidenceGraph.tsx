@@ -11,6 +11,7 @@ import { drawableEdges, edgesOf, radialLayout, truncate, type CaseGraph } from "
 import { caseCopy, type CaseCopy } from "./caseCopy";
 import { graphCopy, type GraphCopy } from "./graphCopy";
 import { fillCopy, humanizeKey } from "./workspaceFormat";
+import { useT } from "../../i18n/useT";
 
 type WsCopy = CaseCopy & GraphCopy;
 
@@ -23,6 +24,7 @@ const SIZE = 640;
  * every node in the picture is also a button that opens its details.
  */
 export function EvidenceGraph() {
+  const tr = useT();
   const [lang] = useLanguage();
   const c = { ...caseCopy[lang], ...graphCopy[lang] };
   const cs = useCase();
@@ -89,9 +91,7 @@ export function EvidenceGraph() {
           <div className="ws-graph-toolbar">
             <p className="ws-muted">{fillCopy(c.graph.stats, { nodes: graph.stats.nodes ?? graph.nodes.length, edges: graph.stats.edges ?? graph.edges.length })}</p>
             <div className="ws-filters" role="group" aria-label={c.graph.legend}>
-              <button type="button" className="ws-chip" aria-pressed={kindFilter === "all"} onClick={() => setKindFilter("all")}>
-                All
-              </button>
+              <button type="button" className="ws-chip" aria-pressed={kindFilter === "all"} onClick={() => setKindFilter("all")}>{tr("All")}</button>
               {[...new Set(graph.nodes.map((n) => n.kind))].map((k) => (
                 <button key={k} type="button" className="ws-chip" aria-pressed={kindFilter === k} onClick={() => setKindFilter((cur) => (cur === k ? "all" : k))}>
                   {kindLabel(k)}
@@ -126,13 +126,15 @@ export function EvidenceGraph() {
                 })}
                 {placed.map((p) => {
                   const dimmed = kindFilter !== "all" && p.node.kind !== kindFilter && p.node.kind !== "hospital_stay";
+                  const shown = truncate(p.node.kind === "hospital_stay" ? kindLabel(p.node.kind) : p.node.label);
+                  const name = `${kindLabel(p.node.kind)}: ${p.node.label}`;
                   return (
                     <g
                       key={p.node.id}
                       role="button"
                       tabIndex={0}
                       aria-pressed={selected === p.node.id}
-                      aria-label={`${kindLabel(p.node.kind)}: ${p.node.label}`}
+                      aria-label={shown.endsWith("…") ? `${shown} ${name}` : name}
                       className={`ws-graph-node ws-graph-node-${p.node.kind}${selected === p.node.id ? " is-selected" : ""}${dimmed ? " is-dim" : ""}`}
                       transform={`translate(${p.x} ${p.y})`}
                       onClick={() => setSelected((s) => (s === p.node.id ? null : p.node.id))}
@@ -145,7 +147,7 @@ export function EvidenceGraph() {
                     >
                       <circle r={p.node.kind === "hospital_stay" ? 22 : 12} />
                       <text y={p.node.kind === "hospital_stay" ? 38 : 26} textAnchor="middle">
-                        {truncate(p.node.kind === "hospital_stay" ? kindLabel(p.node.kind) : p.node.label)}
+                        {shown}
                       </text>
                     </g>
                   );

@@ -153,6 +153,6 @@ describe('Screens use the lifecycle (source contract)', () => {
   it('the timeout card offers Refresh status', () => {
     const src = read('components/ProcessingStatusCard.tsx');
     assert.ok(/Processing is taking longer than expected\./.test(src));
-    assert.ok(/title="Refresh status"/.test(src));
+    assert.ok(/title=\{tr\('Refresh status'\)\}/.test(src));
   });
 });

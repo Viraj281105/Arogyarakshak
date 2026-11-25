@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import type { Translations } from "../translations";
 import { MODULE_META, MODULE_ORDER, moduleHash, type ModuleTab } from "../shell/nav";
 import { MODULE_ICONS } from "../shell/icons/moduleIcons";
+import { useT } from "../i18n/useT";
 
 export type { ModuleTab };
 
@@ -30,6 +31,7 @@ export function nextTabForKey(current: ModuleTab, key: string, order: readonly M
  * replaceState, so the address can be shared and the shell's drawer links land on the same tab.
  */
 export function ModuleTabs({ active, onSelect, t }: { active: ModuleTab; onSelect: (tab: ModuleTab) => void; t: Translations }) {
+  const tr = useT();
   const refs = useRef<Partial<Record<ModuleTab, HTMLButtonElement | null>>>({});
 
   const select = (id: ModuleTab, focus = false) => {
@@ -43,7 +45,7 @@ export function ModuleTabs({ active, onSelect, t }: { active: ModuleTab; onSelec
   };
 
   return (
-    <div className="module-tabs" role="tablist" aria-label="Feature Modules">
+    <div className="module-tabs" role="tablist" aria-label={tr("Feature Modules")}>
       {MODULE_ORDER.map((id) => {
         const Icon = MODULE_ICONS[id];
         return (

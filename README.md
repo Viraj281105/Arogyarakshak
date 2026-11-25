@@ -101,7 +101,7 @@ Rules the code enforces (and tests pin):
 - The **uploaded file is never stored** — it is processed in memory. Only a SHA-256 digest (duplicate guard), extracted entities, and a **redacted** 1,000-character excerpt are kept.
 - The patient's name is extracted in memory and **not persisted**; the excerpt is stripped of names, phone numbers, Aadhaar/PAN and addresses (direct identifiers only — this is not formal anonymisation).
 - A case is deleted on request (`DELETE /api/v1/kadi/cases/{id}`) or automatically after `CASE_TTL_DAYS` (default 90). Deletion removes everything derived from the case, including clinical-review records and signed PDFs.
-- Per-case access tokens (ADR-009); **there is no user-account authentication** (ADR-008, accepted risk for this scope).
+- **Sign-in is required** for every case and module (ADR-029); a case opens only for the account that owns it. Public pages, registration, sign-in, password reset and email verification are the exceptions. Account email is off unless Gmail is configured (ADR-030).
 - Designed around DPDP Act 2023 data-minimisation principles; **no compliance certification is claimed**.
 
 ## 9. Demo mode

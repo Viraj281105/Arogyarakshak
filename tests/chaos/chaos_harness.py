@@ -96,6 +96,10 @@ class UnavailableSession:
 def database_unavailable():
     """Every request (and every background task) gets a session that cannot reach the database."""
 
+    # The test client signs in lazily (ADR-029). Do it while the database is still up, so the
+    # fault hits the request under test and not the test's own sign-in.
+    client.auth_headers()
+
     async def failing_get_db():
         yield UnavailableSession()
 

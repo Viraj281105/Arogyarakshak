@@ -2,20 +2,16 @@
   "schema_version": 1,
   "baseline": null,
   "comparison": {
-    "previousSnapshot": "0637109f429002ebe118644a86ba87d4180a707957f42d4340963a146759ab7f",
+    "previousSnapshot": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f",
     "comparable": true,
     "reasons": [],
     "new": [],
     "evidenceChanged": [
-      "COUP-010095ea6236",
-      "COUP-124374328f34",
-      "COUP-2b971a639d90",
-      "COUP-a4b3d1d87d1e",
-      "COUP-d6deb4af3ce5"
+      "COUP-010095ea6236"
     ],
     "notDetected": [],
     "fixed": [],
-    "unchanged": 27
+    "unchanged": 31
   },
   "findings": {
     "COMP-d292ca1dd569": {
@@ -116,7 +112,7 @@
     },
     "COUP-2b971a639d90": {
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     "COUP-bdf1ec6dd471": {
       "status": "open",
@@ -132,15 +128,15 @@
     },
     "COUP-d6deb4af3ce5": {
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     "COUP-124374328f34": {
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     "COUP-a4b3d1d87d1e": {
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     "COUP-ccc624797468": {
       "status": "open",

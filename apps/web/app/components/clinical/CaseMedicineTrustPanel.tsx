@@ -10,6 +10,7 @@ import { PriceBar } from "../modules/dawacheck/PriceBar";
 import { ExplainTrail } from "../ExplainTrail";
 import type { Explanation } from "../../lib/explanation";
 import type { Language } from "../../translations";
+import { useT } from "../../i18n/useT";
 
 export interface CaseMedicineRow {
   entity_id: string;
@@ -40,6 +41,7 @@ export const CaseMedicineTrustPanel: React.FC<{
   onChanged?: () => void;
   lang?: Language;
 }> = ({ caseId, caseToken, refreshKey = 0, onChanged, lang = "en" }) => {
+  const tr = useT();
   const [reloadTick, setReloadTick] = useState(0);
   const requestKey = `${caseId}|${refreshKey}|${reloadTick}`;
   // The latest settled response and the request it answers; "loading" is derived from it,
@@ -96,38 +98,34 @@ export const CaseMedicineTrustPanel: React.FC<{
   return (
     <section aria-labelledby="case-medicines-title" className="case-panel bn-card">
       <div className="case-panel-head">
-        <h3 id="case-medicines-title">Medicines from your documents</h3>
-        {rows && rows.length > 0 && <span className="timeline-count">{rows.length} found</span>}
+        <h3 id="case-medicines-title">{tr("Medicines from your documents")}</h3>
+        {rows && rows.length > 0 && <span className="timeline-count">{tr("{count} found", { count: rows.length })}</span>}
       </div>
-      {loading && !rows && <StatePanel kind="loading">Checking the medicines extracted from your documents…</StatePanel>}
+      {loading && !rows && <StatePanel kind="loading">{tr("Checking the medicines extracted from your documents…")}</StatePanel>}
       {error && (
-        <StatePanel kind="error" onRetry={retry}>
-          Could not load the medicine price check: {error}
-        </StatePanel>
+        <StatePanel kind="error" onRetry={retry}>{tr("Could not load the medicine price check: {error}", { error: error })}</StatePanel>
       )}
       {rows && rows.length === 0 && (
-        <StatePanel kind="empty">
-          No medicines were extracted from this case&apos;s documents. You can still check a medicine by name below.
-        </StatePanel>
+        <StatePanel kind="empty">{tr("No medicines were extracted from this case's documents. You can still check a medicine by name below.")}</StatePanel>
       )}
       {blocked.length > 0 && (
         <StatePanel kind="warning">
-          {blocked.length} medicine{blocked.length === 1 ? " was" : "s were"} not price-checked because part of the entry is not
-          settled. ArogyaRakshak never price-checks a medicine it may have misread.
-        </StatePanel>
+          {blocked.length === 1
+            ? tr("1 medicine was not price-checked because part of the entry is not settled. ArogyaRakshak never price-checks a medicine it may have misread.")
+            : tr("{count} medicines were not price-checked because part of the entry is not settled. ArogyaRakshak never price-checks a medicine it may have misread.", { count: blocked.length })}</StatePanel>
       )}
       {rows && rows.length > 0 && (
         <ul className="dc-meds">
           {rows.map((r) => {
             const state = r.trust?.state ?? "";
             const isBlocked = BLOCKED_STATES.has(state);
-            const price = r.benchmark ? describePriceCheck(r.benchmark) : null;
+            const price = r.benchmark ? describePriceCheck(r.benchmark, tr) : null;
             return (
               <li key={r.entity_id} className={`dc-med ${isBlocked ? "is-blocked" : ""}`}>
                 <div className="bn-badges">
                   <strong className="dc-med-name">{r.brand_name}</strong>
                   {isBlocked ? (
-                    <span className={TONE_CLASS.warning}>{r.trust?.label ?? humanizeEnum(state)}</span>
+                    <span className={TONE_CLASS.warning}>{r.trust?.label ?? tr(humanizeEnum(state))}</span>
                   ) : (
                     <ProvenanceBadge provenance={r.name_provenance} />
                   )}
@@ -142,14 +140,12 @@ export const CaseMedicineTrustPanel: React.FC<{
                   {r.benchmark && price ? (
                     <>
                       <PriceBar check={r.benchmark} view={price} />
-                      <div className="bn-fine">
-                        {price.billed} · {price.ceiling} (reference: {r.benchmark.active_ingredient})
-                      </div>
+                      <div className="bn-fine">{tr("{billed} · {ceiling} (reference: {active_ingredient})", { billed: price.billed, ceiling: price.ceiling, active_ingredient: r.benchmark.active_ingredient })}</div>
                       {price.reason && <div className="dc-med-reason">{price.reason}</div>}
                       {price.basisNote && <div className="bn-fine">{price.basisNote}</div>}
                     </>
                   ) : (
-                    <span className="bn-fine">{r.note ?? "Not price-checked."}</span>
+                    <span className="bn-fine">{r.note ?? tr("Not price-checked.")}</span>
                   )}
                 </div>
                 <ExplainTrail explanation={r.explanation} lang={lang} />
@@ -161,7 +157,7 @@ export const CaseMedicineTrustPanel: React.FC<{
                       disabled={busy === r.entity_id}
                       onClick={() => askForReading(r.entity_id)}
                     >
-                      {busy === r.entity_id ? "Requesting…" : "Ask for a human reading of this entry"}
+                      {busy === r.entity_id ? tr("Requesting…") : tr("Ask for a human reading of this entry")}
                     </button>
                   </div>
                 )}

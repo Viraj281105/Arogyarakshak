@@ -1,6 +1,7 @@
 import React from "react";
 import { TransitionLink } from "../../shell/TransitionLink";
-import { publicCopy } from "../public/publicCopy";
+import { localisedPublicCopy } from "../public/publicCopy";
+import { requestLanguage } from "../../i18n/server";
 import { ScrollProgressSection } from "./ScrollProgressSection";
 import { HeroIllustration } from "./HeroIllustration";
 import { ArogyaLogoAnimated } from "../brand/Brand";
@@ -13,8 +14,8 @@ const ASSURANCE_ICONS = [
 ];
 
 /** Server Component (WS4): static hero copy; only the scroll-progress wrapper is client code. */
-export const LandingHero: React.FC = () => {
-  const c = publicCopy().landing;
+export async function LandingHero() {
+  const c = (await localisedPublicCopy(await requestLanguage())).landing;
   return (
     <ScrollProgressSection progressVar="--hero-progress" className="lp-hero lp-hero-has-bg" labelledBy="lp-hero-title">
       <MolecularNetworkBackground intensity={0.45} />
@@ -64,4 +65,4 @@ export const LandingHero: React.FC = () => {
       </figure>
     </ScrollProgressSection>
   );
-};
+}

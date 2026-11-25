@@ -38,7 +38,8 @@ browser after running the command to use the viewer.
 
 | Package | Latest run | Summary |
 |---|---|---|
-| `packages/kadi` | 2026-11-24 | [kadi/README.md](kadi/README.md): error-level cycle removed in two steps (ADR-027); 0 errors, 8 warnings, 24 info; a lazy-import `kadi` ↔ `kadi/ocr` warning remains |
+| `packages/kadi` | 2026-11-25 (no finding changed since 2026-11-24) | [kadi/README.md](kadi/README.md): error-level cycle removed in two steps (ADR-027); 0 errors, 8 warnings, 24 info; a lazy-import `kadi` ↔ `kadi/ocr` warning remains |
+| `apps/api/app` | 2026-11-25 | [api/README.md](api/README.md): 0 errors, 3 complexity warnings, 13 info; first run |
 
 ## Re-running a report
 

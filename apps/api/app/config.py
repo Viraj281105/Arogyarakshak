@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://arogyarakshak:arogyarakshak@postgres:5432/arogyarakshak"
 
     # --- Security -------------------------------------------------------------
-    cors_origins: str = "*"
+    # The web client signs in with a cookie, which a browser sends only to an origin listed
+    # here (never with "*"). The default names the local web client; set it for any other.
+    cors_origins: str = "http://localhost:3000"
     # HMAC key for BillNyay's document integrity signatures (#66) — proves a
     # downloaded appeal PDF is byte-for-byte what this server generated, NOT a
     # licensed digital signature certificate (DSC) under the IT Act, 2000. The
@@ -102,8 +104,15 @@ class Settings(BaseSettings):
     login_max_delay_seconds: int = 900
     account_verification_token_ttl_hours: int = 24
     password_reset_token_ttl_minutes: int = 30
-    # Email delivery is an OPEN decision (ADR-026 §11): "disabled" is the only transport.
-    mail_transport: Literal["disabled"] = "disabled"
+    # Account email (ADR-030). "disabled" sends nothing. "gmail_api" sends through one
+    # dedicated Gmail / Google Workspace mailbox over HTTPS and needs every value below.
+    mail_transport: Literal["disabled", "gmail_api"] = "disabled"
+    gmail_sender: str = ""
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
+    gmail_refresh_token: str = ""
+    # Public address of the web app, used to build the links in account email.
+    web_app_base_url: str = ""
 
     # --- Clinical review & safety governance (ADR-011) --------------------------
     # Operator secret for governance actions only: seating safety-board members,
@@ -159,12 +168,16 @@ class Settings(BaseSettings):
         origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
         if not origins or "*" in origins:
             errors.append("CORS_ORIGINS is a wildcard; list the web client's origin(s) explicitly.")
+        elif "cors_origins" not in self.model_fields_set:
+            errors.append("CORS_ORIGINS is not set; the default only names the local development web client.")
         if self.schema_management == "create_all":
             errors.append("SCHEMA_MANAGEMENT=create_all never migrates existing tables; use migrate or none.")
         if self.clinical_demo_mode:
             errors.append("CLINICAL_DEMO_MODE must be off.")
         if not self.session_cookie_secure:
             errors.append("SESSION_COOKIE_SECURE is false; session cookies would travel over plain HTTP.")
+        if self.mail_transport == "gmail_api" and not self.web_app_base_url.startswith("https://"):
+            errors.append("WEB_APP_BASE_URL must be an https:// address; account links carry single-use tokens.")
         return errors
 
     @model_validator(mode="after")
@@ -177,6 +190,20 @@ class Settings(BaseSettings):
         if 128 * n * self.password_scrypt_r > 64 * 1024 * 1024:
             raise ValueError("PASSWORD_SCRYPT_N * PASSWORD_SCRYPT_R needs more than the 64 MiB scrypt memory cap.")
         return self
+
+    @model_validator(mode="after")
+    def _gmail_configuration_complete(self) -> "Settings":
+        if self.mail_transport != "gmail_api":
+            return self
+        required = ("gmail_sender", "gmail_client_id", "gmail_client_secret", "gmail_refresh_token", "web_app_base_url")
+        missing = [name.upper() for name in required if not getattr(self, name).strip()]
+        if missing:
+            raise ValueError(f"MAIL_TRANSPORT=gmail_api also needs: {', '.join(missing)}.")
+        return self
+
+    @property
+    def email_delivery_enabled(self) -> bool:
+        return self.mail_transport != "disabled"
 
     @model_validator(mode="after")
     def _demo_mode_never_in_production(self) -> "Settings":

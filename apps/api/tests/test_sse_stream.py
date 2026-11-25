@@ -17,59 +17,44 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.config import settings
+from tests.account_helpers import other_account, signed_in_web
+from tests.auth_test_client import AuthAwareTestClient
 
-client = TestClient(app)
+client = AuthAwareTestClient(app)
 
 
-def _create_case() -> "tuple[str, str]":
+def _create_case() -> str:
     res = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
-    data = res.json()
-    return data["id"], data["access_token"]
+    return res.json()["id"]
 
 
 def test_stream_requires_a_valid_case_id_not_just_any_string():
     """A nonexistent case must not open the SSE generator at all — the connection is
     rejected with a normal HTTP error, not held open polling an empty status list."""
-    res = client.get(
-        "/api/v1/kadi/cases/CASE-doesnotexist12/stream",
-        headers={"X-Case-Access-Token": "irrelevant"},
-    )
+    res = client.get("/api/v1/kadi/cases/CASE-doesnotexist12/stream")
     assert res.status_code == 404
 
 
 def test_stream_requires_authorization():
-    case_id, _token = _create_case()
-    res = client.get(f"/api/v1/kadi/cases/{case_id}/stream")
+    case_id = _create_case()
+    res = TestClient(app).get(f"/api/v1/kadi/cases/{case_id}/stream")
     assert res.status_code == 401
 
 
-def test_stream_rejects_a_foreign_case_token():
-    case_a, _token_a = _create_case()
-    _case_b, token_b = _create_case()
-    res = client.get(
-        f"/api/v1/kadi/cases/{case_a}/stream",
-        headers={"X-Case-Access-Token": token_b},
-    )
+def test_stream_rejects_another_account():
+    case_a = _create_case()
+    res = client.get(f"/api/v1/kadi/cases/{case_a}/stream", headers=other_account())
     assert res.status_code == 403
 
 
-def test_stream_accepts_the_token_via_query_string_for_eventsource_compatibility():
-    """The browser's native EventSource cannot set custom headers, so this one route
-    also accepts ?access_token= — documented as a deliberate, narrower trade-off in
-    ADR-009, not a general pattern used elsewhere.
-
-    Uploads a document first so the stream reaches `completed` almost immediately
-    rather than idling until the (real, ~120s default) sse_timeout_seconds — this test
-    is about the query-string auth path, not the timeout, which has its own test below
-    with the timeout deliberately shortened."""
-    case_id, token = _create_case()
-    client.post(
-        f"/api/v1/kadi/cases/{case_id}/upload",
-        files={"file": ("bill.txt", b"Consultation: 500\nTotal Amount: 500\n")},
-        headers={"X-Case-Access-Token": token},
-    )
-    res = client.get(f"/api/v1/kadi/cases/{case_id}/stream?access_token={token}")
-    assert res.status_code == 200
+def test_stream_authenticates_with_the_session_cookie_for_eventsource():
+    """The browser's EventSource cannot set headers; it sends the session cookie
+    (``withCredentials``). Nothing in the URL authorizes anything (ADR-029)."""
+    web, _ = signed_in_web()
+    case_id = web.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()["id"]
+    web.post(f"/api/v1/kadi/cases/{case_id}/upload", files={"file": ("bill.txt", b"Consultation: 500\nTotal Amount: 500\n")})
+    assert web.get(f"/api/v1/kadi/cases/{case_id}/stream").status_code == 200
+    assert TestClient(app).get(f"/api/v1/kadi/cases/{case_id}/stream?access_token=anything").status_code == 401
 
 
 def test_stream_times_out_instead_of_holding_the_connection_forever(monkeypatch):
@@ -77,7 +62,7 @@ def test_stream_times_out_instead_of_holding_the_connection_forever(monkeypatch)
     A case that is created but never processed (no upload) would previously poll an
     empty/never-completing status list forever."""
     monkeypatch.setattr(settings, "sse_timeout_seconds", 1)
-    case_id, token = _create_case()
+    case_id = _create_case()
     # Simulate an upload whose background processing hangs: the status list exists (the
     # upload route writes it before returning 202) but never reaches a terminal event.
     # (A case with NO upload in flight now gets an immediate `idle` event — see below.)
@@ -87,7 +72,6 @@ def test_stream_times_out_instead_of_holding_the_connection_forever(monkeypatch)
     started = time.time()
     res = client.get(
         f"/api/v1/kadi/cases/{case_id}/stream",
-        headers={"X-Case-Access-Token": token},
     )
     elapsed = time.time() - started
 
@@ -101,18 +85,16 @@ def test_stream_completes_promptly_for_a_case_that_finishes_processing():
     """Regression guard: the timeout fix must not have broken the legitimate fast path —
     a case whose document has already finished processing streams its events and closes
     immediately, well under the timeout."""
-    case_id, token = _create_case()
+    case_id = _create_case()
     upload = client.post(
         f"/api/v1/kadi/cases/{case_id}/upload",
         files={"file": ("bill.txt", b"Consultation: 500\nTotal Amount: 500\n")},
-        headers={"X-Case-Access-Token": token},
     )
     assert upload.status_code == 202  # background task already ran under TestClient
 
     started = time.time()
     res = client.get(
         f"/api/v1/kadi/cases/{case_id}/stream",
-        headers={"X-Case-Access-Token": token},
     )
     elapsed = time.time() - started
 
@@ -125,9 +107,9 @@ def test_stream_reports_idle_at_once_when_nothing_is_processing():
     """Demo-hardening pass: a patient opening a module for a case with no upload in
     flight (e.g. switching tabs later) previously waited for the full server timeout while
     the app showed "processing". The stream now says `idle` immediately and closes."""
-    case_id, token = _create_case()
+    case_id = _create_case()
     started = time.time()
-    res = client.get(f"/api/v1/kadi/cases/{case_id}/stream", headers={"X-Case-Access-Token": token})
+    res = client.get(f"/api/v1/kadi/cases/{case_id}/stream")
     assert res.status_code == 200
     assert '"status": "idle"' in res.text
     assert "completed" not in res.text, "idle is not a claim that anything was processed"

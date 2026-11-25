@@ -11,6 +11,33 @@ export interface MobileTranslations {
   byodDescription: string;
   offlineNotice: string;
   offlineSubtext: string;
+  // UNREVIEWED: hi/mr home strings are machine translated.
+  home: {
+    promise: string;
+    scanTitle: string;
+    scanDescription: string;
+    journeyTitle: string;
+    journey: string[];
+    journeyNote: string;
+    modulesTitle: string;
+  };
+  // UNREVIEWED: hi/mr auth strings are machine translated.
+  auth: {
+    signInTitle: string;
+    registerTitle: string;
+    lede: string;
+    email: string;
+    password: string;
+    passwordHint: string;
+    signIn: string;
+    createAccount: string;
+    haveAccount: string;
+    noAccount: string;
+    signOut: string;
+    expired: string;
+    unreachable: string;
+    checking: string;
+  };
   tabs: {
     home: string;
     billnyay: string;
@@ -206,8 +233,33 @@ export const translations: Record<Language, MobileTranslations> = {
     tagline: 'Healthcare Protection, Claim Justice & Welfare Access',
     byodBadge: 'Zero Retention (BYOD)',
     byodDescription: 'Processed in transient memory. No permanent medical document storage.',
+    home: {
+      promise: 'Understand your healthcare. Know your next step.',
+      scanTitle: 'Scan a hospital bill or claim letter',
+      scanDescription: 'The document is read, compared with published CGHS and NPPA reference prices where a match exists, and then discarded.',
+      journeyTitle: 'How a case moves',
+      journey: ['Add your document', 'See what was read from it', 'Check what may be worth questioning', 'Prepare a draft and note what happens next'],
+      journeyNote: 'Nothing is sent to a hospital or insurer for you.',
+      modulesTitle: 'What you can check',
+    },
     offlineNotice: 'No Internet Connection',
     offlineSubtext: 'Some features may be limited until connection is restored.',
+    auth: {
+      signInTitle: 'Sign in',
+      registerTitle: 'Create an account',
+      lede: 'Your cases and every check need an account, so that only you can open them.',
+      email: 'Email',
+      password: 'Password',
+      passwordHint: 'Use 12 to 128 characters. Do not use your email address.',
+      signIn: 'Sign in',
+      createAccount: 'Create account',
+      haveAccount: 'I already have an account',
+      noAccount: 'Create an account',
+      signOut: 'Sign out',
+      expired: 'You were signed out. Sign in again to continue.',
+      unreachable: 'The server cannot be reached. Check your connection and try again.',
+      checking: 'Checking your sign-in…',
+    },
     tabs: {
       home: 'Home',
       billnyay: 'BillNyay',
@@ -381,8 +433,33 @@ export const translations: Record<Language, MobileTranslations> = {
     tagline: 'स्वास्थ्य सुरक्षा, दावा न्याय एवं योजना सहायता',
     byodBadge: 'शून्य दस्तावेज़ संचयन (BYOD)',
     byodDescription: 'अस्थायी मेमोरी में संसाधित। कोई स्थायी मेडिकल दस्तावेज़ संचित नहीं होता।',
+    home: {
+      promise: 'अपनी स्वास्थ्य सेवा समझें। अगला कदम जानें।',
+      scanTitle: 'अस्पताल का बिल या दावा पत्र स्कैन करें',
+      scanDescription: 'दस्तावेज़ पढ़ा जाता है, जहाँ मिलान हो वहाँ प्रकाशित CGHS और NPPA संदर्भ मूल्यों से तुलना होती है, फिर उसे हटा दिया जाता है।',
+      journeyTitle: 'केस कैसे आगे बढ़ता है',
+      journey: ['अपना दस्तावेज़ जोड़ें', 'देखें कि उससे क्या पढ़ा गया', 'जाँचें कि किस पर प्रश्न करना उचित हो सकता है', 'मसौदा तैयार करें और आगे क्या हुआ, लिखें'],
+      journeyNote: 'आपकी ओर से किसी अस्पताल या बीमा कंपनी को कुछ नहीं भेजा जाता।',
+      modulesTitle: 'आप क्या जाँच सकते हैं',
+    },
     offlineNotice: 'इंटरनेट कनेक्शन नहीं है',
     offlineSubtext: 'कनेक्शन बहाल होने तक कुछ सुविधाएं सीमित हो सकती हैं।',
+    auth: {
+      signInTitle: 'साइन इन करें',
+      registerTitle: 'खाता बनाएँ',
+      lede: 'आपके केस और हर जाँच के लिए खाता ज़रूरी है, ताकि उन्हें केवल आप खोल सकें।',
+      email: 'ईमेल',
+      password: 'पासवर्ड',
+      passwordHint: '12 से 128 अक्षर रखें। अपना ईमेल पता पासवर्ड न बनाएँ।',
+      signIn: 'साइन इन करें',
+      createAccount: 'खाता बनाएँ',
+      haveAccount: 'मेरा खाता पहले से है',
+      noAccount: 'खाता बनाएँ',
+      signOut: 'साइन आउट',
+      expired: 'आप साइन आउट हो गए। जारी रखने के लिए फिर से साइन इन करें।',
+      unreachable: 'सर्वर तक पहुँच नहीं हो रही। अपना कनेक्शन जाँचें और फिर कोशिश करें।',
+      checking: 'आपका साइन-इन जाँचा जा रहा है…',
+    },
     tabs: {
       home: 'मुख्य',
       billnyay: 'बिलन्याय',
@@ -556,8 +633,33 @@ export const translations: Record<Language, MobileTranslations> = {
     tagline: 'आरोग्य संरक्षण, दावा न्याय आणि योजना सहाय्य',
     byodBadge: 'शून्य दस्तऐवज साठवण (BYOD)',
     byodDescription: 'अल्पकालीन मेमरीमध्ये प्रक्रिया. वैद्यकीय दस्तऐवज कायमस्वरूपी साठवले जात नाहीत.',
+    home: {
+      promise: 'तुमची आरोग्य सेवा समजून घ्या. पुढचे पाऊल जाणा.',
+      scanTitle: 'रुग्णालय बिल किंवा दावा पत्र स्कॅन करा',
+      scanDescription: 'कागदपत्र वाचले जाते, जुळणी असेल तिथे प्रकाशित CGHS आणि NPPA संदर्भ किंमतींशी तुलना होते आणि मग ते टाकून दिले जाते.',
+      journeyTitle: 'केस कशी पुढे जाते',
+      journey: ['तुमचे कागदपत्र जोडा', 'त्यातून काय वाचले ते पाहा', 'कशावर प्रश्न विचारणे योग्य ठरेल ते तपासा', 'मसुदा तयार करा आणि पुढे काय झाले ते नोंदवा'],
+      journeyNote: 'तुमच्या वतीने कोणत्याही रुग्णालयाला किंवा विमा कंपनीला काहीही पाठवले जात नाही.',
+      modulesTitle: 'तुम्ही काय तपासू शकता',
+    },
     offlineNotice: 'इंटरनेट कनेक्शन नाही',
     offlineSubtext: 'कनेक्शन पूर्ववत होईपर्यंत काही सुविधा मर्यादित असू शकतात.',
+    auth: {
+      signInTitle: 'साइन इन करा',
+      registerTitle: 'खाते तयार करा',
+      lede: 'तुमच्या केस आणि प्रत्येक तपासणीसाठी खाते आवश्यक आहे, जेणेकरून त्या फक्त तुम्हीच उघडू शकाल.',
+      email: 'ईमेल',
+      password: 'पासवर्ड',
+      passwordHint: '12 ते 128 अक्षरे वापरा. तुमचा ईमेल पत्ता पासवर्ड म्हणून वापरू नका.',
+      signIn: 'साइन इन करा',
+      createAccount: 'खाते तयार करा',
+      haveAccount: 'माझे खाते आधीच आहे',
+      noAccount: 'खाते तयार करा',
+      signOut: 'साइन आउट',
+      expired: 'तुम्ही साइन आउट झाला आहात. पुढे जाण्यासाठी पुन्हा साइन इन करा.',
+      unreachable: 'सर्व्हरशी संपर्क होत नाही. तुमचे कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.',
+      checking: 'तुमचे साइन-इन तपासले जात आहे…',
+    },
     tabs: {
       home: 'मुख्य',
       billnyay: 'बिलन्याय',

@@ -1,5 +1,7 @@
 import React from "react";
 import { ScrollProgressSection } from "./ScrollProgressSection";
+import { msg } from "../../i18n/format";
+import { serverT } from "../../i18n/server";
 
 // What actually happens to a document, in order. Each claim here is backed by code:
 // the 10 MB limit (apps/api config max_upload_bytes) and the upload allow-list (kadi/cases.py),
@@ -8,38 +10,39 @@ import { ScrollProgressSection } from "./ScrollProgressSection";
 // pack (lib/packageCrypto.ts) and patient-initiated deletion (SEC-03).
 const STEPS = [
   {
-    title: "You add a document",
-    body: "A photo, PDF or text export of a bill, discharge summary, insurer letter or prescription — up to 10 MB. Nothing is sent until you tick consent.",
-    facts: ["PDF · JPG · PNG · WEBP · BMP · TXT · CSV", "Consent is opt-in"],
+    title: msg("You add a document"),
+    body: msg("A photo, PDF or text export of a bill, discharge summary, insurer letter or prescription — up to 10 MB. Nothing is sent until you tick consent."),
+    facts: [msg("PDF · JPG · PNG · WEBP · BMP · TXT · CSV"), msg("Consent is opt-in")],
     icon: <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />,
   },
   {
-    title: "Kadi reads it",
-    body: "Scans are read with text recognition (English by default); line items, amounts, dates and names are pulled out. Direct identifiers are stripped from the excerpt that is kept, and the file itself is discarded.",
-    facts: ["Original file discarded", "Identifiers redacted"],
+    title: msg("Kadi reads it"),
+    body: msg("Scans are read with text recognition (English by default); line items, amounts, dates and names are pulled out. Direct identifiers are stripped from the excerpt that is kept, and the file itself is discarded."),
+    facts: [msg("Original file discarded"), msg("Identifiers redacted")],
     icon: <path d="M4 6h16M4 10h10M4 14h16M4 18h7M17 15l3 3" />,
   },
   {
-    title: "The modules check the case",
-    body: "Charges are compared with CGHS rates, medicines with NPPA ceilings, denials with IRDAI rules, and your details with PM-JAY and MJPJAY eligibility rules. Anything without a reference is reported as not compared.",
-    facts: ["Rule-based comparisons", "No guessed benchmarks"],
+    title: msg("The modules check the case"),
+    body: msg("Charges are compared with CGHS rates, medicines with NPPA ceilings, denials with IRDAI rules, and your details with PM-JAY and MJPJAY eligibility rules. Anything without a reference is reported as not compared."),
+    facts: [msg("Rule-based comparisons"), msg("No guessed benchmarks")],
     icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   },
   {
-    title: "You decide what to do next",
-    body: "Read each finding with its basis, edit the appeal drafts, and download a claim pack — password-protected in your browser if you want. Delete the case whenever you like.",
-    facts: ["Editable drafts", "Delete any time"],
+    title: msg("You decide what to do next"),
+    body: msg("Read each finding with its basis, edit the appeal drafts, and download a claim pack — password-protected in your browser if you want. Delete the case whenever you like."),
+    facts: [msg("Editable drafts"), msg("Delete any time")],
     icon: <path d="M5 4h10l4 4v12H5zM9 12h6M9 16h4" />,
   },
 ];
 
 /** Server Component (WS4): static content; only the scroll-progress wrapper is client code. */
-export const CaseJourney: React.FC = () => {
+export async function CaseJourney() {
+  const { tr } = await serverT();
   return (
     <ScrollProgressSection progressVar="--journey-progress" className="lp-section lp-journey" labelledBy="lp-journey-title">
       <header className="lp-section-head" data-reveal>
-        <p className="lp-kicker">Document → insight → action</p>
-        <h2 id="lp-journey-title" className="lp-heading">From a folded bill to a clear next step.</h2>
+        <p className="lp-kicker">{tr("Document → insight → action")}</p>
+        <h2 id="lp-journey-title" className="lp-heading">{tr("From a folded bill to a clear next step.")}</h2>
       </header>
       <div className="lp-journey-track">
         {/* The connector behind the markers fills as the section scrolls through view. */}
@@ -54,11 +57,11 @@ export const CaseJourney: React.FC = () => {
               <span className="lp-journey-num" aria-hidden="true">
                 0{i + 1}
               </span>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-              <ul className="lp-chips" aria-label="Key facts">
+              <h3>{tr(s.title)}</h3>
+              <p>{tr(s.body)}</p>
+              <ul className="lp-chips" aria-label={tr("Key facts")}>
                 {s.facts.map((f) => (
-                  <li key={f}>{f}</li>
+                  <li key={f}>{tr(f)}</li>
                 ))}
               </ul>
             </li>
@@ -67,4 +70,4 @@ export const CaseJourney: React.FC = () => {
       </div>
     </ScrollProgressSection>
   );
-};
+}

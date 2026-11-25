@@ -1,5 +1,6 @@
 import React from "react";
 import { ILLUSTRATIVE_LINES, LineStatus, formatINR } from "../../lib/illustrativeBill";
+import { T } from "../../i18n/T";
 
 const ROW_Y0 = 132;
 const ROW_GAP = 56;
@@ -66,11 +67,11 @@ export const HeroIllustration: React.FC = () => {
         <rect className="ill-sheet" x="34" y="28" width="336" height="452" rx="18" />
         <rect className="ill-sheet-margin" x="34" y="28" width="6" height="452" rx="3" />
 
-        <text className="ill-kicker" x="62" y="66">INPATIENT BILL</text>
-        <text className="ill-kicker ill-kicker-soft" x="342" y="66" textAnchor="end">ILLUSTRATIVE</text>
+        <text className="ill-kicker" x="62" y="66"><T k="INPATIENT BILL" /></text>
+        <text className="ill-kicker ill-kicker-soft" x="342" y="66" textAnchor="end"><T k="ILLUSTRATIVE" /></text>
         <line className="ill-rule" x1="62" x2="342" y1="84" y2="84" />
-        <text className="ill-col" x="62" y="106">Item</text>
-        <text className="ill-col" x="300" y="106" textAnchor="end">Billed</text>
+        <text className="ill-col" x="62" y="106"><T k="Item" /></text>
+        <text className="ill-col" x="300" y="106" textAnchor="end"><T k="Billed" /></text>
 
         {ILLUSTRATIVE_LINES.map((line, i) => {
           const y = ROW_Y0 + i * ROW_GAP;
@@ -85,7 +86,7 @@ export const HeroIllustration: React.FC = () => {
           );
         })}
 
-        <text className="ill-total-label" x="62" y="430">Total billed</text>
+        <text className="ill-total-label" x="62" y="430"><T k="Total billed" /></text>
         <text className="ill-total" x="300" y="430" textAnchor="end">{formatINR(total)}</text>
 
         <g clipPath="url(#ill-sheet-clip)">
@@ -97,9 +98,10 @@ export const HeroIllustration: React.FC = () => {
         <g className="ill-note">
           <path className="ill-note-leader" d="M346 127 C 392 132, 396 300, 392 494" />
           <rect className="ill-note-box" x="196" y="494" width="220" height="58" rx="10" />
-          <text className="ill-note-title" x="212" y="516">Ward · CGHS reference</text>
+          <text className="ill-note-title" x="212" y="516"><T k="Ward · CGHS reference" /></text>
           <text className="ill-note-body" x="212" y="538">
-            {formatINR(ward.rate.rate)}/day · billed {formatINR(ward.billed / (ward.reference / ward.rate.rate))}
+            {formatINR(ward.rate.rate)}
+          <T k="/day · billed" /> {formatINR(ward.billed / (ward.reference / ward.rate.rate))}
           </text>
         </g>
       )}

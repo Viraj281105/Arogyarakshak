@@ -11,6 +11,7 @@ import { SignInPanel } from "./components/SignInPanel";
 import { LazyPanel } from "../components/LazyPanel";
 import { AssignedReview, ReviewerCall, Tab } from "./types";
 import { useHeaderSlot } from "../shell/ShellProvider";
+import { useT } from "../i18n/useT";
 
 // Code-split (WS4): the tabs render only after sign-in, so they stay out of the initial JS.
 const tabLoading = () => <LazyPanel minHeight="20rem" />;
@@ -23,6 +24,7 @@ const SafetyTab = dynamic(() => import("./components/SafetyTab").then((m) => m.S
 /** Reviewer workspace: credential + profile, then three tabs (assigned reviews,
  *  transcriptions, safety governance). Each tab owns its own state. */
 export default function ClinicalReviewWorkspace() {
+  const tr = useT();
   // Held in memory only: the credential is a bearer secret and is never written to
   // localStorage. Reloading the page means pasting it again.
   const demoStatus = useDemoStatus();
@@ -41,14 +43,14 @@ export default function ClinicalReviewWorkspace() {
         <>
           <DemoPill status={demoStatus} />
           {me && (
-            <span className="rv-signed-chip" title={`Signed in as ${me.name}`}>
+            <span className="rv-signed-chip" title={tr("Signed in as {name}", { name: me.name })}>
               <span className="reviewer-status-dot" aria-hidden="true" />
               {me.name}
             </span>
           )}
         </>
       ),
-      [demoStatus, me]
+      [demoStatus, me, tr]
     )
   );
 
@@ -92,9 +94,9 @@ export default function ClinicalReviewWorkspace() {
   };
 
   const TABS: { id: Tab; label: string; hint: string }[] = [
-    { id: "reviews", label: "Assigned reviews", hint: "Statements and fact confirmations patients asked you for" },
-    { id: "transcriptions", label: "Transcriptions", hint: "Unclear prescription readings" },
-    { id: "safety", label: "Safety governance", hint: "Red-flag rules and their approval" },
+    { id: "reviews", label: tr("Assigned reviews"), hint: tr("Statements and fact confirmations patients asked you for") },
+    { id: "transcriptions", label: tr("Transcriptions"), hint: tr("Unclear prescription readings") },
+    { id: "safety", label: tr("Safety governance"), hint: tr("Red-flag rules and their approval") },
   ];
 
   return (
@@ -106,15 +108,9 @@ export default function ClinicalReviewWorkspace() {
         <DemoBanner status={demoStatus} />
 
         <section className="rv-hero" aria-labelledby="rv-title">
-          <p className="lp-kicker">Reviewer workspace</p>
-          <h1 id="rv-title" className="lp-heading">
-            Clinical Reviewer Workspace
-          </h1>
-          <p className="lp-section-lede">
-            For doctors, pharmacists, medical transcriptionists and trained annotators. You see only the evidence a patient chose
-            to share with you, and everything you write is attributed to you with your declared conflict of interest. Your
-            registration is shown to patients exactly as verified — self-declared details are labelled as such.
-          </p>
+          <p className="lp-kicker">{tr("Reviewer workspace")}</p>
+          <h1 id="rv-title" className="lp-heading">{tr("Clinical Reviewer Workspace")}</h1>
+          <p className="lp-section-lede">{tr("For doctors, pharmacists, medical transcriptionists and trained annotators. You see only the evidence a patient chose to share with you, and everything you write is attributed to you with your declared conflict of interest. Your registration is shown to patients exactly as verified — self-declared details are labelled as such.")}</p>
         </section>
 
         {error && <StatePanel kind="error">{error}</StatePanel>}
@@ -124,44 +120,35 @@ export default function ClinicalReviewWorkspace() {
 
         {issuedToken && (
           <section role="status" className="case-panel bn-card rv-issued" aria-labelledby="rv-issued-title">
-            <h3 id="rv-issued-title">Your reviewer credential — shown once, store it now</h3>
-            <p className="bn-fine">
-              ArogyaRakshak does not keep a copy you can retrieve. Without it you cannot open this workspace again.
-            </p>
+            <h3 id="rv-issued-title">{tr("Your reviewer credential — shown once, store it now")}</h3>
+            <p className="bn-fine">{tr("ArogyaRakshak does not keep a copy you can retrieve. Without it you cannot open this workspace again.")}</p>
             <code className="rv-token">{issuedToken}</code>
             <div className="bn-actions-row">
               <button type="button" className="btn btn-secondary btn-compact" onClick={() => void copyIssued()}>
-                {copied ? "Copied" : "Copy credential"}
+                {copied ? tr("Copied") : tr("Copy credential")}
               </button>
-              <button type="button" className="btn btn-ghost btn-compact" onClick={() => setIssuedToken(null)}>
-                I have stored it
-              </button>
+              <button type="button" className="btn btn-ghost btn-compact" onClick={() => setIssuedToken(null)}>{tr("I have stored it")}</button>
             </div>
           </section>
         )}
 
         {me && (
           <>
-            <section className="case-panel bn-card rv-profile" aria-label="Signed-in reviewer">
+            <section className="case-panel bn-card rv-profile" aria-label={tr("Signed-in reviewer")}>
               <div className="rv-profile-main">
-                <div className="stat-label">Signed in as</div>
+                <div className="stat-label">{tr("Signed in as")}</div>
                 <ReviewerAttribution reviewer={me} />
-                {me.is_safety_board_member && <span className={TONE_CLASS.neutral}>Clinical safety board member</span>}
+                {me.is_safety_board_member && <span className={TONE_CLASS.neutral}>{tr("Clinical safety board member")}</span>}
               </div>
               <div className="rv-profile-side">
-                <p className="rv-id">
-                  Your reviewer ID: <code>{me.id}</code> — give it to your patient so they can assign you. Only independently
-                  verified reviewers appear in the public list.
-                </p>
-                <p className="bn-fine">
-                  Verification limits: ArogyaRakshak is not connected to any medical or pharmacy council registry. Patients see
-                  your registration exactly as labelled here —{" "}
-                  {me.verification_status === "DEMO_VERIFIED" ? "a demo fixture, not a real check" : "self-declared, not verified"}.
+                <p className="rv-id">{tr("Your reviewer ID:")}{" "}<code>{me.id}</code>{" "}{tr("— give it to your patient so they can assign you. Only independently verified reviewers appear in the public list.")}</p>
+                <p className="bn-fine">{tr("Verification limits: ArogyaRakshak is not connected to any medical or pharmacy council registry. Patients see your registration exactly as labelled here —")}{" "}
+                  {me.verification_status === "DEMO_VERIFIED" ? tr("a demo fixture, not a real check") : tr("self-declared, not verified")}.
                 </p>
               </div>
             </section>
 
-            <nav className="rv-tabs" role="tablist" aria-label="Workspace sections">
+            <nav className="rv-tabs" role="tablist" aria-label={tr("Workspace sections")}>
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -177,7 +164,7 @@ export default function ClinicalReviewWorkspace() {
                 >
                   <strong>{t.label}</strong>
                   <span>
-                    {t.id === "reviews" && queue.length > 0 ? `${queue.length} assigned · ` : ""}
+                    {t.id === "reviews" && queue.length > 0 ? tr("{count} assigned · ", { count: queue.length }) : ""}
                     {t.hint}
                   </span>
                 </button>

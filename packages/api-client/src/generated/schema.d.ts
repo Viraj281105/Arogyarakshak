@@ -625,6 +625,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/kadi/auth/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Auth Config
+         * @description What the signed-out pages need to say honestly: can this server send email?
+         */
+        get: operations["auth_config_api_v1_kadi_auth_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/kadi/auth/login": {
         parameters: {
             query?: never;
@@ -815,8 +835,7 @@ export interface paths {
         put?: never;
         /**
          * Create Case
-         * @description Creates a new patient case session and its one-time access token (ADR-009).
-         *     Signed in (ADR-026): the case is owned by the account and no case token is issued.
+         * @description Creates a new case owned by the signed-in account (ADR-029). No case token is issued.
          */
         post: operations["create_case_api_v1_kadi_cases_post"];
         delete?: never;
@@ -893,6 +912,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/kadi/cases/{case_id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Case Actions
+         * @description Every tracked action of the case with its history, oldest first.
+         */
+        get: operations["list_case_actions_api_v1_kadi_cases__case_id__actions_get"];
+        put?: never;
+        /**
+         * Create Case Action
+         * @description Starts tracking a next step. It is 'planned' until the user records more.
+         */
+        post: operations["create_case_action_api_v1_kadi_cases__case_id__actions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/cases/{case_id}/actions/{action_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Case Action */
+        delete: operations["delete_case_action_api_v1_kadi_cases__case_id__actions__action_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kadi/cases/{case_id}/actions/{action_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Case Action Event
+         * @description Records what the user says happened. Refused (409) when it could not be true, for
+         *     example a response to something never sent.
+         */
+        post: operations["record_case_action_event_api_v1_kadi_cases__case_id__actions__action_id__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/kadi/cases/{case_id}/claim": {
         parameters: {
             query?: never;
@@ -904,8 +985,8 @@ export interface paths {
         put?: never;
         /**
          * Claim Case
-         * @description Moves a guest case into the signed-in account. Needs the session AND the case's
-         *     X-Case-Access-Token; afterwards that token no longer opens the case.
+         * @description Moves a case started before sign-in was required into the signed-in account. Needs
+         *     the session AND the case's X-Case-Access-Token; afterwards the token is discarded.
          */
         post: operations["claim_case_api_v1_kadi_cases__case_id__claim_post"];
         delete?: never;
@@ -1332,8 +1413,8 @@ export interface paths {
         put?: never;
         /**
          * Load Clinical Demo Scenario
-         * @description Starts a scenario: a fresh consented case whose synthetic documents have been run
-         *     through the real upload pipeline. Returns the case id and its one-time access token.
+         * @description Starts a scenario: a fresh consented case, owned by the signed-in account, whose
+         *     synthetic documents have been run through the real upload pipeline.
          */
         post: operations["load_clinical_demo_scenario_api_v1_kadi_clinical_demo_scenarios__scenario_id__post"];
         delete?: never;
@@ -2322,6 +2403,94 @@ export interface components {
              */
             status: "accepted";
         };
+        /** ActionCreate */
+        ActionCreate: {
+            /**
+             * Amount Disputed
+             * @description Rupees, as recorded by the user. Not verified.
+             */
+            amount_disputed?: number | null;
+            contact_method?: components["schemas"]["ContactMethod"] | null;
+            /**
+             * Finding Ref
+             * @description Which finding this answers.
+             */
+            finding_ref?: string | null;
+            /** Institution */
+            institution?: string | null;
+            kind: components["schemas"]["ActionKind"];
+            module: components["schemas"]["ActionModule"];
+            /** Next Step */
+            next_step?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** ActionEvent */
+        ActionEvent: {
+            /** Evidence Sha256 */
+            evidence_sha256: string | null;
+            /** Note */
+            note: string | null;
+            /** Occurred On */
+            occurred_on: string | null;
+            /**
+             * Provenance
+             * @description 'user_recorded': entered by the user, not independently verified.
+             */
+            provenance: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            status: components["schemas"]["ActionStatus"];
+        };
+        /** ActionEventCreate */
+        ActionEventCreate: {
+            /**
+             * Amount Corrected
+             * @description Rupees, as recorded by the user. Not verified.
+             */
+            amount_corrected?: number | null;
+            /**
+             * Amount Disputed
+             * @description Rupees, as recorded by the user. Not verified.
+             */
+            amount_disputed?: number | null;
+            contact_method?: components["schemas"]["ContactMethod"] | null;
+            /**
+             * Evidence Sha256
+             * @description A document already in this case.
+             */
+            evidence_sha256?: string | null;
+            /** Institution */
+            institution?: string | null;
+            /** Next Step */
+            next_step?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Occurred On
+             * @description The day it happened, as the user remembers it.
+             */
+            occurred_on?: string | null;
+            status: components["schemas"]["ActionStatus"];
+        };
+        /**
+         * ActionKind
+         * @enum {string}
+         */
+        ActionKind: "clarification_request" | "appeal_or_grievance" | "collect_documents" | "confirm_with_doctor" | "ask_pharmacist" | "check_eligibility" | "other";
+        /**
+         * ActionModule
+         * @enum {string}
+         */
+        ActionModule: "billnyay" | "bimanyay" | "dawacheck" | "daavisetu" | "schemesetu" | "kadi";
+        /**
+         * ActionStatus
+         * @enum {string}
+         */
+        ActionStatus: "planned" | "draft_prepared" | "sent" | "awaiting_response" | "response_received" | "further_action_needed" | "resolved" | "partially_resolved" | "unresolved" | "closed" | "withdrawn";
         /** AppealResponse */
         AppealResponse: {
             /** Appeal Letter */
@@ -2442,6 +2611,14 @@ export interface components {
              */
             status: "overcharged" | "within_benchmark" | "bundled" | "not_benchmarked";
         };
+        /** AuthConfigResponse */
+        AuthConfigResponse: {
+            /**
+             * Email Delivery
+             * @description Whether this server can send account email.
+             */
+            email_delivery: boolean;
+        };
         /** BenchRequest */
         BenchRequest: {
             /**
@@ -2506,6 +2683,46 @@ export interface components {
             scope: string;
             /** Status */
             status: string;
+        };
+        /** CaseAction */
+        CaseAction: {
+            /** Allowed Next */
+            allowed_next: components["schemas"]["ActionStatus"][];
+            /** Amount Corrected */
+            amount_corrected: number | null;
+            /** Amount Disputed */
+            amount_disputed: number | null;
+            contact_method: components["schemas"]["ContactMethod"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Events */
+            events: components["schemas"]["ActionEvent"][];
+            /** Finding Ref */
+            finding_ref: string | null;
+            /** Id */
+            id: string;
+            /** Institution */
+            institution: string | null;
+            kind: components["schemas"]["ActionKind"];
+            module: components["schemas"]["ActionModule"];
+            /** Next Step */
+            next_step: string | null;
+            status: components["schemas"]["ActionStatus"];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CaseActionList */
+        CaseActionList: {
+            /** Actions */
+            actions: components["schemas"]["CaseAction"][];
         };
         /** CaseCreate */
         CaseCreate: {
@@ -2823,6 +3040,11 @@ export interface components {
             /** Confirmation Text */
             confirmation_text?: string | null;
         };
+        /**
+         * ContactMethod
+         * @enum {string}
+         */
+        ContactMethod: "in_person" | "phone" | "email" | "letter" | "online_portal" | "other";
         /** DatasetProvenance */
         DatasetProvenance: {
             /** Description */
@@ -4282,6 +4504,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description Set only for the demonstration account.
+             */
+            display_name?: string | null;
             /** Email */
             email: string;
             /** Email Verified */
@@ -4290,6 +4517,12 @@ export interface components {
             email_verified_at?: string | null;
             /** Id */
             id: string;
+            /**
+             * Is Demo
+             * @description The synthetic demonstration account: its data is not real.
+             * @default false
+             */
+            is_demo: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -4331,11 +4564,8 @@ export interface operations {
             query?: {
                 /** @description Appeal letter language: en, hi, or mr (#39). */
                 language?: string;
-                access_token?: string | null;
             };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4365,12 +4595,8 @@ export interface operations {
     };
     download_appeal_pdf_api_v1_billnyay_cases__case_id__appeal_pdf_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4400,12 +4626,8 @@ export interface operations {
     };
     verify_appeal_pdf_api_v1_billnyay_cases__case_id__appeal_verify_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4435,12 +4657,8 @@ export interface operations {
     };
     audit_bill_api_v1_billnyay_cases__case_id__audit_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4470,12 +4688,8 @@ export interface operations {
     };
     clinical_plausibility_api_v1_billnyay_cases__case_id__clinical_plausibility_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4505,12 +4719,8 @@ export interface operations {
     };
     draft_grievance_api_v1_billnyay_cases__case_id__grievance_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4540,12 +4750,8 @@ export interface operations {
     };
     audit_icd_procedure_api_v1_billnyay_cases__case_id__icd_audit_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4645,9 +4851,7 @@ export interface operations {
                 /** @description Optional: link this dispute record to an existing Kadi case (SEC-04). */
                 case_id?: string | null;
             };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -4679,12 +4883,8 @@ export interface operations {
     };
     clinical_statements_for_appeal_api_v1_bimanyay_cases__case_id__clinical_statements_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4718,9 +4918,7 @@ export interface operations {
                 /** @description Optional: link this grievance record to an existing Kadi case (SEC-04). */
                 case_id?: string | null;
             };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -4752,12 +4950,8 @@ export interface operations {
     };
     generate_pre_auth_form_api_v1_daavisetu_cases__case_id__claim_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4791,12 +4985,8 @@ export interface operations {
     };
     fill_claim_template_api_v1_daavisetu_cases__case_id__claim_fill_template_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4830,12 +5020,8 @@ export interface operations {
     };
     download_claim_package_api_v1_daavisetu_cases__case_id__claim_package_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4865,12 +5051,8 @@ export interface operations {
     };
     download_preauth_pdf_api_v1_daavisetu_cases__case_id__claim_pdf_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -4900,12 +5082,9 @@ export interface operations {
     };
     preauth_readiness_api_v1_daavisetu_cases__case_id__readiness_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
+            query?: never;
             header?: {
                 "X-Institution-Token"?: string | null;
-                "X-Case-Access-Token"?: string | null;
             };
             path: {
                 case_id: string;
@@ -4940,12 +5119,9 @@ export interface operations {
     };
     request_clinical_confirmation_api_v1_daavisetu_cases__case_id__readiness_clinical_confirmations_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
+            query?: never;
             header?: {
                 "X-Institution-Token"?: string | null;
-                "X-Case-Access-Token"?: string | null;
             };
             path: {
                 case_id: string;
@@ -5336,12 +5512,8 @@ export interface operations {
     };
     benchmark_case_medicines_api_v1_dawacheck_cases__case_id__benchmark_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -5398,6 +5570,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_config_api_v1_kadi_auth_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthConfigResponse"];
                 };
             };
         };
@@ -5759,12 +5951,8 @@ export interface operations {
     };
     get_case_api_v1_kadi_cases__case_id__get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -5794,12 +5982,8 @@ export interface operations {
     };
     delete_case_api_v1_kadi_cases__case_id__delete: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -5827,12 +6011,8 @@ export interface operations {
     };
     import_abdm_records_api_v1_kadi_cases__case_id__abdm_import_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -5860,11 +6040,141 @@ export interface operations {
             };
         };
     };
+    list_case_actions_api_v1_kadi_cases__case_id__actions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseActionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_case_action_api_v1_kadi_cases__case_id__actions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseAction"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_case_action_api_v1_kadi_cases__case_id__actions__action_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_case_action_event_api_v1_kadi_cases__case_id__actions__action_id__events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionEventCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseAction"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     claim_case_api_v1_kadi_cases__case_id__claim_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
+            query?: never;
             header?: {
                 "X-Case-Access-Token"?: string | null;
             };
@@ -5897,12 +6207,8 @@ export interface operations {
     };
     download_claim_pack_api_v1_kadi_cases__case_id__claim_pack_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -5932,12 +6238,8 @@ export interface operations {
     };
     clinical_context_api_v1_kadi_cases__case_id__clinical_context_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -5969,11 +6271,8 @@ export interface operations {
         parameters: {
             query?: {
                 source_module?: components["schemas"]["SourceModule"] | null;
-                access_token?: string | null;
             };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6003,12 +6302,8 @@ export interface operations {
     };
     request_clinical_review_api_v1_kadi_cases__case_id__clinical_reviews_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6042,12 +6337,8 @@ export interface operations {
     };
     get_clinical_review_api_v1_kadi_cases__case_id__clinical_reviews__review_id__get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 review_id: string;
@@ -6078,12 +6369,8 @@ export interface operations {
     };
     assign_clinical_review_api_v1_kadi_cases__case_id__clinical_reviews__review_id__assign_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 review_id: string;
@@ -6118,12 +6405,8 @@ export interface operations {
     };
     case_review_audit_api_v1_kadi_cases__case_id__clinical_reviews__review_id__audit_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 review_id: string;
@@ -6154,12 +6437,8 @@ export interface operations {
     };
     cancel_clinical_review_api_v1_kadi_cases__case_id__clinical_reviews__review_id__cancel_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 review_id: string;
@@ -6190,12 +6469,8 @@ export interface operations {
     };
     case_graph_api_v1_kadi_cases__case_id__graph_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6225,12 +6500,8 @@ export interface operations {
     };
     case_insights_api_v1_kadi_cases__case_id__insights_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6262,11 +6533,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
-                access_token?: string | null;
             };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6296,12 +6564,8 @@ export interface operations {
     };
     submit_resolution_feedback_api_v1_kadi_cases__case_id__resolutions__decision_id__feedback_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 decision_id: string;
@@ -6336,12 +6600,8 @@ export interface operations {
     };
     case_safety_escalations_api_v1_kadi_cases__case_id__safety_escalations_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6371,12 +6631,8 @@ export interface operations {
     };
     stream_processing_status_api_v1_kadi_cases__case_id__stream_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6406,12 +6662,8 @@ export interface operations {
     };
     get_case_timeline_api_v1_kadi_cases__case_id__timeline_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6441,12 +6693,8 @@ export interface operations {
     };
     list_transcriptions_api_v1_kadi_cases__case_id__transcriptions_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6476,12 +6724,8 @@ export interface operations {
     };
     flag_for_transcription_api_v1_kadi_cases__case_id__transcriptions_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -6515,12 +6759,8 @@ export interface operations {
     };
     assign_transcription_api_v1_kadi_cases__case_id__transcriptions__task_id__assign_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 task_id: string;
@@ -6555,12 +6795,8 @@ export interface operations {
     };
     cancel_transcription_api_v1_kadi_cases__case_id__transcriptions__task_id__cancel_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
                 task_id: string;
@@ -6591,12 +6827,8 @@ export interface operations {
     };
     upload_document_api_v1_kadi_cases__case_id__upload_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -8048,12 +8280,8 @@ export interface operations {
     };
     check_case_scheme_eligibility_api_v1_schemesetu_cases__case_id__eligibility_post: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -8087,12 +8315,8 @@ export interface operations {
     };
     get_income_profile_api_v1_schemesetu_cases__case_id__income_profile_get: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -8122,12 +8346,8 @@ export interface operations {
     };
     save_income_profile_api_v1_schemesetu_cases__case_id__income_profile_put: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };
@@ -8161,12 +8381,8 @@ export interface operations {
     };
     delete_income_profile_api_v1_schemesetu_cases__case_id__income_profile_delete: {
         parameters: {
-            query?: {
-                access_token?: string | null;
-            };
-            header?: {
-                "X-Case-Access-Token"?: string | null;
-            };
+            query?: never;
+            header?: never;
             path: {
                 case_id: string;
             };

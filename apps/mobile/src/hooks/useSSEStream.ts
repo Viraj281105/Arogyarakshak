@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ENV } from '../config/env';
-import { getCaseAccessToken, tokenHeaderForPath } from '../api/caseAuth';
+import { noteUnauthorized, sessionHeaders } from '../api/session';
+import { tr } from '../translations/tr';
 
 export interface SSEStreamEvent {
   status: 'upload_received' | 'ocr_start' | 'extraction_start' | 'database_write' | 'completed' | 'failed' | string;
@@ -33,17 +34,8 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
   const [error, setError] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const eventSourceRef = useRef<any>(null);
 
   const stopStream = useCallback(() => {
-    if (eventSourceRef.current) {
-      try {
-        eventSourceRef.current.close();
-      } catch (e) {
-        // ignore
-      }
-      eventSourceRef.current = null;
-    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -80,7 +72,7 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
       } else if (data.status === 'failed') {
         setIsFailed(true);
         setIsStreaming(false);
-        setError(data.log || 'Processing failed');
+        setError(data.log || tr('Processing failed'));
       }
     } catch (e) {
       console.warn('[useSSEStream] Failed to parse SSE event payload:', e);
@@ -94,36 +86,8 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
     setIsStreaming(true);
     const streamPath = `/api/v1/kadi/cases/${caseId}/stream`;
     const streamUrl = `${ENV.API_BASE_URL}${streamPath}`;
-    // ADR-009: EventSource cannot set custom headers, so this one endpoint also accepts
-    // the token via query string — the same narrow, documented exception the web
-    // client uses. The fetch-fallback path below sends it as a header instead.
-    const token = getCaseAccessToken(caseId);
-    const streamUrlWithToken = token ? `${streamUrl}?access_token=${encodeURIComponent(token)}` : streamUrl;
-
-    // 1. Check for standard EventSource (Browser / React Native EventSource polyfills)
-    if (typeof (globalThis as any).EventSource !== 'undefined') {
-      try {
-        const ES = (globalThis as any).EventSource;
-        const es = new ES(streamUrlWithToken);
-        eventSourceRef.current = es;
-
-        es.onmessage = (event: any) => {
-          if (event.data) {
-            handleMessagePayload(event.data);
-          }
-        };
-
-        es.onerror = () => {
-          es.close();
-          setIsStreaming(false);
-        };
-        return;
-      } catch (err) {
-        console.warn('[useSSEStream] Native EventSource failed, falling back to fetch stream:', err);
-      }
-    }
-
-    // 2. Fetch-based chunk reader fallback (for mobile environments)
+    // EventSource cannot send headers and a session never goes in a URL, so the stream is read
+    // with fetch, with the session in the Authorization header (ADR-029).
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -133,12 +97,13 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
           signal: controller.signal,
           headers: {
             Accept: 'text/event-stream',
-            ...tokenHeaderForPath(streamPath),
+            ...sessionHeaders(),
           },
         });
 
+        if (response.status === 401) noteUnauthorized(streamPath);
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: Failed to connect to event stream`);
+          throw new Error(tr('HTTP {status}: Failed to connect to event stream', { status: response.status }));
         }
 
         // If body has getReader (fetch streaming)
@@ -177,7 +142,7 @@ export function useSSEStream(initialCaseId?: string): UseSSEStreamResult {
       } catch (err: any) {
         if (err.name !== 'AbortError') {
           console.warn('[useSSEStream] Stream error:', err);
-          setError(err.message || 'Stream connection error');
+          setError(err.message || tr('Stream connection error'));
         }
       } finally {
         setIsStreaming(false);

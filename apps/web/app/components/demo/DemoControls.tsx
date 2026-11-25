@@ -11,14 +11,16 @@ import {
   resetDemo,
 } from "../../lib/demo";
 import { StatePanel } from "../clinical/StatePanel";
+import { useT } from "../../i18n/useT";
 
 const CopyButton: React.FC<{ value: string; label: string }> = ({ value, label }) => {
+  const tr = useT();
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
       className="btn btn-ghost btn-compact"
-      aria-label={`Copy ${label}`}
+      aria-label={tr("Copy {label}", { label: label })}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);
@@ -29,65 +31,65 @@ const CopyButton: React.FC<{ value: string; label: string }> = ({ value, label }
         }
       }}
     >
-      {copied ? "Copied" : "Copy"}
+      {copied ? tr("Copied") : tr("Copy")}
     </button>
   );
 };
 
-const Credentials: React.FC<{ creds: DemoCredentials }> = ({ creds }) => (
+const Credentials: React.FC<{ creds: DemoCredentials }> = ({ creds }) => {
+  const tr = useT();
+  return (
   <div className="demo-credentials">
-    <h4>One-time demo credentials</h4>
-    <p className="bn-fine">
-      Shown now and kept only in this tab&apos;s memory. Reviewer tokens go into the reviewer workspace; reviewer IDs are
-      what the patient pastes to assign someone.
-    </p>
+    <h4>{tr("One-time demo credentials")}</h4>
+    <p className="bn-fine">{tr("Shown now and kept only in this tab's memory. Reviewer tokens go into the reviewer workspace; reviewer IDs are what the patient pastes to assign someone.")}</p>
     <ul className="demo-personas">
       {Object.entries(creds.reviewers).map(([key, p]) => (
         <li key={key} className="demo-persona">
           <div className="demo-persona-who">
             <strong>{p.name}</strong>
-            <span>{PERSONA_ROLES[key] ?? "Demo persona"}</span>
+            <span>{PERSONA_ROLES[key] ?? tr("Demo persona")}</span>
           </div>
           <div className="demo-persona-row">
-            <span className="demo-persona-label">Reviewer ID</span>
+            <span className="demo-persona-label">{tr("Reviewer ID")}</span>
             <code>{p.reviewer_id}</code>
-            <CopyButton value={p.reviewer_id} label={`${p.name} reviewer ID`} />
+            <CopyButton value={p.reviewer_id} label={tr("{name} reviewer ID", { name: p.name })} />
           </div>
           <div className="demo-persona-row">
-            <span className="demo-persona-label">Workspace token</span>
-            <code className="demo-masked" aria-label="hidden">
+            <span className="demo-persona-label">{tr("Workspace token")}</span>
+            <code className="demo-masked" aria-label={tr("hidden")}>
               ••••••••
             </code>
-            <CopyButton value={p.reviewer_token} label={`${p.name} token`} />
+            <CopyButton value={p.reviewer_token} label={tr("{name} token", { name: p.name })} />
           </div>
         </li>
       ))}
     </ul>
     <div className="demo-persona-row">
-      <span className="demo-persona-label">Scenario B desk</span>
+      <span className="demo-persona-label">{tr("Scenario B desk")}</span>
       <span>
-        {creds.institution.name} — playbook <code>{creds.playbook_id}</code>
+        {creds.institution.name}{" "}{tr("— playbook")}{" "}<code>{creds.playbook_id}</code>
       </span>
-      <CopyButton value={creds.playbook_id} label="playbook ID" />
-      <CopyButton value={creds.institution.institution_token} label="institution credential" />
+      <CopyButton value={creds.playbook_id} label={tr("playbook ID")} />
+      <CopyButton value={creds.institution.institution_token} label={tr("institution credential")} />
     </div>
     {creds.diabetes_playbook_id && (
       <div className="demo-persona-row">
-        <span className="demo-persona-label">Scenario E desk</span>
-        <span>
-          same institution — playbook <code>{creds.diabetes_playbook_id}</code>
+        <span className="demo-persona-label">{tr("Scenario E desk")}</span>
+        <span>{tr("same institution — playbook")}{" "}<code>{creds.diabetes_playbook_id}</code>
         </span>
-        <CopyButton value={creds.diabetes_playbook_id} label="diabetes playbook ID" />
+        <CopyButton value={creds.diabetes_playbook_id} label={tr("diabetes playbook ID")} />
       </div>
     )}
   </div>
 );
+};
 
 export const DemoControls: React.FC<{
   status: DemoStatus | null;
   onScenarioLoaded: (result: DemoScenarioResult, scenario: DemoScenario) => void;
   onReset: () => void;
 }> = ({ status, onScenarioLoaded, onReset }) => {
+  const tr = useT();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const inFlight = useRef(false);
@@ -116,7 +118,7 @@ export const DemoControls: React.FC<{
 
   const handleReset = () => {
     const ok = window.confirm(
-      "Reset the demo?\n\nThis permanently deletes every case that holds a synthetic demo document, restores the two demo safety rules and issues new demo credentials. Cases with any other document are kept."
+      tr("Reset the demo?\n\nThis permanently deletes every case that holds a synthetic demo document, restores the two demo safety rules and issues new demo credentials. Cases with any other document are kept.")
     );
     if (!ok) return;
     void run("reset", async () => {
@@ -126,7 +128,7 @@ export const DemoControls: React.FC<{
       onReset();
       setMessage({
         kind: "success",
-        text: `Demo reset: ${res.demo_cases_removed} demo case(s) removed, ${res.demo_rules_restored} demo safety rules restored, ${res.other_cases_kept} other case(s) left untouched. New credentials below.`,
+        text: tr("Demo reset: {demo_cases_removed} demo case(s) removed, {demo_rules_restored} demo safety rules restored, {other_cases_kept} other case(s) left untouched. New credentials below.", { demo_cases_removed: res.demo_cases_removed, demo_rules_restored: res.demo_rules_restored, other_cases_kept: res.other_cases_kept }),
       });
     });
   };
@@ -140,8 +142,8 @@ export const DemoControls: React.FC<{
       const failed = res.processing.filter((p) => p.status !== "completed");
       setMessage(
         failed.length
-          ? { kind: "error", text: `Scenario ${scenario.id} loaded, but ${failed.map((f) => f.filename).join(", ")} did not finish processing.` }
-          : { kind: "success", text: `Scenario ${scenario.id} loaded: ${res.documents.join(" + ")} processed into one new case.` }
+          ? { kind: "error", text: tr("Scenario {id} loaded, but {value} did not finish processing.", { id: scenario.id, value: failed.map((f) => f.filename).join(", ") }) }
+          : { kind: "success", text: tr("Scenario {id} loaded: {value} processed into one new case.", { id: scenario.id, value: res.documents.join(" + ") }) }
       );
     });
 
@@ -150,20 +152,16 @@ export const DemoControls: React.FC<{
   return (
     <details className="demo-controls">
       <summary>
-        <span className="demo-banner-tag">Operator</span>
-        <strong>Demo controls</strong>
-        <span className="bn-fine">load a scenario or reset the demo</span>
+        <span className="demo-banner-tag">{tr("Operator")}</span>
+        <strong>{tr("Demo controls")}</strong>
+        <span className="bn-fine">{tr("load a scenario or reset the demo")}</span>
       </summary>
       <div className="demo-controls-body">
         {!status.governance_configured && (
-          <StatePanel kind="warning">
-            The server has no CLINICAL_GOVERNANCE_ADMIN_KEY configured, so reset and scenario loading are disabled.
-          </StatePanel>
+          <StatePanel kind="warning">{tr("The server has no CLINICAL_GOVERNANCE_ADMIN_KEY configured, so reset and scenario loading are disabled.")}</StatePanel>
         )}
         <div className="ds-field">
-          <label className="input-label" htmlFor="demo-key">
-            Demo operator key
-            <span className="ds-optional">kept in memory only</span>
+          <label className="input-label" htmlFor="demo-key">{tr("Demo operator key")}<span className="ds-optional">{tr("kept in memory only")}</span>
           </label>
           <input
             id="demo-key"
@@ -172,11 +170,11 @@ export const DemoControls: React.FC<{
             autoComplete="off"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder="The server's CLINICAL_GOVERNANCE_ADMIN_KEY"
+            placeholder={tr("The server's CLINICAL_GOVERNANCE_ADMIN_KEY")}
           />
         </div>
 
-        <ul className="demo-scenarios" aria-label="Demo scenarios">
+        <ul className="demo-scenarios" aria-label={tr("Demo scenarios")}>
           {status.scenarios.map((s) => (
             <li key={s.id}>
               <button
@@ -189,7 +187,7 @@ export const DemoControls: React.FC<{
                   {busy === s.id ? <span className="spinner" /> : s.id}
                 </span>
                 <span className="demo-scenario-text">
-                  <strong>{busy === s.id ? `Loading ${s.id}…` : `Load Scenario ${s.id}`}</strong>
+                  <strong>{busy === s.id ? tr("Loading {id}…", { id: s.id }) : tr("Load Scenario {id}", { id: s.id })}</strong>
                   <span>{s.title}</span>
                   <span className="demo-scenario-module">{s.module}</span>
                 </span>
@@ -197,28 +195,23 @@ export const DemoControls: React.FC<{
             </li>
           ))}
         </ul>
-        {noKey && <span className="ds-hint">Enter the operator key to enable the scenarios and reset.</span>}
+        {noKey && <span className="ds-hint">{tr("Enter the operator key to enable the scenarios and reset.")}</span>}
 
         <div>
           <button type="button" className="btn btn-danger-outline btn-compact" disabled={!!busy || noKey} onClick={handleReset}>
-            {busy === "reset" ? "Resetting…" : "Reset demo"}
+            {busy === "reset" ? tr("Resetting…") : tr("Reset demo")}
           </button>
         </div>
         {busy && busy !== "reset" && (
-          <StatePanel kind="loading">
-            Running the scenario&apos;s synthetic documents through the real upload pipeline… (a few seconds; nothing is
-            shown as done until it is)
-          </StatePanel>
+          <StatePanel kind="loading">{tr("Running the scenario's synthetic documents through the real upload pipeline… (a few seconds; nothing is shown as done until it is)")}</StatePanel>
         )}
         {message && <StatePanel kind={message.kind === "error" ? "error" : "success"}>{message.text}</StatePanel>}
 
         {current && (
           <div className="demo-script">
-            <h4>
-              Scenario {current.id}: {current.title}
-            </h4>
+            <h4>{tr("Scenario {id}: {title}", { id: current.id, title: current.title })}</h4>
             <p>
-              <em>Starting state:</em> {current.starting_state}
+              <em>{tr("Starting state:")}</em> {current.starting_state}
             </p>
             <ol>
               {current.actions.map((a) => (
@@ -226,15 +219,13 @@ export const DemoControls: React.FC<{
               ))}
             </ol>
             <p>
-              <em>Expected:</em> {current.expected}
+              <em>{tr("Expected:")}</em> {current.expected}
             </p>
           </div>
         )}
         {creds && <Credentials creds={creds} />}
         {!creds && (
-          <p className="bn-fine">
-            Press <strong>Reset demo</strong> first to get the demo reviewers&apos; one-time credentials.
-          </p>
+          <p className="bn-fine">{tr("Press “Reset demo” first to get the demo reviewers' one-time credentials.")}</p>
         )}
       </div>
     </details>

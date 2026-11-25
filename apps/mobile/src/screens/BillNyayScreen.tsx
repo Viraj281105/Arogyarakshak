@@ -21,6 +21,7 @@ import { clearActiveCase, resolveCaseId } from '../services/activeCase';
 import { AppealCard } from './billnyay/AppealCard';
 import { AuditResultsCard } from './billnyay/AuditResultsCard';
 import { PlausibilityCard } from './billnyay/PlausibilityCard';
+import { tr } from '../translations/tr';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type BillNyayRouteProp = RouteProp<BottomTabParamList, 'BillNyay'>;
@@ -95,7 +96,7 @@ export const BillNyayScreen: React.FC = () => {
       setAuditResult(result);
     } catch (err) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || 'Failed to run hospital bill audit.');
+      setError(apiErr.message || tr('Failed to run hospital bill audit.'));
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ export const BillNyayScreen: React.FC = () => {
               setAppealError(null);
             } catch (err) {
               const apiErr = err as ApiError;
-              setError(apiErr.message || 'Failed to delete this case.');
+              setError(apiErr.message || tr('Failed to delete this case.'));
             }
           },
         },
@@ -150,7 +151,7 @@ export const BillNyayScreen: React.FC = () => {
       setAppealResult(result);
     } catch (err) {
       const apiErr = err as ApiError;
-      setAppealError(apiErr.message || 'Failed to draft the appeal letter.');
+      setAppealError(apiErr.message || tr('Failed to draft the appeal letter.'));
     } finally {
       setAppealLoading(false);
     }
@@ -176,7 +177,7 @@ export const BillNyayScreen: React.FC = () => {
         <View style={[styles.activeCaseNotice, { backgroundColor: 'rgba(6, 182, 212, 0.1)', borderColor: colors.brandCyan }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.brandCyan, fontSize: typography.sizes.xs, fontWeight: '600' }}>
-              {m.activeCaseReady} (Case: {caseId.slice(0, 8)}...)
+              {m.activeCaseReady} ({tr('Case: {id}', { id: `${caseId.slice(0, 8)}...` })})
             </Text>
             <Button
               title={m.deleteCaseBtn}

@@ -4,6 +4,7 @@ import { useTheme, textStyles, textStyleFor } from '../../theme';
 import { Icon } from './Icon';
 import { CHECKLIST_WORD, STEP_WORD, checklistSummary, stepCountText, stepState } from './logic';
 import { checklistColor, stepMarkerSwatch, type ChecklistStatus } from './tones';
+import { tr, msg, useTranslation } from '../../translations/tr';
 
 /**
  * Step header for multi-step flows (e.g. DaaviSetu readiness -> template -> package): numbered
@@ -13,7 +14,7 @@ import { checklistColor, stepMarkerSwatch, type ChecklistStatus } from './tones'
 export function StepWizard({
   steps,
   current,
-  label = 'Progress',
+  label = msg('Progress'),
   children,
   style,
 }: {
@@ -24,10 +25,11 @@ export function StepWizard({
   children?: React.ReactNode;
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, spacing } = useTheme();
   return (
     <View style={style}>
-      <View accessibilityRole="list" accessibilityLabel={label} style={styles.steps}>
+      <View accessibilityRole="list" accessibilityLabel={tr(label)} style={styles.steps}>
         {steps.map((s, i) => {
           const state = stepState(i, current);
           const sw = stepMarkerSwatch(colors, state);
@@ -35,7 +37,7 @@ export function StepWizard({
             <View
               key={s.id}
               accessible
-              accessibilityLabel={`Step ${i + 1}: ${s.label}, ${STEP_WORD[state]}`}
+              accessibilityLabel={tr('Step {number}: {label}, {state}', { number: i + 1, label: s.label, state: tr(STEP_WORD[state]) })}
               accessibilityState={{ selected: state === 'current' }}
               style={styles.step}
             >
@@ -80,6 +82,7 @@ export function Checklist({
   items: readonly { id: string; label: string; status: ChecklistStatus; note?: string }[];
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, spacing } = useTheme();
   return (
     <View style={style}>
@@ -96,7 +99,7 @@ export function Checklist({
             <View
               key={it.id}
               accessible
-              accessibilityLabel={`${it.label}: ${CHECKLIST_WORD[it.status]}${it.note ? `. ${it.note}` : ''}`}
+              accessibilityLabel={`${it.label}: ${tr(CHECKLIST_WORD[it.status])}${it.note ? `. ${it.note}` : ''}`}
               style={[styles.item, { borderTopColor: colors.borderSubtle, paddingVertical: spacing.sm }]}
             >
               <Icon name={{ glyph: CHECK_GLYPH[it.status] }} size={16} color={c} style={{ width: 20, marginRight: spacing.sm }} />
@@ -105,7 +108,7 @@ export function Checklist({
                 {it.note ? <Text style={[textStyles.caption, { color: colors.textSecondary }]}>{it.note}</Text> : null}
               </View>
               <Text style={[textStyles.caption, { color: c, marginLeft: spacing.sm, fontFamily: textStyles.labelSmall.fontFamily }]}>
-                {CHECKLIST_WORD[it.status]}
+                {tr(CHECKLIST_WORD[it.status])}
               </Text>
             </View>
           );

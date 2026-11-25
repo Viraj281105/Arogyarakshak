@@ -6,12 +6,14 @@ import { NAV_ITEMS } from "./nav";
 import { useLanguage } from "./ShellProvider";
 import { shellCopy } from "./shellCopy";
 import { TransitionLink } from "./TransitionLink";
+import { useT } from "../i18n/useT";
 
 /**
  * Site footer: what the tool is, where its references come from, the same nav as the header and
  * (Wave 3 M3) the public pages, from the deliberately tiny components/public/publicRoutes.ts.
  */
 export function SiteFooter() {
+  const tr = useT();
   const [lang] = useLanguage();
   const copy = shellCopy[lang];
   const f = copy.footer;
@@ -26,8 +28,7 @@ export function SiteFooter() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/ar-emblem-dark.svg" width={40} height={40} alt="" className="ar-emblem ar-only-dark" />
               <span className="ar-wordmark-text">
-                <span className="ar-wordmark-name">
-                  Arogya<span className="ar-wordmark-name-b">Rakshak</span>
+                <span className="ar-wordmark-name">{tr("Arogya")}<span className="ar-wordmark-name-b">{tr("Rakshak")}</span>
                 </span>
                 {lang === "en" && (
                   <span className="ar-wordmark-sub" lang="hi">

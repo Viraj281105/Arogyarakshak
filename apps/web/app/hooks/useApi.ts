@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 
+import { msg, type Vars } from "../i18n/format";
+import { useT } from "../i18n/useT";
 import { API_BASE } from "../lib/apiBase";
 import { apiFetch } from "../lib/apiFetch";
 
@@ -46,7 +48,7 @@ export function normalizeErrorDetail(detail: unknown): string {
         return typeof item === "string" ? item : JSON.stringify(item);
       })
       .filter(Boolean);
-    return messages.length > 0 ? messages.join("; ") : "Request validation failed.";
+    return messages.length > 0 ? messages.join("; ") : msg("Request validation failed.");
   }
 
   if (detail && typeof detail === "object") {
@@ -63,11 +65,11 @@ export function normalizeErrorDetail(detail: unknown): string {
     try {
       return JSON.stringify(detail);
     } catch {
-      return "An error occurred.";
+      return msg("An error occurred.");
     }
   }
 
-  return "An error occurred.";
+  return msg("An error occurred.");
 }
 
 /**
@@ -75,7 +77,10 @@ export function normalizeErrorDetail(detail: unknown): string {
  * Prevents duplicate submissions and provides consistent error handling.
  */
 export function useApi<T>() {
-  const [state, setState] = useState<ApiState<T>>({
+  const tr = useT();
+  // `error` holds an interface string or the server's own text; it is translated on the way out,
+  // so changing language also changes a message already on screen.
+  const [state, setState] = useState<ApiState<T> & { errorVars?: Vars }>({
     data: null,
     loading: false,
     error: null,
@@ -114,19 +119,19 @@ export function useApi<T>() {
         const response = await apiFetch(path, fetchOptions);
 
         if (!response.ok) {
-          let errorMessage = `API error: HTTP ${response.status}`;
+          let errorMessage = msg("API error: HTTP {status}");
+          let errorVars: Vars | undefined = { status: response.status };
           try {
             const errorBody = await response.json();
             if (errorBody.detail !== undefined && errorBody.detail !== null) {
-              errorMessage = normalizeErrorDetail(errorBody.detail);
+              [errorMessage, errorVars] = [normalizeErrorDetail(errorBody.detail), undefined];
             } else if (typeof errorBody.message === "string") {
-              errorMessage = errorBody.message;
+              [errorMessage, errorVars] = [errorBody.message, undefined];
             }
           } catch {
-            // If error body is not JSON, use status text
-            errorMessage = `API error: ${response.status} ${response.statusText}`;
+            // The error body is not JSON: the status line above says what is known.
           }
-          setState({ data: null, loading: false, error: errorMessage });
+          setState({ data: null, loading: false, error: errorMessage, errorVars });
           return null;
         }
 
@@ -136,10 +141,10 @@ export function useApi<T>() {
       } catch (err) {
         const errorMessage =
           err instanceof Error && err.message.includes("fetch")
-            ? "Backend server is offline or unreachable. Please ensure the API is running on port 8000."
+            ? msg("Backend server is offline or unreachable. Please ensure the API is running on port 8000.")
             : err instanceof Error
             ? err.message
-            : "An unexpected error occurred.";
+            : msg("An unexpected error occurred.");
 
         setState({ data: null, loading: false, error: errorMessage });
         return null;
@@ -152,7 +157,8 @@ export function useApi<T>() {
     setState({ data: null, loading: false, error: null });
   }, []);
 
-  return { ...state, execute, reset };
+  const error = state.error === null ? null : tr(state.error, state.errorVars);
+  return { data: state.data, loading: state.loading, error, execute, reset };
 }
 
 export { API_BASE };

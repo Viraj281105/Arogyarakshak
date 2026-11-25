@@ -4,7 +4,7 @@ Version 1 Router Aggregation.
 Combines all sub-routers under /api/v1 prefix.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.v1.endpoints import (
     accounts,
@@ -20,8 +20,10 @@ from app.api.v1.endpoints import (
     kadi,
     schemesetu,
 )
+from app.auth_gate import require_signed_in
 
-api_router = APIRouter()
+# ADR-029: sign-in is required by default for every route mounted below.
+api_router = APIRouter(dependencies=[Depends(require_signed_in)])
 
 api_router.include_router(kadi.router, prefix="/kadi", tags=["Kadi (Shared Layer)"])
 # ADR-026: user accounts are Kadi shared infrastructure (kadi_users, kadi_sessions).

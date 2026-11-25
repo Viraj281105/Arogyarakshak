@@ -9,7 +9,7 @@
     "language": "py",
     "adapter": "pyright-parser@1.1.414/python-3.14",
     "adapterRevision": 17,
-    "snapshotId": "0637109f429002ebe118644a86ba87d4180a707957f42d4340963a146759ab7f"
+    "snapshotId": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f"
   },
   "grouping": {
     "depth": 2,
@@ -29,7 +29,7 @@
       "label": "kadi",
       "path": "kadi",
       "files": 11,
-      "loc": 2268,
+      "loc": 2285,
       "fanIn": 2,
       "fanOut": 4,
       "instability": 0.667,
@@ -200,23 +200,43 @@
     {
       "from": "kadi",
       "to": "kadi-ocr",
-      "weight": 2,
+      "weight": 4,
       "kinds": {
-        "eager": 2,
-        "implicit": 1,
-        "static": 2
+        "conditional": 2,
+        "eager": 0,
+        "implicit": 2,
+        "lazy": 2,
+        "static": 4,
+        "typeOnly": 2
       },
       "evidence": [
         {
           "file": "kadi/__init__.py",
-          "line": 5,
+          "line": 17,
           "to": "kadi/ocr/__init__.py",
+          "typeOnly": true,
           "implicit": true
         },
         {
           "file": "kadi/__init__.py",
-          "line": 5,
-          "to": "kadi/ocr/ocr_parser.py"
+          "line": 17,
+          "to": "kadi/ocr/ocr_parser.py",
+          "typeOnly": true
+        },
+        {
+          "file": "kadi/__init__.py",
+          "line": 30,
+          "to": "kadi/ocr/__init__.py",
+          "lazy": true,
+          "conditional": true,
+          "implicit": true
+        },
+        {
+          "file": "kadi/__init__.py",
+          "line": 30,
+          "to": "kadi/ocr/ocr_parser.py",
+          "lazy": true,
+          "conditional": true
         }
       ]
     },
@@ -338,7 +358,7 @@
     }
   ],
   "unresolved": {
-    "external": 277,
+    "external": 278,
     "outside": 0,
     "unknown": 0,
     "opaque": 0

@@ -12,49 +12,19 @@ import {
 const screenSrc = readFileSync(join(process.cwd(), 'src', 'screens', 'DaaviSetuScreen.tsx'), 'utf-8');
 const hookSrc = readFileSync(join(process.cwd(), 'src', 'hooks', 'useOfflineQueue.ts'), 'utf-8');
 const caseAuthSrc = readFileSync(join(process.cwd(), 'src', 'api', 'caseAuth.ts'), 'utf-8');
-const clientSrc = readFileSync(join(process.cwd(), 'src', 'api', 'client.ts'), 'utf-8');
 
-describe('SEC-08: DaaviSetu PDF download uses real authorization', () => {
-  it('builds the download URL from the case access token, not an unauthenticated request', () => {
-    // Regression: Linking.openURL cannot attach a custom X-Case-Access-Token header, so
-    // the previous implementation always hit the backend unauthenticated and 401'd.
-    assert.ok(
-      /getCaseAccessToken\(caseId\)/.test(screenSrc),
-      'handleDownloadPdf must look up this case\'s real access token'
-    );
-    assert.ok(
-      /access_token=\$\{encodeURIComponent\(token\)\}/.test(screenSrc),
-      'the token must actually be attached to the download URL'
-    );
+describe('SEC-08: file downloads are authorised by the session header', () => {
+  const downloadSrc = readFileSync(join(process.cwd(), 'src', 'api', 'download.ts'), 'utf-8');
+
+  it('downloads go through the one authenticated helper, not a bare link', () => {
+    assert.ok(/downloadCaseFile\(/.test(screenSrc));
+    assert.ok(!/Linking\.openURL/.test(screenSrc));
+    assert.ok(/headers: sessionHeaders\(\)/.test(downloadSrc));
   });
 
-  it('refuses to attempt the download when no token is available, rather than sending an unauthenticated request', () => {
-    assert.ok(
-      /if \(!token\)/.test(screenSrc),
-      'handleDownloadPdf must guard on a missing token instead of silently requesting without one'
-    );
-  });
-
-  it('does not hardcode or leak the token into a log statement', () => {
-    const downloadFnMatch = screenSrc.match(/const handleDownloadPdf[\s\S]*?\n  };/);
-    assert.ok(downloadFnMatch, 'handleDownloadPdf function not found');
-    assert.ok(
-      !/console\.(log|warn|error)\([^)]*token/i.test(downloadFnMatch![0]),
-      'the access token must never be logged'
-    );
-  });
-});
-
-describe('SEC-07/SEC-08: query-string tokens are the documented read-only carve-out', () => {
-  it('client.ts still auto-attaches the header for every other request (query token is the exception, not the norm)', () => {
-    assert.ok(
-      /tokenHeaderForPath/.test(clientSrc),
-      'the header-based attach mechanism must remain the default path'
-    );
-    assert.ok(
-      /X-Case-Access-Token/.test(caseAuthSrc),
-      'the header name must be the real one the backend enforces'
-    );
+  it('the temporary copy is deleted after sharing, and nothing about it is logged', () => {
+    assert.ok(/finally \{\s*await FileSystem\.deleteAsync/.test(downloadSrc));
+    assert.ok(!/console\./.test(downloadSrc));
   });
 });
 

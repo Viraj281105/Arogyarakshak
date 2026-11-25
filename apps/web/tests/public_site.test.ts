@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { PUBLIC_COPY } from '../app/components/public/publicCopy';
+import { localisedPublicCopy, publicCopy } from '../app/components/public/publicCopy';
 import { PUBLIC_LANGUAGE_NOTICE, PUBLIC_MODULE_IDS, PUBLIC_ROUTES, allPublicPaths } from '../app/components/public/publicNav';
 import { PUBLIC_FOOTER_LINKS } from '../app/components/public/publicRoutes';
 import { filterFaq, normalise } from '../app/components/public/faqFilter';
@@ -16,7 +16,7 @@ const read = (...p: string[]) => readFileSync(join(appDir, ...p), 'utf8');
 const isClient = (src: string) => /^\s*["']use client["']/.test(src);
 
 const ROUTE_FILES = ['platform/page.tsx', 'platform/[module]/page.tsx', 'how-it-works/page.tsx', 'security/page.tsx', 'about/page.tsx', 'help/page.tsx'];
-const en = PUBLIC_COPY.en;
+const en = publicCopy();
 
 describe('public routes', () => {
   test('exist, are Server Components and declare their own title and description', () => {
@@ -29,7 +29,7 @@ describe('public routes', () => {
     }
     const landing = read('page.tsx');
     assert.ok(!isClient(landing));
-    assert.match(landing, /export const metadata: Metadata/);
+    assert.match(landing, /export async function generateMetadata/);
   });
 
   test('module pages are statically generated for exactly the six capabilities, 404 otherwise', () => {
@@ -66,10 +66,15 @@ describe('public routes', () => {
 describe('public copy honesty', () => {
   const all = JSON.stringify(en);
 
-  test('Hindi and Marathi are explicit unreviewed stubs, never presented as reviewed', () => {
+  test('Hindi and Marathi are marked as machine translation, never presented as reviewed', async () => {
     assert.equal(en.translation, 'source');
-    assert.equal(PUBLIC_COPY.hi.translation, 'pending');
-    assert.equal(PUBLIC_COPY.mr.translation, 'pending');
+    for (const lang of ['hi', 'mr'] as const) {
+      const copy = await localisedPublicCopy(lang);
+      assert.equal(copy.translation, 'machine');
+      assert.notEqual(copy.landing.lede, en.landing.lede, `${lang} landing text is translated`);
+      assert.equal(copy.landing.primaryCta.href, en.landing.primaryCta.href, 'addresses are never translated');
+      assert.deepEqual(copy.faq.map((f) => f.id), en.faq.map((f) => f.id));
+    }
     assert.match(read('components', 'public', 'publicCopy.ts'), /UNREVIEWED/);
     assert.match(read('components', 'public', 'publicNav.ts'), /NEEDS NATIVE-SPEAKER QA/);
     assert.match(read('components', 'public', 'publicRoutes.ts'), /UNREVIEWED/);

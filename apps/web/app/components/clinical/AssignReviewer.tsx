@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ReviewerProfile, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { VerificationBadge } from "./Attribution";
+import { useT } from "../../i18n/useT";
 
 /**
  * Choose a reviewer: from the directory (only independently verified reviewers, or demo
@@ -15,7 +16,8 @@ export const AssignReviewer: React.FC<{
   disabled?: boolean;
   label?: string;
   onAssign: (reviewerId: string) => void;
-}> = ({ directory, disabled, label = "Assign reviewer", onAssign }) => {
+}> = ({ directory, disabled, label, onAssign }) => {
+  const tr = useT();
   const [selected, setSelected] = useState("");
   const [idInput, setIdInput] = useState("");
   const [looked, setLooked] = useState<ReviewerProfile | null>(null);
@@ -27,7 +29,7 @@ export const AssignReviewer: React.FC<{
     try {
       setLooked(await clinicalRequest<ReviewerProfile>(`${clinicalPaths.reviewers()}/${encodeURIComponent(idInput.trim())}`));
     } catch {
-      setLookupError("No reviewer with that ID. Check the ID your doctor or pharmacist gave you.");
+      setLookupError(tr("No reviewer with that ID. Check the ID your doctor or pharmacist gave you."));
     }
   };
 
@@ -35,8 +37,8 @@ export const AssignReviewer: React.FC<{
     <div style={{ marginTop: "0.5rem", display: "grid", gap: "0.5rem" }}>
       {directory.length > 0 ? (
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <select className="select-field" aria-label="Choose a listed reviewer" value={selected} onChange={(e) => setSelected(e.target.value)}>
-            <option value="">Choose a listed reviewer…</option>
+          <select className="select-field" aria-label={tr("Choose a listed reviewer")} value={selected} onChange={(e) => setSelected(e.target.value)}>
+            <option value="">{tr("Choose a listed reviewer…")}</option>
             {directory.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name} — {d.specialty ?? d.category_label} — {d.verification_label}
@@ -44,30 +46,25 @@ export const AssignReviewer: React.FC<{
             ))}
           </select>
           <button type="button" className="btn btn-secondary" disabled={disabled || !selected} onClick={() => onAssign(selected)}>
-            {label}
+            {label ?? tr("Assign reviewer")}
           </button>
         </div>
       ) : (
-        <p style={{ fontSize: "0.8rem", opacity: 0.85 }}>
-          No independently verified reviewers are listed. Ask your own doctor or pharmacist to register at the reviewer
-          workspace and give you their reviewer ID.
-        </p>
+        <p style={{ fontSize: "0.8rem", opacity: 0.85 }}>{tr("No independently verified reviewers are listed. Ask your own doctor or pharmacist to register at the reviewer workspace and give you their reviewer ID.")}</p>
       )}
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <input
           className="input-field"
           style={{ maxWidth: 260 }}
-          aria-label="Reviewer ID"
-          placeholder="Reviewer ID (REV-…)"
+          aria-label={tr("Reviewer ID")}
+          placeholder={tr("Reviewer ID (REV-…)")}
           value={idInput}
           onChange={(e) => {
             setIdInput(e.target.value);
             setLooked(null);
           }}
         />
-        <button type="button" className="btn" style={{ border: "1px solid var(--border-subtle)" }} disabled={!idInput.trim()} onClick={lookup}>
-          Look up
-        </button>
+        <button type="button" className="btn" style={{ border: "1px solid var(--border-subtle)" }} disabled={!idInput.trim()} onClick={lookup}>{tr("Look up")}</button>
       </div>
       {lookupError && <p style={{ fontSize: "0.8rem", color: "#fca5a5" }}>{lookupError}</p>}
       {looked && (
@@ -78,7 +75,7 @@ export const AssignReviewer: React.FC<{
             <VerificationBadge status={looked.verification_status} label={looked.verification_label} />
           </span>
           <button type="button" className="btn btn-secondary" disabled={disabled} onClick={() => onAssign(looked.id)}>
-            {label}: {looked.name}
+            {label ?? tr("Assign reviewer")}: {looked.name}
           </button>
         </div>
       )}

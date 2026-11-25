@@ -5,10 +5,12 @@ import { Language, translations } from "../../../translations";
 import { ListenSummary } from "../../ListenSummary";
 import { buildAppealSummary } from "../../../lib/listenSummaries";
 import type { DisputeAuditResult } from "./types";
+import { useT } from "../../../i18n/useT";
 
 /** The grounds found, the heuristic score (shown as a rule-based estimate, never as a
  *  probability), the regulatory conflicts with their remedies, and the read-aloud summary. */
 export function DisputeSummary({ result, currentLang }: { result: DisputeAuditResult; currentLang: Language }) {
+  const tr = useT();
   const t = translations[currentLang].modules.bimanyay;
   const heuristic = result.probability_basis === "HEURISTIC_PRIOR_NOT_HISTORICAL";
   const score = Math.round(result.reversal_probability_score * 100);
@@ -16,9 +18,9 @@ export function DisputeSummary({ result, currentLang }: { result: DisputeAuditRe
   return (
     <section className="case-panel bn-card" aria-labelledby="bm-grounds-title">
       <div className="case-panel-head">
-        <h3 id="bm-grounds-title">What the denial check found</h3>
+        <h3 id="bm-grounds-title">{tr("What the denial check found")}</h3>
         <span className={`badge ${result.is_wrongful_denial ? "badge-success" : "badge-warning"}`}>
-          {result.is_wrongful_denial ? t.wrongfulBadge : "No clear rule-based ground found"}
+          {result.is_wrongful_denial ? t.wrongfulBadge : tr("No clear rule-based ground found")}
         </span>
       </div>
 
@@ -35,7 +37,7 @@ export function DisputeSummary({ result, currentLang }: { result: DisputeAuditRe
           <div
             className="bm-estimate-bar"
             role="img"
-            aria-label={`${t.reversalScore}: ${score} out of 100. ${heuristic ? t.heuristicDisclosure : ""}`}
+            aria-label={tr("{reversalScore}: {score} out of 100. {value}", { reversalScore: t.reversalScore, score: score, value: heuristic ? t.heuristicDisclosure : "" })}
           >
             <span style={{ width: `${score}%` }} />
           </div>
@@ -56,14 +58,14 @@ export function DisputeSummary({ result, currentLang }: { result: DisputeAuditRe
               <p>{v.violation_summary}</p>
               {v.legal_remedy && (
                 <p className="bm-remedy">
-                  <strong>Suggested remedy:</strong> {v.legal_remedy}
+                  <strong>{tr("Suggested remedy:")}</strong> {v.legal_remedy}
                 </p>
               )}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="bn-fine">No specific rule conflict was recorded for this denial category.</p>
+        <p className="bn-fine">{tr("No specific rule conflict was recorded for this denial category.")}</p>
       )}
 
       <ListenSummary

@@ -10,6 +10,7 @@
 // what the server's own instructions already say.
 
 import type { GrievanceTimelineEvent } from '../api/types';
+import { tr } from '../translations/tr';
 
 export type ReminderKind = 'THREE_DAYS_BEFORE' | 'ON_DEADLINE_DAY';
 
@@ -48,7 +49,7 @@ export function parseIsoDate(value: string): Date | null {
 }
 
 function whenLabel(tier: string): string {
-  return tier === 'LEVEL_1_GRO' ? "your insurer's grievance officer reply window" : 'the Bima Bharosa escalation window';
+  return tier === 'LEVEL_1_GRO' ? tr("your insurer's grievance officer reply window") : tr('the Bima Bharosa escalation window');
 }
 
 /**
@@ -67,9 +68,9 @@ export function planSlaReminders(events: GrievanceTimelineEvent[], now: Date = n
       [
         'THREE_DAYS_BEFORE',
         new Date(deadlineDay.getTime() - 3 * DAY_MS),
-        `${whenLabel(event.tier)} ends in 3 days (${event.deadline_date}).`,
+        tr('{window} ends in 3 days ({date}).', { window: whenLabel(event.tier), date: event.deadline_date }),
       ],
-      ['ON_DEADLINE_DAY', deadlineDay, `${whenLabel(event.tier)} ends today (${event.deadline_date}).`],
+      ['ON_DEADLINE_DAY', deadlineDay, tr('{window} ends today ({date}).', { window: whenLabel(event.tier), date: event.deadline_date })],
     ];
     for (const [kind, fireAt, headline] of candidates) {
       if (fireAt.getTime() <= now.getTime()) continue;
@@ -78,8 +79,8 @@ export function planSlaReminders(events: GrievanceTimelineEvent[], now: Date = n
         tier: event.tier,
         kind,
         fireAt,
-        title: 'ArogyaRakshak deadline reminder',
-        body: `${headline} Open the app for the next step.`,
+        title: tr('ArogyaRakshak deadline reminder'),
+        body: tr('{headline} Open the app for the next step.', { headline }),
       });
     }
   }

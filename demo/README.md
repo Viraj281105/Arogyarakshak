@@ -26,6 +26,9 @@ docker compose up -d --build          # web :3000, api :8000, postgres
 # or locally: uvicorn app.main:app --port 8000 (apps/api) and npm run dev (apps/web)
 ```
 
+Sign-in is required. Create the synthetic demo account with `python scripts/demo_account.py
+--save` ([docs/DEMO_GUIDE.md](../docs/DEMO_GUIDE.md)).
+
 Leave `GROQ_API_KEY` unset for a fully deterministic demo: extraction then uses the
 rule-based path, whose output the tests pin.
 

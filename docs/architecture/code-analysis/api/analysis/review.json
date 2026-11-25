@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "baseline": null,
+  "comparison": null,
+  "findings": {
+    "COMP-b8145b575d76": {
+      "status": "open"
+    },
+    "COMP-1992ec251803": {
+      "status": "open"
+    },
+    "COMP-e6261db817ef": {
+      "status": "open"
+    },
+    "COMP-a012f1bb738f": {
+      "status": "open"
+    },
+    "COMP-45fb2c85fa4d": {
+      "status": "open"
+    },
+    "COMP-06b4e26dfabd": {
+      "status": "open"
+    },
+    "COMP-3b635266516b": {
+      "status": "open"
+    },
+    "COMP-e2c9aa4a523b": {
+      "status": "open"
+    },
+    "COMP-b13f4968460f": {
+      "status": "open"
+    },
+    "COMP-4f954a36b718": {
+      "status": "open"
+    },
+    "COMP-46cc019a68b2": {
+      "status": "open"
+    },
+    "COMP-6fe494bcc8dc": {
+      "status": "open"
+    },
+    "COMP-938b4eb28932": {
+      "status": "open"
+    },
+    "COMP-debb313c00c9": {
+      "status": "open"
+    },
+    "COMP-c917315e7c09": {
+      "status": "open"
+    },
+    "COMP-61ab0f198da6": {
+      "status": "open"
+    }
+  }
+}

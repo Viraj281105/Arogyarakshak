@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config import settings
-from app.account_auth import get_optional_principal
+from app.account_auth import require_principal
 from app.case_auth import require_case_access
 from app.database import get_db
 from app.latency_metrics import tracker as latency_tracker, LatencySummary, PublicLatencySample
@@ -71,14 +71,12 @@ ALLOWED_UPLOAD_EXTENSIONS = {
 async def create_case(
     case_in: CaseCreate,
     db: AsyncSession = Depends(get_db),
-    principal: Optional[Principal] = Depends(get_optional_principal),
+    principal: Principal = Depends(require_principal),
 ):
-    """Creates a new patient case session and its one-time access token (ADR-009).
-    Signed in (ADR-026): the case is owned by the account and no case token is issued."""
-    owner_user_id = principal.user.id if principal else None
-    case, plaintext_token = await create_case_record(db, case_in.consent_opt_in, owner_user_id=owner_user_id)
+    """Creates a new case owned by the signed-in account (ADR-029). No case token is issued."""
+    case, plaintext_token = await create_case_record(db, case_in.consent_opt_in, owner_user_id=principal.user.id)
     return CaseCreatedResponse(
-        owned=owner_user_id is not None,
+        owned=True,
         id=case.id,
         status=case.status,
         consent_opt_in=case.consent_opt_in,

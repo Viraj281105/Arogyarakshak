@@ -2,6 +2,7 @@ import React from 'react';
 import { DimensionValue, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import { Pulse } from '../motion';
+import { tr, useTranslation } from '../translations/tr';
 
 export interface SkeletonProps {
   width?: DimensionValue;
@@ -25,12 +26,13 @@ export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = 14,
 
 /** A few text-line placeholders; the last line is shorter, like a paragraph. */
 export const SkeletonText: React.FC<{ lines?: number; style?: ViewStyle }> = ({ lines = 3, style }) => {
+  useTranslation();
   const { spacing } = useTheme();
   return (
     <View
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel="Loading"
+      accessibilityLabel={tr('Loading')}
       accessibilityState={{ busy: true }}
       style={style}
     >

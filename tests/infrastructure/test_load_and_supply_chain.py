@@ -98,16 +98,16 @@ def test_slo_sources_exist_in_observability_docs():
 
 def test_lib_field_names_match_the_api_contract():
     from app.api.v1.endpoints.kadi.schemas import CaseCreate, CaseCreatedResponse
-    from app.case_auth import CASE_ACCESS_TOKEN_HEADER
     from app.main import app
 
     lib = (LOAD / "lib.js").read_text(encoding="utf-8")
-    assert f"'{CASE_ACCESS_TOKEN_HEADER}'" in lib
-    assert "body.access_token" in lib and "body.id" in lib
-    assert {"id", "access_token"} <= set(CaseCreatedResponse.model_fields)
+    # ADR-029: the scripts sign in and send the session, never a per-case token.
+    assert "Authorization: `Bearer ${bearer}`" in lib and "/auth/login" in lib
+    assert "X-Case-Access-Token" not in lib
+    assert "body.id" in lib and "id" in CaseCreatedResponse.model_fields
     assert "consent_opt_in" in CaseCreate.model_fields and "consent_opt_in" in lib
     routes = set(app.openapi()["paths"])
-    assert "/api/v1/kadi/cases" in routes
+    assert "/api/v1/kadi/cases" in routes and "/api/v1/kadi/auth/login" in routes
     assert "/api/v1/kadi/cases/{case_id}/upload" in routes
     assert "/api/v1/kadi/cases/{case_id}/stream" in routes
     sse = (LOAD / "sse_stream.js").read_text(encoding="utf-8")

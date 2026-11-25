@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { DevSettings, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,6 +11,10 @@ import { Header, OfflineBanner } from './src/components';
 import { RootNavigator } from './src/navigation';
 import { reducedMotionStore } from './src/motion/store';
 import { navigationTheme } from './src/shell/logic';
+import { getSessionStatus, hydrateSession, signOut, subscribeSession } from './src/api/session';
+import { hydrateLanguage } from './src/services/languageStore';
+import { SignInScreen } from './src/screens/SignInScreen';
+import { LoadingState } from './src/components/ui/States';
 
 const MOTION_PRIME_TIMEOUT_MS = 1500;
 
@@ -54,6 +58,12 @@ const AppShell: React.FC = () => {
   const { language, setLanguage, t } = useLanguage('en');
   const navTheme = useMemo(() => navigationTheme(isDark, colors), [isDark, colors]);
   const [galleryOpen, setGalleryOpen] = useDevGallery();
+  const session = useSyncExternalStore(subscribeSession, getSessionStatus, getSessionStatus);
+
+  useEffect(() => {
+    void hydrateLanguage();
+    void hydrateSession();
+  }, []);
 
   if (__DEV__ && PrimitivesGallery && galleryOpen) {
     return <PrimitivesGallery onExit={Platform.OS === 'web' ? undefined : () => setGalleryOpen(false)} />;
@@ -62,11 +72,24 @@ const AppShell: React.FC = () => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgBase }}>
       <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.bgSurface} />
-      <Header title={t.appName} currentLanguage={language} onLanguageChange={setLanguage} />
+      <Header
+        title={t.appName}
+        currentLanguage={language}
+        onLanguageChange={setLanguage}
+        onSignOut={session === 'signed-in' ? () => void signOut() : undefined}
+        signOutLabel={t.auth.signOut}
+      />
       <OfflineBanner />
-      <NavigationContainer theme={navTheme}>
-        <RootNavigator />
-      </NavigationContainer>
+      {/* Everything behind the sign-in screen needs an account session (ADR-029). */}
+      {session === 'signed-in' ? (
+        <NavigationContainer theme={navTheme}>
+          <RootNavigator />
+        </NavigationContainer>
+      ) : session === 'loading' ? (
+        <LoadingState label={t.auth.checking} />
+      ) : (
+        <SignInScreen status={session} />
+      )}
     </View>
   );
 };

@@ -4966,3 +4966,9 @@ html[data-motion="reduce"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* A link nothing else styles. Zero specificity, so any component rule wins. */
+a:where(:not([class])) {
+  color: var(--text-primary);
+  text-decoration: underline;
+}

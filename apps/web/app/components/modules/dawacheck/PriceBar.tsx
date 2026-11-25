@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import type { PriceCheck, PriceCheckView } from "../../../lib/dawacheck";
+import { useT } from "../../../i18n/useT";
 
 const rupees = (n: number) => `₹${n.toFixed(2)}`;
 
@@ -8,7 +11,8 @@ const rupees = (n: number) => `₹${n.toFixed(2)}`;
  * compared: without a per-unit price (CANNOT_COMPARE) only the ceiling is shown.
  */
 export const PriceBar: React.FC<{ check: PriceCheck; view: PriceCheckView }> = ({ check, view }) => {
-  const unit = check.unit_label || "unit";
+  const tr = useT();
+  const unit = check.unit_label || tr("unit");
   const ceiling = check.nppa_ceiling_price;
   const billed = view.verdict === "cannot_compare" ? null : (check.billed_unit_price ?? null);
   const scale = Math.max(ceiling, billed ?? 0) * 1.15 || 1;
@@ -22,8 +26,8 @@ export const PriceBar: React.FC<{ check: PriceCheck; view: PriceCheckView }> = (
         role="img"
         aria-label={
           billed === null
-            ? `Not compared. NPPA ceiling ${rupees(ceiling)} per ${unit}.`
-            : `Paid ${rupees(billed)} per ${unit}; NPPA ceiling ${rupees(ceiling)} per ${unit}.`
+            ? tr("Not compared. NPPA ceiling {ceiling} per {unit}.", { ceiling: rupees(ceiling), unit })
+            : tr("Paid {billed} per {unit}; NPPA ceiling {ceiling} per {unit}.", { billed: rupees(billed), ceiling: rupees(ceiling), unit })
         }
       >
         {billed !== null && <span className="lp-bar-base" style={{ width: pct(over ? ceiling : billed) }} />}
@@ -32,10 +36,10 @@ export const PriceBar: React.FC<{ check: PriceCheck; view: PriceCheckView }> = (
       </div>
       <figcaption className="dc-bar-legend">
         <span>
-          {billed === null ? "Paid per " + unit + ": not established" : <>Paid per {unit}: <strong className="code-tabular">{rupees(billed)}</strong></>}
+          {billed === null ? tr("Paid per {unit}: not established", { unit }) : <>{tr("Paid per {unit}:", { unit })} <strong className="code-tabular">{rupees(billed)}</strong></>}
         </span>
         <span>
-          <i className="lp-swatch lp-swatch-ref" aria-hidden="true" /> NPPA ceiling: <strong className="code-tabular">{rupees(ceiling)}</strong>
+          <i className="lp-swatch lp-swatch-ref" aria-hidden="true" /> {tr("NPPA ceiling:")} <strong className="code-tabular">{rupees(ceiling)}</strong>
         </span>
       </figcaption>
     </figure>

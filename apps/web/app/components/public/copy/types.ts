@@ -83,7 +83,7 @@ export interface ModuleCopy {
 
 export interface PublicCopy {
   /** "reviewed" only for English. Hindi and Marathi stay "pending" until a native speaker writes them. */
-  translation: "source" | "pending";
+  translation: "source" | "machine";
   siteName: string;
   common: {
     synthetic: string;
@@ -135,8 +135,8 @@ export interface PublicCopy {
       kicker: string;
       heading: string;
       lede: string;
-      columns: [string, string, string];
-      rows: { aspect: string; guest: string; account: string }[];
+      columns: [string, string];
+      rows: { aspect: string; account: string }[];
       caption: string;
       note: string;
     };

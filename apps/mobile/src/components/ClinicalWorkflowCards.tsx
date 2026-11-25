@@ -9,6 +9,7 @@ import { Badge } from './Badge';
 import { AssignReviewer } from './ClinicalReviewCard';
 import { api } from '../api/endpoints';
 import { ApiError, ReadinessResponse, ReviewerProfile, SafetyEvaluation, TranscriptionTask } from '../api/types';
+import { tr, msg, useTranslation } from '../translations/tr';
 
 /**
  * ADR-011 mobile surfaces: safety escalations, preauth readiness, and uncertain OCR
@@ -16,6 +17,7 @@ import { ApiError, ReadinessResponse, ReviewerProfile, SafetyEvaluation, Transcr
  */
 
 export const SafetyNotice: React.FC<{ caseId: string | null; refreshToken?: unknown }> = ({ caseId, refreshToken }) => {
+  useTranslation();
   const { colors, spacing, typography } = useTheme();
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export const SafetyNotice: React.FC<{ caseId: string | null; refreshToken?: unkn
       })
       .catch((err: ApiError) => {
         setEvaluation(null);
-        setFailure(err.detail || err.message || 'unknown error');
+        setFailure(err.detail || err.message || tr('unknown error'));
       });
   }, [caseId, refreshToken]);
 
@@ -41,11 +43,13 @@ export const SafetyNotice: React.FC<{ caseId: string | null; refreshToken?: unkn
     return (
       <Card style={{ marginVertical: spacing.sm, borderColor: colors.statusWarning, borderWidth: 1 }}>
         <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.sm, fontWeight: '700' }}>
-          ⚠️ Safety check unavailable
+          {tr('⚠️ Safety check unavailable')}
         </Text>
         <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.sm }}>
-          The clinical safety check could not be run{failure ? ` (${failure})` : ''}. No safety assessment has been made — this
-          is not the same as "nothing found". If you have urgent symptoms, seek medical care directly.
+          {failure
+            ? tr('The clinical safety check could not be run ({failure}).', { failure })
+            : tr('The clinical safety check could not be run.')}{' '}
+          {tr('No safety assessment has been made — this is not the same as "nothing found". If you have urgent symptoms, seek medical care directly.')}
         </Text>
       </Card>
     );
@@ -60,16 +64,16 @@ export const SafetyNotice: React.FC<{ caseId: string | null; refreshToken?: unkn
   }
   return (
     <Card style={{ marginVertical: spacing.sm, borderColor: colors.statusDanger, borderWidth: 2 }}>
-      <Text style={{ color: colors.statusDanger, fontWeight: '700', fontSize: typography.sizes.md }}>⚠️ Clinical safety check</Text>
+      <Text style={{ color: colors.statusDanger, fontWeight: '700', fontSize: typography.sizes.md }}>{tr('⚠️ Clinical safety check')}</Text>
       {evaluation.escalations.map((esc) => (
         <View key={esc.rule_id} style={{ marginTop: spacing.sm }}>
           <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>
-            {esc.severity === 'URGENT' ? 'Urgent: ' : ''}
+            {esc.severity === 'URGENT' ? tr('Urgent: ') : ''}
             {esc.title}
           </Text>
           <Text style={{ color: colors.textPrimary }}>{esc.message}</Text>
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-            Matched: {esc.matched_terms.join(', ')} · Rule v{esc.rule_version} · Source: {esc.source.name}
+            {tr('Matched: {terms} · Rule v{version} · Source: {source}', { terms: esc.matched_terms.join(', '), version: esc.rule_version, source: esc.source.name })}
           </Text>
         </View>
       ))}
@@ -88,6 +92,7 @@ const READINESS_MARK: Record<string, string> = {
 };
 
 export const ReadinessCard: React.FC<{ caseId: string | null; processing?: boolean }> = ({ caseId, processing = false }) => {
+  useTranslation();
   const { colors, spacing, typography } = useTheme();
   const [report, setReport] = useState<ReadinessResponse | null>(null);
   const [shareConsent, setShareConsent] = useState(false);
@@ -122,24 +127,24 @@ export const ReadinessCard: React.FC<{ caseId: string | null; processing?: boole
 
   return (
     <Card style={{ marginVertical: spacing.sm }}>
-      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md }}>📑 Pre-authorization readiness</Text>
+      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md }}>{tr('📑 Pre-authorization readiness')}</Text>
       <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginVertical: spacing.xs }}>
-        Checks which commonly requested documents are in your case. It does not predict approval.
+        {tr('Checks which commonly requested documents are in your case. It does not predict approval.')}
       </Text>
-      <Button title="Check documentation readiness" onPress={check} size="sm" disabled={processing} />
+      <Button title={tr('Check documentation readiness')} onPress={check} size="sm" disabled={processing} />
       {processing && (
         <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
-          Your document is still being processed — check readiness once it finishes.
+          {tr('Your document is still being processed — check readiness once it finishes.')}
         </Text>
       )}
       {error && <Text style={{ color: '#ef4444', fontSize: 13 }}>⚠️ {error}</Text>}
       {report && (
         <View style={{ marginTop: spacing.sm }}>
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Guidance: {report.guidance_label}</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{tr('Guidance: {label}', { label: report.guidance_label })}</Text>
           {report.items.map((item) => (
             <Text key={item.item_id} style={{ color: colors.textPrimary, fontSize: typography.sizes.sm, marginTop: 2 }}>
-              {READINESS_MARK[item.status]} {item.label} — {item.status.replaceAll('_', ' ').toLowerCase()}
-              {item.evidence_strength === 'KEYWORD_MATCH' ? ' (keyword match — weak evidence)' : ''}
+              {READINESS_MARK[item.status]} {item.label} — {humanizeEnum(item.status)}
+              {item.evidence_strength === 'KEYWORD_MATCH' ? tr(' (keyword match — weak evidence)') : ''}
             </Text>
           ))}
           {report.recommended_actions.map((a) => (
@@ -154,18 +159,18 @@ export const ReadinessCard: React.FC<{ caseId: string | null; processing?: boole
           {pendingFacts.length > 0 && !requested && (
             <>
               <View style={[styles.row, { marginTop: spacing.sm }]}>
-                <Switch value={shareConsent} onValueChange={setShareConsent} accessibilityLabel="Agree to share evidence with a doctor" />
+                <Switch value={shareConsent} onValueChange={setShareConsent} accessibilityLabel={tr('Agree to share evidence with a doctor')} />
                 <Text style={{ color: colors.textPrimary, flex: 1, fontSize: typography.sizes.xs }}>
-                  I agree to share de-identified case evidence with the doctor I assign to confirm these facts.
+                  {tr('I agree to share de-identified case evidence with the doctor I assign to confirm these facts.')}
                 </Text>
               </View>
-              <Button title={`Ask a doctor to confirm ${pendingFacts.length} fact(s)`} onPress={requestConfirmation} disabled={!shareConsent} size="sm" variant="secondary" />
+              <Button title={pendingFacts.length === 1 ? tr('Ask a doctor to confirm 1 fact') : tr('Ask a doctor to confirm {count} facts', { count: pendingFacts.length })} onPress={requestConfirmation} disabled={!shareConsent} size="sm" variant="secondary" />
             </>
           )}
           {requested && !assigned && (
             <AssignReviewer
               directory={doctors}
-              actionLabel="Assign"
+              actionLabel={tr('Assign')}
               onAssign={(reviewerId) =>
                 api.clinical
                   .assignReviewer(caseId, requested, reviewerId)
@@ -176,7 +181,7 @@ export const ReadinessCard: React.FC<{ caseId: string | null; processing?: boole
           )}
           {assigned && (
             <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
-              Sent to {assigned}. Check readiness again after they decide.
+              {tr('Sent to {name}. Check readiness again after they decide.', { name: assigned })}
             </Text>
           )}
         </View>
@@ -186,11 +191,11 @@ export const ReadinessCard: React.FC<{ caseId: string | null; processing?: boole
 };
 
 const TASK_STATUS: Record<TranscriptionTask['status'], string> = {
-  OPEN: 'Awaiting a human reading',
-  AWAITING_SECOND_REVIEW: 'Needs a second independent reading',
-  RESOLVED: 'Resolved by independent human readings',
-  HUMAN_ESCALATION_REQUIRED: 'Readers disagreed — confirm with the prescriber or pharmacist',
-  CANCELLED: 'Cancelled',
+  OPEN: msg('Awaiting a human reading'),
+  AWAITING_SECOND_REVIEW: msg('Needs a second independent reading'),
+  RESOLVED: msg('Resolved by independent human readings'),
+  HUMAN_ESCALATION_REQUIRED: msg('Readers disagreed — confirm with the prescriber or pharmacist'),
+  CANCELLED: msg('Cancelled'),
 };
 
 export const TranscriptionCard: React.FC<{
@@ -199,6 +204,7 @@ export const TranscriptionCard: React.FC<{
   processing?: boolean;
   refreshToken?: unknown;
 }> = ({ caseId, medicines, processing = false, refreshToken }) => {
+  useTranslation();
   const { colors, spacing, typography } = useTheme();
   const [tasks, setTasks] = useState<TranscriptionTask[]>([]);
   const [readers, setReaders] = useState<ReviewerProfile[]>([]);
@@ -234,7 +240,7 @@ export const TranscriptionCard: React.FC<{
     return (
       <Card style={{ marginVertical: spacing.sm }}>
         <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
-          ✍️ Reading your prescription… unclear text will appear here once processing finishes.
+          {tr('✍️ Reading your prescription… unclear text will appear here once processing finishes.')}
         </Text>
       </Card>
     );
@@ -249,16 +255,15 @@ export const TranscriptionCard: React.FC<{
 
   return (
     <Card style={{ marginVertical: spacing.sm }}>
-      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md }}>✍️ Unclear prescription text</Text>
+      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.md }}>{tr('✍️ Unclear prescription text')}</Text>
       <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginVertical: spacing.xs }}>
-        When the software is unsure what a prescription says, trained human readers (pharmacists, transcriptionists) read
-        it instead of the app guessing. Medicine fields need two readings that agree. The image is never stored.
+        {tr('When the software is unsure what a prescription says, trained human readers (pharmacists, transcriptionists) read it instead of the app guessing. Medicine fields need two readings that agree. The image is never stored.')}
       </Text>
       {error && <Text style={{ color: '#ef4444', fontSize: 13 }}>⚠️ {error}</Text>}
       {medicines.map((m) => (
         <Button
           key={m.id}
-          title={flagged.has(m.id) ? `✓ ${m.name} flagged` : `Flag “${m.name}” as possibly misread`}
+          title={flagged.has(m.id) ? tr('✓ {name} flagged', { name: m.name }) : tr('Flag “{name}” as possibly misread', { name: m.name })}
           onPress={() => act(() => api.clinical.flagForTranscription(caseId, m.id))}
           disabled={flagged.has(m.id)}
           variant="outline"
@@ -267,39 +272,38 @@ export const TranscriptionCard: React.FC<{
       ))}
       {tasks.length > 0 && (
         <View style={[styles.row, { marginTop: spacing.sm }]}>
-          <Switch value={shareConsent} onValueChange={setShareConsent} accessibilityLabel="Agree to share masked text with readers" />
+          <Switch value={shareConsent} onValueChange={setShareConsent} accessibilityLabel={tr('Agree to share masked text with readers')} />
           <Text style={{ color: colors.textPrimary, flex: 1, fontSize: typography.sizes.xs }}>
-            I agree to share the masked, redacted text with the readers I assign.
+            {tr('I agree to share the masked, redacted text with the readers I assign.')}
           </Text>
         </View>
       )}
       {tasks.map((task) => (
         <View key={task.task_id} style={[styles.item, { borderColor: colors.borderSubtle, paddingTop: spacing.sm, marginTop: spacing.sm }]}>
           <Badge
-            label={`${humanizeEnum(task.field_type)} · ${task.risk_level === 'HIGH' ? 'two readers required' : 'one reader required'}`}
+            label={`${humanizeEnum(task.field_type)} · ${task.risk_level === 'HIGH' ? tr('two readers required') : tr('one reader required')}`}
             variant={task.risk_level === 'HIGH' ? 'danger' : 'info'}
           />
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
             {task.status === 'RESOLVED' && task.outcome === 'NOT_APPLIED'
-              ? 'Readers agreed, but the reading could not be applied — the entry stays unsettled'
-              : TASK_STATUS[task.status]}{' '}
-            · readings {task.readings_received}/{task.required_reviews}
+              ? tr('Readers agreed, but the reading could not be applied — the entry stays unsettled')
+              : tr(TASK_STATUS[task.status])}{' '}
+            · {tr('readings {received}/{required}', { received: task.readings_received, required: task.required_reviews })}
           </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Context: {task.masked_context}</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{tr('Context: {context}', { context: task.masked_context })}</Text>
           {task.final_value && task.outcome !== 'NOT_APPLIED' ? (
-            <Text style={{ color: colors.textPrimary }}>Human-reviewed reading: {task.final_value}</Text>
+            <Text style={{ color: colors.textPrimary }}>{tr('Human-reviewed reading: {value}', { value: task.final_value })}</Text>
           ) : null}
           {task.final_value && task.outcome === 'NOT_APPLIED' ? (
             <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>
-              Readers agreed on “{task.final_value}”, but it could not be placed into the extracted entry, so the medicine is not
-              treated as settled or price-checked.
+              {tr('Readers agreed on “{value}”, but it could not be placed into the extracted entry, so the medicine is not treated as settled or price-checked.', { value: task.final_value })}
             </Text>
           ) : null}
           {(task.status === 'OPEN' || task.status === 'AWAITING_SECOND_REVIEW') && (
             <AssignReviewer
               directory={readers}
               disabled={!shareConsent}
-              actionLabel="Assign reader"
+              actionLabel={tr('Assign reader')}
               onAssign={(reviewerId) => act(() => api.clinical.assignTranscription(caseId, task.task_id, reviewerId, shareConsent))}
             />
           )}

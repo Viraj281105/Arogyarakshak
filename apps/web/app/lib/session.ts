@@ -11,7 +11,7 @@ import { API_BASE } from "./apiBase";
  * - expired: we were signed in and a request came back 401 (idle or absolute timeout, sign-out
  *   in another tab, password changed elsewhere)
  * - unreachable: no answer (API down, or a credentialed request was refused by CORS because the
- *   API's CORS_ORIGINS is a wildcard; accounts then cannot work, guest cases still do)
+ *   API's CORS_ORIGINS does not list this site; nobody can sign in then)
  */
 export type AccountStatus = "unknown" | "checking" | "signed-in" | "signed-out" | "expired" | "unreachable";
 
@@ -98,8 +98,8 @@ export function noteUnauthorized(path: string): void {
 /**
  * Credentials mode for API requests. The cookie must travel ("include") whenever a session may
  * exist. When the API said there is none, or could not be reached, requests go without it
- * ("same-origin"), so a guest keeps working against an API whose CORS_ORIGINS is a wildcard
- * (which refuses every credentialed cross-origin request).
+ * ("same-origin"), so the few public requests still get an answer from an API whose
+ * CORS_ORIGINS is a wildcard (which refuses every credentialed cross-origin request).
  */
 export function requestCredentials(): RequestCredentials {
   return state.status === "signed-out" || state.status === "unreachable" ? "same-origin" : "include";

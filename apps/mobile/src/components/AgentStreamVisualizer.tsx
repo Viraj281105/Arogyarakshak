@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '../theme';
 import { SSEStreamEvent } from '../hooks/useSSEStream';
 import { Badge } from './Badge';
+import { tr, useTranslation } from '../translations/tr';
 
 interface AgentStreamVisualizerProps {
   progress: number;
@@ -19,6 +20,7 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
   isCompleted,
   error,
 }) => {
+  useTranslation();
   const { colors, spacing, typography, radii } = useTheme();
 
   const getStepIndex = (status?: string): number => {
@@ -45,11 +47,11 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {isStreaming && <ActivityIndicator size="small" color={colors.brandCyan} />}
           <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: typography.sizes.sm }}>
-            {isCompleted ? '✓ Case Ingestion Completed' : '⚡ Kadi Real-Time Stream'}
+            {isCompleted ? tr('✓ Case Ingestion Completed') : tr('⚡ Kadi Real-Time Stream')}
           </Text>
         </View>
         <Badge
-          label={isCompleted ? 'Ready' : `${progress}%`}
+          label={isCompleted ? tr('Ready') : `${progress}%`}
           variant={isCompleted ? 'success' : error ? 'danger' : 'brand'}
         />
       </View>
@@ -70,10 +72,10 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({
       {/* Pipeline Step Indicators */}
       <View style={styles.stepsRow}>
         {[
-          { step: 1, label: 'Upload' },
+          { step: 1, label: tr('Upload') },
           { step: 2, label: 'OCR' },
-          { step: 3, label: 'Entities' },
-          { step: 4, label: 'Complete' },
+          { step: 3, label: tr('Entities') },
+          { step: 4, label: tr('Complete') },
         ].map(({ step, label }) => {
           const isActive = currentStep === step && isStreaming;
           const isDone = currentStep > step || isCompleted;

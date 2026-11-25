@@ -751,6 +751,17 @@ body {
   box-shadow: var(--shadow-card);
 }
 
+/* A control scrolled to because it has focus must stop above the strip (WCAG 2.4.11). */
+html:has(.demo-banner) {
+  scroll-padding-bottom: 8rem;
+}
+
+@media (min-width: 768px) {
+  html:has(.demo-banner) {
+    scroll-padding-bottom: 5.5rem;
+  }
+}
+
 /* Room after the footer so the strip never covers the end of the page. Only when it exists. */
 body:has(.demo-banner) .site-footer {
   padding-bottom: calc(max(var(--space-xl), env(safe-area-inset-bottom)) + 7rem);

@@ -6,6 +6,7 @@ import { Card, Button, Badge } from '../components';
 import { api, SchemeResult, ApiError } from '../api';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { tr } from '../translations/tr';
 
 export const SchemeSetuScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
@@ -50,12 +51,12 @@ export const SchemeSetuScreen: React.FC = () => {
         setOfflineQueued(true);
         setError(
           !isOnline
-            ? 'Device is offline. Eligibility check queued; will sync automatically when reconnected.'
-            : `${apiErr.message || 'Failed to check eligibility.'} (Queued for offline retry)`
+            ? tr('Device is offline. Eligibility check queued; will sync automatically when reconnected.')
+            : tr('{message} (Queued for offline retry)', { message: apiErr.message || tr('Failed to check eligibility.') })
         );
       } else {
         setOfflineQueued(false);
-        setError('Could not save this for offline retry — please try again when back online.');
+        setError(tr('Could not save this for offline retry — please try again when back online.'));
       }
     } finally {
       setLoading(false);

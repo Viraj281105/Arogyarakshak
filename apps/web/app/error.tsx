@@ -3,10 +3,12 @@
 import { useEffect } from "react";
 import { DocumentLink } from "./components/DocumentLink";
 import { StatusPage } from "./components/StatusPage";
+import { useT } from "./i18n/useT";
 
 /** Error boundary for every route under the root layout (Next 16 passes `retry`). */
 // Not named `Error`: that would shadow the global used in the instanceof check below.
 export default function RouteError({ error, retry }: { error: unknown; retry: () => void }) {
+  const tr = useT();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -17,27 +19,19 @@ export default function RouteError({ error, retry }: { error: unknown; retry: ()
 
   return (
     <StatusPage
-      code="Something went wrong"
-      title="This page could not be shown."
+      code={tr("Something went wrong")}
+      title={tr("This page could not be shown.")}
       variant="error"
       actions={
         <>
-          <button type="button" className="btn btn-primary btn-lg" onClick={() => retry()}>
-            Try again
-          </button>
-          <DocumentLink href="/" className="btn btn-ghost btn-lg">
-            Go to the home page
-          </DocumentLink>
+          <button type="button" className="btn btn-primary btn-lg" onClick={() => retry()}>{tr("Try again")}</button>
+          <DocumentLink href="/" className="btn btn-ghost btn-lg">{tr("Go to the home page")}</DocumentLink>
         </>
       }
     >
-      <p>
-        Part of the page failed while loading. Nothing on it is shown as finished or checked. Trying again often works; if
-        it keeps happening, the API may be unreachable.
-      </p>
+      <p>{tr("Part of the page failed while loading. Nothing on it is shown as finished or checked. Trying again often works; if it keeps happening, the API may be unreachable.")}</p>
       {digest && (
-        <p className="bn-fine">
-          Reference for the server log: <code>{digest}</code>
+        <p className="bn-fine">{tr("Reference for the server log:")}{" "}<code>{digest}</code>
         </p>
       )}
     </StatusPage>

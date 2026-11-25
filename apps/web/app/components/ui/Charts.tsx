@@ -1,5 +1,6 @@
 import React from "react";
 import { EvidenceBadge } from "./Badges";
+import { T } from "../../i18n/T";
 
 /**
  * Hand-built SVG chart primitives (Wave 3 decision D3: no chart library). Server-safe, no JS.
@@ -36,7 +37,7 @@ function ChartFrame({
   meta: ChartMeta;
   summary: string;
   children: React.ReactNode;
-  table: { head: string[]; rows: (string | number)[][] };
+  table: { head: React.ReactNode[]; rows: (string | number)[][] };
 }) {
   return (
     <figure className="ui-chart">
@@ -45,26 +46,30 @@ function ChartFrame({
         {meta.basis === "verified" ? (
           <EvidenceBadge state="verified" size="sm" />
         ) : meta.basis === "estimate" ? (
-          <span className="ui-badge ui-badge-sm ui-estimate-badge">Estimate</span>
+          <span className="ui-badge ui-badge-sm ui-estimate-badge">
+            <T k="Estimate" />
+          </span>
         ) : null}
       </figcaption>
       <div className="ui-chart-body" role="img" aria-label={`${meta.title}. ${summary}`}>
         {children}
       </div>
       <p className="ui-chart-meta">
-        Units: {meta.units} · Period: {meta.period} · Source: {meta.source}
+        <T k="Units: {units} · Period: {period} · Source: {source}" vars={{ units: meta.units, period: meta.period, source: meta.source }} />
       </p>
       <details className="ui-chart-data">
-        <summary>Data table</summary>
-        <div className="ui-table-scroll" tabIndex={0} role="region" aria-label={`${meta.title} data`}>
+        <summary>
+          <T k="Data table" />
+        </summary>
+        <div className="ui-table-scroll" tabIndex={0} role="region" aria-label={meta.title}>
           <table className="ui-table">
             <caption className="sr-only">
               {meta.title} ({meta.units}, {meta.period})
             </caption>
             <thead>
               <tr>
-                {table.head.map((h) => (
-                  <th key={h} scope="col">
+                {table.head.map((h, i) => (
+                  <th key={i} scope="col">
                     {h}
                   </th>
                 ))}
@@ -110,7 +115,7 @@ export function BarChart({ data, ...meta }: ChartMeta & { data: readonly BarDatu
     <ChartFrame
       meta={meta}
       summary={data.map((d) => `${d.label}: ${f(d.value)} ${meta.units}`).join("; ")}
-      table={{ head: ["Item", meta.units], rows: data.map((d) => [d.label, f(d.value)]) }}
+      table={{ head: [<T key="item" k="Item" />, meta.units], rows: data.map((d) => [d.label, f(d.value)]) }}
     >
       <ul className="ui-bars" aria-hidden="true">
         {data.map((d, i) => (
@@ -148,7 +153,7 @@ export function StackedBarChart({
       meta={meta}
       summary={rows.map((r, i) => `${r.label}: total ${f(totals[i])} ${meta.units}`).join("; ")}
       table={{
-        head: ["Item", ...series.map((s) => s.label), "Total"],
+        head: [<T key="item" k="Item" />, ...series.map((s) => s.label), <T key="total" k="Total" />],
         rows: rows.map((r, i) => [r.label, ...series.map((s) => f(r.values[s.key] ?? 0)), f(totals[i])]),
       }}
     >
@@ -216,8 +221,8 @@ export function DonutChart({ data, centerLabel, ...meta }: ChartMeta & { data: r
   return (
     <ChartFrame
       meta={meta}
-      summary={`Total ${f(total)} ${meta.units}. ` + data.map((d) => `${d.label}: ${f(d.value)} (${share(d.value)})`).join("; ")}
-      table={{ head: ["Part", meta.units, "Share"], rows: data.map((d) => [d.label, f(d.value), share(d.value)]) }}
+      summary={`${f(total)} ${meta.units}. ` + data.map((d) => `${d.label}: ${f(d.value)} (${share(d.value)})`).join("; ")}
+      table={{ head: [<T key="part" k="Part" />, meta.units, <T key="share" k="Share" />], rows: data.map((d) => [d.label, f(d.value), share(d.value)]) }}
     >
       <div className="ui-donut">
         <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -287,7 +292,11 @@ export function WaterfallChart({
       meta={meta}
       summary={all.map((s, i) => `${s.label}: ${s.total ? f(spans[i].to) : (s.value >= 0 ? "+" : "") + f(s.value)}`).join("; ")}
       table={{
-        head: ["Step", `Change (${meta.units})`, `Running total (${meta.units})`],
+        head: [
+          <T key="step" k="Step" />,
+          <T key="change" k="Change ({units})" vars={{ units: meta.units }} />,
+          <T key="running" k="Running total ({units})" vars={{ units: meta.units }} />,
+        ],
         rows: all.map((s, i) => [s.label, s.total ? "—" : (s.value >= 0 ? "+" : "") + f(s.value), f(spans[i].to)]),
       }}
     >
@@ -325,18 +334,18 @@ export interface TimelineEvent {
 }
 
 /** Events on a time axis (positions are proportional to time) with a numbered, readable list. */
-export function TimelineChart({ events, ...meta }: Omit<ChartMeta, "format"> & { events: readonly TimelineEvent[] }) {
+export function TimelineChart({ events, locale = "en-IN", ...meta }: Omit<ChartMeta, "format"> & { events: readonly TimelineEvent[]; locale?: string }) {
   const sorted = [...events].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
   const t = sorted.map((e) => Date.parse(e.date));
   const t0 = Math.min(...t);
   const t1 = Math.max(...t);
   const x = (v: number) => (t1 > t0 ? 4 + ((v - t0) / (t1 - t0)) * 92 : 50);
-  const fmt = (iso: string) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
+  const fmt = (iso: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
   return (
     <ChartFrame
       meta={{ ...meta, format: undefined }}
       summary={sorted.map((e) => `${fmt(e.date)}: ${e.label}`).join("; ")}
-      table={{ head: ["Date", "Event", "Detail"], rows: sorted.map((e) => [fmt(e.date), e.label, e.detail ?? ""]) }}
+      table={{ head: [<T key="date" k="Date" />, <T key="event" k="Event" />, <T key="detail" k="Detail" />], rows: sorted.map((e) => [fmt(e.date), e.label, e.detail ?? ""]) }}
     >
       <svg viewBox="0 0 100 14" className="ui-timeline-svg" aria-hidden="true">
         <line x1="2" x2="98" y1="7" y2="7" className="ui-axis" />

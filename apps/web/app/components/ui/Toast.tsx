@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import X from "lucide-react/icons/x";
+import { useT } from "../../i18n/useT";
 
 export type ToastTone = "success" | "info" | "warning" | "error";
 
@@ -61,6 +62,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
+  const tr = useT();
   const [paused, setPaused] = useState(false);
   useEffect(() => {
     if (!toast.duration || paused) return;
@@ -76,7 +78,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       onBlur={() => setPaused(false)}
     >
       <p>{toast.message}</p>
-      <button type="button" className="ui-icon-btn" onClick={() => onDismiss(toast.id)} aria-label="Dismiss notification">
+      <button type="button" className="ui-icon-btn" onClick={() => onDismiss(toast.id)} aria-label={tr("Dismiss notification")}>
         <X size={16} aria-hidden="true" />
       </button>
     </div>

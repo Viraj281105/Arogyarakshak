@@ -12,9 +12,11 @@ import type { Language } from "../../translations";
 import { ListenSummary } from "../ListenSummary";
 import { buildReadinessSummary } from "../../lib/listenSummaries";
 import { StatePanel } from "./StatePanel";
+import { LazyModulePlan } from "../actions/LazyModulePlan";
 import { apiFetch } from "../../lib/apiFetch";
 import { DonutChart } from "../ui/Charts";
 import { EvidenceBadge } from "../ui/Badges";
+import { useT } from "../../i18n/useT";
 
 interface ReadinessItem {
   item_id: string;
@@ -80,6 +82,7 @@ const STATUS_TEXT: Record<ReadinessItem["status"], string> = {
  * and never marks a clinical fact satisfied without a named reviewer's decision.
  */
 export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: string; lang?: Language }> = ({ caseId, caseToken, lang = "en" }) => {
+  const tr = useT();
   const [report, setReport] = useState<ReadinessResponse | null>(null);
   const [playbookId, setPlaybookId] = useState("");
   const [institutionToken, setInstitutionToken] = useState("");
@@ -156,19 +159,17 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
 
   return (
     <section aria-labelledby="readiness-title" className="case-panel bn-card readiness-panel">
-      <h3 id="readiness-title">Pre-authorization readiness</h3>
-      <p className="bn-fine">
-        Checks which commonly requested documents can be found in your case. It does not predict approval.
-      </p>
+      <h3 id="readiness-title">{tr("Pre-authorization readiness")}</h3>
+      <p className="bn-fine">{tr("Checks which commonly requested documents can be found in your case. It does not predict approval.")}</p>
       <details className="ds-unlock">
-        <summary>Hospital desk: apply your institution&apos;s private playbook</summary>
+        <summary>{tr("Hospital desk: apply your institution's private playbook")}</summary>
         <div className="grid-2">
-          <input className="input-field" placeholder="Playbook ID (PB-…)" aria-label="Playbook ID" value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} />
+          <input className="input-field" placeholder={tr("Playbook ID (PB-…)")} aria-label={tr("Playbook ID")} value={playbookId} onChange={(e) => setPlaybookId(e.target.value)} />
           <input
             className="input-field"
             type="password"
-            placeholder="Institution credential"
-            aria-label="Institution credential"
+            placeholder={tr("Institution credential")}
+            aria-label={tr("Institution credential")}
             value={institutionToken}
             onChange={(e) => setInstitutionToken(e.target.value)}
           />
@@ -176,7 +177,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
       </details>
       <div>
         <button type="button" className="btn btn-primary" onClick={check}>
-          {report ? "Check again" : "Check documentation readiness"}
+          {report ? tr("Check again") : tr("Check documentation readiness")}
         </button>
       </div>
       {error && <StatePanel kind="error" onRetry={check}>{error}</StatePanel>}
@@ -184,29 +185,30 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
       {report && counts && (
         <div className="readiness-result">
           <ListenSummary lang={lang} panel="readiness" summary={buildReadinessSummary(report.items, lang)} />
+          <LazyModulePlan module="daavisetu" items={report.items} caseId={caseId} />
           <DonutChart
-            title="Document readiness breakdown"
+            title={tr("Document readiness breakdown")}
             source={report.guidance_label}
-            units="items"
-            period="Current case"
-            centerLabel="Items checked"
+            units={tr("items")}
+            period={tr("Current case")}
+            centerLabel={tr("Items checked")}
             data={[
-              { label: "Found in documents", value: counts.ok, tone: "within" },
-              { label: "Needs doctor confirmation", value: counts.question, tone: "bundled" },
-              { label: "Not found", value: counts.missing, tone: "over" },
+              { label: tr("Found in documents"), value: counts.ok, tone: "within" },
+              { label: tr("Needs doctor confirmation"), value: counts.question, tone: "bundled" },
+              { label: tr("Not found"), value: counts.missing, tone: "over" },
             ]}
           />
-          <div className="readiness-meter" role="img" aria-label={`${counts.ok} found, ${counts.question} need a doctor, ${counts.missing} not found`}>
+          <div className="readiness-meter" role="img" aria-label={tr("{ok} found, {question} need a doctor, {missing} not found", { ok: counts.ok, question: counts.question, missing: counts.missing })}>
             {report.items.map((item) => (
               <span key={item.item_id} className={`readiness-cell is-${TONE[item.status]}`} title={item.label} />
             ))}
           </div>
           <div className="readiness-legend">
-            <span><i className="readiness-dot is-ok" aria-hidden="true" /> {counts.ok} found</span>
-            <span><i className="readiness-dot is-question" aria-hidden="true" /> {counts.question} need a doctor</span>
-            <span><i className="readiness-dot is-missing" aria-hidden="true" /> {counts.missing} not found</span>
+            <span><i className="readiness-dot is-ok" aria-hidden="true" /> {counts.ok}{" "}{tr("found")}</span>
+            <span><i className="readiness-dot is-question" aria-hidden="true" /> {counts.question}{" "}{tr("need a doctor")}</span>
+            <span><i className="readiness-dot is-missing" aria-hidden="true" /> {counts.missing}{" "}{tr("not found")}</span>
           </div>
-          <div className="stat-label">Guidance used: {report.guidance_label}</div>
+          <div className="stat-label">{tr("Guidance used: {guidance_label}", { guidance_label: report.guidance_label })}</div>
           <ul className="readiness-items">
             {report.items.map((item) => (
               <li key={item.item_id} className={`readiness-item is-${TONE[item.status]}`}>
@@ -215,14 +217,13 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
                   <strong>{item.label}</strong>
                   <span className="readiness-status">
                     {STATUS_TEXT[item.status]}
-                    {item.evidence_strength === "KEYWORD_MATCH" && " (keyword found in document text — weak evidence)"}
+                    {item.evidence_strength === "KEYWORD_MATCH" && tr(" (keyword found in document text — weak evidence)")}
                   </span>
-                  {item.origin === "INSTITUTION_PLAYBOOK" && <span className="badge badge-info">playbook</span>}
+                  {item.origin === "INSTITUTION_PLAYBOOK" && <span className="badge badge-info">{tr("playbook")}</span>}
                   {item.status === "CONFIRMED_BY_REVIEWER" && <EvidenceBadge state="human-reviewed" size="sm" />}
                   {item.clinical_decision && item.clinical_decision.decision !== "PENDING" && (
                     <span className="readiness-status">
-                      {humanizeEnum(item.clinical_decision.decision)} — {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label};
-                      COI: {item.clinical_decision.coi_label})
+                      {tr(humanizeEnum(item.clinical_decision.decision))} — {item.clinical_decision.reviewer_name} ({item.clinical_decision.reviewer_verification_label}{tr("; COI:")}{" "}{item.clinical_decision.coi_label})
                     </span>
                   )}
                   <ExplainTrail explanation={item.explanation} lang={lang} />
@@ -230,7 +231,7 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
               </li>
             ))}
           </ul>
-          <div className="stat-label">Recommended action</div>
+          <div className="stat-label">{tr("Recommended action")}</div>
           <ul className="readiness-actions">
             {report.recommended_actions.map((a) => (
               <li key={a}>{a}</li>
@@ -243,27 +244,25 @@ export const PreauthReadinessPanel: React.FC<{ caseId: string; caseToken?: strin
             <div className="readiness-confirm">
               <label className="consent-wrapper">
                 <input type="checkbox" className="consent-checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
-                <span>I agree to share this case&apos;s de-identified evidence with the doctor I assign to confirm these facts.</span>
+                <span>{tr("I agree to share this case's de-identified evidence with the doctor I assign to confirm these facts.")}</span>
               </label>
               <button
                 type="button"
                 className="btn btn-secondary"
                 disabled={!shareConsent}
                 onClick={() => requestConfirmation(pendingFacts.map((f) => f.item_id))}
-              >
-                Ask a doctor to confirm {pendingFacts.length} clinical fact(s)
-              </button>
+              >{tr("Ask a doctor to confirm {count} clinical fact(s)", { count: pendingFacts.length })}</button>
             </div>
           )}
           {factReview && (
             <div className="readiness-confirm">
-              <p>Doctor confirmation request: {humanizeEnum(factReview.status)}</p>
+              <p>{tr("Doctor confirmation request: {value}", { value: tr(humanizeEnum(factReview.status)) })}</p>
               {factReview.assigned_reviewer ? (
                 <ReviewerAttribution reviewer={factReview.assigned_reviewer} />
               ) : (
-                <AssignReviewer directory={doctors} label="Assign doctor" onAssign={assignDoctor} />
+                <AssignReviewer directory={doctors} label={tr("Assign doctor")} onAssign={assignDoctor} />
               )}
-              <p className="bn-fine">Re-run the readiness check after the doctor decides to see the result.</p>
+              <p className="bn-fine">{tr("Re-run the readiness check after the doctor decides to see the result.")}</p>
             </div>
           )}
         </div>

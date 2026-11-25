@@ -107,7 +107,7 @@ export const authCopy: Record<Language, AuthCopy> = {
       "This server cannot send email yet, so no verification or password-reset message will arrive. If an administrator gave you a link, open it: the confirmation form on that page still works.",
     login: {
       title: "Sign in",
-      lede: "Signed in, your cases are kept with your account (until they expire after 90 days or you delete them) instead of only in this browser tab.",
+      lede: "Sign in to open your cases. A case expires after 90 days, or sooner if you delete it.",
       submit: "Sign in",
       forgot: "Forgot your password?",
       noAccount: "No account yet?",
@@ -118,14 +118,13 @@ export const authCopy: Record<Language, AuthCopy> = {
     },
     register: {
       title: "Create an account",
-      lede: "An account keeps your cases together across visits. You can still use ArogyaRakshak without one.",
+      lede: "An account is needed to upload documents and keep cases, so that only you can open them.",
       submit: "Create account",
       haveAccount: "Already have an account?",
       signIn: "Sign in",
       doneTitle: "Request received",
       verifyNote: "Email verification cannot be completed yet because this server does not send email. You can sign in without it.",
-      whatIsKept:
-        "Stored for the account: your email address and a salted hash of your password (never the password itself). Your documents are never kept, with or without an account.",
+      whatIsKept: "Stored for the account: your email address and a salted hash of your password (never the password itself). Your original documents are never kept.",
     },
     forgot: {
       title: "Forgot your password",
@@ -183,7 +182,7 @@ export const authCopy: Record<Language, AuthCopy> = {
       "यह सर्वर अभी ईमेल नहीं भेज सकता, इसलिए सत्यापन या पासवर्ड-रीसेट का कोई संदेश नहीं आएगा। यदि किसी व्यवस्थापक ने आपको लिंक दिया है, तो उसे खोलें: उस पेज का पुष्टि फ़ॉर्म अब भी काम करता है।",
     login: {
       title: "साइन इन करें",
-      lede: "साइन इन करने पर आपके केस केवल इस ब्राउज़र टैब में नहीं, बल्कि आपके खाते के साथ रखे जाते हैं (90 दिन बाद समाप्त होने या आपके हटाने तक)।",
+      lede: "अपने केस खोलने के लिए साइन इन करें। हर केस 90 दिन बाद समाप्त होता है, या आपके हटाने पर पहले।",
       submit: "साइन इन करें",
       forgot: "पासवर्ड भूल गए?",
       noAccount: "अभी खाता नहीं है?",
@@ -194,14 +193,13 @@ export const authCopy: Record<Language, AuthCopy> = {
     },
     register: {
       title: "खाता बनाएँ",
-      lede: "खाता आपके केस को अलग-अलग विज़िट में एक साथ रखता है। आप बिना खाते के भी आरोग्यरक्षक का उपयोग कर सकते हैं।",
+      lede: "दस्तावेज़ अपलोड करने और केस रखने के लिए खाता ज़रूरी है, ताकि उन्हें केवल आप खोल सकें।",
       submit: "खाता बनाएँ",
       haveAccount: "पहले से खाता है?",
       signIn: "साइन इन करें",
       doneTitle: "अनुरोध मिल गया",
       verifyNote: "ईमेल सत्यापन अभी पूरा नहीं हो सकता क्योंकि यह सर्वर ईमेल नहीं भेजता। आप इसके बिना साइन इन कर सकते हैं।",
-      whatIsKept:
-        "खाते के लिए रखा जाता है: आपका ईमेल पता और आपके पासवर्ड का सॉल्टेड हैश (पासवर्ड स्वयं कभी नहीं)। आपके दस्तावेज़ कभी नहीं रखे जाते, खाते के साथ या बिना।",
+      whatIsKept: "खाते के लिए रखा जाता है: आपका ईमेल पता और आपके पासवर्ड का सॉल्टेड हैश (पासवर्ड स्वयं कभी नहीं)। आपके मूल दस्तावेज़ कभी नहीं रखे जाते।",
     },
     forgot: {
       title: "पासवर्ड भूल गए",
@@ -259,7 +257,7 @@ export const authCopy: Record<Language, AuthCopy> = {
       "हा सर्व्हर अजून ईमेल पाठवू शकत नाही, त्यामुळे पडताळणी किंवा पासवर्ड-रीसेटचा कोणताही संदेश येणार नाही. एखाद्या प्रशासकाने तुम्हाला लिंक दिली असल्यास ती उघडा: त्या पानावरील पुष्टी फॉर्म अजूनही चालतो.",
     login: {
       title: "साइन इन करा",
-      lede: "साइन इन केल्यावर तुमचे केस फक्त या ब्राउझर टॅबमध्ये नव्हे तर तुमच्या खात्यासोबत ठेवले जातात (90 दिवसांनी कालबाह्य होईपर्यंत किंवा तुम्ही हटवेपर्यंत).",
+      lede: "तुमचे केस उघडण्यासाठी साइन इन करा. प्रत्येक केस 90 दिवसांनी कालबाह्य होतो, किंवा तुम्ही हटवल्यास त्याआधी.",
       submit: "साइन इन करा",
       forgot: "पासवर्ड विसरलात?",
       noAccount: "अजून खाते नाही?",
@@ -270,14 +268,13 @@ export const authCopy: Record<Language, AuthCopy> = {
     },
     register: {
       title: "खाते तयार करा",
-      lede: "खाते तुमचे केस वेगवेगळ्या भेटींमध्ये एकत्र ठेवते. खात्याशिवायही तुम्ही आरोग्यरक्षक वापरू शकता.",
+      lede: "कागदपत्रे अपलोड करण्यासाठी आणि केस ठेवण्यासाठी खाते आवश्यक आहे, जेणेकरून ते फक्त तुम्हीच उघडू शकाल.",
       submit: "खाते तयार करा",
       haveAccount: "आधीच खाते आहे?",
       signIn: "साइन इन करा",
       doneTitle: "विनंती मिळाली",
       verifyNote: "ईमेल पडताळणी अजून पूर्ण होऊ शकत नाही कारण हा सर्व्हर ईमेल पाठवत नाही. तुम्ही त्याशिवाय साइन इन करू शकता.",
-      whatIsKept:
-        "खात्यासाठी ठेवले जाते: तुमचा ईमेल पत्ता आणि तुमच्या पासवर्डचा सॉल्टेड हॅश (पासवर्ड स्वतः कधीच नाही). तुमचे दस्तऐवज कधीच ठेवले जात नाहीत, खात्यासह किंवा खात्याशिवाय.",
+      whatIsKept: "खात्यासाठी ठेवले जाते: तुमचा ईमेल पत्ता आणि तुमच्या पासवर्डचा सॉल्टेड हॅश (पासवर्ड स्वतः कधीही नाही). तुमची मूळ कागदपत्रे कधीही ठेवली जात नाहीत.",
     },
     forgot: {
       title: "पासवर्ड विसरलात",

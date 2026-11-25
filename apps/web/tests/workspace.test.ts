@@ -65,39 +65,33 @@ describe('guest case store (decision D2)', () => {
     assert.deepEqual(parseGuestCases('[{"id":"A"},{"id":"B","token":"t"}]').map((g) => g.id), ['B']);
   });
 
-  test('the active case resolves its token from the guest list; an owned case has none', () => {
+  test('only an account case can be open; an older guest entry cannot (ADR-029)', () => {
     const s = memoryStorage();
     addGuestCase({ id: 'G', token: 'secret' }, s);
     setActiveCase({ id: 'G', owned: false }, s);
-    assert.deepEqual(activeCaseRef(s), { id: 'G', token: 'secret', owned: false });
-    assert.deepEqual(caseHeaders(activeCaseRef(s)), { 'X-Case-Access-Token': 'secret' });
+    assert.equal(activeCaseRef(s), null);
     setActiveCase({ id: 'O', owned: true }, s);
     assert.deepEqual(activeCaseRef(s), { id: 'O', token: null, owned: true });
     assert.deepEqual(caseHeaders(activeCaseRef(s)), {});
-    // Removing a guest case that is open closes it too.
+    // Removing an older entry that is remembered as open closes it too.
     setActiveCase({ id: 'G', owned: false }, s);
     removeGuestCase('G', s);
     assert.equal(s.getItem(ACTIVE_CASE_KEY), null);
-    // A guest case whose token is gone cannot be opened.
-    setActiveCase({ id: 'missing', owned: false }, s);
-    assert.equal(activeCaseRef(s), null);
   });
 
-  test('the store uses sessionStorage only, never localStorage, and tokens never go in a URL', () => {
+  test('the store uses sessionStorage only, never localStorage, and no credential goes in a URL', () => {
     const src = readFileSync(join(process.cwd(), 'app', 'lib', 'caseStore.ts'), 'utf8');
     assert.match(src, /window\.sessionStorage/);
     assert.ok(!/localStorage/.test(src.replace(/\/\/.*$/gm, '')));
     const api = readFileSync(join(process.cwd(), 'app', 'lib', 'caseApi.ts'), 'utf8');
-    // The only query-string credential is the guest case token on the SSE stream (ADR-009).
-    const queryTokens = api.match(/\?access_token=/g) ?? [];
-    assert.equal(queryTokens.length, 1);
-    assert.match(api, /new EventSource\(base, \{ withCredentials: true \}\)/);
+    assert.ok(!/access_token=/.test(api), 'nothing in a URL authorizes a request');
+    assert.match(api, /withCredentials: true/);
   });
 });
 
 describe('account session state', () => {
   beforeEach(() => resetAccountStateForTests());
-  const user = { id: 'u', email: 'a@example.com', email_verified: false, email_verified_at: null, created_at: '2026-11-24T00:00:00' };
+  const user = { id: 'u', email: 'a@example.com', email_verified: false, email_verified_at: null, is_demo: false, created_at: '2026-11-24T00:00:00' };
 
   test('credentials travel unless the API said there is no session or could not be reached', async () => {
     assert.equal(requestCredentials(), 'include');

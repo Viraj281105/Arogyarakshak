@@ -45,6 +45,10 @@ TRANSPORT_COOKIE = "cookie"
 TRANSPORT_BEARER = "bearer"
 SESSION_TOUCH_INTERVAL = timedelta(seconds=60)
 MAX_EMAIL_CHARS = 254
+# The synthetic demonstration account (docs/DEMO_GUIDE.md). Reserved: nobody can register it,
+# nothing is ever emailed to it, and it works only while demo operations are allowed.
+DEMO_ACCOUNT_EMAIL = "demo@arogyarakshak.in"
+DEMO_ACCOUNT_NAME = "Aarav Sharma"
 
 __all__ = [
     "AccountError",
@@ -121,6 +125,15 @@ def normalise_email(raw: str) -> str:
     if "." not in domain or domain.startswith(".") or domain.endswith(".") or ".." in domain:
         raise InvalidEmail()
     return email
+
+
+def is_demo_address(email: str) -> bool:
+    return email == DEMO_ACCOUNT_EMAIL
+
+
+def _demo_address_closed(email: str) -> bool:
+    """The demo account outside a demo server: it must behave as if it did not exist."""
+    return is_demo_address(email) and not settings.demo_operations_allowed
 
 
 async def _user_by_email(db: AsyncSession, email: str) -> Optional[KadiUser]:
@@ -268,6 +281,9 @@ async def register(db: AsyncSession, email: str, password: str, mail: MailTransp
     normalised = check_password_policy(password, email=email)
     # Hash on both paths so the response time does not reveal an existing account.
     password_hash = await hash_password_async(normalised)
+    if is_demo_address(email):
+        logger.info("Registration for the reserved demo address ignored.")
+        return
     existing = await _user_by_email(db, email)
     if existing is not None:
         logger.info("Registration for an already-registered address ignored (user %s).", existing.id)
@@ -308,7 +324,7 @@ async def login(
         await dummy_verify_async(password or "")
         raise InvalidCredentials()
     user = await _user_by_email(db, email)
-    if user is None:
+    if user is None or _demo_address_closed(email):
         await dummy_verify_async(password or "")
         raise InvalidCredentials()
 
@@ -336,7 +352,7 @@ async def resolve_session_token(db: AsyncSession, token: Optional[str]) -> Optio
     if now >= session.expires_at or now - session.last_seen_at >= _idle_limit():
         return None
     user = await db.get(KadiUser, session.user_id)
-    if user is None:
+    if user is None or _demo_address_closed(user.email):
         return None
     if now - session.last_seen_at >= SESSION_TOUCH_INTERVAL:
         session.last_seen_at = now
@@ -383,7 +399,7 @@ async def request_verification(db: AsyncSession, email: str, mail: MailTransport
     except InvalidEmail:
         return
     user = await _user_by_email(db, email)
-    if user is None or user.email_verified_at is not None:
+    if user is None or user.email_verified_at is not None or is_demo_address(email):
         return
     message = await _issue_account_token(db, user, PURPOSE_VERIFY_EMAIL, utcnow())
     await db.commit()
@@ -407,7 +423,7 @@ async def request_password_reset(db: AsyncSession, email: str, mail: MailTranspo
     except InvalidEmail:
         return
     user = await _user_by_email(db, email)
-    if user is None:
+    if user is None or is_demo_address(email):
         return
     message = await _issue_account_token(db, user, PURPOSE_RESET_PASSWORD, utcnow())
     await db.commit()
@@ -431,6 +447,46 @@ async def confirm_password_reset(db: AsyncSession, token: str, new_password: str
     await _revoke_all_sessions(db, user.id, now)
     await db.commit()
     logger.info("User %s reset their password; all sessions revoked.", user.id)
+
+
+# --- the demonstration account --------------------------------------------------------------
+
+
+async def reset_demo_user(db: AsyncSession, password: str) -> Tuple[str, int]:
+    """Creates the demo account or resets it: new password, every session revoked, every
+    owned case and stand-alone record erased. Returns (user id, cases erased). Commits.
+    Refused unless demo operations are allowed."""
+    from app.services.case_purge import purge_case
+
+    if not settings.demo_operations_allowed:
+        raise PermissionError("Demo operations are disabled: CLINICAL_DEMO_MODE is off or APP_ENV is production.")
+    normalised = check_password_policy(password, email=DEMO_ACCOUNT_EMAIL)
+    password_hash = await hash_password_async(normalised)
+    now = utcnow()
+    user = await _user_by_email(db, DEMO_ACCOUNT_EMAIL)
+    erased = 0
+    if user is None:
+        user = KadiUser(
+            id=f"USR-{secrets.token_hex(12)}",
+            email=DEMO_ACCOUNT_EMAIL,
+            password_hash=password_hash,
+            password_changed_at=now,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(user)
+        await db.flush()
+    else:
+        user.password_hash = password_hash
+        user.password_changed_at = now
+        await _revoke_all_sessions(db, user.id, now)
+        rows = await db.execute(select(KadiCase.id).where(KadiCase.owner_user_id == user.id))
+        for case_id in [row[0] for row in rows.all()]:
+            await purge_case(db, case_id)
+            erased += 1
+        await _purge_owned_bimanyay_records(db, user.id)
+    await db.commit()
+    return user.id, erased
 
 
 # --- cases ---------------------------------------------------------------------------------

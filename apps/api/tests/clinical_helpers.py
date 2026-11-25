@@ -50,10 +50,6 @@ def make_case(doc: Optional[bytes] = APPENDIX_DOC, consent: bool = True) -> str:
     return case_id
 
 
-def case_token(case_id: str) -> str:
-    return client._case_tokens[case_id]
-
-
 def register(category: str = "DOCTOR", name: str = "Dr. Test Reviewer", reg: Optional[str] = "MMC-12345") -> Tuple[str, str]:
     res = client.post(
         f"{K}/clinical-reviewers",
