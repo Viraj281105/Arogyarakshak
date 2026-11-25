@@ -1,7 +1,8 @@
 import React from "react";
 import { WORKSPACE_PATH, moduleHref } from "../../shell/nav";
 import { ArrowIcon, CtaBand, EvidenceBadges, EvidenceLegend, FaqList, ModuleMark, Section } from "../public/PublicParts";
-import { publicCopy } from "../public/publicCopy";
+import { localisedPublicCopy } from "../public/publicCopy";
+import { requestLanguage } from "../../i18n/server";
 import { PUBLIC_MODULE_IDS, platformModuleHref } from "../public/publicNav";
 import { ModuleOverview } from "./ModuleOverview";
 
@@ -9,10 +10,10 @@ import { ModuleOverview } from "./ModuleOverview";
 // the client LandingPage as slots, so their content ships no client JS. Only ModuleOverview (the
 // tab switching) is client code.
 
-const copy = () => publicCopy();
+const copy = async () => localisedPublicCopy(await requestLanguage());
 
-export function LandingCapabilities() {
-  const c = copy();
+export async function LandingCapabilities() {
+  const c = await copy();
   const l = c.landing.capabilities;
   const modules = PUBLIC_MODULE_IDS.map((id) => c.modules[id]);
   const labels = modules.map((m) => (
@@ -70,8 +71,8 @@ export function LandingCapabilities() {
   );
 }
 
-export function LandingSteps() {
-  const c = copy();
+export async function LandingSteps() {
+  const c = await copy();
   const l = c.landing.howItWorks;
   return (
     <Section id="lp-steps" kicker={l.kicker} heading={l.heading}>
@@ -96,8 +97,8 @@ export function LandingSteps() {
   );
 }
 
-export function LandingEvidence() {
-  const l = copy().landing.evidence;
+export async function LandingEvidence() {
+  const l = (await copy()).landing.evidence;
   return (
     <Section id="lp-evidence" kicker={l.kicker} heading={l.heading} lede={l.lede}>
       <EvidenceLegend />
@@ -106,8 +107,8 @@ export function LandingEvidence() {
   );
 }
 
-export function LandingPrivacy() {
-  const l = copy().landing.privacy;
+export async function LandingPrivacy() {
+  const l = (await copy()).landing.privacy;
   return (
     <Section id="lp-privacy" kicker={l.kicker} heading={l.heading} lede={l.lede}>
       <ul className="pub-grid">
@@ -132,8 +133,8 @@ export function LandingPrivacy() {
   );
 }
 
-export function LandingLanguages() {
-  const l = copy().landing.languages;
+export async function LandingLanguages() {
+  const l = (await copy()).landing.languages;
   return (
     <Section id="lp-languages" kicker={l.kicker} heading={l.heading} lede={l.lede}>
       <ul className="pub-grid">
@@ -148,8 +149,8 @@ export function LandingLanguages() {
   );
 }
 
-export function LandingFaq() {
-  const c = copy();
+export async function LandingFaq() {
+  const c = await copy();
   const l = c.landing.faq;
   const items = l.ids.map((id) => {
     const item = c.faq.find((f) => f.id === id);
@@ -169,8 +170,8 @@ export function LandingFaq() {
   );
 }
 
-export function LandingCta() {
-  const c = copy();
+export async function LandingCta() {
+  const c = await copy();
   return (
     <CtaBand
       id="lp-final"

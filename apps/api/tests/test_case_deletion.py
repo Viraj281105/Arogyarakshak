@@ -13,6 +13,9 @@ import asyncio
 
 from sqlalchemy import select
 
+from fastapi.testclient import TestClient
+
+from tests.account_helpers import other_account
 from tests.auth_test_client import AuthAwareTestClient
 from app.background import get_background_session
 from app.main import app
@@ -123,26 +126,20 @@ def test_deletion_removes_the_income_profile():
 
 def test_deletion_requires_authorization():
     case_id = _case_with_document()
-    client.forget_token(case_id)
-    res = client.delete(f"/api/v1/kadi/cases/{case_id}")
+    res = TestClient(app).delete(f"/api/v1/kadi/cases/{case_id}")
     assert res.status_code == 401
 
 
-def test_deletion_rejects_a_foreign_case_token():
+def test_deletion_rejects_another_account():
     case_a = _case_with_document()
-    case_b_res = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
-    token_b = case_b_res.json()["access_token"]
-
-    res = client.delete(f"/api/v1/kadi/cases/{case_a}", headers={"X-Case-Access-Token": token_b})
+    res = client.delete(f"/api/v1/kadi/cases/{case_a}", headers=other_account())
     assert res.status_code == 403
-    # Case A must still exist — the foreign token must not have been able to delete it.
+    # Case A must still exist: another account must not have been able to delete it.
     assert client.get(f"/api/v1/kadi/cases/{case_a}").status_code == 200
 
 
 def test_deleting_a_nonexistent_case_returns_404():
-    res = client.delete(
-        "/api/v1/kadi/cases/CASE-doesnotexist12", headers={"X-Case-Access-Token": "anything"}
-    )
+    res = client.delete("/api/v1/kadi/cases/CASE-doesnotexist12")
     assert res.status_code == 404
 
 

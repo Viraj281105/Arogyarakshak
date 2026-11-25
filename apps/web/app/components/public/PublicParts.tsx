@@ -6,6 +6,7 @@ import { PublicLanguageNotice } from "./PublicLanguageNotice";
 import { PUBLIC_ICON_NODES, type PublicIconName } from "./publicIcons";
 import { platformModuleHref, type PublicModuleId } from "./publicNav";
 import type { FaqItem, Link, ModuleCopy } from "./copy/types";
+import { T } from "../../i18n/T";
 
 // Server Components shared by the public pages (Wave 3 M3). No hooks; the only client code they
 // render is PublicLanguageNotice. Icons are drawn from static SVG data (publicIcons.ts), not
@@ -30,7 +31,9 @@ export function EvidenceBadge({ state, size = "md" }: { state: EvidenceState; si
     <span className="ui-evidence-wrap">
       <span className={`ui-badge ui-evidence ui-evidence-${state} ui-badge-${size}`} title={copy.meaning} data-evidence={state}>
         <StaticIcon name={state} size={size === "sm" ? 12 : 14} />
-        <span>{copy.label}</span>
+        <span>
+          <T k={copy.label} />
+        </span>
       </span>
     </span>
   );
@@ -156,7 +159,7 @@ export function EvidenceLegend({ states = EVIDENCE_STATES }: { states?: readonly
       {states.map((s) => (
         <li key={s} className="pub-reveal">
           <EvidenceBadge state={s} />
-          <p>{EVIDENCE_COPY[s].meaning}</p>
+          <p><T k={EVIDENCE_COPY[s].meaning} /></p>
         </li>
       ))}
     </ul>

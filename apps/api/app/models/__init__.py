@@ -12,6 +12,8 @@ from app.models.kadi import (  # noqa: F401
     KadiResolutionDecision,
     KadiThresholdCalibration,
     KadiModuleInsight,
+    KadiCaseAction,
+    KadiCaseActionEvent,
     kadi_case_entities,
 )
 from app.models.accounts import (  # noqa: F401

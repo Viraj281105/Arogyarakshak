@@ -1,65 +1,56 @@
 """
-Auth-aware TestClient (ADR-009 test-infrastructure shim).
+Signed-in TestClient (ADR-029 test-infrastructure shim).
 
-Adding real per-case authorization (app/case_auth.py) means every case-scoped request
-now needs an `X-Case-Access-Token` header. Hand-editing that into several hundred
-pre-existing `client.get(...)`/`client.post(...)` call sites across test_api.py would be
-enormous churn for a concern orthogonal to what most of those tests actually verify
-(redaction, audit math, PDF content, consent, ...).
+Every route needs an account session, so tests about redaction, audit maths, PDF content,
+consent and so on use this client: it signs in one synthetic test account and sends its
+bearer session with each request, exactly as the mobile client does. A request that sets its
+own ``Authorization`` header is sent unchanged.
 
-`AuthAwareTestClient` closes that gap the same way a real single-page-app client would:
-it remembers the token returned by the most recent case it created, on this same client
-instance, and attaches it automatically to any later request whose URL path names that
-case id — UNLESS the caller already set the header explicitly (which is exactly how the
-new adversarial tests in test_case_authorization.py prove real denial: they pass an
-explicit missing/wrong/foreign token, which is never overridden).
+This does not weaken the property under test. The boundary is enforced server-side
+(app/auth_gate.py, app/case_auth.py); signed-out and wrong-account behaviour is tested with
+plain clients in test_mandatory_sign_in.py and test_case_authorization.py.
 
-This shim does not weaken the security property being tested. The actual boundary is
-enforced entirely server-side in app/case_auth.py; this class only saves whoever holds
-ITS OWN client instance from re-typing a header on every call — precisely what a real
-browser tab does by keeping the token in its own memory/state.
+The database is dropped between tests while module-level clients live on, so the session is
+re-created whenever conftest.py starts a new test (``SignedInTestClient.new_test``).
 """
-
-import re
-from typing import Dict
 
 from fastapi.testclient import TestClient
 
-_CASE_ID_IN_PATH = re.compile(r"/cases/([^/?]+)")
-_TOKEN_HEADER = "X-Case-Access-Token"
+from app.services import accounts
+from app.services.mail import DisabledMailTransport
+from tests.account_helpers import PASSWORD, run_db
+
+SHIM_EMAIL = "test-patient@example.org"
 
 
 class AuthAwareTestClient(TestClient):
+    _generation = 0
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._case_tokens: Dict[str, str] = {}
+        self._session_generation = -1
+        self._bearer = ""
+
+    @classmethod
+    def new_test(cls) -> None:
+        cls._generation += 1
+
+    def auth_headers(self) -> dict:
+        """The signed-in account's headers, for tests that build requests another way."""
+        if self._session_generation != AuthAwareTestClient._generation:
+
+            async def sign_in(db):
+                await accounts.register(db, SHIM_EMAIL, PASSWORD, DisabledMailTransport())
+                issued = await accounts.login(db, SHIM_EMAIL, PASSWORD, "bearer", client="test-shim")
+                return issued.token
+
+            self._bearer = run_db(sign_in)
+            self._session_generation = AuthAwareTestClient._generation
+        return {"Authorization": f"Bearer {self._bearer}"}
 
     def request(self, method, url, *args, **kwargs):
-        headers = kwargs.get("headers")
-        header_keys_lower = {k.lower() for k in headers} if headers else set()
-
-        if _TOKEN_HEADER.lower() not in header_keys_lower:
-            match = _CASE_ID_IN_PATH.search(str(url))
-            if match:
-                token = self._case_tokens.get(match.group(1))
-                if token:
-                    headers = dict(headers or {})
-                    headers[_TOKEN_HEADER] = token
-                    kwargs["headers"] = headers
-
-        response = super().request(method, url, *args, **kwargs)
-
-        if method.upper() == "POST" and str(url).rstrip("/").endswith("/kadi/cases") and response.status_code == 201:
-            try:
-                data = response.json()
-                if "id" in data and "access_token" in data:
-                    self._case_tokens[data["id"]] = data["access_token"]
-            except ValueError:
-                pass
-
-        return response
-
-    def forget_token(self, case_id: str) -> None:
-        """Used by adversarial tests to simulate a client that never had this case's
-        token — e.g. a different browser/device holding only the case id."""
-        self._case_tokens.pop(case_id, None)
+        headers = dict(kwargs.get("headers") or {})
+        if "authorization" not in {k.lower() for k in headers}:
+            headers.update(self.auth_headers())
+            kwargs["headers"] = headers
+        return super().request(method, url, *args, **kwargs)

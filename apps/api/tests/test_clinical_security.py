@@ -18,11 +18,14 @@ from app.models import (
     KadiTranscriptionSubmission,
     KadiTranscriptionTask,
 )
+from fastapi.testclient import TestClient
+
+from app.main import app
+from tests.account_helpers import other_account
 from tests.clinical_helpers import (
     K,
     accept,
     assign,
-    case_token,
     client,
     draft,
     finalize,
@@ -81,10 +84,10 @@ def test_case_a_statement_never_appears_in_case_b():
     assert client.get(f"{K}/cases/{case_b}/clinical-context").json()["human_statements"] == []
 
 
-def test_foreign_case_token_cannot_read_review():
-    case_a, case_b = make_case(), make_case()
+def test_another_account_cannot_read_review():
+    case_a = make_case()
     review_a = request_review(case_a)
-    res = client.get(f"{K}/cases/{case_a}/clinical-reviews/{review_a}", headers={"X-Case-Access-Token": case_token(case_b)})
+    res = client.get(f"{K}/cases/{case_a}/clinical-reviews/{review_a}", headers=other_account())
     assert res.status_code == 403
 
 
@@ -122,10 +125,12 @@ def test_statement_id_from_another_review_is_not_found():
 def test_token_confusion_and_missing_tokens():
     case_id = make_case()
     _, tok, review_id = _assigned_review(case_id)
-    # A reviewer credential is not a case token.
-    assert client.get(f"{K}/cases/{case_id}/clinical-reviews", headers={"X-Case-Access-Token": tok}).status_code == 403
-    # A case token is not a reviewer credential.
-    assert client.get(f"{K}/clinical-reviews/{review_id}", headers=rh(case_token(case_id))).status_code == 403
+    # A reviewer credential is not a patient session.
+    signed_out = TestClient(app)
+    assert signed_out.get(f"{K}/cases/{case_id}/clinical-reviews", headers=rh(tok)).status_code == 401
+    # A patient session token is not a reviewer credential.
+    session = client.auth_headers()["Authorization"].split()[1]
+    assert client.get(f"{K}/clinical-reviews/{review_id}", headers=rh(session)).status_code == 403
     assert client.get(f"{K}/clinical-reviews/{review_id}").status_code == 401
     assert client.get(f"{K}/clinical-reviews/{review_id}?reviewer_token={tok}").status_code == 401
 

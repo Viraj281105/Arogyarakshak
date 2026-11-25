@@ -17,7 +17,7 @@ from app.config import settings
 from app.main import app
 from app.models import BimaNyayCase, BimaNyayGrievance, KadiCase, KadiUser
 from app.services import accounts as account_service
-from app.services.case_ingestion import processing_status
+from app.services.case_ingestion import create_case_record, processing_status
 from tests.account_helpers import (
     PASSWORD,
     WEB_ORIGIN,
@@ -150,8 +150,13 @@ def test_wrong_current_passwords_feed_the_throttle(route, clock, throttle_settin
 
 
 def _guest_case():
-    res = plain_client().post("/api/v1/kadi/cases", json={"consent_opt_in": True})
-    return res.json()["id"], res.json()["access_token"]
+    """A case from before sign-in was mandatory (ADR-029): unowned, claimable by its token."""
+
+    async def create(db):
+        case, token = await create_case_record(db, consent_opt_in=True)
+        return case.id, token
+
+    return run_db(create)
 
 
 def _user(email):
@@ -294,7 +299,8 @@ def test_account_deletion_clears_processing_status_and_owned_bimanyay_records():
 
     assert client.post("/api/v1/bimanyay/analyze", json=DENIAL_PAYLOAD, headers=headers).status_code == 200
     assert client.post("/api/v1/bimanyay/timeline", json=TIMELINE_PAYLOAD, headers=headers).status_code == 200
-    assert client.post("/api/v1/bimanyay/analyze", json=DENIAL_PAYLOAD).status_code == 200  # guest record
+    other, _ = bearer_for()
+    assert client.post("/api/v1/bimanyay/analyze", json=DENIAL_PAYLOAD, headers=other).status_code == 200
     user_id = client.get(ME, headers=headers).json()["id"]
     assert _count(BimaNyayCase, owner_user_id=user_id) == 1
     assert _count(BimaNyayGrievance, owner_user_id=user_id) == 1
@@ -303,7 +309,7 @@ def test_account_deletion_clears_processing_status_and_owned_bimanyay_records():
     assert res.status_code == 200
     assert case_id not in processing_status
     assert _count(BimaNyayGrievance) == 0
-    assert _count(BimaNyayCase) == 1  # the guest's stand-alone record is untouched
+    assert _count(BimaNyayCase) == 1  # the other account's stand-alone record is untouched
 
 
 def test_case_linked_bimanyay_records_are_not_also_owner_linked():
@@ -325,7 +331,7 @@ def test_case_linked_bimanyay_records_are_not_also_owner_linked():
 # ---------------------------------------------------------------------------
 
 
-def test_a_dead_or_planted_cookie_never_breaks_a_guest_write():
+def test_a_dead_or_planted_cookie_is_treated_as_signed_out_not_as_a_csrf_failure():
     client = TestClient(app, base_url=WEB_ORIGIN)
     for value in ("garbage", "x" * 43):
         res = client.post(
@@ -333,10 +339,10 @@ def test_a_dead_or_planted_cookie_never_breaks_a_guest_write():
             json={"consent_opt_in": True},
             headers={"Cookie": f"__Host-arogya_session={value}", "Origin": "https://evil.example"},
         )
-        assert res.status_code == 201 and res.json()["owned"] is False
+        assert res.status_code == 401, res.text
 
 
-def test_a_revoked_cookie_is_ignored_rather_than_refused():
+def test_a_revoked_cookie_opens_nothing():
     web, _ = signed_in_web()
     token = web.cookies.get("__Host-arogya_session")
     web.post("/api/v1/kadi/auth/logout")
@@ -345,7 +351,7 @@ def test_a_revoked_cookie_is_ignored_rather_than_refused():
         json={"consent_opt_in": True},
         headers={"Cookie": f"__Host-arogya_session={token}"},
     )
-    assert res.status_code == 201 and res.json()["owned"] is False
+    assert res.status_code == 401
 
 
 def test_production_does_not_trust_the_host_derived_origin(monkeypatch):

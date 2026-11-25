@@ -7,7 +7,7 @@ import logging
 import pytest
 
 from app import main as main_module
-from app.config import INSECURE_SIGNING_SECRET, settings
+from app.config import INSECURE_SIGNING_SECRET, Settings, settings
 from app.observability import JsonFormatter, RequestContextFilter, request_id_var, resolve_request_id
 from tests.clinical_helpers import K, client
 
@@ -119,6 +119,15 @@ def test_production_starts_with_a_secure_configuration(monkeypatch):
     _apply(monkeypatch, **SECURE)
     assert settings.production_config_errors() == []
     main_module.enforce_production_profile()  # does not raise
+
+
+def test_production_refuses_a_cors_origin_list_nobody_set(monkeypatch):
+    """The default names the local web client for development. A deployment must say which
+    origins it serves instead of inheriting that default."""
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    built = Settings(_env_file=None, **{k: v for k, v in SECURE.items() if k != "cors_origins"})
+    assert any("CORS_ORIGINS" in e for e in built.production_config_errors())
+    assert Settings(_env_file=None, **SECURE).production_config_errors() == []
 
 
 def test_development_is_never_blocked(monkeypatch):

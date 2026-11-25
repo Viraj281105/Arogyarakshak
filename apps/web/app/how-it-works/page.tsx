@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { ArrowIcon, CtaBand, EvidenceBadges, PublicHero, PublicPage, Section } from "../components/public/PublicParts";
-import { pageTitle, publicCopy } from "../components/public/publicCopy";
+import { localisedPublicCopy, pageTitle } from "../components/public/publicCopy";
 import { PUBLIC_ROUTES } from "../components/public/publicNav";
+import { requestLanguage } from "../i18n/server";
 
-const c = publicCopy();
-const h = c.howItWorks;
 
-export const metadata: Metadata = { title: pageTitle(h.meta.title), description: h.meta.description };
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await localisedPublicCopy(await requestLanguage())).howItWorks;
+  return { title: pageTitle(meta.title), description: meta.description };
+}
 
 /** /how-it-works (Server Component): upload → extract → analyse → verify → understand → act. */
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const c = await localisedPublicCopy(await requestLanguage());
+  const h = c.howItWorks;
   return (
     <PublicPage module="billnyay">
       <PublicHero

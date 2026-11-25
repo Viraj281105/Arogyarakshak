@@ -43,7 +43,7 @@ def test_exceeding_the_per_minute_limit_returns_429_with_retry_after(monkeypatch
 
     statuses = [client.get("/api/v1/kadi/cases/CASE-doesnotexist").status_code for _ in range(5)]
 
-    assert statuses[:3] == [404, 404, 404]
+    assert statuses[:3] == [401, 401, 401]  # signed out, but within the limit
     assert 429 in statuses[3:]
     limited_index = statuses.index(429)
     response = client.get("/api/v1/kadi/cases/CASE-doesnotexist")
@@ -224,5 +224,5 @@ def test_cors_preflight_does_not_spend_the_rate_limit_budget(monkeypatch):
     for _ in range(3):
         assert client.options("/api/v1/kadi/cases/CASE-x", headers=preflight).status_code == 200
     # The one allowed real request is still available.
-    assert client.get("/api/v1/kadi/cases/CASE-doesnotexist").status_code == 404
+    assert client.get("/api/v1/kadi/cases/CASE-doesnotexist").status_code == 401
     limiter.reset()

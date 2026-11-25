@@ -4,6 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 import { DocumentScanType, scannerService, ScannedDocument } from '../../services/scanner';
 import { setActiveCaseId } from '../../services/activeCase';
+import { tr } from '../../translations/tr';
 
 type CameraRouteProp = RouteProp<RootStackParamList, 'CameraScan'>;
 
@@ -30,12 +31,12 @@ export function useScanUpload(documentType: DocumentScanType, consentGiven: bool
 
   const performUpload = async (scannedDoc: ScannedDocument) => {
     try {
-      setUploadStatus('Creating secure case session in Kadi...');
+      setUploadStatus(tr('Creating secure case session in Kadi...'));
       const result = await scannerService.processScanAndUpload(scannedDoc, {
         consent: consentGiven,
       });
 
-      setUploadStatus('Document uploaded. Expunging transient memory...');
+      setUploadStatus(tr('Document uploaded. Expunging transient memory...'));
       // Every module tab now works on this case (DaaviSetu/DawaCheck/BimaNyay no longer
       // need their own scan to receive it).
       setActiveCaseId(result.caseId);
@@ -59,7 +60,7 @@ export function useScanUpload(documentType: DocumentScanType, consentGiven: bool
       }
     } catch (err: any) {
       console.warn('[CameraScan] Upload failed:', err);
-      setErrorMessage(err.message || 'Failed to upload document to Kadi layer');
+      setErrorMessage(err.message || tr('Failed to upload document to Kadi layer'));
     } finally {
       // The status message above says "Expunging transient memory...": takePictureAsync()
       // writes the photo to the device cache, so it is deleted here, in `finally`, on both
@@ -101,7 +102,7 @@ export function useScanUpload(documentType: DocumentScanType, consentGiven: bool
 
     try {
       if (takePicture) {
-        setUploadStatus('Capturing high-resolution document photo...');
+        setUploadStatus(tr('Capturing high-resolution document photo...'));
         const photo = await takePicture();
 
         if (photo?.uri) {

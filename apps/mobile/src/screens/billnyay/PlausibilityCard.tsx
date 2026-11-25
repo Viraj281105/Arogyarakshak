@@ -4,6 +4,7 @@ import { useTheme } from '../../theme';
 import { Badge, Button, Card } from '../../components';
 import { PlausibilityResponse } from '../../api';
 import { humanizeEnum } from '../../services/labels';
+import { tr, useTranslation } from '../../translations/tr';
 
 /** The bounded clinical plausibility check (ADR-011): machine-derived, never a medical
  *  necessity determination; states what it could not assess. */
@@ -12,11 +13,12 @@ export const PlausibilityCard: React.FC<{
   ready: boolean;
   onCheck: () => void;
 }> = ({ plausibility, ready, onCheck }) => {
+  useTranslation();
   const { colors, spacing, typography } = useTheme();
   return (
     <Card style={{ marginVertical: spacing.sm }}>
       <Button
-        title="🩺 Check clinical plausibility"
+        title={tr('🩺 Check clinical plausibility')}
         onPress={onCheck}
         variant="outline"
         size="sm"
@@ -25,7 +27,7 @@ export const PlausibilityCard: React.FC<{
       {plausibility && (
         <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
           <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
-            <Badge label="Machine-derived" variant="info" />
+            <Badge label={tr('Machine-derived')} variant="info" />
             <Badge
               label={humanizeEnum(plausibility.assessment.status)}
               variant={plausibility.assessment.status === 'PLAUSIBLE' ? 'success' : 'warning'}
@@ -34,7 +36,7 @@ export const PlausibilityCard: React.FC<{
           <Text style={{ color: colors.textPrimary, fontSize: typography.sizes.sm }}>{plausibility.assessment.summary}</Text>
           {plausibility.assessment.not_assessed_items.length > 0 && (
             <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs }}>
-              Not assessed (outside the reference): {plausibility.assessment.not_assessed_items.join(', ')}
+              {tr('Not assessed (outside the reference): {items}', { items: plausibility.assessment.not_assessed_items.join(', ') })}
             </Text>
           )}
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{plausibility.assessment.guideline_note}</Text>

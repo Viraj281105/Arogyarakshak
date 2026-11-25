@@ -1,0 +1,176 @@
+/* Action plan and progress tracker. Tokens only; text wraps so Devanagari can grow. */
+.act-plan,
+.act-tracker {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.act-plan h4,
+.act-tracker h4 {
+  margin: var(--space-sm) 0 0;
+}
+
+.act-situation {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.act-evidence,
+.act-label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.act-label {
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.act-amounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.act-amounts div,
+.act-card,
+.act-step {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  padding: var(--space-md);
+}
+
+.act-amounts dt {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.act-amounts dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.act-group summary,
+.act-draft summary,
+.act-card summary {
+  cursor: pointer;
+  min-height: var(--space-min-touch-target);
+  display: list-item;
+  align-content: center;
+  font-weight: 600;
+}
+
+.act-count {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.act-group ul,
+.act-timeline {
+  display: grid;
+  gap: var(--space-sm);
+  padding-left: 1.25rem;
+  margin: var(--space-xs) 0;
+}
+
+.act-group li,
+.act-timeline li {
+  display: grid;
+  gap: 2px;
+}
+
+.act-plain {
+  padding-left: 1.25rem;
+  margin: 0;
+}
+
+.act-steps,
+.act-list {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style-position: inside;
+}
+
+.act-list {
+  list-style: none;
+}
+
+.act-step {
+  display: list-item;
+}
+
+.act-step > * + * {
+  margin-top: var(--space-sm);
+}
+
+.act-step-title {
+  display: inline;
+  font-weight: 700;
+}
+
+.act-draft textarea {
+  margin-bottom: var(--space-sm);
+}
+
+.act-card {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+}
+
+.act-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.act-card-head h4 {
+  margin: 0;
+}
+
+.act-card details,
+.act-form {
+  width: 100%;
+}
+
+.act-form {
+  display: grid;
+  gap: var(--space-xs);
+  justify-items: start;
+}
+
+.act-form > input,
+.act-form > select,
+.act-form > textarea {
+  width: 100%;
+  max-width: 32rem;
+}
+
+.act-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.act-row input {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.ws-gate {
+  display: grid;
+  gap: var(--space-md);
+  padding-block: var(--space-xl);
+  min-height: 40vh;
+  align-content: start;
+}

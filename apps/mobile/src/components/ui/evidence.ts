@@ -1,4 +1,5 @@
-// The single evidence vocabulary (Wave 3, architecture doc section 5), mobile copy. Pure data, no
+
+import { msg } from '../../translations/tr';// The single evidence vocabulary (Wave 3, architecture doc section 5), mobile copy. Pure data, no
 // react-native import, so it is unit-tested. It mirrors apps/web/app/components/ui/evidence.ts; the
 // test tests/primitives.test.ts fails if the states, labels or citation mapping drift apart.
 // Token names: evidence<State>Fg/Bg/Border in the generated palette (AA-checked in both themes).
@@ -20,40 +21,40 @@ export type EvidenceState = (typeof EVIDENCE_STATES)[number];
 /** Visible label (the badge never relies on colour alone) and the longer meaning (accessibility hint). */
 export const EVIDENCE_COPY: Record<EvidenceState, { label: string; meaning: string }> = {
   verified: {
-    label: 'Verified',
-    meaning: 'Checked against the cited source: every figure in the statement appears in it.',
+    label: msg('Verified'),
+    meaning: msg('Checked against the cited source: every figure in the statement appears in it.'),
   },
   provisional: {
-    label: 'Provisional',
-    meaning: 'Partly checked: the source is attributed, but not every figure could be confirmed.',
+    label: msg('Provisional'),
+    meaning: msg('Partly checked: the source is attributed, but not every figure could be confirmed.'),
   },
   unevaluated: {
-    label: 'Not evaluated',
-    meaning: 'Not checked yet, or it cannot be checked automatically.',
+    label: msg('Not evaluated'),
+    meaning: msg('Not checked yet, or it cannot be checked automatically.'),
   },
   'insufficient-evidence': {
-    label: 'Insufficient evidence',
-    meaning: 'The available source does not support this statement, so no conclusion is drawn from it.',
+    label: msg('Insufficient evidence'),
+    meaning: msg('The available source does not support this statement, so no conclusion is drawn from it.'),
   },
   'ai-generated': {
-    label: 'AI-generated',
-    meaning: 'Written by a language model. Read it as a draft, not as a finding.',
+    label: msg('AI-generated'),
+    meaning: msg('Written by a language model. Read it as a draft, not as a finding.'),
   },
   'human-reviewed': {
-    label: 'Human-reviewed',
-    meaning: 'Read and finalised by a named reviewer. Reviewer credentials are self-declared unless stated otherwise.',
+    label: msg('Human-reviewed'),
+    meaning: msg('Read and finalised by a named reviewer. Reviewer credentials are self-declared unless stated otherwise.'),
   },
   'rule-engine': {
-    label: 'Rule engine',
-    meaning: 'Computed by a deterministic rule from published reference data.',
+    label: msg('Rule engine'),
+    meaning: msg('Computed by a deterministic rule from published reference data.'),
   },
   'user-provided': {
-    label: 'You provided',
-    meaning: 'Entered or confirmed by you; not independently checked.',
+    label: msg('You provided'),
+    meaning: msg('Entered or confirmed by you; not independently checked.'),
   },
   external: {
-    label: 'External source',
-    meaning: 'Taken from a public reference (for example CGHS, NPPA or IRDAI), quoted as published.',
+    label: msg('External source'),
+    meaning: msg('Taken from a public reference (for example CGHS, NPPA or IRDAI), quoted as published.'),
   },
 };
 

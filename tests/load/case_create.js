@@ -28,10 +28,10 @@ export const options = {
 };
 
 export default function () {
-  const { res, id, token } = createCase();
+  const { res, id } = createCase();
   // A 429 is the rate limiter working, not a failure of this endpoint.
   check(res, { 'created (201) or limited (429)': (r) => r.status === 201 || r.status === 429 });
   if (res.status === 201) {
-    check(res, { 'returns id and one-time token': () => Boolean(id) && Boolean(token) });
+    check(res, { 'returns a case id': () => Boolean(id) });
   }
 }

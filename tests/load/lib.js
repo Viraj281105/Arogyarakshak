@@ -54,24 +54,46 @@ export function track(res) {
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-// Creates a case and returns { res, id, token }; id is null on 429 or failure.
-// Synthetic data only.
+// Every API call needs an account session (ADR-029). Each virtual user signs in once, with a
+// throwaway account unless LOAD_EMAIL and LOAD_PASSWORD name one. Raise AUTH_RATE_LIMIT_PER_MINUTE
+// on the throw-away stack too, or the sign-ins themselves are limited.
+let bearer = null;
+
+function signIn() {
+  const email = __ENV.LOAD_EMAIL || `load-${__VU}-${Date.now()}@example.org`;
+  const password = __ENV.LOAD_PASSWORD || `${Math.random().toString(36).slice(2)}${Date.now()}`;
+  const params = { headers: JSON_HEADERS, tags: { name: 'sign-in' } };
+  if (!__ENV.LOAD_EMAIL) {
+    http.post(`${API}/auth/register`, JSON.stringify({ email, password }), params);
+  }
+  const res = http.post(
+    `${API}/auth/login`,
+    JSON.stringify({ email, password, session_transport: 'bearer' }),
+    params,
+  );
+  return res.status === 200 ? res.json().token : null;
+}
+
+export function authHeaders() {
+  if (!bearer) {
+    bearer = signIn();
+  }
+  return bearer ? { Authorization: `Bearer ${bearer}` } : {};
+}
+
+// Creates a case and returns { res, id }; id is null on 429 or failure. Synthetic data only.
 export function createCase(tags) {
   const res = track(
     http.post(`${API}/cases`, JSON.stringify({ consent_opt_in: false }), {
-      headers: JSON_HEADERS,
+      headers: Object.assign({}, JSON_HEADERS, authHeaders()),
       tags: Object.assign({ name: 'POST /cases' }, tags || {}),
     }),
   );
   if (res.status !== 201) {
-    return { res, id: null, token: null };
+    return { res, id: null };
   }
   const body = res.json();
-  return { res, id: body.id, token: body.access_token };
-}
-
-export function authHeaders(token) {
-  return { 'X-Case-Access-Token': token };
+  return { res, id: body.id };
 }
 
 // A tiny synthetic hospital bill (no real person, no real hospital). Each call varies the

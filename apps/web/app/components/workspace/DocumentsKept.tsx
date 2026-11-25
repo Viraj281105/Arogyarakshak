@@ -6,6 +6,7 @@ import { EmptyState } from "../ui/States";
 import type { CaseEntity } from "../../lib/caseApi";
 import type { OverviewCopy } from "./overviewCopy";
 import { formatRupees, humanizeKey } from "./workspaceFormat";
+import { useT } from "../../i18n/useT";
 
 type WsCopy = OverviewCopy;
 
@@ -39,6 +40,7 @@ function warningsOf(e: CaseEntity): string[] {
  * is never stored, so there is nothing to preview or download here.
  */
 export function DocumentsKept({ c, lang, entities, emptyArt }: { c: WsCopy; lang: Lang; entities: CaseEntity[]; emptyArt?: React.ReactNode }) {
+  const tr = useT();
   const excerpts = entities.filter((e) => e.type === "document_text");
   const fields = entities.filter((e) => FIELD_ORDER.includes(e.type));
   const byType = FIELD_ORDER.map((type) => ({ type, items: fields.filter((e) => e.type === type) })).filter((g) => g.items.length > 0);
@@ -66,7 +68,7 @@ export function DocumentsKept({ c, lang, entities, emptyArt }: { c: WsCopy; lang
                 <EvidenceBadge state="unevaluated" size="sm" />
               </header>
               <p className="ws-muted">{c.docs.excerptNote}</p>
-              {e.value ? <pre className="ws-excerpt">{e.value}</pre> : <p className="ws-muted">{c.docs.noExcerpt}</p>}
+              {e.value ? <pre className="ws-excerpt" tabIndex={0}>{e.value}</pre> : <p className="ws-muted">{c.docs.noExcerpt}</p>}
               {warningsOf(e).length > 0 && (
                 <div className="ws-warning" role="note">
                   <p className="ws-action-title">{c.docs.warningsTitle}</p>
@@ -86,7 +88,7 @@ export function DocumentsKept({ c, lang, entities, emptyArt }: { c: WsCopy; lang
                 <span>
                   {c.docs.types[g.type as keyof WsCopy["docs"]["types"]] ?? humanizeKey(g.type)} ({g.items.length})
                 </span>
-                <StatusBadge tone="neutral">Read automatically, not checked</StatusBadge>
+                <StatusBadge tone="neutral">{tr("Read automatically, not checked")}</StatusBadge>
               </summary>
               <div className="ws-table-scroll" tabIndex={0} role="region" aria-label={c.docs.types[g.type as keyof WsCopy["docs"]["types"]] ?? g.type}>
                 <table className="ws-table">

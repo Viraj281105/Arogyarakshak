@@ -7,20 +7,11 @@ scheme eligibility and medicine pricing endpoints.
 > Routes below are enumerated from the running application. The authoritative machine-readable
 > contract is `/openapi.json`; regenerate this page from it after any route change.
 
-> **Authorization (ADR-009, added 2026-09-16):** every `/cases/{case_id}/...` route
-> across every module now requires the case's access token, returned exactly once in
-> `POST /api/v1/kadi/cases`'s response body as `access_token`. Send it on every
-> subsequent request for that case as the `X-Case-Access-Token` header (the sole
-> exception is `GET /cases/{case_id}/stream`, which also accepts `?access_token=` as a
-> query parameter because the browser's native `EventSource` cannot set custom
-> headers). A case id alone is no longer sufficient — missing the header returns `401`,
-> a wrong token returns `403`. This note is a stopgap; the per-route tables below have
-> not yet been individually regenerated to show this requirement on each row.
->
-> **Accounts (ADR-026, added 2026-11-23):** optional user accounts sit on top of the guest
-> flow above. A case created while signed in, or claimed into an account, is opened with the
-> account session (web cookie or mobile `Authorization: Bearer`), and its case token no longer
-> works. Routes, session handling and the full access table: [`accounts.md`](accounts.md).
+> **Authorization (ADR-029):** every route needs an account session (web cookie or mobile
+> `Authorization: Bearer`) except the public account routes, probes, and routes that require a
+> staff credential. A `/cases/{case_id}/...` route opens only for the account that owns the case:
+> `401` signed out, `403` another account. The per-route tables below do not repeat this on each
+> row. Details: [`accounts.md`](accounts.md).
 
 ---
 
@@ -208,7 +199,7 @@ When not compared, `is_overcharged`, `deviation_percentage` and `billed_unit_pri
 ### Clinical Review, Safety Governance & Human OCR Resolution (ADR-011)
 
 Design, credential model and threat model: [`docs/architecture/clinical-review.md`](../architecture/clinical-review.md).
-Headers: case holder `X-Case-Access-Token`; reviewer `X-Reviewer-Token`; hospital desk
+Headers: patient routes need the account session; reviewer `X-Reviewer-Token`; hospital desk
 `X-Institution-Token`; operator `X-Governance-Admin-Key` (routes return `503` when
 `CLINICAL_GOVERNANCE_ADMIN_KEY` is unset). Reviewer and institution credentials are
 header-only and shown once at registration.

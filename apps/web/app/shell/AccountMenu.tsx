@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { accountPaths } from "../shared/api-client";
 import type { Language } from "../shared/i18n/types";
+import { DemoAccountNote } from "../components/auth/DemoAccountNote";
 import { apiFetch } from "../lib/apiFetch";
 import { clearActiveCase, readActiveCase } from "../lib/caseStore";
 import { markSignedOut } from "../lib/session";
@@ -75,6 +76,7 @@ export function AccountMenu({
       <p className="site-account-who">
         <span>{c.signedInAs}</span> <strong>{email}</strong>
       </p>
+      <DemoAccountNote className="site-account-who" />
       <ul>
         <li>
           <TransitionLink href={WORKSPACE_PATH} onClick={() => onClose(false)}>

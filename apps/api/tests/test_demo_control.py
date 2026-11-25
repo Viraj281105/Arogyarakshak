@@ -31,7 +31,7 @@ def _load(scenario):
     res = client.post(f"{K}/clinical-demo/scenarios/{scenario}", headers=admin())
     assert res.status_code == 200, res.text
     body = res.json()
-    client._case_tokens[body["case_id"]] = body["access_token"]
+    assert "access_token" not in body, "the loaded case belongs to the caller's account"
     return body
 
 
@@ -42,7 +42,7 @@ def _case_exists(case_id):
 # --- Guards -----------------------------------------------------------------------------
 
 
-def test_status_is_public_and_honest_when_demo_mode_is_off(monkeypatch):
+def test_status_is_honest_when_demo_mode_is_off(monkeypatch):
     monkeypatch.setattr(settings, "clinical_demo_mode", False)
     body = client.get(f"{K}/clinical-demo/status").json()
     assert body["demo_mode"] is False and body["banner"] is None
@@ -141,8 +141,6 @@ def test_reset_removes_demo_cases_only_and_is_idempotent(demo):
     assert body["other_cases_kept"] >= 1
     assert body["credentials"]["reviewers"]["clinician_a"]["reviewer_token"]
 
-    client._case_tokens.pop(loaded, None)
-    client._case_tokens.pop(manual, None)
     assert client.get(f"{K}/cases/{other}").status_code == 200, "non-demo case kept"
     for case_id in (loaded, manual):
         assert client.get(f"{K}/cases/{case_id}").status_code in (401, 403, 404)

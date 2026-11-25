@@ -4,6 +4,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { LazyPanel } from "../LazyPanel";
 import { SimpleLanguageToggle } from "../SimpleLanguageToggle";
+import { LazyActionTracker } from "../actions/LazyModulePlan";
 import { LoadingState } from "../ui/States";
 import type { ModuleTab } from "../../shell/nav";
 import { useLanguage } from "../../shell/ShellProvider";
@@ -46,6 +47,7 @@ export function ModuleWorkspace({ module }: { module: ModuleTab }) {
         {module === "schemesetu" && <SchemeSetuView {...props} />}
         {module === "dawacheck" && <DawaCheckView {...props} />}
       </div>
+      {caseId && <LazyActionTracker caseId={caseId} module={module} />}
     </div>
   );
 }

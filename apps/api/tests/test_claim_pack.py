@@ -4,15 +4,12 @@ import io
 import json
 import zipfile
 
-from tests.clinical_helpers import K, case_token, client, make_case
+from tests.account_helpers import other_account
+from tests.clinical_helpers import K, client, make_case
 
 PACK = "/api/v1/kadi/cases/{}/claim-pack"
 def _track(case_id):
-    return client.post(
-        f"/api/v1/bimanyay/timeline?case_id={case_id}",
-        json=TIMELINE_PAYLOAD,
-        headers={"X-Case-Access-Token": case_token(case_id)},
-    )
+    return client.post(f"/api/v1/bimanyay/timeline?case_id={case_id}", json=TIMELINE_PAYLOAD)
 
 
 TIMELINE_PAYLOAD = {"insurer_name": "Acme Health", "date_initiated": "2026-01-10", "claim_number": "CLM-77"}
@@ -32,9 +29,9 @@ def _files(manifest):
     return {f["section"]: f for f in manifest["files"]}
 
 
-def test_requires_case_access_token():
+def test_requires_the_owning_account():
     case_id = make_case()
-    res = client.get(PACK.format(case_id), headers={"X-Case-Access-Token": "wrong-token"})
+    res = client.get(PACK.format(case_id), headers=other_account())
     assert res.status_code == 403
     body = res.json()
     assert "detail" in body and "message" in body

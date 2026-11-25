@@ -292,7 +292,7 @@ def test_auth_routes_have_a_stricter_per_ip_bucket(monkeypatch):
     assert int(limited.headers["Retry-After"]) >= 1
     # The global limiter is untouched: other routes still answer.
     assert client.get("/health").status_code == 200
-    assert client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).status_code == 201
+    assert client.get("/api/v1/kadi/cases").status_code == 401  # answered, not rate limited
 
 
 # Sign-in throttle tests (per account and client IP): test_account_hardening.py
@@ -468,7 +468,8 @@ def test_account_deletion_erases_owned_cases_sessions_and_tokens():
     headers, email = bearer_for()
     client = plain_client()
     owned = [client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}, headers=headers).json()["id"] for _ in range(2)]
-    guest = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}).json()
+    other, _ = bearer_for()
+    kept = client.post("/api/v1/kadi/cases", json={"consent_opt_in": True}, headers=other).json()["id"]
 
     wrong = client.request("DELETE", ME, json={"password": "not my password"}, headers=headers)
     assert wrong.status_code == 403
@@ -478,9 +479,10 @@ def test_account_deletion_erases_owned_cases_sessions_and_tokens():
     assert res.json() == {"deleted": True, "cases_erased": 2}
 
     for case_id in owned:
-        assert client.get(f"/api/v1/kadi/cases/{case_id}", headers=headers).status_code == 404
-    assert client.get(f"/api/v1/kadi/cases/{guest['id']}", headers={"X-Case-Access-Token": guest["access_token"]}).status_code == 200
-    assert _count(KadiUser) == 0 and _count(KadiSession) == 0 and _count(KadiAccountToken) == 0
+        assert client.get(f"/api/v1/kadi/cases/{case_id}", headers=other).status_code == 404
+    assert client.get(f"/api/v1/kadi/cases/{kept}", headers=other).status_code == 200
+    # Only the unrelated account remains.
+    assert _count(KadiUser) == 1 and _count(KadiSession) == 1
     assert _count(KadiCase) == 1
     assert client.get(ME, headers=headers).status_code == 401
     assert login(client, email).status_code == 401

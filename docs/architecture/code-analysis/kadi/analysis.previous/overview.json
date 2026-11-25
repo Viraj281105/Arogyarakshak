@@ -2,8 +2,8 @@
   "verdict": "attention",
   "counts": {
     "findings": 32,
-    "error": 1,
-    "warning": 7,
+    "error": 0,
+    "warning": 8,
     "info": 24,
     "accepted": 0,
     "acceptedErrors": 0,
@@ -14,75 +14,20 @@
     "comparison": {
       "comparable": true,
       "reasons": [],
-      "new": [
-        "COUP-010095ea6236",
-        "COUP-2b971a639d90",
-        "COUP-a4b3d1d87d1e"
-      ],
-      "notDetected": [
-        {
-          "id": "COUP-209e06f65d1c",
-          "code": "coupling/cycle",
-          "severity": "error",
-          "message": "3 modules depend on each other at package level: kadi → kadi/llm → kadi. See coupling/import-cycle for whether any file actually cycles.",
-          "likelyCause": "possibly-renamed",
-          "candidates": [
-            "COUP-010095ea6236"
-          ]
-        },
-        {
-          "id": "COUP-bc2fa9792286",
-          "code": "coupling/concentration",
-          "severity": "warning",
-          "message": "kadi/ocr: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-        },
-        {
-          "id": "COUP-fbdea46f0e25",
-          "code": "coupling/concentration",
-          "severity": "warning",
-          "message": "kadi: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-        }
-      ],
-      "fixed": [
-        {
-          "id": "COUP-209e06f65d1c",
-          "code": "coupling/cycle",
-          "severity": "error",
-          "message": "3 modules depend on each other at package level: kadi → kadi/llm → kadi. See coupling/import-cycle for whether any file actually cycles.",
-          "likelyCause": "possibly-renamed",
-          "candidates": [
-            "COUP-010095ea6236"
-          ]
-        },
-        {
-          "id": "COUP-bc2fa9792286",
-          "code": "coupling/concentration",
-          "severity": "warning",
-          "message": "kadi/ocr: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-        },
-        {
-          "id": "COUP-fbdea46f0e25",
-          "code": "coupling/concentration",
-          "severity": "warning",
-          "message": "kadi: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-        }
-      ],
+      "new": [],
+      "notDetected": [],
+      "fixed": [],
       "evidenceChanged": [
-        "COUP-b062224dbc3a",
+        "COUP-010095ea6236",
+        "COUP-124374328f34",
+        "COUP-2b971a639d90",
+        "COUP-a4b3d1d87d1e",
         "COUP-d6deb4af3ce5"
       ],
       "unchanged": 27
     }
   },
   "groups": [
-    {
-      "code": "coupling/cycle",
-      "severity": "error",
-      "count": 1,
-      "ids": [
-        "COUP-010095ea6236"
-      ]
-    },
     {
       "code": "complexity/function",
       "severity": "warning",
@@ -124,6 +69,14 @@
       ]
     },
     {
+      "code": "coupling/cycle",
+      "severity": "warning",
+      "count": 1,
+      "ids": [
+        "COUP-010095ea6236"
+      ]
+    },
+    {
       "code": "coupling/import-cycle",
       "severity": "warning",
       "count": 1,
@@ -146,16 +99,16 @@
   "priorities": [
     "COUP-010095ea6236",
     "COMP-9ae19258c59c",
-    "COMP-78b0dc1fa966"
+    "COUP-b062224dbc3a"
   ],
   "investigation": {
     "leads": [
       {
         "id": "COUP-010095ea6236",
         "code": "coupling/cycle",
-        "severity": "error",
-        "message": "2 modules depend on each other at package level: kadi → kadi/ocr → kadi. See coupling/import-cycle for whether any file actually cycles.",
-        "where": "kadi/__init__.py:5",
+        "severity": "warning",
+        "message": "2 modules form a package-level dependency component containing deferred, conditional, or type-only edges: kadi → kadi/ocr → kadi. This grouping does not establish initialization behavior; it may also contain module-scope subcycles.",
+        "where": "kadi/__init__.py:17",
         "symbol": null,
         "impact": {
           "modules": 2,
@@ -179,17 +132,17 @@
         }
       },
       {
-        "id": "COMP-78b0dc1fa966",
-        "code": "complexity/function",
+        "id": "COUP-b062224dbc3a",
+        "code": "coupling/concentration",
         "severity": "warning",
-        "message": "parse_fhir_bundle in kadi/fhir_import.py has cyclomatic complexity 51 (130 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
-        "where": "kadi/fhir_import.py:119",
-        "symbol": "parse_fhir_bundle",
+        "message": "kadi/llm: 3 of the other 6 modules depend on it directly or through other modules (50%). This is a static fact about where the project is concentrated, not proof that the module should be split.",
+        "where": "module kadi-llm",
+        "symbol": null,
         "impact": {
           "modules": 1,
-          "size": 51,
-          "fanIn": 2,
-          "files": 11
+          "size": 0,
+          "fanIn": 1,
+          "files": 12
         }
       }
     ],
@@ -201,7 +154,7 @@
           "id": "kadi",
           "path": "kadi",
           "files": 11,
-          "loc": 2268,
+          "loc": 2285,
           "fanIn": 2,
           "fanOut": 4,
           "instability": 0.667,
@@ -210,7 +163,7 @@
             "kadi/explanation.py",
             "kadi/line_items.py"
           ],
-          "readingWeight": 5862.695
+          "readingWeight": 5906.639
         },
         {
           "id": "kadi-resolution",
@@ -275,16 +228,16 @@
       "hotspotRanking": "Connected modules ordered by loc * (1 + log2(1 + fanIn)), then fanIn, fanOut and id. A bounded reading order, not inferred business importance, defect severity or refactoring advice.",
       "strongestEdges": [
         {
+          "from": "kadi",
+          "to": "kadi-ocr",
+          "weight": 4,
+          "sample": "kadi/__init__.py:17"
+        },
+        {
           "from": "kadi-clinical_review",
           "to": "kadi",
           "weight": 3,
           "sample": "kadi/clinical_review/evidence.py:13"
-        },
-        {
-          "from": "kadi",
-          "to": "kadi-ocr",
-          "weight": 2,
-          "sample": "kadi/__init__.py:5"
         },
         {
           "from": "kadi",
@@ -306,19 +259,6 @@
         }
       ],
       "structuralSignals": [
-        {
-          "id": "COUP-b062224dbc3a",
-          "code": "coupling/concentration",
-          "severity": "warning",
-          "message": "kadi/llm: 3 of the other 6 modules depend on it directly or through other modules (50%). This is a static fact about where the project is concentrated, not proof that the module should be split.",
-          "where": "module kadi-llm",
-          "impact": {
-            "modules": 1,
-            "size": 0,
-            "fanIn": 1,
-            "files": 12
-          }
-        },
         {
           "id": "COUP-dce307e7c336",
           "code": "coupling/import-cycle",
@@ -370,6 +310,19 @@
             "fanIn": 2,
             "files": 2
           }
+        },
+        {
+          "id": "COUP-bdf1ec6dd471",
+          "code": "coupling/concentration",
+          "severity": "info",
+          "message": "kadi/resolution: 3 of the other 6 modules depend on it directly or through other modules (50%). It depends on no other module, the usual shape of a shared kernel: keep it small and stable.",
+          "where": "module kadi-resolution",
+          "impact": {
+            "modules": 1,
+            "size": 0,
+            "fanIn": 1,
+            "files": 9
+          }
         }
       ]
     }
@@ -378,7 +331,7 @@
     {
       "id": "COUP-010095ea6236",
       "code": "coupling/cycle",
-      "severity": "error",
+      "severity": "warning",
       "componentIds": [],
       "moduleIds": [
         "kadi",
@@ -392,7 +345,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "new"
+      "since": "evidence-changed"
     },
     {
       "id": "COMP-9ae19258c59c",
@@ -500,7 +453,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     {
       "id": "COUP-dce307e7c336",
@@ -878,7 +831,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "new"
+      "since": "evidence-changed"
     },
     {
       "id": "COUP-a4b3d1d87d1e",
@@ -896,7 +849,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "new"
+      "since": "evidence-changed"
     },
     {
       "id": "COUP-bdf1ec6dd471",
@@ -950,7 +903,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "unchanged"
+      "since": "evidence-changed"
     }
   ],
   "coverage": {
@@ -983,7 +936,7 @@
     },
     "otherLanguages": [],
     "unresolved": {
-      "external": 277,
+      "external": 278,
       "outside": 0,
       "unknown": 0,
       "opaque": 0

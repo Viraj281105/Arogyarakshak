@@ -92,7 +92,7 @@ once and stored only as a SHA-256 hash:
 
 | Credential | Header | Holder | Grants |
 |---|---|---|---|
-| Case token | `X-Case-Access-Token` | patient / case holder | their case, as before (ADR-009) |
+| Account session | cookie or `Authorization: Bearer` | the patient who owns the case | their own cases (ADR-029) |
 | Reviewer credential | `X-Reviewer-Token` (header only) | a registered reviewer | only the reviews/tasks a case holder **assigned to them** |
 | Institution credential | `X-Institution-Token` (header only) | a hospital desk | only its own playbooks |
 | Governance key | `X-Governance-Admin-Key` | operator | seat board members, attempt verification, seed demo; **disabled when unset** |

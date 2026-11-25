@@ -1,0 +1,856 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "revision": null,
+    "baseRevision": "4b37e4eb9d84dbf37cda5828aa3f949d2324cd27",
+    "sourceKind": "working-tree",
+    "root": "apps/api/app",
+    "url": "https://github.com/Viraj281105/Arogyarakshak.git",
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "adapterRevision": 17,
+    "snapshotId": "f83265812310c77c5f98430a2031b9be04018b3f3dcbe132ef0a56d9d9a68e40"
+  },
+  "rules": [
+    "coupling/import-cycle",
+    "coupling/cycle",
+    "coupling/hub",
+    "coupling/concentration",
+    "coupling/internal-leak",
+    "complexity/function"
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 3,
+    "info": 13,
+    "suppressed": 0
+  },
+  "analysis": {
+    "analyzer": {
+      "name": "@archify/code-analysis",
+      "version": "0.1.0-dev.1"
+    },
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "adapterRevision": 17,
+    "configDigest": "6352ac7c60ad60d648d6bc7c05bf1960a6db7ad20370d972b422f9e8c9d446a2",
+    "ruleVersions": {
+      "complexity/function": 1,
+      "coupling/concentration": 1,
+      "coupling/cycle": 2,
+      "coupling/hub": 1,
+      "coupling/import-cycle": 3,
+      "coupling/internal-leak": 1
+    },
+    "coverage": {
+      "files": 120,
+      "excludedRoles": [
+        "generated",
+        "test"
+      ],
+      "parseErrors": []
+    }
+  },
+  "diagnostics": [
+    {
+      "id": "COMP-b8145b575d76",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "case_timeline in case_timeline.py has cyclomatic complexity 31 (73 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "case_timeline.py",
+        "function": "case_timeline",
+        "line": 31,
+        "endLine": 103
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 31,
+        "nesting": 2,
+        "deepestLine": 70,
+        "length": 73
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "case_timeline.py"
+        ],
+        "lines": [
+          31,
+          103
+        ],
+        "sha256": "2232f378dd15d2cb65af0e1a661e1d6edfae7f57e7f390bebe6c338b3b290e56"
+      }
+    },
+    {
+      "id": "COMP-1992ec251803",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "evaluate_case_safety in clinical/context.py has cyclomatic complexity 16 (44 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "clinical/context.py",
+        "function": "evaluate_case_safety",
+        "line": 114,
+        "endLine": 157
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 3,
+        "deepestLine": 138,
+        "length": 44
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "clinical/context.py"
+        ],
+        "lines": [
+          114,
+          157
+        ],
+        "sha256": "b382b3fb64f6b23887e7ba1503b831e1bccdb39cb7f189be30a459d089a34888"
+      }
+    },
+    {
+      "id": "COMP-e6261db817ef",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_entity_meta_update in clinical/transcription_service.py has cyclomatic complexity 22 (43 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "clinical/transcription_service.py",
+        "function": "_entity_meta_update",
+        "line": 321,
+        "endLine": 363
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 22,
+        "nesting": 1,
+        "deepestLine": 335,
+        "length": 43
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "clinical/transcription_service.py"
+        ],
+        "lines": [
+          321,
+          363
+        ],
+        "sha256": "4e33e125260de7b0a9e2f488ac1be6bf28b8e595515f108c37c0532b0e5f18c9"
+      }
+    },
+    {
+      "id": "COMP-a012f1bb738f",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "submit_reading in clinical/transcription_service.py has cyclomatic complexity 18 (63 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "clinical/transcription_service.py",
+        "function": "submit_reading",
+        "line": 366,
+        "endLine": 428
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 18,
+        "nesting": 4,
+        "deepestLine": 416,
+        "length": 63
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "clinical/transcription_service.py"
+        ],
+        "lines": [
+          366,
+          428
+        ],
+        "sha256": "c80c5976ac8ff33d8e66d7e3581973bf0878eefc14a69a6f007ba12817347276"
+      }
+    },
+    {
+      "id": "COMP-45fb2c85fa4d",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "evaluate_dawacheck_mapping in evaluation/dawacheck_mapping.py has cyclomatic complexity 20 (49 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "evaluation/dawacheck_mapping.py",
+        "function": "evaluate_dawacheck_mapping",
+        "line": 37,
+        "endLine": 85
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 20,
+        "nesting": 3,
+        "deepestLine": 64,
+        "length": 49
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "evaluation/dawacheck_mapping.py"
+        ],
+        "lines": [
+          37,
+          85
+        ],
+        "sha256": "a0d2724837489ae1638a3656f8f7d5701aace2d077bafd76035097c98b70fab0"
+      }
+    },
+    {
+      "id": "COMP-06b4e26dfabd",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "evaluate_pea in evaluation/pea.py has cyclomatic complexity 16 (49 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "evaluation/pea.py",
+        "function": "evaluate_pea",
+        "line": 39,
+        "endLine": 87
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 3,
+        "deepestLine": 56,
+        "length": 49
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "evaluation/pea.py"
+        ],
+        "lines": [
+          39,
+          87
+        ],
+        "sha256": "9ecad1c339b50f790c544c149494b97ed0a658dcc7e8a6a1bbb150e681dae262"
+      }
+    },
+    {
+      "id": "COMP-3b635266516b",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "compare in evaluation/regression.py has cyclomatic complexity 27 (59 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "evaluation/regression.py",
+        "function": "compare",
+        "line": 180,
+        "endLine": 238
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 27,
+        "nesting": 3,
+        "deepestLine": 218,
+        "length": 59
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "evaluation/regression.py"
+        ],
+        "lines": [
+          180,
+          238
+        ],
+        "sha256": "61e903fbf9041c2de6d862468eb038900e8c03878bc7235288fa64114d6ab9b6"
+      }
+    },
+    {
+      "id": "COMP-e2c9aa4a523b",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "evaluate_retrieval in evaluation/retrieval.py has cyclomatic complexity 16 (75 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "evaluation/retrieval.py",
+        "function": "evaluate_retrieval",
+        "line": 64,
+        "endLine": 138
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 16,
+        "nesting": 3,
+        "deepestLine": 86,
+        "length": 75
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "evaluation/retrieval.py"
+        ],
+        "lines": [
+          64,
+          138
+        ],
+        "sha256": "5e760c4ff1907f6a39e13f6a28383437834694f876d759aa7b50f8c4f52f03bf"
+      }
+    },
+    {
+      "id": "COMP-b13f4968460f",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "glossary_conflicts in evaluation/terminology.py has cyclomatic complexity 15 (19 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "evaluation/terminology.py",
+        "function": "glossary_conflicts",
+        "line": 95,
+        "endLine": 113
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 15,
+        "nesting": 4,
+        "deepestLine": 106,
+        "length": 19
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "evaluation/terminology.py"
+        ],
+        "lines": [
+          95,
+          113
+        ],
+        "sha256": "cc26cdea651b5b2e1b0b6e872c8c13f399affdc73da04b30a0340715ec63aaf4"
+      }
+    },
+    {
+      "id": "COMP-4f954a36b718",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "resolve_and_attach in kadi_resolution.py has cyclomatic complexity 17 (61 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "kadi_resolution.py",
+        "function": "resolve_and_attach",
+        "line": 165,
+        "endLine": 225
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 17,
+        "nesting": 3,
+        "deepestLine": 208,
+        "length": 61
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "kadi_resolution.py"
+        ],
+        "lines": [
+          165,
+          225
+        ],
+        "sha256": "3c3613c225874b92980985bafbeb9b52f1933799998c0d20ae845b53ed7ae587"
+      }
+    },
+    {
+      "id": "COMP-46cc019a68b2",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "normalise_email in services/accounts.py has cyclomatic complexity 15 (12 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "services/accounts.py",
+        "function": "normalise_email",
+        "line": 116,
+        "endLine": 127
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 15,
+        "nesting": 1,
+        "deepestLine": 120,
+        "length": 12
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "services/accounts.py"
+        ],
+        "lines": [
+          116,
+          127
+        ],
+        "sha256": "318b638fafa3fae716b813a1f5b0a56dbe6cae3a7271659f064d0c9b0792cde5"
+      }
+    },
+    {
+      "id": "COMP-6fe494bcc8dc",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_load_cghs_rates in services/billnyay_audit.py has nesting depth 5 (44 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "services/billnyay_audit.py",
+        "function": "_load_cghs_rates",
+        "line": 37,
+        "endLine": 80
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 8,
+        "nesting": 5,
+        "deepestLine": 64,
+        "length": 44
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "services/billnyay_audit.py"
+        ],
+        "lines": [
+          37,
+          80
+        ],
+        "sha256": "684739332d7f58bd3f5bf90d703ddfa24e60bb34d50ae5501e539d466fc7ad23"
+      }
+    },
+    {
+      "id": "COMP-938b4eb28932",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "audit_billing_lines in services/billnyay_audit.py has cyclomatic complexity 17 (128 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "services/billnyay_audit.py",
+        "function": "audit_billing_lines",
+        "line": 179,
+        "endLine": 306
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 17,
+        "nesting": 3,
+        "deepestLine": 224,
+        "length": 128
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "services/billnyay_audit.py"
+        ],
+        "lines": [
+          179,
+          306
+        ],
+        "sha256": "68a2b20982e03c456ab6c4d7527062dcf1ef30b18aeb8c963d1295cccc18880f"
+      }
+    },
+    {
+      "id": "COMP-debb313c00c9",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "_route_uncertain_readings in services/case_ingestion.py has cyclomatic complexity 17 (44 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "services/case_ingestion.py",
+        "function": "_route_uncertain_readings",
+        "line": 341,
+        "endLine": 384
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 17,
+        "nesting": 2,
+        "deepestLine": 373,
+        "length": 44
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "services/case_ingestion.py"
+        ],
+        "lines": [
+          341,
+          384
+        ],
+        "sha256": "8801958fe9cd01afa29a7ead686369c7d15eda86fad8e193c31a36c57fcae9b7"
+      }
+    },
+    {
+      "id": "COMP-c917315e7c09",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "_run_pipeline in services/case_ingestion.py has cyclomatic complexity 26 (176 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "services/case_ingestion.py",
+        "function": "_run_pipeline",
+        "line": 163,
+        "endLine": 338
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 25,
+          "nesting": 6
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 26,
+        "nesting": 3,
+        "deepestLine": 194,
+        "length": 176
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "services/case_ingestion.py"
+        ],
+        "lines": [
+          163,
+          338
+        ],
+        "sha256": "5b90560cc371aa1510e601f0807a9fca3ae1b37abe02d24a4e10469814238cf6"
+      }
+    },
+    {
+      "id": "COMP-61ab0f198da6",
+      "code": "complexity/function",
+      "dimension": "complexity",
+      "severity": "info",
+      "confidence": 1,
+      "message": "build_case_medicine_benchmarks in services/dawacheck_benchmarks.py has cyclomatic complexity 19 (143 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+      "subject": {
+        "file": "services/dawacheck_benchmarks.py",
+        "function": "build_case_medicine_benchmarks",
+        "line": 89,
+        "endLine": 231
+      },
+      "evidence": {
+        "threshold": {
+          "complexity": 15,
+          "nesting": 5
+        },
+        "thresholds": {
+          "info": {
+            "complexity": 15,
+            "nesting": 5
+          },
+          "warning": {
+            "complexity": 25,
+            "nesting": 6
+          }
+        },
+        "complexity": 19,
+        "nesting": 3,
+        "deepestLine": 126,
+        "length": 143
+      },
+      "supportedFixes": [
+        "start at the deepest nested block: extract it into a named helper with its own tests",
+        "replace long if/elif chains on one value with a lookup table or dispatch",
+        "return early for edge cases so the main path is not nested",
+        "if the branching is inherent, raise the threshold in the analysis config rather than splitting artificially"
+      ],
+      "evidenceDigest": {
+        "files": [
+          "services/dawacheck_benchmarks.py"
+        ],
+        "lines": [
+          89,
+          231
+        ],
+        "sha256": "6a716fb20390af58bf86580a680c02d3427375c46e75c0b71cd703224d295d1b"
+      }
+    }
+  ]
+}

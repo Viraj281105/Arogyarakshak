@@ -12,11 +12,13 @@ import {
   LandingSteps,
 } from "./components/landing/LandingSections";
 import { ReferenceCoverage } from "./components/landing/ReferenceCoverage";
-import { publicCopy } from "./components/public/publicCopy";
+import { localisedPublicCopy } from "./components/public/publicCopy";
+import { requestLanguage } from "./i18n/server";
 
-const meta = publicCopy().landing.meta;
-
-export const metadata: Metadata = { title: meta.title, description: meta.description };
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await localisedPublicCopy(await requestLanguage())).landing;
+  return { title: meta.title, description: meta.description };
+}
 
 /**
  * Public landing route (Server Component). The case workspace lives at /app (Wave 3 M2). The static

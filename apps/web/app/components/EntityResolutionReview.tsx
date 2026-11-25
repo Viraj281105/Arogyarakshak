@@ -6,6 +6,7 @@ import { caseAuthHeaders } from "../hooks/useApi";
 import { ResolutionDecision, formatScore, resolutionPaths, signalRows } from "../lib/resolution";
 import { StatePanel } from "./clinical/StatePanel";
 import { apiFetch } from "../lib/apiFetch";
+import { useT } from "../i18n/useT";
 
 interface EntityResolutionReviewProps {
   caseId: string;
@@ -18,6 +19,7 @@ interface EntityResolutionReviewProps {
  * patient answers; each answer also feeds threshold calibration (#88).
  */
 export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ caseId, caseToken, currentLang }) => {
+  const tr = useT();
   const t = translations[currentLang].resolution;
   const [decisions, setDecisions] = useState<ResolutionDecision[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -75,7 +77,7 @@ export const EntityResolutionReview: React.FC<EntityResolutionReviewProps> = ({ 
     <section className="case-panel resolution" aria-labelledby="resolution-review-title">
       <div className="case-panel-head">
         <h3 id="resolution-review-title">{t.title}</h3>
-        {decisions.length > 0 && <span className="timeline-count">{decisions.length} to answer</span>}
+        {decisions.length > 0 && <span className="timeline-count">{tr("{count} to answer", { count: decisions.length })}</span>}
       </div>
       <p className="resolution-intro">{t.intro}</p>
 

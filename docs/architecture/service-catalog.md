@@ -22,7 +22,7 @@ What actually runs. Decisions: ADR-013 (local demo target), ADR-019, ADR-021 (no
 |---|---|
 | Responsibility | Patient-facing UI (English/Hindi/Marathi) |
 | Contract | Calls the API from the browser; `NEXT_PUBLIC_API_URL` baked in at build time |
-| Data ownership | None server-side. Case access token held in browser memory (ADR-009) |
+| Data ownership | None server-side. Sign-in is an httpOnly session cookie the page cannot read (ADR-029) |
 | Health | `GET /` |
 | Deployment | Image `apps/web/Dockerfile` (`runtime` target; compose dev uses `build` target with `next dev`). Stateless |
 

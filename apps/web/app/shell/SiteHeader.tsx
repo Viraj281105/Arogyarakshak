@@ -86,7 +86,7 @@ export function SiteHeader() {
   return (
     <header ref={headerRef} className="site-header">
       <div className="shell-container site-header-inner">
-        <TransitionLink href="/" className="site-brand" aria-label={`${copy.appName} — ${copy.nav.home}`}>
+        <TransitionLink href="/" className="site-brand">
           {/* Static files from scripts/brand-assets.ts: no JS in this client header, and a dark-theme variant. */}
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static SVG; next/image adds JS for no gain */}
           <img src="/brand/ar-emblem-compact.svg" width={36} height={36} alt="" className="site-emblem ar-only-light" />

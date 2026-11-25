@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column,
     String,
+    Date,
     DateTime,
     Float,
     Boolean,
@@ -197,3 +198,52 @@ class KadiModuleInsight(Base):
     error_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KadiCaseAction(Base):
+    """A next step the user chose for a case, and where they say it stands (ADR-031).
+
+    Short, redacted text only. Erased with its case by app.services.case_purge."""
+
+    __tablename__ = "kadi_case_actions"
+
+    id = Column(String, primary_key=True)
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    module = Column(String(20), nullable=False)
+    kind = Column(String(40), nullable=False)
+    title = Column(String(200), nullable=False)
+    finding_ref = Column(String(200), nullable=True)
+    status = Column(String(30), nullable=False)
+    institution = Column(String(200), nullable=True)
+    contact_method = Column(String(20), nullable=True)
+    next_step = Column(String(500), nullable=True)
+    # Rupees, as the user records them: what they asked to have clarified or changed, and
+    # what they say was corrected or refunded. Never computed, never verified.
+    amount_disputed = Column(Float, nullable=True)
+    amount_corrected = Column(Float, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KadiCaseActionEvent(Base):
+    """One entry in an action's history. Append-only. ``provenance`` says who established it."""
+
+    __tablename__ = "kadi_case_action_events"
+    __table_args__ = (
+        UniqueConstraint("action_id", "sequence", name="uq_kadi_case_action_event_sequence"),
+        CheckConstraint("provenance IN ('user_recorded')", name="ck_kadi_case_action_events_provenance"),
+    )
+
+    id = Column(String, primary_key=True)
+    action_id = Column(
+        String, ForeignKey("kadi_case_actions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    case_id = Column(String, ForeignKey("kadi_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    sequence = Column(Integer, nullable=False)
+    status = Column(String(30), nullable=False)
+    occurred_on = Column(Date, nullable=True)
+    note = Column(String(1000), nullable=True)
+    # SHA-256 of a document already in this case that supports the entry (never the file).
+    evidence_sha256 = Column(String(64), nullable=True)
+    provenance = Column(String(20), nullable=False, default="user_recorded")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

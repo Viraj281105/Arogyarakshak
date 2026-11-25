@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 
 // Statutory SLA tier states (bimanyay.tracker) in plain language.
 const SLA_STATUS_LABEL: Record<string, string> = {
-  ACTIVE: 'Current step',
-  OVERDUE: 'Deadline passed',
-  COMPLETED: 'Done',
-  PENDING: 'Later step',
+  ACTIVE: msg('Current step'),
+  OVERDUE: msg('Deadline passed'),
+  COMPLETED: msg('Done'),
+  PENDING: msg('Later step'),
 };
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Share } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -20,6 +20,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useCaseProcessing } from '../hooks/useCaseProcessing';
 import { useActiveCaseId } from '../hooks/useActiveCase';
 import { resolveCaseId } from '../services/activeCase';
+import { tr, msg } from '../translations/tr';
 
 export const BimaNyayScreen: React.FC = () => {
   const route = useRoute<RouteProp<BottomTabParamList, 'BimaNyay'>>();
@@ -98,12 +99,12 @@ export const BimaNyayScreen: React.FC = () => {
         setOfflineQueued(true);
         setError(
           !isOnline
-            ? 'Device is offline. Denial audit queued; will sync automatically when reconnected.'
-            : `${apiErr.message || 'Failed to analyze denial.'} (Queued for offline retry)`
+            ? tr('Device is offline. Denial audit queued; will sync automatically when reconnected.')
+            : tr('{message} (Queued for offline retry)', { message: apiErr.message || tr('Failed to analyze denial.') })
         );
       } else {
         setOfflineQueued(false);
-        setError('Could not save this for offline retry — please try again when back online.');
+        setError(tr('Could not save this for offline retry — please try again when back online.'));
       }
     } finally {
       setLoading(false);
@@ -302,10 +303,10 @@ export const BimaNyayScreen: React.FC = () => {
             <View key={idx} style={[styles.timelineItem, { borderColor: event.status === 'ACTIVE' ? colors.brandCyan : colors.borderSubtle }]}>
               <View style={[styles.row, { marginBottom: 2 }]}>
                 <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13, flex: 1 }}>{event.title}</Text>
-                <Badge label={SLA_STATUS_LABEL[event.status] ?? event.status} variant={event.status === 'OVERDUE' ? 'danger' : event.status === 'ACTIVE' ? 'info' : 'brand'} />
+                <Badge label={SLA_STATUS_LABEL[event.status] ? tr(SLA_STATUS_LABEL[event.status]) : event.status} variant={event.status === 'OVERDUE' ? 'danger' : event.status === 'ACTIVE' ? 'info' : 'brand'} />
               </View>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                {event.instructions} Deadline: {event.deadline_date}
+                {event.instructions} {tr('Deadline: {date}', { date: event.deadline_date })}
               </Text>
               <ExplainToggle explanation={event.explanation} />
             </View>
@@ -317,8 +318,8 @@ export const BimaNyayScreen: React.FC = () => {
       {result?.clinical_review?.requires_clinical_interpretation && (
         <Card style={{ marginVertical: spacing.sm }}>
           <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' }}>
-            <Badge label="Clinical review required" variant="warning" />
-            <Badge label="Machine-derived" variant="info" />
+            <Badge label={tr('Clinical review required')} variant="warning" />
+            <Badge label={tr('Machine-derived')} variant="info" />
           </View>
           {result.clinical_review.reasons.map((reason) => (
             <Text key={reason} style={{ color: colors.textPrimary, fontSize: typography.sizes.sm, marginTop: spacing.xs }}>
@@ -330,7 +331,7 @@ export const BimaNyayScreen: React.FC = () => {
           </Text>
           {!caseId && (
             <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
-              Scan your denial letter to create a case, then request a statement from a named doctor here.
+              {tr('Scan your denial letter to create a case, then request a statement from a named doctor here.')}
             </Text>
           )}
         </Card>

@@ -6,12 +6,15 @@ import { useApi, caseAuthHeaders } from "../../hooks/useApi";
 import { clinicalPaths } from "../../lib/clinical";
 import { ClinicalReviewPanel } from "../clinical/ClinicalReviewPanel";
 import { StatePanel } from "../clinical/StatePanel";
+import { LazyModulePlan } from "../actions/LazyModulePlan";
 import { AppealLetterCard } from "./billnyay/AppealLetterCard";
 import { AuditResults } from "./billnyay/AuditResults";
 import { PlausibilityCard } from "./billnyay/PlausibilityCard";
 import type { AppealResponse, AuditResponse, PlausibilityResponse } from "./billnyay/types";
 import { HospitalIllustration, MedicalRecordIllustration } from "../illustrations/Illustrations";
 import { EvidenceBadge, StatusBadge } from "../ui/Badges";
+import { useT } from "../../i18n/useT";
+import { msg } from "../../i18n/format";
 
 // GET /api/v1/billnyay/cases/{id}/icd-audit -> billnyay.agents.icd_audit.ICDProcedureAuditItem.
 interface IcdAuditResponse {
@@ -25,28 +28,28 @@ interface IcdAuditResponse {
 /** Plain-language reading of each backend status. Only "consistent" is a positive result; none is a verdict. */
 const ICD_STATUS: Record<string, { label: string; body: string; evidence: "rule-engine" | "provisional" | "unevaluated" }> = {
   consistent: {
-    label: "Consistent with the code",
-    body: "At least one billed procedure matches the procedures expected for this ICD-10 code in the reference table.",
+    label: msg("Consistent with the code"),
+    body: msg("At least one billed procedure matches the procedures expected for this ICD-10 code in the reference table."),
     evidence: "rule-engine",
   },
   mismatched: {
-    label: "Worth a human review",
-    body: "The code is in the reference table, but none of the billed procedures matches what it expects. This is not proof of wrong coding; ask the hospital or a doctor.",
+    label: msg("Worth a human review"),
+    body: msg("The code is in the reference table, but none of the billed procedures matches what it expects. This is not proof of wrong coding; ask the hospital or a doctor."),
     evidence: "provisional",
   },
   no_procedure_billed: {
-    label: "Nothing to compare",
-    body: "The code is in the reference table, but no procedure was found on the bill.",
+    label: msg("Nothing to compare"),
+    body: msg("The code is in the reference table, but no procedure was found on the bill."),
     evidence: "unevaluated",
   },
   code_not_found: {
-    label: "No ICD-10 code found",
-    body: "No ICD-10 code could be read from the diagnosis, so nothing was checked.",
+    label: msg("No ICD-10 code found"),
+    body: msg("No ICD-10 code could be read from the diagnosis, so nothing was checked."),
     evidence: "unevaluated",
   },
   code_not_in_reference: {
-    label: "Code not covered",
-    body: "The code was found, but the small reference table does not cover it. This is NOT evidence of a mismatch.",
+    label: msg("Code not covered"),
+    body: msg("The code was found, but the small reference table does not cover it. This is NOT evidence of a mismatch."),
     evidence: "unevaluated",
   },
 };
@@ -60,6 +63,7 @@ interface BillNyayViewProps {
 /** BillNyay: CGHS bill audit, the 5-agent appeal draft, and the bounded clinical
  *  plausibility check with an optional named-clinician review. */
 export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId, caseToken }) => {
+  const tr = useT();
   const t = translations[currentLang].modules.billnyay;
   const api = useApi<AuditResponse>();
   const appealApi = useApi<AppealResponse>();
@@ -104,12 +108,12 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
     <div className="module-panel">
       <header className="ws-mod-hero ws-mod-billnyay">
         <div className="ws-mod-hero-copy">
-          <p className="lp-kicker">BillNyay · compared with CGHS 2024 rates</p>
+          <p className="lp-kicker">{tr("BillNyay · compared with CGHS 2024 rates")}</p>
           <h2>{t.title}</h2>
           <p>{t.desc}</p>
           <div className="ws-kadi-badges">
-            <StatusBadge tone="neutral">Compared with CGHS reference rates</StatusBadge>
-            <StatusBadge tone="neutral">A doctor can review the findings</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Compared with CGHS reference rates")}</StatusBadge>
+            <StatusBadge tone="neutral">{tr("A doctor can review the findings")}</StatusBadge>
           </div>
         </div>
         <div className="ws-mod-hero-art" aria-hidden="true">
@@ -119,7 +123,7 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
 
       {/* Action Buttons */}
       {caseId && (
-        <div className="bn-tools" role="group" aria-label="BillNyay checks">
+        <div className="bn-tools" role="group" aria-label={tr("BillNyay checks")}>
           <button type="button" className="bn-tool is-primary" onClick={handleRunAudit} disabled={api.loading}>
             <span className="bn-tool-icon" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" className="lp-icon">
@@ -127,8 +131,8 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               </svg>
             </span>
             <span className="bn-tool-text">
-              <strong>{api.loading ? "Comparing with CGHS rates…" : api.data ? "Run the CGHS audit again" : "Run the CGHS audit"}</strong>
-              <span>Each bill line against the CGHS reference rows.</span>
+              <strong>{api.loading ? tr("Comparing with CGHS rates…") : api.data ? tr("Run the CGHS audit again") : tr("Run the CGHS audit")}</strong>
+              <span>{tr("Each bill line against the CGHS reference rows.")}</span>
             </span>
             {api.loading && <span className="spinner" aria-hidden="true" />}
           </button>
@@ -139,8 +143,8 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               </svg>
             </span>
             <span className="bn-tool-text">
-              <strong>{appealApi.loading ? "Drafting the appeal…" : "Draft an appeal letter"}</strong>
-              <span>From your document text — you review it before sending.</span>
+              <strong>{appealApi.loading ? tr("Drafting the appeal…") : tr("Draft an appeal letter")}</strong>
+              <span>{tr("From your document text — you review it before sending.")}</span>
             </span>
             {appealApi.loading && <span className="spinner" aria-hidden="true" />}
           </button>
@@ -151,8 +155,8 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               </svg>
             </span>
             <span className="bn-tool-text">
-              <strong>{plausibilityApi.loading ? "Checking plausibility…" : "Check clinical plausibility"}</strong>
-              <span>Do the billed interventions fit the documented diagnosis?</span>
+              <strong>{plausibilityApi.loading ? tr("Checking plausibility…") : tr("Check clinical plausibility")}</strong>
+              <span>{tr("Do the billed interventions fit the documented diagnosis?")}</span>
             </span>
             {plausibilityApi.loading && <span className="spinner" aria-hidden="true" />}
           </button>
@@ -163,8 +167,8 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
               </svg>
             </span>
             <span className="bn-tool-text">
-              <strong>{icdApi.loading ? "Checking ICD-10 coding…" : "Check ICD-10 procedure coding"}</strong>
-              <span>Compare extracted diagnosis codes against billed procedures.</span>
+              <strong>{icdApi.loading ? tr("Checking ICD-10 coding…") : tr("Check ICD-10 procedure coding")}</strong>
+              <span>{tr("Compare extracted diagnosis codes against billed procedures.")}</span>
             </span>
             {icdApi.loading && <span className="spinner" aria-hidden="true" />}
           </button>
@@ -179,78 +183,62 @@ export const BillNyayView: React.FC<BillNyayViewProps> = ({ currentLang, caseId,
             <MedicalRecordIllustration size={88} />
           </span>
           <div>
-            <strong>No document checked yet</strong>
-            <p>
-              Upload a hospital bill (or add its discharge summary to the same case) to compare each line with the CGHS
-              reference rates. Lines with no matching reference rate are listed as not benchmarked — never as fair or
-              overcharged.
-            </p>
-            <a href="/app#intake-dropzone" className="btn btn-secondary btn-compact">
-              Add a document
-            </a>
+            <strong>{tr("No document checked yet")}</strong>
+            <p>{tr("Upload a hospital bill (or add its discharge summary to the same case) to compare each line with the CGHS reference rates. Lines with no matching reference rate are listed as not benchmarked — never as fair or overcharged.")}</p>
+            <a href="/app#intake-dropzone" className="btn btn-secondary btn-compact">{tr("Add a document")}</a>
           </div>
         </div>
       )}
 
       {/* CGHS audit */}
-      {api.loading && !api.data && <StatePanel kind="loading">Comparing each bill line with the CGHS reference rows…</StatePanel>}
+      {api.loading && !api.data && <StatePanel kind="loading">{tr("Comparing each bill line with the CGHS reference rows…")}</StatePanel>}
       {api.error && (
-        <StatePanel kind="error" onRetry={handleRunAudit}>
-          Could not run the audit: {api.error}
-        </StatePanel>
+        <StatePanel kind="error" onRetry={handleRunAudit}>{tr("Could not run the audit: {error}", { error: api.error })}</StatePanel>
       )}
       {api.data && <AuditResults audit={api.data} currentLang={currentLang} />}
+      {api.data && <LazyModulePlan module="billnyay" audit={api.data} caseId={caseId} />}
       {caseId && !hasRun && (
-        <p className="module-hint">Run the CGHS audit to see every line of this bill against its reference rate.</p>
+        <p className="module-hint">{tr("Run the CGHS audit to see every line of this bill against its reference rate.")}</p>
       )}
 
       {/* Appeal Letter (5-agent pipeline, #18/#66) */}
-      {appealApi.loading && <StatePanel kind="loading">Drafting the appeal letter and signing the PDF…</StatePanel>}
+      {appealApi.loading && <StatePanel kind="loading">{tr("Drafting the appeal letter and signing the PDF…")}</StatePanel>}
       {appealApi.error && (
-        <StatePanel kind="error" onRetry={handleDraftAppeal}>
-          Could not draft the appeal: {appealApi.error}
-        </StatePanel>
+        <StatePanel kind="error" onRetry={handleDraftAppeal}>{tr("Could not draft the appeal: {error}", { error: appealApi.error })}</StatePanel>
       )}
       {appealApi.data && caseId && <AppealLetterCard appealData={appealApi.data} caseId={caseId} caseToken={caseToken} />}
 
       {/* Clinical plausibility (ADR-011) — machine-derived, bounded, not a necessity verdict */}
-      {plausibilityApi.loading && <StatePanel kind="loading">Comparing the documented diagnosis and interventions…</StatePanel>}
+      {plausibilityApi.loading && <StatePanel kind="loading">{tr("Comparing the documented diagnosis and interventions…")}</StatePanel>}
       {plausibilityApi.error && (
-        <StatePanel kind="error" onRetry={handleCheckPlausibility}>
-          Could not run the plausibility check: {plausibilityApi.error}
-        </StatePanel>
+        <StatePanel kind="error" onRetry={handleCheckPlausibility}>{tr("Could not run the plausibility check: {error}", { error: plausibilityApi.error })}</StatePanel>
       )}
       {plausibilityApi.data && <PlausibilityCard data={plausibilityApi.data} />}
-      {icdApi.loading && <StatePanel kind="loading">Checking ICD-10 diagnosis and procedure consistency…</StatePanel>}
+      {icdApi.loading && <StatePanel kind="loading">{tr("Checking ICD-10 diagnosis and procedure consistency…")}</StatePanel>}
       {icdApi.error && (
-        <StatePanel kind="error" onRetry={handleIcdAudit}>
-          Could not run the ICD-10 check: {icdApi.error}
-        </StatePanel>
+        <StatePanel kind="error" onRetry={handleIcdAudit}>{tr("Could not run the ICD-10 check: {error}", { error: icdApi.error })}</StatePanel>
       )}
       {icdApi.data && (() => {
         const d = icdApi.data;
-        const st = ICD_STATUS[d.status] ?? { label: d.status, body: "Status reported by the server.", evidence: "unevaluated" as const };
+        const st = ICD_STATUS[d.status] ?? { label: d.status, body: msg("Status reported by the server."), evidence: "unevaluated" as const };
         return (
           <section className="case-panel bn-card" aria-labelledby="bn-icd-title">
             <div className="case-panel-head">
-              <h3 id="bn-icd-title">ICD-10 procedure coding check</h3>
+              <h3 id="bn-icd-title">{tr("ICD-10 procedure coding check")}</h3>
               <EvidenceBadge state={st.evidence} size="sm" />
             </div>
             <p className="bn-summary">
-              <strong>{st.label}.</strong> {st.body}
+              <strong>{tr(st.label)}.</strong> {tr(st.body)}
             </p>
             <dl className="ws-icd-facts">
-              <dt>ICD-10 code read</dt>
-              <dd className="code-tabular">{d.icd10_code ?? "None found"}</dd>
-              <dt>Diagnosis text</dt>
-              <dd>{d.diagnosis_text || "Not recorded"}</dd>
-              <dt>Procedures on the bill</dt>
-              <dd>{d.procedures_billed.length > 0 ? d.procedures_billed.join(", ") : "None found"}</dd>
+              <dt>{tr("ICD-10 code read")}</dt>
+              <dd className="code-tabular">{d.icd10_code ?? tr("None found")}</dd>
+              <dt>{tr("Diagnosis text")}</dt>
+              <dd>{d.diagnosis_text || tr("Not recorded")}</dd>
+              <dt>{tr("Procedures on the bill")}</dt>
+              <dd>{d.procedures_billed.length > 0 ? d.procedures_billed.join(", ") : tr("None found")}</dd>
             </dl>
-            <p className="ws-muted">
-              Checked against a curated reference table of {d.reference_entry_count} ICD-10 code families. It is a consistency
-              hint for a human to follow up, not a clinical or coding judgement.
-            </p>
+            <p className="ws-muted">{tr("Checked against a curated reference table of {reference_entry_count} ICD-10 code families. It is a consistency hint for a human to follow up, not a clinical or coding judgement.", { reference_entry_count: d.reference_entry_count })}</p>
           </section>
         );
       })()}

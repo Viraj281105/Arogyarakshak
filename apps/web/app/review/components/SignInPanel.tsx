@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ReviewerProfile, clinicalPaths, clinicalRequest } from "../../lib/clinical";
 import { Guard } from "../types";
+import { useT } from "../../i18n/useT";
 
 const EMPTY_REGISTRATION = {
   name: "",
@@ -25,6 +26,7 @@ export function SignInPanel({
   openWithCredential: (token: string) => Promise<void>;
   onIssued: (token: string) => void;
 }) {
+  const tr = useT();
   const [tokenInput, setTokenInput] = useState("");
   const [reg, setReg] = useState(EMPTY_REGISTRATION);
 
@@ -41,17 +43,15 @@ export function SignInPanel({
 
   return (
     <div className="rv-signin">
+      <h2 className="sr-only">{tr("Reviewer access")}</h2>
       <section className="case-panel bn-card" aria-labelledby="use-credential">
-        <h3 id="use-credential">Use your reviewer credential</h3>
-        <p className="bn-fine">
-          Paste the credential you were given when you registered. It is kept in this tab&apos;s memory only — reloading the
-          page means pasting it again.
-        </p>
+        <h3 id="use-credential">{tr("Use your reviewer credential")}</h3>
+        <p className="bn-fine">{tr("Paste the credential you were given when you registered. It is kept in this tab's memory only — reloading the page means pasting it again.")}</p>
         <input
           className="input-field"
           type="password"
           autoComplete="off"
-          aria-label="Reviewer credential"
+          aria-label={tr("Reviewer credential")}
           value={tokenInput}
           onChange={(e) => setTokenInput(e.target.value)}
           onKeyDown={(e) => {
@@ -59,27 +59,22 @@ export function SignInPanel({
           }}
         />
         <div>
-          <button type="button" className="btn btn-primary" disabled={!tokenInput} onClick={() => openWithCredential(tokenInput.trim())}>
-            Open workspace
-          </button>
+          <button type="button" className="btn btn-primary" disabled={!tokenInput} onClick={() => openWithCredential(tokenInput.trim())}>{tr("Open workspace")}</button>
         </div>
       </section>
       <section className="case-panel bn-card" aria-labelledby="register-reviewer">
-        <h3 id="register-reviewer">Register as a reviewer</h3>
-        <p className="bn-fine">
-          Your registration number is shown to patients as self-declared: ArogyaRakshak is not connected to any council
-          registry. You receive a credential once, at the end.
-        </p>
+        <h3 id="register-reviewer">{tr("Register as a reviewer")}</h3>
+        <p className="bn-fine">{tr("Your registration number is shown to patients as self-declared: ArogyaRakshak is not connected to any council registry. You receive a credential once, at the end.")}</p>
         <div className="ds-grid">
         {(
           [
-            ["name", "Full name"],
-            ["designation", "Professional designation"],
+            ["name", tr("Full name")],
+            ["designation", tr("Professional designation")],
             ["specialty", "Specialty"],
-            ["registration_number", "Registration number (shown as self-declared)"],
-            ["registration_authority", "Registration authority (e.g. State Medical Council)"],
+            ["registration_number", tr("Registration number (shown as self-declared)")],
+            ["registration_authority", tr("Registration authority (e.g. State Medical Council)")],
             ["affiliation", "Affiliation"],
-            ["standing_disclosures", "Standing disclosures (insurer/hospital ties)"],
+            ["standing_disclosures", tr("Standing disclosures (insurer/hospital ties)")],
           ] as const
         ).map(([key, label]) => (
           <div key={key} className="ds-field">
@@ -90,21 +85,17 @@ export function SignInPanel({
           </div>
         ))}
         <div className="ds-field">
-          <label className="input-label" htmlFor="reg-category">
-            Category
-          </label>
+          <label className="input-label" htmlFor="reg-category">{tr("Category")}</label>
           <select id="reg-category" className="select-field" value={reg.category} onChange={(e) => setReg({ ...reg, category: e.target.value })}>
-            <option value="DOCTOR">Doctor</option>
-            <option value="PHARMACIST">Pharmacist</option>
-            <option value="MEDICAL_TRANSCRIPTIONIST">Medical transcriptionist</option>
-            <option value="TRAINED_ANNOTATOR">Trained annotator</option>
+            <option value="DOCTOR">{tr("Doctor")}</option>
+            <option value="PHARMACIST">{tr("Pharmacist")}</option>
+            <option value="MEDICAL_TRANSCRIPTIONIST">{tr("Medical transcriptionist")}</option>
+            <option value="TRAINED_ANNOTATOR">{tr("Trained annotator")}</option>
           </select>
         </div>
         </div>
         <div>
-          <button type="button" className="btn btn-secondary" disabled={reg.name.trim().length < 2} onClick={register}>
-            Register and get a credential
-          </button>
+          <button type="button" className="btn btn-secondary" disabled={reg.name.trim().length < 2} onClick={register}>{tr("Register and get a credential")}</button>
         </div>
       </section>
     </div>

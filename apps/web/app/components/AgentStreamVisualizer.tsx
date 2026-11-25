@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Language, translations } from "../translations";
+import { useT } from "../i18n/useT";
 
 export type PipelineStep = 0 | 1 | 2 | 3 | 4;
 
@@ -19,6 +20,7 @@ interface AgentStreamVisualizerProps {
  * stage is running, not how far through it is, so no percentage is shown.
  */
 export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({ currentLang, currentStep, liveLog }) => {
+  const tr = useT();
   const t = translations[currentLang];
   const complete = currentStep >= 4;
 
@@ -30,11 +32,11 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({ cu
   ];
 
   return (
-    <section className="case-panel tracker" aria-label="Document processing progress">
+    <section className="case-panel tracker" aria-label={tr("Document processing progress")}>
       <div className="case-panel-head">
         <h3>{t.stream.statusHeading}</h3>
         <span className={`tracker-count ${complete ? "is-complete" : ""}`} aria-live="polite">
-          {complete ? "Complete" : `Stage ${currentStep} of 4`}
+          {complete ? tr("Complete") : tr("Stage {currentStep} of 4", { currentStep: currentStep })}
         </span>
       </div>
 
@@ -56,7 +58,7 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({ cu
               </span>
               <span className="tracker-label">
                 {s.label}
-                <span className="sr-only">{done ? " — done" : active ? " — in progress" : " — waiting"}</span>
+                <span className="sr-only">{done ? tr(" — done") : active ? tr(" — in progress") : tr(" — waiting")}</span>
               </span>
               <span className="tracker-bar" aria-hidden="true" />
             </li>
@@ -66,7 +68,7 @@ export const AgentStreamVisualizer: React.FC<AgentStreamVisualizerProps> = ({ cu
 
       {liveLog && (
         <p className="tracker-log" aria-live="polite">
-          <span className="tracker-log-label">Latest from the server</span>
+          <span className="tracker-log-label">{tr("Latest from the server")}</span>
           <span className="tracker-log-text">{liveLog}</span>
         </p>
       )}

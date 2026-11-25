@@ -1,18 +1,12 @@
-// Which cases this browser tab holds, and which one is open (Wave 3 decision D2).
+// Which case this browser tab has open (Wave 3 decision D2, ADR-029).
 //
-// GUEST cases (created without an account) are opened only with their one-time case access token
-// (ADR-009). D2 keeps them in `sessionStorage`: per tab, gone when the tab closes, never sent
-// anywhere but the API's X-Case-Access-Token header. RISK (accepted in D2, the same one ADR-008
-// named for localStorage): any script that runs in this origin (an XSS bug, a malicious browser
-// extension) can read sessionStorage and therefore the tokens. Mitigations: tokens are never put in
-// a URL, a log or localStorage; the list is capped; signing in and claiming a case moves it to the
-// account, after which its token stops working (ADR-026 section 6).
+// Every case belongs to the signed-in account: the httpOnly session cookie opens it, and only its
+// id is remembered here, as the "active case". The active case is held here, NOT in the URL, so a
+// shared or bookmarked link never carries a case.
 //
-// OWNED cases (created or claimed while signed in) have no token: the account's httpOnly cookie
-// opens them. Only their id is remembered here, as the "active case".
-//
-// The active case is held here, NOT in the URL, so a shared or bookmarked link never carries a
-// case (architecture doc section 3.2).
+// GUEST entries are cases created before sign-in became mandatory. Their one-time token, still in
+// this tab's sessionStorage, can only move the case into the account (the claim route). It is
+// never put in a URL, a log or localStorage, and is removed once the case is claimed.
 
 export interface GuestCase {
   id: string;
@@ -143,13 +137,13 @@ export function clearActiveCase(s?: StorageLike | null): void {
   safeSet(store(s), ACTIVE_CASE_KEY, null);
 }
 
-/** The active case with its token resolved (guest), or null when none is open or its token is gone. */
+/**
+ * The open case, or null. Only an account's own case can be open (ADR-029): a case remembered
+ * from before sign-in was required can only be moved into the account on the case desk.
+ */
 export function activeCaseRef(s?: StorageLike | null): CaseRef | null {
   const active = readActiveCase(s);
-  if (!active) return null;
-  if (active.owned) return { id: active.id, token: null, owned: true };
-  const token = guestToken(active.id, s);
-  return token ? { id: active.id, token, owned: false } : null;
+  return active?.owned ? { id: active.id, token: null, owned: true } : null;
 }
 
 /** Headers for a case-scoped request: the case token for a guest case, nothing for an owned one. */

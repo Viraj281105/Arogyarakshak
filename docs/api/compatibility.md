@@ -36,3 +36,8 @@ additively; `/api/v1` then stays until both clients have moved.
   and gained `owned`: it is `null` only when the request carried a valid account session, so
   existing guest clients (which send no session) always still receive a string. Owned cases
   refuse case tokens on every case route (`403`), which guest clients never meet.
+- 2026-11-25, **breaking** (ADR-029): every patient route now requires a session, `access_token`
+  from case creation is always `null`, case tokens are accepted only by the claim route, and
+  `?access_token=` was removed. Made within `/api/v1` because both first-party clients moved in the
+  same change and no third-party client exists. Additive: `GET /api/v1/kadi/auth/config`, the case
+  action routes, `is_demo` and `display_name` on the account.

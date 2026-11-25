@@ -2,66 +2,19 @@
   "schema_version": 1,
   "baseline": null,
   "comparison": {
-    "previousSnapshot": "aeee0fceede062d32ecd5ebf025a7830dbcd2e981ad1b4e122d17a1adceb8195",
+    "previousSnapshot": "0637109f429002ebe118644a86ba87d4180a707957f42d4340963a146759ab7f",
     "comparable": true,
     "reasons": [],
-    "new": [
-      "COUP-010095ea6236",
-      "COUP-2b971a639d90",
-      "COUP-a4b3d1d87d1e"
-    ],
+    "new": [],
     "evidenceChanged": [
-      "COUP-b062224dbc3a",
+      "COUP-010095ea6236",
+      "COUP-124374328f34",
+      "COUP-2b971a639d90",
+      "COUP-a4b3d1d87d1e",
       "COUP-d6deb4af3ce5"
     ],
-    "notDetected": [
-      {
-        "id": "COUP-209e06f65d1c",
-        "code": "coupling/cycle",
-        "severity": "error",
-        "message": "3 modules depend on each other at package level: kadi → kadi/llm → kadi. See coupling/import-cycle for whether any file actually cycles.",
-        "likelyCause": "possibly-renamed",
-        "candidates": [
-          "COUP-010095ea6236"
-        ]
-      },
-      {
-        "id": "COUP-bc2fa9792286",
-        "code": "coupling/concentration",
-        "severity": "warning",
-        "message": "kadi/ocr: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-      },
-      {
-        "id": "COUP-fbdea46f0e25",
-        "code": "coupling/concentration",
-        "severity": "warning",
-        "message": "kadi: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-      }
-    ],
-    "fixed": [
-      {
-        "id": "COUP-209e06f65d1c",
-        "code": "coupling/cycle",
-        "severity": "error",
-        "message": "3 modules depend on each other at package level: kadi → kadi/llm → kadi. See coupling/import-cycle for whether any file actually cycles.",
-        "likelyCause": "possibly-renamed",
-        "candidates": [
-          "COUP-010095ea6236"
-        ]
-      },
-      {
-        "id": "COUP-bc2fa9792286",
-        "code": "coupling/concentration",
-        "severity": "warning",
-        "message": "kadi/ocr: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-      },
-      {
-        "id": "COUP-fbdea46f0e25",
-        "code": "coupling/concentration",
-        "severity": "warning",
-        "message": "kadi: 3 of the other 5 modules depend on it directly or through other modules (60%). This is a static fact about where the project is concentrated, not proof that the module should be split."
-      }
-    ],
+    "notDetected": [],
+    "fixed": [],
     "unchanged": 27
   },
   "findings": {
@@ -159,11 +112,11 @@
     },
     "COUP-b062224dbc3a": {
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     "COUP-2b971a639d90": {
       "status": "open",
-      "since": "new"
+      "since": "evidence-changed"
     },
     "COUP-bdf1ec6dd471": {
       "status": "open",
@@ -171,7 +124,7 @@
     },
     "COUP-010095ea6236": {
       "status": "open",
-      "since": "new"
+      "since": "evidence-changed"
     },
     "COUP-dce307e7c336": {
       "status": "open",
@@ -183,11 +136,11 @@
     },
     "COUP-124374328f34": {
       "status": "open",
-      "since": "unchanged"
+      "since": "evidence-changed"
     },
     "COUP-a4b3d1d87d1e": {
       "status": "open",
-      "since": "new"
+      "since": "evidence-changed"
     },
     "COUP-ccc624797468": {
       "status": "open",

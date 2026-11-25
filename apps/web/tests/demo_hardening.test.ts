@@ -66,7 +66,7 @@ describe('Demo-hardening UI contracts', () => {
     const view = read('app', 'components', 'modules', 'DawaCheckView.tsx');
     assert.ok(/<CaseMedicineTrustPanel/.test(view));
     const panel = read('app', 'components', 'clinical', 'CaseMedicineTrustPanel.tsx');
-    assert.ok(/r\.trust\?\.label \?\? humanizeEnum\(state\)/.test(panel));
+    assert.ok(/r\.trust\?\.label \?\? tr\(humanizeEnum\(state\)\)/.test(panel));
   });
 
   it('a NOT_APPLIED reading is never shown as a confirmed reading', () => {

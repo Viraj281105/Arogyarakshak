@@ -1,4 +1,5 @@
-/**
+
+import { tr, msg } from '../translations/tr';/**
  * DawaCheck price-check presentation (mobile twin of apps/web/app/lib/dawacheck.ts).
  *
  * NPPA ceilings are per tablet/capsule/vial. The server resolves every billed amount to a
@@ -38,52 +39,53 @@ export interface PriceCheckView {
 const rupees = (n: number) => `₹${n.toFixed(2)}`;
 
 const BASIS_SOURCE_NOTE: Record<string, string> = {
-  DOCUMENT_LINE: 'Price basis read from the bill line',
-  DOCUMENT_HEADER: "Price basis read from the document's rate column",
-  DECLARED: 'Price basis as you entered it',
-  API_DEFAULT: 'Treated as a price per unit (no basis was given)',
+  DOCUMENT_LINE: msg('Price basis read from the bill line'),
+  DOCUMENT_HEADER: msg("Price basis read from the document's rate column"),
+  DECLARED: msg('Price basis as you entered it'),
+  API_DEFAULT: msg('Treated as a price per unit (no basis was given)'),
 };
 
 export function describePriceCheck(b: PriceCheck): PriceCheckView {
-  const unit = b.unit_label || 'unit';
-  const ceiling = `NPPA ceiling ${rupees(b.nppa_ceiling_price)} per ${unit}`;
-  const basisLabel = b.price_basis_label || 'basis not stated';
+  const unit = b.unit_label || tr('unit');
+  const ceiling = tr('NPPA ceiling {price} per {unit}', { price: rupees(b.nppa_ceiling_price), unit });
+  const basisLabel = b.price_basis_label || tr('basis not stated');
   const compared =
     b.comparison_status === 'COMPARED' && typeof b.billed_unit_price === 'number' && typeof b.is_overcharged === 'boolean';
-  const sourceNote = b.basis_source ? BASIS_SOURCE_NOTE[b.basis_source] ?? null : null;
+  const note = b.basis_source ? BASIS_SOURCE_NOTE[b.basis_source] : undefined;
+  const sourceNote = note ? tr(note) : null;
   const basisNote = sourceNote ? (b.basis_evidence ? `${sourceNote}: “${b.basis_evidence}”` : sourceNote) : null;
 
   if (!compared) {
     return {
       verdict: 'cannot_compare',
-      badge: 'Cannot compare reliably',
+      badge: tr('Cannot compare reliably'),
       variant: 'warning',
-      billed: `${rupees(b.mrp)} billed (${basisLabel})`,
+      billed: tr('{amount} billed ({basis})', { amount: rupees(b.mrp), basis: basisLabel }),
       ceiling,
       basisNote,
       reason:
         b.comparison_note ||
-        'The price per unit could not be established, so this amount was not compared with the per-unit ceiling.',
+        tr('The price per unit could not be established, so this amount was not compared with the per-unit ceiling.'),
     };
   }
   const unitPrice = b.billed_unit_price as number;
   const billed =
     b.price_basis === 'PER_UNIT'
-      ? `${rupees(unitPrice)} billed per ${unit}`
-      : `${rupees(b.mrp)} billed ${basisLabel} → ${rupees(unitPrice)} per ${unit}`;
+      ? tr('{amount} billed per {unit}', { amount: rupees(unitPrice), unit })
+      : tr('{amount} billed {basis} → {unitPrice} per {unit}', { amount: rupees(b.mrp), basis: basisLabel, unitPrice: rupees(unitPrice), unit });
   if (b.is_overcharged) {
     const pct = typeof b.deviation_percentage === 'number' ? ` (+${b.deviation_percentage}%)` : '';
-    return { verdict: 'above', badge: `Above ceiling${pct}`, variant: 'danger', billed, ceiling, basisNote, reason: null };
+    return { verdict: 'above', badge: tr('Above ceiling{percent}', { percent: pct }), variant: 'danger', billed, ceiling, basisNote, reason: null };
   }
-  return { verdict: 'within', badge: 'Within ceiling', variant: 'success', billed, ceiling, basisNote, reason: null };
+  return { verdict: 'within', badge: tr('Within ceiling'), variant: 'success', billed, ceiling, basisNote, reason: null };
 }
 
 /** What the amount the person paid buys — chosen explicitly, never assumed. */
 export const BASIS_OPTIONS: { value: PriceBasis; label: string; needs: 'none' | 'pack' | 'quantity' }[] = [
-  { value: 'PER_UNIT', label: 'One tablet/capsule/vial', needs: 'none' },
-  { value: 'PER_STRIP', label: 'One strip', needs: 'pack' },
-  { value: 'PER_PACK', label: 'One pack/box', needs: 'pack' },
-  { value: 'LINE_TOTAL', label: 'Several units', needs: 'quantity' },
+  { value: 'PER_UNIT', label: msg('One tablet/capsule/vial'), needs: 'none' },
+  { value: 'PER_STRIP', label: msg('One strip'), needs: 'pack' },
+  { value: 'PER_PACK', label: msg('One pack/box'), needs: 'pack' },
+  { value: 'LINE_TOTAL', label: msg('Several units'), needs: 'quantity' },
 ];
 
 /** Builds the manual-check request, or an error message when the input is incomplete. */
@@ -97,16 +99,16 @@ export function buildBenchmarkRequest(
   | { ok: false; error: string } {
   const name = brand.trim();
   const mrp = parseFloat(amount);
-  if (!name) return { ok: false, error: 'Please enter a medicine or brand name.' };
-  if (isNaN(mrp) || mrp <= 0) return { ok: false, error: 'Please enter the amount paid (greater than 0).' };
+  if (!name) return { ok: false, error: tr('Please enter a medicine or brand name.') };
+  if (isNaN(mrp) || mrp <= 0) return { ok: false, error: tr('Please enter the amount paid (greater than 0).') };
   const option = BASIS_OPTIONS.find((o) => o.value === basis);
-  if (!option || !basis) return { ok: false, error: 'Please choose what the amount paid for (one tablet, a strip, a pack…).' };
+  if (!option || !basis) return { ok: false, error: tr('Please choose what the amount paid for (one tablet, a strip, a pack…).') };
   if (option.needs === 'none') return { ok: true, body: { brand_name: name, mrp, price_basis: basis } };
   const n = Number(count);
   if (!Number.isInteger(n) || n <= 0) {
     return {
       ok: false,
-      error: option.needs === 'pack' ? 'Please enter how many units are in the strip/pack.' : 'Please enter how many units the amount covers.',
+      error: option.needs === 'pack' ? tr('Please enter how many units are in the strip/pack.') : tr('Please enter how many units the amount covers.'),
     };
   }
   return {

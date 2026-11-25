@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import { HelpSearch } from "../components/public/HelpSearch";
 import { ArrowIcon, CtaBand, ModuleMark, PublicHero, PublicPage, Section } from "../components/public/PublicParts";
-import { pageTitle, publicCopy } from "../components/public/publicCopy";
+import { localisedPublicCopy, pageTitle } from "../components/public/publicCopy";
 import { PUBLIC_ROUTES, platformModuleHref } from "../components/public/publicNav";
+import { requestLanguage } from "../i18n/server";
 
-const c = publicCopy();
-const h = c.help;
 
-export const metadata: Metadata = { title: pageTitle(h.meta.title), description: h.meta.description };
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await localisedPublicCopy(await requestLanguage())).help;
+  return { title: pageTitle(meta.title), description: meta.description };
+}
 
 /** /help (Server Component): searchable FAQ (client filter over static props), module guides, deletion. */
-export default function HelpPage() {
+export default async function HelpPage() {
+  const c = await localisedPublicCopy(await requestLanguage());
+  const h = c.help;
   return (
     <PublicPage module="dawacheck">
       <PublicHero

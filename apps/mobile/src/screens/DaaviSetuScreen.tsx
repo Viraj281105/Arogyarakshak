@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { humanizeEnum } from '../services/labels';
-import { View, Text, StyleSheet, ScrollView, TextInput, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BottomTabParamList } from '../navigation/types';
@@ -8,13 +8,13 @@ import { useTheme } from '../theme';
 import { useLanguage } from '../hooks/useLanguage';
 import { Card, Button, Badge, ResolutionReviewCard, ReadinessCard, ProcessingStatusCard } from '../components';
 import { api, DaaviSetuClaimResponse, ApiError } from '../api';
-import { getCaseAccessToken } from '../api/caseAuth';
+import { downloadCaseFile } from '../api/download';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useCaseProcessing } from '../hooks/useCaseProcessing';
 import { useActiveCaseId } from '../hooks/useActiveCase';
 import { clearActiveCase, resolveCaseId } from '../services/activeCase';
-import { ENV } from '../config/env';
+import { tr } from '../translations/tr';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type DaaviSetuRouteProp = RouteProp<BottomTabParamList, 'DaaviSetu'>;
@@ -87,12 +87,12 @@ export const DaaviSetuScreen: React.FC = () => {
         setOfflineQueued(!!queuedId);
       }
       if (activeCaseId && !queuedId) {
-        setError('Could not save this for offline retry — please try again when back online.');
+        setError(tr('Could not save this for offline retry — please try again when back online.'));
       } else {
         setError(
           !isOnline
-            ? 'Device is offline. Pre-authorization request queued; will sync automatically when reconnected.'
-            : `${apiErr.message || 'Failed to generate pre-auth package.'}${queuedId ? ' (Queued for offline retry)' : ''}`
+            ? tr('Device is offline. Pre-authorization request queued; will sync automatically when reconnected.')
+            : `${apiErr.message || tr('Failed to generate pre-auth package.')}${queuedId ? tr(' (Queued for offline retry)') : ''}`
         );
       }
     } finally {
@@ -100,51 +100,20 @@ export const DaaviSetuScreen: React.FC = () => {
     }
   };
 
-  const handleDownloadPdf = async () => {
+  const download = async (path: string, filename: string) => {
     if (!caseId) return;
-    // SEC-08: this opens the PDF in the device's external browser/viewer via
-    // Linking.openURL, which cannot attach a custom X-Case-Access-Token header the way
-    // apiClient normally does — the request was previously unauthenticated and always
-    // failed with 401. The token is passed as a query parameter instead (SEC-07:
-    // query-string tokens are accepted ONLY for safe, read-only GET requests like this
-    // one — never for a state-changing request), matching the same mechanism the SSE
-    // stream already uses for the identical reason.
-    const token = getCaseAccessToken(caseId);
-    if (!token) {
-      setError('Missing this case\'s access token — cannot download the PDF. Re-open the case from a fresh scan.');
-      return;
-    }
-    const pdfUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/pdf?access_token=${encodeURIComponent(token)}`;
     try {
-      const supported = await Linking.canOpenURL(pdfUrl);
-      if (supported) {
-        await Linking.openURL(pdfUrl);
-      }
+      await downloadCaseFile(`/api/v1/daavisetu/cases/${encodeURIComponent(caseId)}${path}`, filename);
     } catch (e) {
-      console.warn('Cannot open PDF URL:', e);
+      setError(e instanceof Error ? e.message : tr('The file could not be downloaded.'));
     }
   };
 
-  // Downloads the full claim package ZIP (#81): pre-auth PDF + redacted case-summary
-  // excerpt + a manifest disclosing what is and is not included. Same query-token
-  // pattern as the PDF download above — Linking.openURL cannot attach a custom header.
-  const handleDownloadPackage = async () => {
-    if (!caseId) return;
-    const token = getCaseAccessToken(caseId);
-    if (!token) {
-      setError('Missing this case\'s access token — cannot download the package. Re-open the case from a fresh scan.');
-      return;
-    }
-    const zipUrl = `${ENV.API_BASE_URL}/api/v1/daavisetu/cases/${caseId}/claim/package?access_token=${encodeURIComponent(token)}`;
-    try {
-      const supported = await Linking.canOpenURL(zipUrl);
-      if (supported) {
-        await Linking.openURL(zipUrl);
-      }
-    } catch (e) {
-      console.warn('Cannot open claim package URL:', e);
-    }
-  };
+  const handleDownloadPdf = () => download('/claim/pdf', 'preauthorisation.pdf');
+
+  // The full claim package ZIP (#81): pre-auth PDF + redacted case-summary excerpt + a
+  // manifest disclosing what is and is not included.
+  const handleDownloadPackage = () => download('/claim/package', 'claim-package.zip');
 
   // SEC-03: same pattern as BillNyayScreen's handleDeleteCase — the server also
   // purges a case automatically once its retention deadline passes, but this lets
@@ -168,7 +137,7 @@ export const DaaviSetuScreen: React.FC = () => {
               setError(null);
             } catch (err) {
               const apiErr = err as ApiError;
-              setError(apiErr.message || 'Failed to delete this case.');
+              setError(apiErr.message || tr('Failed to delete this case.'));
             }
           },
         },
@@ -240,7 +209,7 @@ export const DaaviSetuScreen: React.FC = () => {
           />
 
           <Button
-            title="📷 Scan Admission / Policy Slip"
+            title={tr('📷 Scan Admission / Policy Slip')}
             onPress={() => navigation.navigate('CameraScan', { documentType: 'general', returnTo: 'DaaviSetu' })}
             variant="outline"
           />

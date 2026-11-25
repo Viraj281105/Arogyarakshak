@@ -5,6 +5,7 @@ import { useApi, caseAuthHeaders } from "../../../hooks/useApi";
 import { ClinicalStatementCard, ProvenanceBadge } from "../../clinical/Attribution";
 import { ClinicalReviewPanel } from "../../clinical/ClinicalReviewPanel";
 import type { ClinicalStatementsResponse, DisputeAuditResult } from "./types";
+import { useT } from "../../../i18n/useT";
 
 /** ADR-011 for a denial: the machine-derived "clinical review required" trigger, the
  *  request for a named clinician's statement, and attaching finalized statements. */
@@ -19,6 +20,7 @@ export function ClinicalSection({
   caseToken?: string;
   insurerName: string;
 }) {
+  const tr = useT();
   const statementsApi = useApi<ClinicalStatementsResponse>();
 
   const loadClinicalStatements = async () => {
@@ -35,7 +37,7 @@ export function ClinicalSection({
       {result.clinical_review?.requires_clinical_interpretation && (
         <div className="bm-clinical-flag" role="note">
           <div className="bn-badges">
-            <strong>Clinical review required</strong>
+            <strong>{tr("Clinical review required")}</strong>
             <ProvenanceBadge provenance="AI_DERIVED" />
           </div>
           <ul className="safety-limits">
@@ -45,9 +47,7 @@ export function ClinicalSection({
           </ul>
           <p className="bn-fine">{result.clinical_review.note}</p>
           {!caseId && (
-            <p className="bn-fine">
-              Upload your records above to create a case, then request a statement from a named doctor here.
-            </p>
+            <p className="bn-fine">{tr("Upload your records above to create a case, then request a statement from a named doctor here.")}</p>
           )}
         </div>
       )}
@@ -64,9 +64,7 @@ export function ClinicalSection({
       )}
       {caseId && (
         <div className="bm-annex">
-          <button type="button" className="btn btn-secondary" onClick={loadClinicalStatements} disabled={statementsApi.loading}>
-            Attach finalized clinician statements to these appeals
-          </button>
+          <button type="button" className="btn btn-secondary" onClick={loadClinicalStatements} disabled={statementsApi.loading}>{tr("Attach finalized clinician statements to these appeals")}</button>
           {statementsApi.data &&
             (statementsApi.data.human_clinical_statement_attached ? (
               <div className="bm-annex-list">
@@ -77,17 +75,12 @@ export function ClinicalSection({
                   type="button"
                   className="btn btn-ghost"
                   onClick={() => navigator.clipboard.writeText(statementsApi.data!.annex_text).catch(() => undefined)}
-                >
-                  Copy attributed annex (verbatim)
-                </button>
+                >{tr("Copy attributed annex (verbatim)")}</button>
               </div>
             ) : (
-              <p className="bn-annex-missing">
-                No finalized statement from a named clinician exists for this case. Do not describe any appeal
-                reasoning as a doctor&apos;s opinion.
-              </p>
+              <p className="bn-annex-missing">{tr("No finalized statement from a named clinician exists for this case. Do not describe any appeal reasoning as a doctor's opinion.")}</p>
             ))}
-          {statementsApi.error && <p className="ds-hint">Could not load clinician statements: {statementsApi.error}</p>}
+          {statementsApi.error && <p className="ds-hint">{tr("Could not load clinician statements: {error}", { error: statementsApi.error })}</p>}
         </div>
       )}
     </>

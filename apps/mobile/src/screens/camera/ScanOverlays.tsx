@@ -5,6 +5,7 @@ import { useLanguage } from '../../hooks/useLanguage';
 import { Button } from '../../components';
 import { DocumentScanType } from '../../services/scanner';
 import { cameraStyles as styles } from './styles';
+import { tr } from '../../translations/tr';
 
 /** Bill / denial letter / prescription selector over the camera view. */
 export const DocumentTypeTabs: React.FC<{ value: DocumentScanType; onChange: (type: DocumentScanType) => void }> = ({ value, onChange }) => {
@@ -90,7 +91,7 @@ export const ScanStatusOverlay: React.FC<{ uploadStatus: string | null; errorMes
             {errorMessage}
           </Text>
           <Button
-            title="Retry Scan"
+            title={tr('Retry Scan')}
             onPress={onRetry}
             variant="primary"
             size="sm"
@@ -104,7 +105,7 @@ export const ScanStatusOverlay: React.FC<{ uploadStatus: string | null; errorMes
             {uploadStatus || t.scanner.process}
           </Text>
           <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginTop: 4 }}>
-            🔒 BYOD Policy: Processed transiently in RAM
+            {tr('🔒 BYOD Policy: Processed transiently in RAM')}
           </Text>
         </View>
       )}

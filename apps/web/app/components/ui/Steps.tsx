@@ -3,6 +3,8 @@ import Check from "lucide-react/icons/check";
 import Circle from "lucide-react/icons/circle";
 import CircleAlert from "lucide-react/icons/circle-alert";
 import CircleDashed from "lucide-react/icons/circle-dashed";
+import { T } from "../../i18n/T";
+import { msg } from "../../i18n/format";
 
 /**
  * Step indicator for multi-step flows (e.g. DaaviSetu readiness -> template -> package). Each
@@ -32,13 +34,16 @@ export function StepWizard({
                 {state === "done" ? <Check size={14} /> : i + 1}
               </span>
               <span className="ui-step-label">{s.label}</span>
-              <span className="sr-only">{state === "done" ? " (completed)" : state === "current" ? " (current step)" : " (not started)"}</span>
+              <span className="sr-only">
+                {" "}
+                <T k={state === "done" ? msg("(completed)") : state === "current" ? msg("(current step)") : msg("(not started)")} />
+              </span>
             </li>
           );
         })}
       </ol>
       <p className="ui-wizard-count">
-        Step {Math.min(current + 1, steps.length)} of {steps.length}
+        <T k="Step {current} of {total}" vars={{ current: Math.min(current + 1, steps.length), total: steps.length }} />
       </p>
       {children && <div className="ui-wizard-body">{children}</div>}
     </div>
@@ -48,10 +53,10 @@ export function StepWizard({
 export type ChecklistStatus = "done" | "todo" | "blocked" | "unknown";
 
 const STATUS_WORD: Record<ChecklistStatus, string> = {
-  done: "Done",
-  todo: "To do",
-  blocked: "Blocked",
-  unknown: "Not checked",
+  done: msg("Done"),
+  todo: msg("To do"),
+  blocked: msg("Blocked"),
+  unknown: msg("Not checked"),
 };
 
 const STATUS_ICON = { done: Check, todo: Circle, blocked: CircleAlert, unknown: CircleDashed } as const;
@@ -70,7 +75,7 @@ export function Checklist({
       <header className="ui-checklist-head">
         <h3>{title}</h3>
         <span className="code-tabular">
-          {done} of {items.length} done
+          <T k="{done} of {total} done" vars={{ done, total: items.length }} />
         </span>
       </header>
       <ul>
@@ -80,7 +85,7 @@ export function Checklist({
             <li key={it.id} className={`ui-check ui-check-${it.status}`}>
               <Icon size={16} aria-hidden="true" />
               <span className="ui-check-label">{it.label}</span>
-              <span className="ui-check-status">{STATUS_WORD[it.status]}</span>
+              <span className="ui-check-status"><T k={STATUS_WORD[it.status]} /></span>
               {it.note && <span className="ui-check-note">{it.note}</span>}
             </li>
           );

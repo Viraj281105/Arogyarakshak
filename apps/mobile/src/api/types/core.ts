@@ -12,7 +12,8 @@ export interface CaseResponse {
 
 export interface CaseCreatedResponse extends CaseResponse {
   /** ADR-009: shown exactly once, here. Required on every later case-scoped request. */
-  access_token: string;
+  /** Always null since sign-in became mandatory: the session opens the case. */
+  access_token: string | null;
 }
 
 export interface UploadResponse {

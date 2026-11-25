@@ -130,7 +130,7 @@ describe('interaction models', () => {
   test('wizard marks the current step and checklist states each status in words', () => {
     const w = renderToString(h(StepWizard, { current: 1, steps: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] }));
     assert.match(w, /aria-current="step"/);
-    assert.match(w, /Step <!-- -->2<!-- --> of <!-- -->2/);
+    assert.match(w, /Step 2 of 2/);
     const c = renderToString(h(Checklist, { title: 'C', items: [{ id: '1', label: 'x', status: 'blocked' }] }));
     assert.match(c, />Blocked</);
   });

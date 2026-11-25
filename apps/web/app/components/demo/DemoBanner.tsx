@@ -3,11 +3,18 @@
 import React, { useEffect, useState } from "react";
 import { DemoStatus, fetchDemoStatus, simulatedTone } from "../../lib/demo";
 import { TONE_CLASS } from "../../lib/labels";
+import { useAccount } from "../../hooks/useAccount";
+import { useT } from "../../i18n/useT";
 
-/** Reads the server's demo status once. `null` until known (or if the API is unreachable). */
+/**
+ * Reads the server's demo status once signed in (the route needs a session, ADR-029). `null`
+ * until known, when signed out, or if the API is unreachable.
+ */
 export function useDemoStatus(): DemoStatus | null {
   const [status, setStatus] = useState<DemoStatus | null>(null);
+  const signedIn = useAccount().status === "signed-in";
   useEffect(() => {
+    if (!signedIn) return;
     let cancelled = false;
     fetchDemoStatus()
       .then((s) => {
@@ -19,29 +26,31 @@ export function useDemoStatus(): DemoStatus | null {
     return () => {
       cancelled = true;
     };
-  }, []);
-  return status;
+  }, [signedIn]);
+  return signedIn ? status : null;
 }
 
 /** A small header pill that stays visible while the banner scrolls away; links back to it. */
 export const DemoPill: React.FC<{ status: DemoStatus | null }> = ({ status }) =>
-  status?.demo_mode ? (
-    <a href="#demo-banner" className="demo-pill" title={status.banner ?? "Demo mode"}>
-      Demo
-    </a>
+  {
+  const tr = useT();
+  return status?.demo_mode ? (
+    <a href="#demo-banner" className="demo-pill" title={status.banner ?? tr("Demo mode")}>{tr("Demo")}</a>
   ) : null;
+};
 
 /**
  * The DEMO MODE banner and its "What is simulated?" panel. Rendered only when the server
  * reports demo mode, so a real deployment never shows it and a demo never hides it.
  */
 export const DemoBanner: React.FC<{ status: DemoStatus | null }> = ({ status }) => {
+  const tr = useT();
   const [open, setOpen] = useState(false);
   if (!status?.demo_mode) return null;
   const simulated = status.simulated.filter((s) => s.status === "SIMULATED");
   const real = status.simulated.filter((s) => s.status !== "SIMULATED");
   return (
-    <div id="demo-banner" className="demo-banner" role="note" aria-label="Demo mode notice">
+    <div id="demo-banner" className="demo-banner" role="note" aria-label={tr("Demo mode notice")}>
       <div className="demo-banner-row">
         {/* The server's own wording, verbatim (it already begins "DEMO MODE"). */}
         <strong className="demo-banner-text">{status.banner}</strong>
@@ -52,19 +61,16 @@ export const DemoBanner: React.FC<{ status: DemoStatus | null }> = ({ status }) 
           aria-controls="demo-simulated-panel"
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? "Hide details" : "What is simulated?"}
+          {open ? tr("Hide details") : tr("What is simulated?")}
         </button>
       </div>
       {open && (
         <div id="demo-simulated-panel" className="demo-simulated">
-          <p>
-            This server runs the demo kit. Nothing here concerns a real patient. The list below comes from the running
-            server, so it reflects its actual configuration.
-          </p>
+          <p>{tr("This server runs the demo kit. Nothing here concerns a real patient. The list below comes from the running server, so it reflects its actual configuration.")}</p>
           <div className="demo-simulated-grid">
             {[
-              { title: "Simulated", items: simulated },
-              { title: "Real", items: real },
+              { title: tr("Simulated"), items: simulated },
+              { title: tr("Real"), items: real },
             ].map((group) =>
               group.items.length > 0 ? (
                 <div key={group.title}>
@@ -73,7 +79,7 @@ export const DemoBanner: React.FC<{ status: DemoStatus | null }> = ({ status }) 
                     {group.items.map((s) => (
                       <li key={s.item}>
                         <span className={TONE_CLASS[simulatedTone(s.status)]}>
-                          {s.status === "SIMULATED" ? "Simulated" : s.status === "REAL" ? "Real" : "Real · rule-based"}
+                          {s.status === "SIMULATED" ? tr("Simulated") : s.status === "REAL" ? tr("Real") : tr("Real · rule-based")}
                         </span>
                         <strong>{s.item}</strong>
                         <span>{s.detail}</span>

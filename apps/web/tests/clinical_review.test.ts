@@ -136,7 +136,7 @@ describe('Audit fixes (web)', () => {
     for (const f of ['ClinicalReviewPanel.tsx', 'TranscriptionPanel.tsx', 'PreauthReadinessPanel.tsx']) {
       assert.ok(/<AssignReviewer/.test(read('app', 'components', 'clinical', f)), `${f} must use AssignReviewer`);
     }
-    assert.ok(/Your reviewer ID: <code>\{me\.id\}<\/code>/.test(workspace));
+    assert.ok(/Your reviewer ID:[\s\S]{0,60}<code>\{me\.id\}<\/code>/.test(workspace));
   });
 
   it('a failed safety check is shown, never rendered as nothing (issue 7)', () => {

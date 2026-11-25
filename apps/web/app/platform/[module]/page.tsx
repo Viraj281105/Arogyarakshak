@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowIcon, CtaBand, EvidenceBadge, EvidenceLegend, ModuleCard, ModuleMark, PublicHero, PublicPage, Section } from "../../components/public/PublicParts";
-import { pageTitle, publicCopy } from "../../components/public/publicCopy";
+import { localisedPublicCopy, pageTitle } from "../../components/public/publicCopy";
 import { PUBLIC_MODULE_IDS, PUBLIC_ROUTES, type PublicModuleId } from "../../components/public/publicNav";
+import { requestLanguage } from "../../i18n/server";
 
 /** One statically generated page per capability; any other segment is a 404. */
 export const dynamicParams = false;
@@ -18,7 +19,7 @@ function isModule(id: string): id is PublicModuleId {
 export async function generateMetadata({ params }: { params: Promise<{ module: string }> }): Promise<Metadata> {
   const { module } = await params;
   if (!isModule(module)) return {};
-  const m = publicCopy().modules[module];
+  const m = (await localisedPublicCopy(await requestLanguage())).modules[module];
   return { title: pageTitle(m.meta.title), description: m.meta.description };
 }
 
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ module: s
 export default async function ModulePage({ params }: { params: Promise<{ module: string }> }) {
   const { module } = await params;
   if (!isModule(module)) notFound();
-  const c = publicCopy();
+  const c = await localisedPublicCopy(await requestLanguage());
   const m = c.modules[module];
   const s = c.moduleSections;
   const id = `mod-${m.id}`;

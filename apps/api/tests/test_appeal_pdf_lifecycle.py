@@ -10,6 +10,10 @@ import hashlib
 import pytest
 
 from app.services import billnyay_appeal as billnyay_endpoint  # PDF rendering moved here (restructuring)
+from fastapi.testclient import TestClient
+
+from app.main import app
+from tests.account_helpers import other_account
 from tests.clinical_helpers import K, client, evidence_ids, finalize, full_statement, make_case, rh
 
 B = "/api/v1/billnyay"
@@ -113,16 +117,14 @@ def test_failed_pdf_rerender_rolls_the_withdrawal_back(monkeypatch):
     assert verify["signature_valid"] and verify["sha256_hash"] == hashlib.sha256(before).hexdigest()
 
 
-def test_pdf_is_not_served_on_a_wrong_or_missing_case_token():
+def test_pdf_is_not_served_to_another_account_or_a_signed_out_caller():
     case_a = make_case()
     full_statement(case_a)
     client.post(f"{B}/cases/{case_a}/appeal")
-    case_b = make_case()
-    token_b = client._case_tokens[case_b]
-    wrong = client.get(f"{B}/cases/{case_a}/appeal/pdf", headers={"X-Case-Access-Token": token_b})
-    assert wrong.status_code in (401, 403, 404)
-    missing = client.get(f"{B}/cases/{case_a}/appeal/pdf", headers={"X-Case-Access-Token": ""})
-    assert missing.status_code in (401, 403, 404)
+    wrong = client.get(f"{B}/cases/{case_a}/appeal/pdf", headers=other_account())
+    assert wrong.status_code == 403
+    missing = TestClient(app).get(f"{B}/cases/{case_a}/appeal/pdf")
+    assert missing.status_code == 401
     assert not wrong.content.startswith(b"%PDF") and not missing.content.startswith(b"%PDF")
 
 

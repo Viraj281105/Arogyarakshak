@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { setCaseAccessToken, clearCaseAccessToken } from './caseAuth';
+import { clearCaseAccessToken } from './caseAuth';
 import {
   CaseResponse,
   CaseCreatedResponse,
@@ -47,9 +47,6 @@ export const api = {
     // patient's behalf without them ever being asked.
     createCase: async (data: { consent_opt_in: boolean; [key: string]: any }) => {
       const created = await apiClient.post<CaseCreatedResponse>('/api/v1/kadi/cases', data);
-      // ADR-009: capture the one-time token so client.ts can attach it automatically to
-      // every later request for this case_id — see api/caseAuth.ts.
-      setCaseAccessToken(created.id, created.access_token);
       return created;
     },
 

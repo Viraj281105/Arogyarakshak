@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { Language } from "../shared/i18n/types";
+import { languageCookie } from "../i18n/format";
 import { HTML_LANG } from "./shellCopy";
 import { routeCommitted } from "./routeTransition";
 
@@ -19,14 +20,24 @@ const SlotSetterContext = createContext<SetNode>(() => {});
 const SlotContentContext = createContext<React.ReactNode>(null);
 
 /**
- * App-wide shell state. The language lives in memory only (as before WS4): persisting it would
- * need a pre-paint mechanism like the theme's to avoid an English flash and a layout shift.
- * Because the provider sits in the root layout, the choice survives client navigations.
+ * App-wide shell state. The language is kept in a functional cookie so the server renders the
+ * next request in it (no flash of English on server-rendered pages); the root layout passes it
+ * in as ``initialLang``. Changing it re-renders the Server Components through router.refresh().
  */
-export function ShellProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Language>("en");
+export function ShellProvider({ children, initialLang = "en" }: { children: React.ReactNode; initialLang?: Language }) {
+  const [lang, setLangState] = useState<Language>(initialLang);
   const [slot, setSlot] = useState<React.ReactNode>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const setLang = useCallback(
+    (next: Language) => {
+      document.cookie = languageCookie(next);
+      setLangState(next);
+      router.refresh();
+    },
+    [router],
+  );
 
   // <html lang> follows the UI language: correct Devanagari shaping, hyphenation and voice.
   useEffect(() => {
@@ -38,7 +49,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     routeCommitted();
   }, [pathname]);
 
-  const language = useMemo(() => ({ lang, setLang }), [lang]);
+  const language = useMemo(() => ({ lang, setLang }), [lang, setLang]);
   return (
     <LanguageContext.Provider value={language}>
       <SlotSetterContext.Provider value={setSlot}>

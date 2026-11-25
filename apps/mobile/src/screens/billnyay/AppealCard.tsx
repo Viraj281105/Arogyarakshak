@@ -1,11 +1,11 @@
 import React from 'react';
-import { Linking, Share, StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
 import { useLanguage } from '../../hooks/useLanguage';
 import { Badge, Button, Card, StatementView } from '../../components';
 import { BillNyayAppealResponse } from '../../api';
-import { getCaseAccessToken } from '../../api/caseAuth';
-import { ENV } from '../../config/env';
+import { downloadCaseFile } from '../../api/download';
+import { tr } from '../../translations/tr';
 
 /** The drafted appeal letter (5-agent pipeline, #18), its honesty notices, the attributed
  *  clinical statement (ADR-011), and the signed-PDF download and share actions. */
@@ -19,23 +19,11 @@ export const AppealCard: React.FC<{
 
   // Downloads the exact signed PDF the appeal drafted (#66) — served from stored
   // bytes, never regenerated, so it always matches what was hashed and signed.
-  // Same query-token pattern as DaaviSetu's PDF download: Linking.openURL cannot
-  // attach a custom header, so the one-time case access token travels as a
-  // query parameter on this safe, read-only GET.
   const handleDownloadAppealPdf = async () => {
-    const token = getCaseAccessToken(caseId);
-    if (!token) {
-      onError('Missing this case\'s access token — cannot download the PDF. Re-open the case from a fresh scan.');
-      return;
-    }
-    const pdfUrl = `${ENV.API_BASE_URL}/api/v1/billnyay/cases/${caseId}/appeal/pdf?access_token=${encodeURIComponent(token)}`;
     try {
-      const supported = await Linking.canOpenURL(pdfUrl);
-      if (supported) {
-        await Linking.openURL(pdfUrl);
-      }
+      await downloadCaseFile(`/api/v1/billnyay/cases/${encodeURIComponent(caseId)}/appeal/pdf`, 'appeal.pdf');
     } catch (e) {
-      console.warn('Cannot open appeal PDF URL:', e);
+      onError(e instanceof Error ? e.message : tr('The PDF could not be downloaded.'));
     }
   };
 
@@ -86,12 +74,11 @@ export const AppealCard: React.FC<{
         appealResult.clinical_statements.map((s) => <StatementView key={s.statement_id} statement={s} />)
       ) : (
         <Text style={{ color: colors.statusWarning, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
-          No statement from a named clinician is attached. Clinical reasoning in this letter is general,
-          software-drafted reasoning — not a doctor&apos;s opinion. (This note is for you; it is not in the PDF.)
+          {tr("No statement from a named clinician is attached. Clinical reasoning in this letter is general, software-drafted reasoning — not a doctor's opinion. (This note is for you; it is not in the PDF.)")}
         </Text>
       )}
       <Text style={{ color: colors.textMuted, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
-        The PDF is re-generated whenever a clinician&apos;s statement changes — download it again right before sending.
+        {tr("The PDF is re-generated whenever a clinician's statement changes — download it again right before sending.")}
       </Text>
 
       <View style={{ gap: spacing.xs }}>

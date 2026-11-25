@@ -13,6 +13,8 @@ import { AssignReviewer } from "./AssignReviewer";
 import { ClinicalStatementCard, ProvenanceBadge, ReviewerAttribution } from "./Attribution";
 import { StatePanel } from "./StatePanel";
 import { TONE_CLASS, formatTimestamp, humanizeEnum } from "../../lib/labels";
+import { useT } from "../../i18n/useT";
+import { msg, type Translate } from "../../i18n/format";
 
 interface ClinicalReviewPanelProps {
   caseId: string;
@@ -26,19 +28,19 @@ interface ClinicalReviewPanelProps {
 }
 
 const STATUS_TEXT: Record<CaseClinicalReview["status"], string> = {
-  REQUESTED: "Review requested — choose a reviewer",
-  ASSIGNED: "Reviewer assigned — waiting for them to accept",
-  IN_REVIEW: "Under clinical review",
-  COMPLETED: "Statement finalized",
-  DECLINED: "Reviewer declined — choose another",
-  CANCELLED: "Cancelled — reviewer access revoked",
+  REQUESTED: msg("Review requested — choose a reviewer"),
+  ASSIGNED: msg("Reviewer assigned — waiting for them to accept"),
+  IN_REVIEW: msg("Under clinical review"),
+  COMPLETED: msg("Statement finalized"),
+  DECLINED: msg("Reviewer declined — choose another"),
+  CANCELLED: msg("Cancelled — reviewer access revoked"),
 };
 
 /** "9 billing items (machine-derived), 1 diagnosis (machine-derived), …" instead of a long list. */
-function summarizeEvidence(items: CaseClinicalReview["evidence_shared"]): string {
+function summarizeEvidence(items: CaseClinicalReview["evidence_shared"], tr: Translate): string {
   const counts = new Map<string, number>();
   for (const e of items) {
-    const prov = (PROVENANCE_LABELS[e.provenance] ?? humanizeEnum(e.provenance)).toLowerCase();
+    const prov = tr(PROVENANCE_LABELS[e.provenance] ?? humanizeEnum(e.provenance)).toLowerCase();
     const key = e.label.toLowerCase().includes(prov) ? e.label : `${e.label} (${prov})`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
@@ -49,10 +51,10 @@ function summarizeEvidence(items: CaseClinicalReview["evidence_shared"]): string
 function reviewSteps(review: CaseClinicalReview): { label: string; done: boolean }[] {
   const accepted = review.status === "IN_REVIEW" || review.status === "COMPLETED";
   return [
-    { label: "Review requested (you consented to share)", done: true },
-    { label: "Reviewer assigned", done: !!review.assigned_reviewer && review.status !== "REQUESTED" && review.status !== "DECLINED" },
-    { label: "Reviewer accepted and declared any conflict of interest", done: accepted },
-    { label: "Doctor-authored statement finalized", done: !!review.current_statement },
+    { label: msg("Review requested (you consented to share)"), done: true },
+    { label: msg("Reviewer assigned"), done: !!review.assigned_reviewer && review.status !== "REQUESTED" && review.status !== "DECLINED" },
+    { label: msg("Reviewer accepted and declared any conflict of interest"), done: accepted },
+    { label: msg("Doctor-authored statement finalized"), done: !!review.current_statement },
   ];
 }
 
@@ -69,6 +71,7 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
   trigger = "MANUAL",
   insurerName,
 }) => {
+  const tr = useT();
   const [reviews, setReviews] = useState<CaseClinicalReview[]>([]);
   const [directory, setDirectory] = useState<ReviewerProfile[]>([]);
   const [question, setQuestion] = useState<string>(suggestedQuestion ?? "");
@@ -173,28 +176,22 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
 
   return (
     <section aria-labelledby={`clinical-review-${sourceModule}`} className="case-panel bn-card clinical-review-panel">
-      <h3 id={`clinical-review-${sourceModule}`}>Clinical review by a named doctor</h3>
-      <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-        Some findings need a clinician&apos;s judgment, which ArogyaRakshak will not invent. You can share selected case
-        evidence with a doctor you choose; they write and sign their own statement, with their conflict of interest
-        disclosed.
-      </p>
+      <h3 id={`clinical-review-${sourceModule}`}>{tr("Clinical review by a named doctor")}</h3>
+      <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>{tr("Some findings need a clinician's judgment, which ArogyaRakshak will not invent. You can share selected case evidence with a doctor you choose; they write and sign their own statement, with their conflict of interest disclosed.")}</p>
       {recommendationReason && (
         <div style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-          <ProvenanceBadge provenance="AI_DERIVED" /> Why review is suggested: {recommendationReason}
+          <ProvenanceBadge provenance="AI_DERIVED" />{" "}{tr("Why review is suggested:")}{" "}{recommendationReason}
         </div>
       )}
 
-      {initialLoad && <StatePanel kind="loading">Loading clinical reviews for this case…</StatePanel>}
+      {initialLoad && <StatePanel kind="loading">{tr("Loading clinical reviews for this case…")}</StatePanel>}
       {error && (
         <StatePanel kind="error" onRetry={() => run(async () => undefined)}>
           {error}
         </StatePanel>
       )}
 
-      <label className="input-label" htmlFor={`cq-${sourceModule}`}>
-        Question for the reviewer (optional — a neutral default is used otherwise)
-      </label>
+      <label className="input-label" htmlFor={`cq-${sourceModule}`}>{tr("Question for the reviewer (optional — a neutral default is used otherwise)")}</label>
       <textarea
         id={`cq-${sourceModule}`}
         className="textarea-field"
@@ -205,19 +202,12 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
       />
       <label className="consent-wrapper" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", margin: "0.75rem 0" }}>
         <input type="checkbox" className="consent-checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} />
-        <span style={{ fontSize: "0.85rem" }}>
-          I agree to share this case&apos;s extracted, de-identified evidence with the reviewer I assign, for this review
-          only. I can cancel at any time to revoke their access.
-        </span>
+        <span style={{ fontSize: "0.85rem" }}>{tr("I agree to share this case's extracted, de-identified evidence with the reviewer I assign, for this review only. I can cancel at any time to revoke their access.")}</span>
       </label>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-        <button type="button" className="btn btn-primary" disabled={busy || !shareConsent} onClick={requestReview}>
-          Request Clinical Review
-        </button>
+        <button type="button" className="btn btn-primary" disabled={busy || !shareConsent} onClick={requestReview}>{tr("Request Clinical Review")}</button>
         {openReviews.length > 0 && (
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => run(async () => undefined)}>
-            Refresh status
-          </button>
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => run(async () => undefined)}>{tr("Refresh status")}</button>
         )}
       </div>
 
@@ -227,25 +217,24 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
           style={{ borderTop: "1px solid var(--border-subtle)", marginTop: "1.25rem", paddingTop: "1rem" }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
-            <strong>Clinical review requested {formatTimestamp(review.created_at)}</strong>
+            <strong>{tr("Clinical review requested {value}", { value: formatTimestamp(review.created_at) })}</strong>
             <span className={review.status === "COMPLETED" ? TONE_CLASS.success : review.status === "CANCELLED" ? TONE_CLASS.warning : TONE_CLASS.neutral}>
-              {STATUS_TEXT[review.status]}
+              {tr(STATUS_TEXT[review.status])}
             </span>
           </div>
           {review.status !== "CANCELLED" && (
-            <ol aria-label="Review progress" style={{ listStyle: "none", paddingLeft: 0, margin: "0.5rem 0", fontSize: "0.82rem" }}>
+            <ol aria-label={tr("Review progress")} style={{ listStyle: "none", paddingLeft: 0, margin: "0.5rem 0", fontSize: "0.82rem" }}>
               {reviewSteps(review).map((step) => (
                 <li key={step.label} style={{ opacity: step.done ? 1 : 0.6 }}>
-                  {step.done ? "✓" : "○"} {step.label}
+                  {step.done ? "✓" : "○"} {tr(step.label)}
                 </li>
               ))}
             </ol>
           )}
-          <p style={{ fontSize: "0.8rem", margin: "0.35rem 0" }}>
-            Shared with the reviewer:{" "}
+          <p style={{ fontSize: "0.8rem", margin: "0.35rem 0" }}>{tr("Shared with the reviewer:")}{" "}
             {review.evidence_shared.length === 0
-              ? "nothing yet"
-              : summarizeEvidence(review.evidence_shared)}
+              ? tr("nothing yet")
+              : summarizeEvidence(review.evidence_shared, tr)}
           </p>
 
           {review.assigned_reviewer && (
@@ -256,38 +245,29 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
             <AssignReviewer
               directory={directory}
               disabled={busy}
-              label="Assign doctor"
+              label={tr("Assign doctor")}
               onAssign={(reviewerId) => assignReviewer(review.review_id, reviewerId)}
             />
           )}
 
           {review.draft_in_progress && !review.current_statement && (
-            <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
-              The reviewer is drafting. Nothing is shown until they finalize and confirm it themselves.
-            </p>
+            <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>{tr("The reviewer is drafting. Nothing is shown until they finalize and confirm it themselves.")}</p>
           )}
           {review.current_statement ? (
             <div style={{ marginTop: "0.75rem" }}>
-              <StatePanel kind="success">
-                A named doctor finalized their own statement. It is shown verbatim below and attached to your appeal
-                documents with their conflict-of-interest declaration.
-              </StatePanel>
+              <StatePanel kind="success">{tr("A named doctor finalized their own statement. It is shown verbatim below and attached to your appeal documents with their conflict-of-interest declaration.")}</StatePanel>
               <ClinicalStatementCard statement={review.current_statement} />
             </div>
           ) : review.statement_history.some((s) => s.status === "WITHDRAWN") ? (
-            <StatePanel kind="warning">
-              The reviewer withdrew their statement. It is no longer attached to your documents — download the appeal PDF again.
-            </StatePanel>
+            <StatePanel kind="warning">{tr("The reviewer withdrew their statement. It is no longer attached to your documents — download the appeal PDF again.")}</StatePanel>
           ) : (
             review.status !== "CANCELLED" && (
-              <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                No doctor-authored statement exists for this review yet. ArogyaRakshak does not write one for them.
-              </p>
+              <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>{tr("No doctor-authored statement exists for this review yet. ArogyaRakshak does not write one for them.")}</p>
             )
           )}
           {review.statement_history.length > 1 && (
             <details style={{ marginTop: "0.5rem" }}>
-              <summary>Version history ({review.statement_history.length})</summary>
+              <summary>{tr("Version history ({count})", { count: review.statement_history.length })}</summary>
               {review.statement_history.map((s) => (
                 <ClinicalStatementCard key={s.statement_id} statement={s} />
               ))}
@@ -296,7 +276,7 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
 
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
             <button type="button" className="btn" style={{ border: "1px solid var(--border-subtle)" }} onClick={() => toggleAudit(review.review_id)}>
-              {audit[review.review_id] ? "Hide audit trail" : "Show audit trail"}
+              {audit[review.review_id] ? tr("Hide audit trail") : tr("Show audit trail")}
             </button>
             {review.status !== "CANCELLED" && (
               <button
@@ -305,16 +285,14 @@ export const ClinicalReviewPanel: React.FC<ClinicalReviewPanelProps> = ({
                 style={{ border: "1px solid var(--status-danger)", color: "var(--status-danger)" }}
                 disabled={busy}
                 onClick={() => cancelReview(review.review_id)}
-              >
-                Cancel &amp; revoke access
-              </button>
+              >{tr("Cancel & revoke access")}</button>
             )}
           </div>
           {audit[review.review_id] && (
             <ol className="timeline-list" style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
               {audit[review.review_id].map((e) => (
                 <li key={e.id} className="timeline-item">
-                  {formatTimestamp(e.created_at)} — {humanizeEnum(e.event_type)} ({humanizeEnum(e.actor_type)})
+                  {formatTimestamp(e.created_at)} — {tr(humanizeEnum(e.event_type))} ({tr(humanizeEnum(e.actor_type))})
                 </li>
               ))}
             </ol>

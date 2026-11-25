@@ -97,13 +97,11 @@ def test_a_case_with_no_expires_at_is_treated_as_already_expired():
     assert case_id in expired
 
 
-def test_sweep_purges_an_expired_case_with_no_client_token_presented():
-    """The exact SEC-03 property: purging happens even though nothing in this test ever
-    sends the case's access token anywhere near a DELETE request."""
+def test_sweep_purges_an_expired_case_without_any_client_request():
+    """The exact SEC-03 property: purging happens without any client asking for it."""
     case_id = _case_with_document()
     appeal_res = client.post(f"/api/v1/billnyay/cases/{case_id}/appeal")
     assert appeal_res.status_code == 200
-    client.forget_token(case_id)  # simulate the client having permanently lost its token
 
     _set_expiry(case_id, datetime.utcnow() - timedelta(minutes=1))
 

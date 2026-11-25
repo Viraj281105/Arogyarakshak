@@ -1,0 +1,421 @@
+{
+  "verdict": "attention",
+  "counts": {
+    "findings": 16,
+    "error": 0,
+    "warning": 3,
+    "info": 13,
+    "accepted": 0,
+    "acceptedErrors": 0,
+    "offDiagram": null
+  },
+  "review": null,
+  "groups": [
+    {
+      "code": "complexity/function",
+      "severity": "warning",
+      "count": 16,
+      "ids": [
+        "COMP-b8145b575d76",
+        "COMP-3b635266516b",
+        "COMP-c917315e7c09",
+        "COMP-e6261db817ef",
+        "COMP-45fb2c85fa4d",
+        "COMP-61ab0f198da6",
+        "COMP-a012f1bb738f",
+        "COMP-938b4eb28932",
+        "COMP-debb313c00c9",
+        "COMP-4f954a36b718",
+        "COMP-1992ec251803",
+        "COMP-06b4e26dfabd",
+        "COMP-e2c9aa4a523b",
+        "COMP-46cc019a68b2",
+        "COMP-b13f4968460f",
+        "COMP-6fe494bcc8dc"
+      ]
+    }
+  ],
+  "priorities": [
+    "COMP-b8145b575d76",
+    "COMP-3b635266516b",
+    "COMP-c917315e7c09"
+  ],
+  "investigation": {
+    "leads": [
+      {
+        "id": "COMP-b8145b575d76",
+        "code": "complexity/function",
+        "severity": "warning",
+        "message": "case_timeline in case_timeline.py has cyclomatic complexity 31 (73 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+        "where": "case_timeline.py:31",
+        "symbol": "case_timeline",
+        "impact": {
+          "modules": 1,
+          "size": 31,
+          "fanIn": 0,
+          "files": 1
+        }
+      },
+      {
+        "id": "COMP-3b635266516b",
+        "code": "complexity/function",
+        "severity": "warning",
+        "message": "compare in evaluation/regression.py has cyclomatic complexity 27 (59 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+        "where": "evaluation/regression.py:180",
+        "symbol": "compare",
+        "impact": {
+          "modules": 1,
+          "size": 27,
+          "fanIn": 0,
+          "files": 17
+        }
+      },
+      {
+        "id": "COMP-c917315e7c09",
+        "code": "complexity/function",
+        "severity": "warning",
+        "message": "_run_pipeline in services/case_ingestion.py has cyclomatic complexity 26 (176 lines). More independent paths make it harder to read and to test fully; this is a maintenance signal, not a defect.",
+        "where": "services/case_ingestion.py:163",
+        "symbol": "_run_pipeline",
+        "impact": {
+          "modules": 1,
+          "size": 26,
+          "fanIn": 0,
+          "files": 18
+        }
+      }
+    ],
+    "architecture": {
+      "modules": 26,
+      "edges": 0,
+      "hotspots": [],
+      "hotspotRanking": "Connected modules ordered by loc * (1 + log2(1 + fanIn)), then fanIn, fanOut and id. A bounded reading order, not inferred business importance, defect severity or refactoring advice.",
+      "strongestEdges": [],
+      "structuralSignals": []
+    }
+  },
+  "findings": [
+    {
+      "id": "COMP-b8145b575d76",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "case_timeline"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 31,
+        "fanIn": 0,
+        "files": 1
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-3b635266516b",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "evaluation"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 27,
+        "fanIn": 0,
+        "files": 17
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-c917315e7c09",
+      "code": "complexity/function",
+      "severity": "warning",
+      "componentIds": [],
+      "moduleIds": [
+        "services"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 26,
+        "fanIn": 0,
+        "files": 18
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-e6261db817ef",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "clinical"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 22,
+        "fanIn": 0,
+        "files": 19
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-45fb2c85fa4d",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "evaluation"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 20,
+        "fanIn": 0,
+        "files": 17
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-61ab0f198da6",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "services"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 19,
+        "fanIn": 0,
+        "files": 18
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-a012f1bb738f",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "clinical"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 18,
+        "fanIn": 0,
+        "files": 19
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-938b4eb28932",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "services"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 17,
+        "fanIn": 0,
+        "files": 18
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-debb313c00c9",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "services"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 17,
+        "fanIn": 0,
+        "files": 18
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-4f954a36b718",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "kadi_resolution"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 17,
+        "fanIn": 0,
+        "files": 1
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-1992ec251803",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "clinical"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 0,
+        "files": 19
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-06b4e26dfabd",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "evaluation"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 0,
+        "files": 17
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-e2c9aa4a523b",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "evaluation"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 16,
+        "fanIn": 0,
+        "files": 17
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-46cc019a68b2",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "services"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 15,
+        "fanIn": 0,
+        "files": 18
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-b13f4968460f",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "evaluation"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 15,
+        "fanIn": 0,
+        "files": 17
+      },
+      "relatedIds": [],
+      "status": "open"
+    },
+    {
+      "id": "COMP-6fe494bcc8dc",
+      "code": "complexity/function",
+      "severity": "info",
+      "componentIds": [],
+      "moduleIds": [
+        "services"
+      ],
+      "impact": {
+        "modules": 1,
+        "size": 8,
+        "fanIn": 0,
+        "files": 18
+      },
+      "relatedIds": [],
+      "status": "open"
+    }
+  ],
+  "coverage": {
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "files": {
+      "analyzed": 120,
+      "excludedByRole": 0,
+      "excludedRoles": [
+        "generated",
+        "test"
+      ],
+      "excludePatterns": [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/target/**/*.java",
+        "**/coverage/**",
+        "**/*.d.ts",
+        "**/venv/**",
+        "**/venv-*/**",
+        "**/.venv/**",
+        "**/site-packages/**",
+        "**/__pycache__/**",
+        "**/.pytest_cache/**",
+        "**/.git/**",
+        "**/_archive/**"
+      ],
+      "parseErrors": []
+    },
+    "otherLanguages": [],
+    "unresolved": {
+      "external": 989,
+      "outside": 0,
+      "unknown": 0,
+      "opaque": 1
+    },
+    "rules": {
+      "run": [
+        "coupling/import-cycle",
+        "coupling/cycle",
+        "coupling/hub",
+        "coupling/concentration",
+        "coupling/internal-leak",
+        "complexity/function"
+      ],
+      "suppressed": []
+    },
+    "unmappedModules": [],
+    "boundaries": null,
+    "duplicates": null
+  }
+}

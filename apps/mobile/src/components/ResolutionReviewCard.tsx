@@ -7,6 +7,7 @@ import { Button } from './Button';
 import { api } from '../api/endpoints';
 import { ApiError, ResolutionDecision } from '../api/types';
 import { formatMatchScore } from '../services/resolution';
+import { tr } from '../translations/tr';
 
 export interface ResolutionReviewCardProps {
   caseId: string | null;
@@ -32,7 +33,7 @@ export const ResolutionReviewCard: React.FC<ResolutionReviewCardProps> = ({ case
       setDecisions(await api.kadi.getPendingResolutions(caseId));
       setError(null);
     } catch (err) {
-      setError((err as ApiError).message || 'Could not load review items.');
+      setError((err as ApiError).message || tr('Could not load review items.'));
     }
   }, [caseId]);
 
@@ -52,7 +53,7 @@ export const ResolutionReviewCard: React.FC<ResolutionReviewCardProps> = ({ case
         // Already answered, or the entities changed: no longer a pending question.
         setDecisions((prev) => prev.filter((d) => d.id !== decision.id));
       } else {
-        setError(apiErr.message || 'Could not save your answer.');
+        setError(apiErr.message || tr('Could not save your answer.'));
       }
     } finally {
       setBusyId(null);

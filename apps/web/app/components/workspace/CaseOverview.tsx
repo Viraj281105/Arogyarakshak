@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { LazyPanel } from "../LazyPanel";
+import { LazyActionTracker } from "../actions/LazyModulePlan";
 import { EvidenceBadge, StatusBadge } from "../ui/Badges";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { getCaseJson, casePath } from "../../lib/caseApi";
@@ -15,6 +16,7 @@ import { DocumentsKept } from "./DocumentsKept";
 import { caseCopy, type CaseCopy } from "./caseCopy";
 import { overviewCopy, type OverviewCopy } from "./overviewCopy";
 import { fillCopy, formatDateTime, humanizeKey } from "./workspaceFormat";
+import { useT } from "../../i18n/useT";
 
 type WsCopy = CaseCopy & OverviewCopy;
 
@@ -72,6 +74,7 @@ export function CaseOverview({
   heroArt?: React.ReactNode;
   docsEmptyArt?: React.ReactNode;
 } = {}) {
+  const tr = useT();
   const [lang] = useLanguage();
   const c = { ...caseCopy[lang], ...overviewCopy[lang] };
   const cs = useCase();
@@ -105,10 +108,10 @@ export function CaseOverview({
       <header className="ws-kadi-hero">
         {heroBg}
         <div className="ws-kadi-hero-copy">
-          <p className="ui-kicker">Kadi · Document Intelligence</p>
+          <p className="ui-kicker">{tr("Kadi · Document Intelligence")}</p>
           <h1 className="ws-page-title">{c.overview.title}</h1>
           <div className="ws-kadi-badges">
-            <StatusBadge tone="neutral">{docCount} excerpt(s) · {entityCount} extracted field(s)</StatusBadge>
+            <StatusBadge tone="neutral">{tr("{docCount} excerpt(s) · {entityCount} extracted field(s)", { docCount: docCount, entityCount: entityCount })}</StatusBadge>
           </div>
         </div>
         {heroArt && (
@@ -120,6 +123,7 @@ export function CaseOverview({
       <SafetyEscalationBanner key={`safety-${ref.id}-${cs.version}`} caseId={ref.id} caseToken={token} />
       <InsightsAndActions key={`ins-${ref.id}-${cs.version}`} c={c} lang={lang} consent={consent} />
       <EntityResolutionReview key={`res-${ref.id}-${cs.version}`} caseId={ref.id} caseToken={token} currentLang={lang} />
+      <LazyActionTracker key={`act-${ref.id}`} caseId={ref.id} />
       {cs.detail && <DocumentsKept c={c} lang={lang} entities={cs.detail.entities} emptyArt={docsEmptyArt} />}
       <TimelineExplorer key={`tl-${ref.id}`} refreshKey={cs.version} />
       <EvidenceGraph key={`graph-${ref.id}-${cs.version}`} />

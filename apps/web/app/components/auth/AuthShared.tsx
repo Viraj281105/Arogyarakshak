@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useId, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useId, useState, useSyncExternalStore } from "react";
 import Eye from "lucide-react/icons/eye";
 import EyeOff from "lucide-react/icons/eye-off";
+import { accountPaths, type AuthConfig } from "../../shared/api-client/accounts";
+import { API_BASE } from "../../lib/apiBase";
 import { apiErrorMessage, apiFetch, retryAfterSeconds } from "../../lib/apiFetch";
 import { authCopy, fillCopy, type AuthCopy } from "./authCopy";
 import type { Language } from "../../shared/i18n/types";
@@ -111,14 +113,35 @@ export function OutcomeMessage({ outcome }: { outcome: Outcome }) {
   );
 }
 
-/** Says, before any form, that the server cannot send email yet (no fake "check your inbox"). */
+/**
+ * Says, before any form, that the server cannot send email (no fake "check your inbox"). Shown
+ * only when the server reports that it cannot (GET /auth/config).
+ */
 export function EmailUnavailableNotice({ c }: { c: AuthCopy }) {
+  const delivery = useEmailDelivery();
+  if (delivery !== false) return null;
   return (
     <div className="auth-outcome auth-outcome-info" role="note">
       <p className="auth-outcome-title">{c.emailUnavailableTitle}</p>
       <p>{c.emailUnavailable}</p>
     </div>
   );
+}
+
+/** Whether this server can send account email; null until known or when unreachable. */
+export function useEmailDelivery(): boolean | null {
+  const [delivery, setDelivery] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE}${accountPaths.config}`, { headers: { Accept: "application/json" } })
+      .then((res) => (res.ok ? (res.json() as Promise<AuthConfig>) : null))
+      .then((body) => !cancelled && body && setDelivery(body.email_delivery))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return delivery;
 }
 
 export interface AuthResult<T> {

@@ -136,6 +136,10 @@ def setup_database():
             await conn.run_sync(db_base.metadata.drop_all)
 
     asyncio.run(create_tables())
+    # ADR-029: signed-in test clients start a fresh session against the fresh database.
+    from tests.auth_test_client import AuthAwareTestClient
+
+    AuthAwareTestClient.new_test()
     yield
     asyncio.run(drop_tables())
     asyncio.run(engine.dispose())

@@ -1,13 +1,12 @@
 // Formatting helpers for the workspace (Wave 3 M4). The copy lives in caseCopy, deskCopy,
 // overviewCopy, timelineCopy, graphCopy, reportsCopy and settingsCopy (one file per page area).
+import { LOCALE } from "../../i18n/format";
 import type { Language } from "../../shared/i18n/types";
 
 /** Replaces {name} placeholders. */
 export function fillCopy(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? String(values[k]) : m));
 }
-
-const LOCALE: Record<Language, string> = { en: "en-IN", hi: "hi-IN", mr: "mr-IN" };
 
 /** Server timestamps are UTC, sometimes without a zone suffix. */
 function parseServerDate(value: string): Date | null {

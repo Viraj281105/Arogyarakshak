@@ -262,7 +262,7 @@ async def reset_demo(db: AsyncSession) -> Dict[str, Any]:
         }
 
 
-async def load_scenario(db: AsyncSession, scenario_id: str) -> Dict[str, Any]:
+async def load_scenario(db: AsyncSession, scenario_id: str, owner_user_id: str) -> Dict[str, Any]:
     """Creates a fresh case for the scenario and runs its synthetic documents through the
     real upload pipeline (the same `process_document_background` a patient upload uses),
     returning once processing has finished."""
@@ -282,7 +282,7 @@ async def load_scenario(db: AsyncSession, scenario_id: str) -> Dict[str, Any]:
         if not await _demo_reviewer_ids(db):
             # First use: nothing seeded yet. Seed so the scenario's reviewers and rules exist.
             seeded = await seed_demo(db)
-        case, token = await create_case_record(db, consent_opt_in=True)
+        case, _ = await create_case_record(db, consent_opt_in=True, owner_user_id=owner_user_id)
         outcomes = []
         for name in spec["documents"]:
             outcomes.append(await ingest_document_now(db, case.id, (root / name).read_bytes(), name))
@@ -290,7 +290,6 @@ async def load_scenario(db: AsyncSession, scenario_id: str) -> Dict[str, Any]:
             "scenario": scenario_id.upper(),
             "title": spec["title"],
             "case_id": case.id,
-            "access_token": token,
             "documents": spec["documents"],
             "processing": outcomes,
             "credentials": seeded,

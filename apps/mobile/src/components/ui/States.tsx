@@ -5,6 +5,7 @@ import { useReducedMotion } from '../../motion';
 import { SkeletonText } from '../Skeleton';
 import { Icon, type IconName } from './Icon';
 import { stateSwatch, type StateKind } from './tones';
+import { tr, msg, useTranslation } from '../../translations/tr';
 
 /**
  * Panel states every Wave 3 screen must have (plan section 4): loading, empty (components/EmptyState),
@@ -61,7 +62,9 @@ function StatePanel({ kind, icon, title, body, role, live, children, action, sty
 }
 
 /** Spinner (or, under reduced motion, a static marker) plus words; optional skeleton lines. */
-export function LoadingState({ label = 'Loading…', lines = 0, style }: { label?: string; lines?: number; style?: ViewStyle }) {
+export function LoadingState({ label = msg('Loading…'), lines = 0, style }: { label?: string; lines?: number; style?: ViewStyle }) {
+  useTranslation();
+  const shown = tr(label);
   const { colors, spacing, radii } = useTheme();
   const reduced = useReducedMotion();
   const s = stateSwatch(colors, 'loading');
@@ -69,7 +72,7 @@ export function LoadingState({ label = 'Loading…', lines = 0, style }: { label
     <View
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={label}
+      accessibilityLabel={shown}
       accessibilityState={{ busy: true }}
       accessibilityLiveRegion="polite"
       testID="state-loading"
@@ -81,7 +84,7 @@ export function LoadingState({ label = 'Loading…', lines = 0, style }: { label
         ) : (
           <ActivityIndicator size="small" color={s.accent} />
         )}
-        <Text style={[textStyleFor(textStyles.bodySmall, label, '400'), { color: s.body, marginLeft: spacing.sm }]}>{label}</Text>
+        <Text style={[textStyleFor(textStyles.bodySmall, shown, '400'), { color: s.body, marginLeft: spacing.sm }]}>{shown}</Text>
       </View>
       {lines > 0 ? <SkeletonText lines={lines} style={{ marginTop: spacing.md, alignSelf: 'stretch' }} /> : null}
     </View>
@@ -89,7 +92,7 @@ export function LoadingState({ label = 'Loading…', lines = 0, style }: { label
 }
 
 export function ErrorState({
-  title = 'Something went wrong',
+  title = tr('Something went wrong'),
   body,
   children,
   action,
@@ -101,6 +104,7 @@ export function ErrorState({
   action?: React.ReactNode;
   style?: ViewStyle;
 }) {
+  useTranslation();
   return (
     <StatePanel kind="error" icon={{ action: 'error' }} title={title} body={body} role="alert" live="assertive" action={action} style={style}>
       {children}
@@ -110,7 +114,7 @@ export function ErrorState({
 
 /** Some parts of a result are present and some are not; lists what is missing so it is not mistaken for complete. */
 export function PartialResultState({
-  title = 'Partial result',
+  title = tr('Partial result'),
   body,
   missing,
   children,
@@ -123,11 +127,12 @@ export function PartialResultState({
   children?: React.ReactNode;
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, spacing } = useTheme();
   return (
     <StatePanel kind="partial" icon={{ glyph: '◑' }} title={title} body={body} role="summary" live="polite" style={style}>
       {children}
-      <Text style={[textStyles.labelSmall, { color: colors.textSecondary, marginTop: spacing.xs }]}>Not available:</Text>
+      <Text style={[textStyles.labelSmall, { color: colors.textSecondary, marginTop: spacing.xs }]}>{tr('Not available:')}</Text>
       {missing.map((m) => (
         <Text key={m} style={[textStyleFor(textStyles.bodySmall, m, '400'), { color: colors.textSecondary }]}>
           {'•'} {m}
@@ -139,7 +144,7 @@ export function PartialResultState({
 
 /** The engines did not have enough evidence to conclude. Says so instead of showing a guess. */
 export function InsufficientEvidenceState({
-  title = 'Not enough evidence to conclude',
+  title = tr('Not enough evidence to conclude'),
   reason,
   children,
   style,
@@ -150,12 +155,13 @@ export function InsufficientEvidenceState({
   children?: React.ReactNode;
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, spacing } = useTheme();
   return (
     <StatePanel kind="insufficient" icon={{ evidence: 'insufficient-evidence' }} title={title} body={reason} role="summary" live="polite" style={style}>
       {children}
       <Text style={[textStyles.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-        No figure is shown, and nothing is guessed.
+        {tr('No figure is shown, and nothing is guessed.')}
       </Text>
     </StatePanel>
   );
@@ -163,8 +169,8 @@ export function InsufficientEvidenceState({
 
 /** Mobile only: the action needs the server and the phone is offline. */
 export function OfflineState({
-  title = 'You are offline',
-  body = 'This needs a connection to the ArogyaRakshak server. Check your connection and try again.',
+  title = tr('You are offline'),
+  body = tr('This needs a connection to the ArogyaRakshak server. Check your connection and try again.'),
   action,
   style,
 }: {
@@ -173,6 +179,7 @@ export function OfflineState({
   action?: React.ReactNode;
   style?: ViewStyle;
 }) {
+  useTranslation();
   return <StatePanel kind="offline" icon={{ action: 'offline' }} title={title} body={body} role="summary" live="polite" action={action} style={style} />;
 }
 

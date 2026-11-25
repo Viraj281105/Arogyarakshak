@@ -9,6 +9,7 @@ import { EvidencePanel } from "./EvidencePanel";
 import { FactConfirmations } from "./FactConfirmations";
 import { ReviewSummary } from "./ReviewSummary";
 import { PublishedStatements, StatementEditor } from "./StatementEditor";
+import { useT } from "../../i18n/useT";
 
 const EMPTY_EDITOR: StatementEditorState = { statementId: "", selected: [], text: "", limitations: "" };
 
@@ -27,6 +28,7 @@ export function ReviewsTab({
   setQueue: (q: AssignedReview[]) => void;
   refreshQueue: () => Promise<void>;
 }) {
+  const tr = useT();
   const [detail, setDetail] = useState<ReviewerDetail | null>(null);
   const [evidence, setEvidence] = useState<EvidenceItem[] | null>(null);
   const [audit, setAudit] = useState<AuditEvent[] | null>(null);
@@ -56,14 +58,14 @@ export function ReviewsTab({
       await call(clinicalPaths.accept(detail!.review_id), "POST", { coi_category: coi.category, coi_disclosure: coi.disclosure || null });
       await openReview(detail!.review_id);
       setQueue(await call<AssignedReview[]>(clinicalPaths.assigned()));
-    }, "Accepted. Your conflict-of-interest declaration is recorded.");
+    }, tr("Accepted. Your conflict-of-interest declaration is recorded."));
 
   const decline = () =>
     guard(async () => {
       await call(clinicalPaths.decline(detail!.review_id), "POST", { reason: null });
       setDetail(null);
       await refreshQueue();
-    }, "Declined.");
+    }, tr("Declined."));
 
   const loadEvidence = () =>
     guard(async () => setEvidence((await call<{ evidence: EvidenceItem[] }>(clinicalPaths.evidence(detail!.review_id))).evidence));
@@ -76,7 +78,7 @@ export function ReviewsTab({
         : await call<ClinicalStatement>(clinicalPaths.statements(detail!.review_id), "POST", body);
       setEditor((prev) => ({ ...prev, statementId: saved.statement_id }));
       await openReview(detail!.review_id);
-    }, "Draft saved. Only you can see drafts.");
+    }, tr("Draft saved. Only you can see drafts."));
 
   const statementAction = (statementId: string, action: "submit" | "revise" | "return-to-draft") =>
     guard(async () => {
@@ -92,13 +94,13 @@ export function ReviewsTab({
         confirmation_text: confirmTicked ? detail!.finalization_confirmation_text : "",
       });
       await openReview(detail!.review_id);
-    }, "Statement finalized. It is now immutable; changes create a new version.");
+    }, tr("Statement finalized. It is now immutable; changes create a new version."));
 
   const withdraw = (statementId: string) =>
     guard(async () => {
       await call(`${clinicalPaths.statement(detail!.review_id, statementId)}/withdraw`, "POST", { reason: withdrawReason });
       await openReview(detail!.review_id);
-    }, "Statement withdrawn.");
+    }, tr("Statement withdrawn."));
 
   const decideFact = (fact: FactDecision) =>
     guard(async () => {
@@ -110,7 +112,7 @@ export function ReviewsTab({
         confirmation_text: input?.confirm ? detail!.fact_decision_confirmation_text : "",
       });
       await openReview(detail!.review_id);
-    }, "Decision recorded.");
+    }, tr("Decision recorded."));
 
   const showAudit = () => guard(async () => setAudit(await call<AuditEvent[]>(clinicalPaths.reviewerAudit(detail!.review_id))));
 
@@ -122,15 +124,11 @@ export function ReviewsTab({
     <div className="rv-split">
       <section className="case-panel bn-card rv-queue" aria-labelledby="rv-queue-title">
         <div className="case-panel-head">
-          <h3 id="rv-queue-title">Assigned to you</h3>
-          <button type="button" className="btn btn-ghost btn-compact" onClick={refreshQueue}>
-            Refresh
-          </button>
+          <h3 id="rv-queue-title">{tr("Assigned to you")}</h3>
+          <button type="button" className="btn btn-ghost btn-compact" onClick={refreshQueue}>{tr("Refresh")}</button>
         </div>
         {queue.length === 0 && (
-          <StatePanel kind="empty">
-            No reviews are assigned to you yet. A patient assigns you by the reviewer ID shown above; press refresh after they do.
-          </StatePanel>
+          <StatePanel kind="empty">{tr("No reviews are assigned to you yet. A patient assigns you by the reviewer ID shown above; press refresh after they do.")}</StatePanel>
         )}
         <ul className="rv-queue-list">
           {queue.map((r) => (
@@ -141,11 +139,11 @@ export function ReviewsTab({
                 aria-current={detail?.review_id === r.review_id ? "true" : undefined}
                 onClick={() => openReview(r.review_id)}
               >
-                <strong>{r.review_type === "FACT_CONFIRMATION" ? "Confirm clinical facts" : "Clinical statement"}</strong>
-                <span className="rv-queue-module">{MODULE_LABEL[r.source_module] ?? humanizeEnum(r.source_module)}</span>
+                <strong>{r.review_type === "FACT_CONFIRMATION" ? tr("Confirm clinical facts") : tr("Clinical statement")}</strong>
+                <span className="rv-queue-module">{tr(MODULE_LABEL[r.source_module] ?? humanizeEnum(r.source_module))}</span>
                 <span className="rv-queue-meta">
-                  <span className={TONE_CLASS.neutral}>{humanizeEnum(r.status)}</span>
-                  {r.created_at && <span>requested {formatTimestamp(r.created_at)}</span>}
+                  <span className={TONE_CLASS.neutral}>{tr(humanizeEnum(r.status))}</span>
+                  {r.created_at && <span>{tr("requested {value}", { value: formatTimestamp(r.created_at) })}</span>}
                 </span>
               </button>
             </li>
@@ -156,8 +154,8 @@ export function ReviewsTab({
       {!detail && queue.length > 0 && (
         <div className="module-empty rv-placeholder">
           <div>
-            <strong>Choose a review to open it</strong>
-            <p>Its question, the evidence the patient shared with you and your statement appear here.</p>
+            <strong>{tr("Choose a review to open it")}</strong>
+            <p>{tr("Its question, the evidence the patient shared with you and your statement appear here.")}</p>
           </div>
         </div>
       )}
@@ -169,7 +167,7 @@ export function ReviewsTab({
           {canWork && (
             <>
               <button type="button" className="btn btn-secondary" onClick={loadEvidence}>
-                {evidence ? "Reload shared evidence" : "Open shared evidence"}
+                {evidence ? tr("Reload shared evidence") : tr("Open shared evidence")}
               </button>
               {evidence && (
                 <EvidencePanel
@@ -216,7 +214,7 @@ export function ReviewsTab({
 
           <div>
             <button type="button" className="btn btn-ghost btn-compact" onClick={showAudit}>
-              {audit ? "Refresh audit trail" : "Show audit trail"}
+              {audit ? tr("Refresh audit trail") : tr("Show audit trail")}
             </button>
           </div>
           {audit && (
@@ -226,9 +224,9 @@ export function ReviewsTab({
                   <span className="timeline-dot" aria-hidden="true" />
                   <div className="timeline-meta">
                     <time dateTime={e.created_at}>{formatTimestamp(e.created_at)}</time>
-                    <span>{humanizeEnum(e.actor_type)}</span>
+                    <span>{tr(humanizeEnum(e.actor_type))}</span>
                   </div>
-                  <strong className="timeline-label">{humanizeEnum(e.event_type)}</strong>
+                  <strong className="timeline-label">{tr(humanizeEnum(e.event_type))}</strong>
                 </li>
               ))}
             </ol>

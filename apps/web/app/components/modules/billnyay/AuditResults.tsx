@@ -6,6 +6,7 @@ import { ExplainTrail } from "../../ExplainTrail";
 import { MetricCard } from "../../ui/Badges";
 import { StackedBarChart } from "../../ui/Charts";
 import type { AuditResponse, AuditResultItem } from "./types";
+import { useT } from "../../../i18n/useT";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -30,6 +31,7 @@ export function composeAudit(items: AuditResultItem[]) {
 /** CGHS audit totals, where the bill's money falls, and every line with its reference,
  *  status and "Why am I seeing this?" trail. An unmatched line is never shown as fair. */
 export function AuditResults({ audit, currentLang }: { audit: AuditResponse; currentLang: Language }) {
+  const tr = useT();
   const t = translations[currentLang].modules.billnyay;
   const c = composeAudit(audit.audit_items);
   const scale = Math.max(1, ...audit.audit_items.map((r) => Math.max(r.charged, r.cghs_benchmark ?? 0)));
@@ -37,43 +39,41 @@ export function AuditResults({ audit, currentLang }: { audit: AuditResponse; cur
   const segments = [
     { key: "within", label: t.fairBadge, value: c.within },
     { key: "over", label: t.overchargedBadge, value: c.above },
-    { key: "bundled", label: "Usually included elsewhere", value: c.bundled },
+    { key: "bundled", label: tr("Usually included elsewhere"), value: c.bundled },
     { key: "unmatched", label: t.notBenchmarkedBadge, value: c.notCompared },
   ].filter((s) => s.value > 0);
 
   return (
     <section className="bn-audit" aria-labelledby="bn-audit-title">
-      <h3 id="bn-audit-title" className="sr-only">
-        CGHS audit result
-      </h3>
+      <h3 id="bn-audit-title" className="sr-only">{tr("CGHS audit result")}</h3>
 
       <div className="ws-metric-grid">
         <MetricCard
           label={t.chargedTotal}
           value={inr(audit.total_charged)}
           basis="document"
-          source={`${audit.audit_items.length} line(s) read from your bill`}
+          source={tr("Lines read from your bill: {count}", { count: audit.audit_items.length })}
         />
         <MetricCard
           label={t.cghsBenchmark}
           value={inr(audit.total_benchmark)}
           basis="estimate"
-          source={`CGHS-2024-REVISED (${audit.benchmarked_count} line(s) compared, billed ${inr(audit.benchmarked_charged)})`}
+          source={tr("CGHS-2024-REVISED ({benchmarked_count} line(s) compared, billed {value})", { benchmarked_count: audit.benchmarked_count, value: inr(audit.benchmarked_charged) })}
         />
         <MetricCard
           label={t.potentialSavings}
           value={inr(audit.potential_savings)}
           basis="estimate"
-          source="Net difference across compared CGHS lines only"
+          source={tr("Net difference across compared CGHS lines only")}
         />
       </div>
 
       {audit.total_charged > 0 && segments.length > 0 && (
         <StackedBarChart
-          title={`Where the ${inr(audit.total_charged)} falls`}
-          source="CGHS-2024-REVISED curated subset"
-          units="INR"
-          period="This hospital bill"
+          title={tr("Where the {value} falls", { value: inr(audit.total_charged) })}
+          source={tr("CGHS-2024-REVISED curated subset")}
+          units={tr("INR")}
+          period={tr("This hospital bill")}
           basis="estimate"
           format={inr}
           series={segments.map((s) => ({
@@ -83,7 +83,7 @@ export function AuditResults({ audit, currentLang }: { audit: AuditResponse; cur
           }))}
           rows={[
             {
-              label: "Total billed",
+              label: tr("Total billed"),
               values: Object.fromEntries(segments.map((s) => [s.key, s.value])),
             },
           ]}
@@ -104,7 +104,7 @@ export function AuditResults({ audit, currentLang }: { audit: AuditResponse; cur
         <>
           <div className="bn-lines-head">
             <h4>{t.overchargesTitle}</h4>
-            <span className="timeline-count">{audit.deviations_count} flagged</span>
+            <span className="timeline-count">{tr("{deviations_count} flagged", { deviations_count: audit.deviations_count })}</span>
           </div>
           <ul className="bn-lines">
             {audit.audit_items.map((row, idx) => {
@@ -159,7 +159,7 @@ export function AuditResults({ audit, currentLang }: { audit: AuditResponse; cur
           </ul>
         </>
       ) : (
-        <div className="bn-notice">No billing line items were found in the uploaded document for audit comparison.</div>
+        <div className="bn-notice">{tr("No billing line items were found in the uploaded document for audit comparison.")}</div>
       )}
 
       {audit.deviations_count > 0 && <div className="bn-notice is-guidance">{t.disputeGrounds}</div>}

@@ -1,4 +1,5 @@
 import type { ClinicalStatement, FactDecision } from "../lib/clinical";
+import { msg } from "../i18n/format";
 
 // The reviewer never holds the patient's case id (the server omits it).
 export interface AssignedReview {
@@ -66,20 +67,20 @@ export type Guard = (fn: () => Promise<void>, ok?: string) => Promise<void>;
 export type ReviewerCall = <T = unknown>(path: string, method?: "GET" | "POST" | "PUT", body?: unknown) => Promise<T>;
 
 export const MODULE_LABEL: Record<string, string> = {
-  billnyay: "BillNyay — hospital bill audit",
-  bimanyay: "BimaNyay — insurance denial appeal",
-  daavisetu: "DaaviSetu — pre-authorization readiness",
-  dawacheck: "DawaCheck — medicines",
-  kadi: "Case context",
+  billnyay: msg("BillNyay — hospital bill audit"),
+  bimanyay: msg("BimaNyay — insurance denial appeal"),
+  daavisetu: msg("DaaviSetu — pre-authorization readiness"),
+  dawacheck: msg("DawaCheck — medicines"),
+  kadi: msg("Case context"),
 };
 
 // Mirrors kadi.clinical_review.types.ReviewTrigger.
 export const TRIGGER_LABEL: Record<string, string> = {
-  MANUAL: "The patient asked for a clinical review",
-  PLAUSIBILITY_FLAG: "The software's plausibility check flagged something it cannot judge",
-  DENIAL_CATEGORY: "The insurer's denial turns on clinical judgment",
-  SAFETY_RULE: "A clinical safety rule fired",
-  READINESS_CLINICAL_FACT: "The pre-authorization relies on clinical facts only a doctor can confirm",
+  MANUAL: msg("The patient asked for a clinical review"),
+  PLAUSIBILITY_FLAG: msg("The software's plausibility check flagged something it cannot judge"),
+  DENIAL_CATEGORY: msg("The insurer's denial turns on clinical judgment"),
+  SAFETY_RULE: msg("A clinical safety rule fired"),
+  READINESS_CLINICAL_FACT: msg("The pre-authorization relies on clinical facts only a doctor can confirm"),
 };
 
 export interface StatementEditorState {

@@ -13,27 +13,29 @@
 
 import { caseAuthHeaders, normalizeErrorDetail } from "../hooks/useApi";
 import { apiFetch } from "./apiFetch";
+import { msg } from "../i18n/format";
 
 export type Provenance = "AI_DERIVED" | "HUMAN_REVIEWED" | "HUMAN_AUTHORED" | "EXTERNAL_SOURCE" | "PATIENT_PROVIDED";
 
 export const PROVENANCE_LABELS: Record<Provenance, string> = {
-  AI_DERIVED: "Machine-derived",
-  HUMAN_REVIEWED: "Human-reviewed",
-  HUMAN_AUTHORED: "Human-authored",
-  EXTERNAL_SOURCE: "External source",
-  PATIENT_PROVIDED: "Patient-provided",
+  AI_DERIVED: msg("Machine-derived"),
+  HUMAN_REVIEWED: msg("Human-reviewed"),
+  HUMAN_AUTHORED: msg("Human-authored"),
+  EXTERNAL_SOURCE: msg("External source"),
+  PATIENT_PROVIDED: msg("Patient-provided"),
 };
 
 export const COI_OPTIONS: { value: string; label: string }[] = [
-  { value: "INDEPENDENT_REVIEWER", label: "Independent — no relationship with patient, hospital or insurer" },
-  { value: "TREATING_DOCTOR", label: "I am the treating doctor" },
-  { value: "HOSPITAL_AFFILIATED", label: "Affiliated with the treating hospital" },
-  { value: "INSURER_AFFILIATED", label: "Affiliated with the insurer" },
-  { value: "OTHER", label: "Other relationship (disclosure required)" },
+  { value: "INDEPENDENT_REVIEWER", label: msg("Independent — no relationship with patient, hospital or insurer") },
+  { value: "TREATING_DOCTOR", label: msg("I am the treating doctor") },
+  { value: "HOSPITAL_AFFILIATED", label: msg("Affiliated with the treating hospital") },
+  { value: "INSURER_AFFILIATED", label: msg("Affiliated with the insurer") },
+  { value: "OTHER", label: msg("Other relationship (disclosure required)") },
 ];
 
-export const SAFETY_FLOOR_DISCLAIMER =
-  "This safety layer is a decision-support floor, not a substitute for professional clinical assessment.";
+export const SAFETY_FLOOR_DISCLAIMER = msg(
+  "This safety layer is a decision-support floor, not a substitute for professional clinical assessment.",
+);
 
 export interface ReviewerProfile {
   id: string;

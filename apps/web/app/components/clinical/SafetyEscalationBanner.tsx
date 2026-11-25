@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { SafetyEvaluation, clinicalPaths, clinicalRequest } from "../../lib/clinical";
+import { useT } from "../../i18n/useT";
 
 /**
  * Shows red-flag escalations from ACTIVE, board-approved safety rules. Always shows the
@@ -9,6 +10,7 @@ import { SafetyEvaluation, clinicalPaths, clinicalRequest } from "../../lib/clin
  * escalation" means "safe".
  */
 export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: string }> = ({ caseId, caseToken }) => {
+  const tr = useT();
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -38,9 +40,9 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
       <div role="alert" className="safety-card is-unavailable">
         <SafetyIcon />
         <div>
-          <strong>Safety check unavailable.</strong> The clinical safety check could not be run
-          {failure ? ` (${failure})` : ""}. No safety assessment has been made for this case — this is not the same as
-          &quot;nothing found&quot;. If you have urgent symptoms, seek medical care directly.
+          <strong>{tr("Safety check unavailable.")}</strong>{" "}
+          {tr("The clinical safety check could not be run. No safety assessment has been made for this case — this is not the same as \"nothing found\". If you have urgent symptoms, seek medical care directly.")}
+          {failure ? ` (${failure})` : ""}
         </div>
       </div>
     );
@@ -53,7 +55,7 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
       <div className="safety-card is-quiet">
         <SafetyIcon />
         <p>
-          <strong>Safety check:</strong> {evaluation.coverage_note} {evaluation.disclaimer}
+          <strong>{tr("Safety check:")}</strong> {evaluation.coverage_note} {evaluation.disclaimer}
         </p>
       </div>
     );
@@ -63,20 +65,19 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
     <section role="alert" aria-labelledby="safety-escalation-title" className="safety-card is-escalated">
       <SafetyIcon />
       <div>
-        <h3 id="safety-escalation-title">Clinical safety check</h3>
+        <h3 id="safety-escalation-title">{tr("Clinical safety check")}</h3>
         {evaluation.escalations.map((esc) => (
           <div key={esc.rule_id} className="safety-escalation">
             <strong>
               {esc.severity === "URGENT" && (
                 <>
-                  <span className="safety-urgent">Urgent</span>{" "}
+                  <span className="safety-urgent">{tr("Urgent")}</span>{" "}
                 </>
               )}
               {esc.title}
             </strong>
             <p>{esc.message}</p>
-            <p className="safety-source">
-              Matched words: {esc.matched_terms.join(", ")} · Rule v{esc.rule_version} · Source: {esc.source.name}
+            <p className="safety-source">{tr("Matched words:")}{" "}{esc.matched_terms.join(", ")}{" "}{tr("· Rule v")}{esc.rule_version}{" "}{tr("· Source:")}{" "}{esc.source.name}
               {esc.source.version ? ` (${esc.source.version})` : ""}
               {esc.source.section ? `, ${esc.source.section}` : ""}
             </p>
@@ -85,8 +86,8 @@ export const SafetyEscalationBanner: React.FC<{ caseId: string; caseToken?: stri
                 <li key={l}>{l}</li>
               ))}
             </ul>
-            {esc.human_review_recommended && <p>A human clinician should assess this; ArogyaRakshak cannot.</p>}
-            {esc.rule_review_overdue && <p className="safety-overdue">This rule is past its scheduled review date.</p>}
+            {esc.human_review_recommended && <p>{tr("A human clinician should assess this; ArogyaRakshak cannot.")}</p>}
+            {esc.rule_review_overdue && <p className="safety-overdue">{tr("This rule is past its scheduled review date.")}</p>}
           </div>
         ))}
         <p className="safety-disclaimer">{evaluation.disclaimer}</p>

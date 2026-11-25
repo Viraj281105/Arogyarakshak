@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { DemoAccountNote } from "../auth/DemoAccountNote";
 import type { OwnedCaseSummary } from "../../shared/api-client";
 import { DocumentUploader } from "../DocumentUploader";
 import { DemoBanner, DemoPill, useDemoStatus } from "../demo/DemoBanner";
@@ -11,12 +12,11 @@ import { StatePanel } from "../clinical/StatePanel";
 import { PageHeader } from "../ui/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { StatusBadge } from "../ui/Badges";
-import { useAccount } from "../../hooks/useAccount";
 import { useGuestCases } from "../../hooks/useCases";
-import { CaseApiError, claimCase, createCase, fetchCaseDetail, listOwnedCases, uploadDocument, type CaseSummary } from "../../lib/caseApi";
-import { addGuestCase, removeGuestCase, setActiveCase, type GuestCase } from "../../lib/caseStore";
+import { CaseApiError, claimCase, createCase, listOwnedCases, uploadDocument, type CaseSummary } from "../../lib/caseApi";
+import { removeGuestCase, setActiveCase, type GuestCase } from "../../lib/caseStore";
 import type { DemoScenarioResult } from "../../lib/demo";
-import { AUTH_PATHS, CASE_PATH, MODULE_ORDER, moduleFromHash, moduleHref } from "../../shell/nav";
+import { CASE_PATH, MODULE_ORDER, moduleFromHash, moduleHref } from "../../shell/nav";
 import { useHeaderSlot, useLanguage } from "../../shell/ShellProvider";
 import { shellCopy } from "../../shell/shellCopy";
 import { TransitionLink } from "../../shell/TransitionLink";
@@ -24,6 +24,8 @@ import { uploadCopy } from "../../lib/uploadCopy";
 import { caseCopy, type CaseCopy } from "./caseCopy";
 import { deskCopy, type DeskCopy } from "./deskCopy";
 import { fillCopy, formatDate, formatRupees, shortCaseId } from "./workspaceFormat";
+import { useT } from "../../i18n/useT";
+import { msg } from "../../i18n/format";
 
 type WsCopy = CaseCopy & DeskCopy;
 
@@ -32,33 +34,31 @@ const DemoControls = dynamic(() => import("../demo/DemoControls").then((m) => m.
 });
 
 /**
- * The case desk (`/app`). Signed in: the account's cases from the server (GET /kadi/cases). Guest:
- * the cases this browser tab holds (sessionStorage, decision D2), with a prompt to sign in and,
- * once signed in, a "keep in my account" claim for each. Starting a case creates it (owned when
- * signed in) and opens it in the workspace; the case never goes into the URL.
+ * The case desk (`/app`, signed-in accounts only): the account's cases from the server
+ * (GET /kadi/cases). A tab that still holds the key of a case started before sign-in was
+ * required can move it into the account. Starting a case creates it and opens it in the
+ * workspace; the case never goes into the URL.
  */
-// Shortcut blurbs (transformation M8). English only for now: hi/mr need native-speaker copy, so the
-// elements carry lang="en" in the other languages rather than an unreviewed translation.
+// Shortcut blurbs (transformation M8).
 const SHORTCUT_BLURB: Record<(typeof MODULE_ORDER)[number], string> = {
-  billnyay: "CGHS line-by-line bill check, ICD-10 consistency hint and appeal draft",
-  daavisetu: "Pre-authorisation readiness and Annexure-B package",
-  bimanyay: "IRDAI denial clause check, three-tier appeal drafts and deadlines",
-  schemesetu: "Provisional PM-JAY and MJPJAY eligibility with citations",
-  dawacheck: "Per-unit NPPA ceiling check and prescription shorthand",
+  billnyay: msg("CGHS line-by-line bill check, ICD-10 consistency hint and appeal draft"),
+  daavisetu: msg("Pre-authorisation readiness and Annexure-B package"),
+  bimanyay: msg("IRDAI denial clause check, three-tier appeal drafts and deadlines"),
+  schemesetu: msg("Provisional PM-JAY and MJPJAY eligibility with citations"),
+  dawacheck: msg("Per-unit NPPA ceiling check and prescription shorthand"),
 };
 
 export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; intakeArt?: React.ReactNode } = {}) {
+  const tr = useT();
   const [lang] = useLanguage();
   const c = { ...caseCopy[lang], ...deskCopy[lang] };
   const upload = uploadCopy[lang];
   const router = useRouter();
-  const account = useAccount();
   const guests = useGuestCases();
   const demoStatus = useDemoStatus();
   useHeaderSlot(useMemo(() => <DemoPill status={demoStatus} />, [demoStatus]));
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
-  const signedIn = account.status === "signed-in";
 
   // Old links (`/app#module-<id>`) open that check on its own page now.
   useEffect(() => {
@@ -67,8 +67,8 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
   }, [router]);
 
   const open = useCallback(
-    (id: string, owned: boolean) => {
-      setActiveCase({ id, owned });
+    (id: string) => {
+      setActiveCase({ id, owned: true });
       router.push(CASE_PATH);
     },
     [router],
@@ -81,7 +81,6 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
     setStartError(null);
     try {
       const ref = await createCase(consent);
-      if (!ref.owned && ref.token) addGuestCase({ id: ref.id, token: ref.token });
       setActiveCase({ id: ref.id, owned: ref.owned });
       await uploadDocument(ref, file);
       router.push(CASE_PATH);
@@ -92,11 +91,8 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
     }
   };
 
-  // Demo kit: a scenario arrives as an already-processed guest case.
-  const onScenarioLoaded = (result: DemoScenarioResult) => {
-    addGuestCase({ id: result.case_id, token: result.access_token });
-    open(result.case_id, false);
-  };
+  // Demo kit: a scenario arrives as an already-processed case in the signed-in account.
+  const onScenarioLoaded = (result: DemoScenarioResult) => open(result.case_id);
 
   return (
     <>
@@ -104,6 +100,7 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
       <div className="container ws-desk">
         <DemoBanner status={demoStatus} />
         <PageHeader kicker={c.desk.kicker} title={c.desk.title} lede={c.desk.lede} />
+        <DemoAccountNote className="ws-warning" />
 
         {demoStatus?.demo_mode && <DemoControls status={demoStatus} onScenarioLoaded={onScenarioLoaded} onReset={() => undefined} />}
 
@@ -113,7 +110,7 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
             <h2 id="ws-start-title" className="ws-section-title">
               {c.desk.startTitle}
             </h2>
-            <p className="ws-section-lede">{signedIn ? c.desk.startOwned : c.desk.startGuest}</p>
+            <p className="ws-section-lede">{c.desk.startOwned}</p>
             <DocumentUploader currentLang={lang} onStartAudit={onStart} isProcessing={starting} />
             {startError && <StatePanel kind="error">{startError}</StatePanel>}
           </div>
@@ -125,18 +122,14 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
         </section>
 
         <section className="ws-section" aria-labelledby="ws-shortcuts-title">
-          <h2 id="ws-shortcuts-title" className="ws-section-title" lang={lang === "en" ? undefined : "en"}>
-            Standalone &amp; case tools
-          </h2>
-          <p className="ws-section-lede" lang={lang === "en" ? undefined : "en"}>
-            Open any module directly. BillNyay and DaaviSetu work on an uploaded case; BimaNyay, DawaCheck, and SchemeSetu also work without uploading a document.
-          </p>
+          <h2 id="ws-shortcuts-title" className="ws-section-title">{tr("Standalone & case tools")}</h2>
+          <p className="ws-section-lede">{tr("Open any module directly. BillNyay and DaaviSetu work on an uploaded case; BimaNyay, DawaCheck, and SchemeSetu also work without uploading a document.")}</p>
           <ul className="ws-shortcuts">
             {MODULE_ORDER.map((id) => (
               <li key={id}>
                 <TransitionLink href={moduleHref(id)} className={`ws-shortcut-card ws-mod-${id}`}>
                   <strong>{shellCopy[lang].tabs[id]}</strong>
-                  <span lang={lang === "en" ? undefined : "en"}>{SHORTCUT_BLURB[id]}</span>
+                  <span>{tr(SHORTCUT_BLURB[id])}</span>
                 </TransitionLink>
               </li>
             ))}
@@ -147,31 +140,11 @@ export function CaseDesk({ intakeBg, intakeArt }: { intakeBg?: React.ReactNode; 
           <h2 id="ws-cases-title" className="ws-section-title">
             {c.desk.casesTitle}
           </h2>
-          {signedIn ? <OwnedCases c={c} lang={lang} onOpen={(id) => open(id, true)} /> : <SignInPrompt c={c} lang={lang} expired={account.status === "expired"} />}
-          {(guests.length > 0 || !signedIn) && (
-            <GuestCases c={c} lang={lang} guests={guests} signedIn={signedIn} onOpen={(id) => open(id, false)} />
-          )}
+          <OwnedCases c={c} lang={lang} onOpen={open} />
+          {guests.length > 0 && <OlderCases c={c} guests={guests} />}
         </section>
       </div>
     </>
-  );
-}
-
-function SignInPrompt({ c, lang, expired }: { c: WsCopy; lang: keyof typeof shellCopy; expired: boolean }) {
-  const a = shellCopy[lang].account;
-  return (
-    <div className="ws-prompt" role="note">
-      <p className="ws-prompt-title">{expired ? a.sessionEnded : c.desk.keepTitle}</p>
-      <p>{c.desk.keepBody}</p>
-      <p className="ws-prompt-actions">
-        <TransitionLink href={AUTH_PATHS.login} className="btn btn-primary btn-compact">
-          {a.signIn}
-        </TransitionLink>
-        <TransitionLink href={AUTH_PATHS.register} className="btn btn-secondary btn-compact">
-          {a.register}
-        </TransitionLink>
-      </p>
-    </div>
   );
 }
 
@@ -264,101 +237,62 @@ function CaseFacts({ c, lang, summary, expiresAt }: { c: WsCopy; lang: keyof typ
   );
 }
 
-function GuestCases({ c, lang, guests, signedIn, onOpen }: { c: WsCopy; lang: keyof typeof shellCopy; guests: GuestCase[]; signedIn: boolean; onOpen: (id: string) => void }) {
+/** Cases created before mandatory sign-in: their key in this tab can only claim them. */
+function OlderCases({ c, guests }: { c: WsCopy; guests: GuestCase[] }) {
   return (
     <div className="ws-guest">
       <h3 className="ws-subtitle">{c.desk.guestTitle}</h3>
       <p className="ws-section-lede">{c.desk.guestNote}</p>
-      {guests.length === 0 ? (
-        <EmptyState title={c.desk.noGuestCases}>
-          <p>{c.desk.noGuestCasesBody}</p>
-        </EmptyState>
-      ) : (
-        <ul className="ws-case-list" aria-label={c.desk.guestListLabel}>
-          {guests.map((g) => (
-            <GuestCaseRow key={g.id} c={c} lang={lang} guest={g} signedIn={signedIn} onOpen={onOpen} />
-          ))}
-        </ul>
-      )}
+      <ul className="ws-case-list" aria-label={c.desk.guestListLabel}>
+        {guests.map((g) => (
+          <OlderCaseRow key={g.id} c={c} guest={g} />
+        ))}
+      </ul>
     </div>
   );
 }
 
-function GuestCaseRow({ c, lang, guest, signedIn, onOpen }: { c: WsCopy; lang: keyof typeof shellCopy; guest: GuestCase; signedIn: boolean; onOpen: (id: string) => void }) {
-  const [summary, setSummary] = useState<CaseSummary | null>(null);
-  const [status, setStatus] = useState<"loading" | "ok" | "gone" | "claimed-elsewhere" | "error">("loading");
+function OlderCaseRow({ c, guest }: { c: WsCopy; guest: GuestCase }) {
   const [claiming, setClaiming] = useState(false);
-  const [claimError, setClaimError] = useState<string | null>(null);
-  const ref = useMemo(() => ({ id: guest.id, token: guest.token, owned: false }), [guest.id, guest.token]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchCaseDetail(ref)
-      .then((d) => {
-        if (cancelled) return;
-        setSummary(d.case);
-        setStatus("ok");
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const s = err instanceof CaseApiError ? err.status : 0;
-        // 404: deleted or expired. 403: the token no longer opens it (it was moved into an account).
-        setStatus(s === 404 ? "gone" : s === 403 ? "claimed-elsewhere" : "error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ref]);
+  const [error, setError] = useState<string | null>(null);
 
   const claim = async () => {
     setClaiming(true);
-    setClaimError(null);
+    setError(null);
     try {
       await claimCase(guest.id, guest.token);
-      // The case token stops working now; the account's session opens the case from here on.
+      // The case key stops working now; the account's session opens the case from here on.
       removeGuestCase(guest.id);
       window.dispatchEvent(new Event("arogya:case-claimed"));
     } catch (err) {
-      setClaimError(err instanceof Error ? err.message : String(err));
+      const status = err instanceof CaseApiError ? err.status : 0;
+      // 404: deleted or expired. 403: the key no longer opens it.
+      setError(status === 404 ? c.desk.guestGone : status === 403 ? c.desk.guestRefused : err instanceof Error ? err.message : c.desk.guestError);
     } finally {
       setClaiming(false);
     }
   };
 
-  const title = fillCopy(c.frame.caseTitle, { id: shortCaseId(guest.id) });
+  const id = shortCaseId(guest.id);
   return (
     <li className="ws-case-row">
       <div className="ws-case-row-main">
         <p className="ws-case-row-title">
-          {title} <StatusBadge tone="info">{c.common.guest}</StatusBadge>
+          {fillCopy(c.frame.caseTitle, { id })} <StatusBadge tone="info">{c.common.guest}</StatusBadge>
         </p>
-        {status === "loading" && <p className="ws-muted">{c.common.loading}</p>}
-        {status === "ok" && summary && <CaseFacts c={c} lang={lang} summary={summary} />}
-        {status === "gone" && <p className="ws-muted">{c.desk.guestGone}</p>}
-        {status === "claimed-elsewhere" && <p className="ws-muted">{c.desk.guestRefused}</p>}
-        {status === "error" && <p className="ws-muted">{c.desk.guestError}</p>}
-        {claimError && (
+        {error && (
           <p className="ws-error" role="alert">
-            {claimError}
+            {error}
           </p>
         )}
       </div>
       <div className="ws-case-row-actions">
-        {status === "ok" && (
-          <button type="button" className="btn btn-primary btn-compact" onClick={() => onOpen(guest.id)} aria-label={fillCopy(c.desk.openAria, { id: shortCaseId(guest.id) })}>
-            {c.desk.open}
-          </button>
-        )}
-        {status === "ok" && signedIn && (
-          <button type="button" className="btn btn-secondary btn-compact" onClick={claim} disabled={claiming} aria-label={fillCopy(c.desk.claimAria, { id: shortCaseId(guest.id) })}>
-            {claiming ? c.desk.claiming : c.desk.claim}
-          </button>
-        )}
-        {(status === "gone" || status === "claimed-elsewhere" || status === "error") && (
-          <button type="button" className="btn btn-secondary btn-compact" onClick={() => removeGuestCase(guest.id)}>
-            {c.desk.forget}
-          </button>
-        )}
+        <button type="button" className="btn btn-primary btn-compact" onClick={claim} disabled={claiming} aria-label={fillCopy(c.desk.claimAria, { id })}>
+          {claiming ? c.desk.claiming : c.desk.claim}
+        </button>
+        <button type="button" className="btn btn-secondary btn-compact" onClick={() => removeGuestCase(guest.id)}>
+          {c.desk.forget}
+        </button>
       </div>
     </li>
   );

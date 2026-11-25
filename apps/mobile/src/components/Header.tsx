@@ -5,14 +5,20 @@ import { useTheme, textStyles, font, textStyleFor } from '../theme';
 import { Language } from '../translations';
 import { Pressable } from '../motion';
 import { segmentSwatch } from './ui/tones';
+import { tr, useTranslation } from '../translations/tr';
 
 export interface HeaderProps {
   title?: string;
   currentLanguage: Language;
   onLanguageChange: (lang: Language) => void;
+  /** Shown only while signed in. */
+  onSignOut?: () => void;
+  signOutLabel?: string;
 }
 
 const LANGUAGES: Language[] = ['en', 'hi', 'mr'];
+// Each language in its own script, so a person can find theirs whatever is selected.
+const LANGUAGE_NAMES: Record<Language, string> = { en: 'English', hi: 'हिंदी', mr: 'मराठी' };
 
 /**
  * App header: pads the top safe-area inset, brand in the display face with the BYOD marker under
@@ -22,7 +28,10 @@ export const Header: React.FC<HeaderProps> = ({
   title = 'ArogyaRakshak',
   currentLanguage,
   onLanguageChange,
+  onSignOut,
+  signOutLabel = tr('Sign out'),
 }) => {
+  useTranslation();
   const { colors, spacing, radii, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -68,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active, checked: active }}
                 aria-checked={active}
-                accessibilityLabel={`Switch to ${lang}`}
+                accessibilityLabel={tr('Switch to {language}', { language: LANGUAGE_NAMES[lang] })}
                 style={[
                   styles.segment,
                   {
@@ -96,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
         <Pressable
           onPress={toggleTheme}
           accessibilityRole="button"
-          accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          accessibilityLabel={isDark ? tr('Switch to light mode') : tr('Switch to dark mode')}
           style={[
             styles.themeToggle,
             {
@@ -111,6 +120,27 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Text style={styles.themeIcon}>{isDark ? '☀️' : '🌙'}</Text>
         </Pressable>
+
+        {onSignOut && (
+          <Pressable
+            onPress={onSignOut}
+            accessibilityRole="button"
+            accessibilityLabel={signOutLabel}
+            style={[
+              styles.themeToggle,
+              {
+                minHeight: spacing.minTouchTarget,
+                minWidth: spacing.minTouchTarget,
+                borderRadius: radii.md,
+                backgroundColor: colors.bgSurfaceElevated,
+                borderColor: colors.borderSubtle,
+                marginLeft: spacing.xs,
+              },
+            ]}
+          >
+            <Text style={styles.themeIcon}>⎋</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );

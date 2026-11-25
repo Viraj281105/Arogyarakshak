@@ -1,0 +1,507 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "revision": null,
+    "baseRevision": "4b37e4eb9d84dbf37cda5828aa3f949d2324cd27",
+    "sourceKind": "working-tree",
+    "root": "apps/api/app",
+    "url": "https://github.com/Viraj281105/Arogyarakshak.git",
+    "language": "py",
+    "adapter": "pyright-parser@1.1.414/python-3.14",
+    "adapterRevision": 17,
+    "snapshotId": "f83265812310c77c5f98430a2031b9be04018b3f3dcbe132ef0a56d9d9a68e40"
+  },
+  "grouping": {
+    "depth": 2,
+    "packageBoundaries": true,
+    "groups": []
+  },
+  "excluded": {
+    "roles": [
+      "generated",
+      "test"
+    ],
+    "files": 0
+  },
+  "modules": [
+    {
+      "id": "account_auth",
+      "label": "account_auth.py",
+      "path": "",
+      "files": 1,
+      "loc": 128,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "account_auth.py"
+      ]
+    },
+    {
+      "id": "api",
+      "label": "api",
+      "path": "api",
+      "files": 1,
+      "loc": 0,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "api/__init__.py"
+      ]
+    },
+    {
+      "id": "api-v1",
+      "label": "api/v1",
+      "path": "api/v1",
+      "files": 28,
+      "loc": 4279,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "api/v1/__init__.py",
+        "api/v1/endpoints/__init__.py",
+        "api/v1/endpoints/clinical_review/__init__.py"
+      ]
+    },
+    {
+      "id": "auth_gate",
+      "label": "auth_gate.py",
+      "path": "",
+      "files": 1,
+      "loc": 60,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "auth_gate.py"
+      ]
+    },
+    {
+      "id": "auto_triggers",
+      "label": "auto_triggers.py",
+      "path": "",
+      "files": 1,
+      "loc": 223,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "auto_triggers.py"
+      ]
+    },
+    {
+      "id": "background",
+      "label": "background.py",
+      "path": "",
+      "files": 1,
+      "loc": 35,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "background.py"
+      ]
+    },
+    {
+      "id": "case_auth",
+      "label": "case_auth.py",
+      "path": "",
+      "files": 1,
+      "loc": 108,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "case_auth.py"
+      ]
+    },
+    {
+      "id": "case_retention",
+      "label": "case_retention.py",
+      "path": "",
+      "files": 1,
+      "loc": 109,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "case_retention.py"
+      ]
+    },
+    {
+      "id": "case_timeline",
+      "label": "case_timeline.py",
+      "path": "",
+      "files": 1,
+      "loc": 103,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "case_timeline.py"
+      ]
+    },
+    {
+      "id": "claim_pack",
+      "label": "claim_pack.py",
+      "path": "",
+      "files": 1,
+      "loc": 364,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "claim_pack.py"
+      ]
+    },
+    {
+      "id": "clinical",
+      "label": "clinical",
+      "path": "clinical",
+      "files": 19,
+      "loc": 3287,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "clinical/__init__.py",
+        "clinical/audit.py",
+        "clinical/auth.py"
+      ]
+    },
+    {
+      "id": "config",
+      "label": "config.py",
+      "path": "",
+      "files": 1,
+      "loc": 224,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "config.py"
+      ]
+    },
+    {
+      "id": "consent",
+      "label": "consent.py",
+      "path": "",
+      "files": 1,
+      "loc": 68,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "consent.py"
+      ]
+    },
+    {
+      "id": "daavisetu_playbooks",
+      "label": "daavisetu_playbooks.py",
+      "path": "",
+      "files": 1,
+      "loc": 269,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "daavisetu_playbooks.py"
+      ]
+    },
+    {
+      "id": "database",
+      "label": "database.py",
+      "path": "",
+      "files": 1,
+      "loc": 55,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "database.py"
+      ]
+    },
+    {
+      "id": "evaluation",
+      "label": "evaluation",
+      "path": "evaluation",
+      "files": 17,
+      "loc": 2067,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "evaluation/__init__.py",
+        "evaluation/anomaly.py",
+        "evaluation/appeal_completeness.py"
+      ]
+    },
+    {
+      "id": "kadi_resolution",
+      "label": "kadi_resolution.py",
+      "path": "",
+      "files": 1,
+      "loc": 370,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "kadi_resolution.py"
+      ]
+    },
+    {
+      "id": "latency_metrics",
+      "label": "latency_metrics.py",
+      "path": "",
+      "files": 1,
+      "loc": 150,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "latency_metrics.py"
+      ]
+    },
+    {
+      "id": "main",
+      "label": "main.py",
+      "path": "",
+      "files": 1,
+      "loc": 410,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "main.py"
+      ]
+    },
+    {
+      "id": "models",
+      "label": "models",
+      "path": "models",
+      "files": 11,
+      "loc": 986,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "models/__init__.py",
+        "models/accounts.py",
+        "models/billnyay.py"
+      ]
+    },
+    {
+      "id": "module-__init__",
+      "label": "__init__.py",
+      "path": "",
+      "files": 1,
+      "loc": 1,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "__init__.py"
+      ]
+    },
+    {
+      "id": "observability",
+      "label": "observability.py",
+      "path": "",
+      "files": 1,
+      "loc": 205,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "observability.py"
+      ]
+    },
+    {
+      "id": "rate_limit",
+      "label": "rate_limit.py",
+      "path": "",
+      "files": 1,
+      "loc": 126,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "rate_limit.py"
+      ]
+    },
+    {
+      "id": "schema",
+      "label": "schema.py",
+      "path": "",
+      "files": 1,
+      "loc": 90,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "schema.py"
+      ]
+    },
+    {
+      "id": "services",
+      "label": "services",
+      "path": "services",
+      "files": 18,
+      "loc": 3238,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "services/__init__.py",
+        "services/accounts.py",
+        "services/billnyay_appeal.py"
+      ]
+    },
+    {
+      "id": "telemetry",
+      "label": "telemetry",
+      "path": "telemetry",
+      "files": 7,
+      "loc": 679,
+      "fanIn": 0,
+      "fanOut": 0,
+      "instability": null,
+      "entry": [
+        "telemetry/__init__.py",
+        "telemetry/context_metrics.py",
+        "telemetry/llm_metrics.py"
+      ]
+    }
+  ],
+  "fileModules": {
+    "__init__.py": "module-__init__",
+    "account_auth.py": "account_auth",
+    "api/__init__.py": "api",
+    "api/v1/__init__.py": "api-v1",
+    "api/v1/api.py": "api-v1",
+    "api/v1/endpoints/__init__.py": "api-v1",
+    "api/v1/endpoints/accounts.py": "api-v1",
+    "api/v1/endpoints/billnyay.py": "api-v1",
+    "api/v1/endpoints/bimanyay.py": "api-v1",
+    "api/v1/endpoints/claim_pack.py": "api-v1",
+    "api/v1/endpoints/clinical_demo.py": "api-v1",
+    "api/v1/endpoints/clinical_review/__init__.py": "api-v1",
+    "api/v1/endpoints/clinical_review/case_holder.py": "api-v1",
+    "api/v1/endpoints/clinical_review/registry.py": "api-v1",
+    "api/v1/endpoints/clinical_review/reviewer.py": "api-v1",
+    "api/v1/endpoints/clinical_review/schemas.py": "api-v1",
+    "api/v1/endpoints/clinical_safety.py": "api-v1",
+    "api/v1/endpoints/clinical_transcription.py": "api-v1",
+    "api/v1/endpoints/daavisetu/__init__.py": "api-v1",
+    "api/v1/endpoints/daavisetu/claims.py": "api-v1",
+    "api/v1/endpoints/daavisetu/readiness.py": "api-v1",
+    "api/v1/endpoints/dawacheck.py": "api-v1",
+    "api/v1/endpoints/kadi/__init__.py": "api-v1",
+    "api/v1/endpoints/kadi/abdm.py": "api-v1",
+    "api/v1/endpoints/kadi/actions.py": "api-v1",
+    "api/v1/endpoints/kadi/cases.py": "api-v1",
+    "api/v1/endpoints/kadi/insights.py": "api-v1",
+    "api/v1/endpoints/kadi/loaders.py": "api-v1",
+    "api/v1/endpoints/kadi/resolution.py": "api-v1",
+    "api/v1/endpoints/kadi/schemas.py": "api-v1",
+    "api/v1/endpoints/schemesetu.py": "api-v1",
+    "auth_gate.py": "auth_gate",
+    "auto_triggers.py": "auto_triggers",
+    "background.py": "background",
+    "case_auth.py": "case_auth",
+    "case_retention.py": "case_retention",
+    "case_timeline.py": "case_timeline",
+    "claim_pack.py": "claim_pack",
+    "clinical/__init__.py": "clinical",
+    "clinical/audit.py": "clinical",
+    "clinical/auth.py": "clinical",
+    "clinical/case_reviews.py": "clinical",
+    "clinical/context.py": "clinical",
+    "clinical/demo.py": "clinical",
+    "clinical/demo_account.py": "clinical",
+    "clinical/demo_control.py": "clinical",
+    "clinical/demo_ocr.py": "clinical",
+    "clinical/events.py": "clinical",
+    "clinical/facts.py": "clinical",
+    "clinical/purge.py": "clinical",
+    "clinical/review_common.py": "clinical",
+    "clinical/reviewer_reviews.py": "clinical",
+    "clinical/safety_service.py": "clinical",
+    "clinical/serializers.py": "clinical",
+    "clinical/service.py": "clinical",
+    "clinical/statements.py": "clinical",
+    "clinical/transcription_service.py": "clinical",
+    "config.py": "config",
+    "consent.py": "consent",
+    "daavisetu_playbooks.py": "daavisetu_playbooks",
+    "database.py": "database",
+    "evaluation/__init__.py": "evaluation",
+    "evaluation/anomaly.py": "evaluation",
+    "evaluation/appeal_completeness.py": "evaluation",
+    "evaluation/bma.py": "evaluation",
+    "evaluation/context_reuse.py": "evaluation",
+    "evaluation/crma.py": "evaluation",
+    "evaluation/datasets.py": "evaluation",
+    "evaluation/dawacheck_mapping.py": "evaluation",
+    "evaluation/grounding.py": "evaluation",
+    "evaluation/metrics.py": "evaluation",
+    "evaluation/ocr_wer.py": "evaluation",
+    "evaluation/pea.py": "evaluation",
+    "evaluation/regression.py": "evaluation",
+    "evaluation/retrieval.py": "evaluation",
+    "evaluation/retrieval_corpus.py": "evaluation",
+    "evaluation/runner.py": "evaluation",
+    "evaluation/terminology.py": "evaluation",
+    "kadi_resolution.py": "kadi_resolution",
+    "latency_metrics.py": "latency_metrics",
+    "main.py": "main",
+    "models/__init__.py": "models",
+    "models/accounts.py": "models",
+    "models/billnyay.py": "models",
+    "models/bimanyay.py": "models",
+    "models/clinical_review.py": "models",
+    "models/daavisetu.py": "models",
+    "models/dawacheck.py": "models",
+    "models/kadi.py": "models",
+    "models/safety.py": "models",
+    "models/schemesetu.py": "models",
+    "models/transcription.py": "models",
+    "observability.py": "observability",
+    "rate_limit.py": "rate_limit",
+    "schema.py": "schema",
+    "services/__init__.py": "services",
+    "services/accounts.py": "services",
+    "services/billnyay_appeal.py": "services",
+    "services/billnyay_audit.py": "services",
+    "services/billnyay_llm.py": "services",
+    "services/case_actions.py": "services",
+    "services/case_context.py": "services",
+    "services/case_ingestion.py": "services",
+    "services/case_purge.py": "services",
+    "services/daavisetu_claims.py": "services",
+    "services/dawacheck_benchmarks.py": "services",
+    "services/document_jobs.py": "services",
+    "services/ingestion_mentions.py": "services",
+    "services/login_throttle.py": "services",
+    "services/mail.py": "services",
+    "services/mail_gmail.py": "services",
+    "services/passwords.py": "services",
+    "services/schemesetu_eligibility.py": "services",
+    "telemetry/__init__.py": "telemetry",
+    "telemetry/context_metrics.py": "telemetry",
+    "telemetry/llm_metrics.py": "telemetry",
+    "telemetry/metrics.py": "telemetry",
+    "telemetry/settings.py": "telemetry",
+    "telemetry/span_scrub.py": "telemetry",
+    "telemetry/tracing.py": "telemetry"
+  },
+  "edges": [],
+  "unresolved": {
+    "external": 989,
+    "outside": 0,
+    "unknown": 0,
+    "opaque": 1
+  }
+}

@@ -1,5 +1,7 @@
 import React from "react";
 import { DocumentLink } from "./DocumentLink";
+import { T } from "../i18n/T";
+import { msg } from "../i18n/format";
 
 /**
  * Shared layout for the not-found and error pages. No hooks, so it renders from Server
@@ -53,7 +55,7 @@ export const StatusPage: React.FC<{
             <rect className="ill-sheet" x="24" y="18" width="260" height="296" rx="16" />
             <rect className="ill-sheet-margin" x="24" y="18" width="6" height="296" rx="3" />
             <text className="ill-kicker" x="50" y="54">
-              {variant === "missing" ? "ADDRESS" : "THIS PAGE"}
+              <T k={variant === "missing" ? msg("ADDRESS") : msg("THIS PAGE")} />
             </text>
             <line className="ill-rule" x1="50" x2="258" y1="70" y2="70" />
             {[0, 1, 2].map((i) => (
@@ -75,10 +77,10 @@ export const StatusPage: React.FC<{
             ))}
             <rect className="status-ill-missing" x="44" y="236" width="222" height="52" rx="10" />
             <text className="ill-label" x="58" y="259">
-              {variant === "missing" ? "No matching row" : "Could not be read"}
+              <T k={variant === "missing" ? msg("No matching row") : msg("Could not be read")} />
             </text>
             <text className="ill-sub" x="58" y="277">
-              {variant === "missing" ? "— so nothing is guessed" : "— nothing shown as done"}
+              <T k={variant === "missing" ? msg("— so nothing is guessed") : msg("— nothing shown as done")} />
             </text>
             {variant === "missing" ? (
               <g className="ill-mark ill-mark-unmatched" style={{ "--row": 3 } as React.CSSProperties}>

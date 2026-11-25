@@ -1,6 +1,6 @@
 import { ENV } from '../config/env';
 import { createClient } from '../shared/api-client';
-import { tokenHeaderForPath } from './caseAuth';
+import { noteUnauthorized, sessionHeaders } from './session';
 
 /**
  * Robust HTTP client for ArogyaRakshak mobile services
@@ -14,13 +14,8 @@ interface RequestOptions extends RequestInit {
 /**
  * Thin adapter over the shared client (packages/api-client, vendored into
  * src/shared/api-client). Timeout, multipart handling, FastAPI error normalisation and
- * the ApiError shape all live there; this file only binds the mobile environment
- * (base URL, timeout) and the ADR-009 case-token header.
- *
- * ADR-009: `tokenHeaderForPath` attaches this case's access token automatically when the
- * endpoint path names a case this session has a token for (and nothing for any other
- * path). An explicit header in `options` (e.g. a deliberate test probing a wrong/foreign
- * token) always wins over the auto-attached one.
+ * the ApiError shape all live there; this file only binds the mobile environment (base URL,
+ * timeout) and the account session header (ADR-029). A 401 ends the session on this device.
  *
  * Every rejection is an ApiError; a network failure or timeout has statusCode 0.
  */
@@ -28,8 +23,13 @@ export function request<T>(endpoint: string, options: RequestOptions = {}): Prom
   return createClient({
     baseUrl: ENV.API_BASE_URL,
     timeoutMs: ENV.TIMEOUT_MS,
-    headersFor: tokenHeaderForPath,
-  }).request<T>(endpoint, options);
+    headersFor: sessionHeaders,
+  })
+    .request<T>(endpoint, options)
+    .catch((error: unknown) => {
+      if ((error as { statusCode?: number }).statusCode === 401) noteUnauthorized(endpoint);
+      throw error;
+    });
 }
 
 export const apiClient = {

@@ -5,6 +5,7 @@ import type { Language } from "../shared/i18n/types";
 import { shellCopy } from "../shell/shellCopy";
 import { uploadCopy } from "../lib/uploadCopy";
 import { DOCUMENT_ACCEPT } from "../lib/documentAccept";
+import { useT } from "../i18n/useT";
 
 export { DOCUMENT_ACCEPT };
 
@@ -20,6 +21,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   onStartAudit,
   isProcessing,
 }) => {
+  const tr = useT();
   // Only the upload strings and the BYOD badge: the full page dictionary is not shipped here.
   const t = { upload: uploadCopy[currentLang], byodBadge: shellCopy[currentLang].byodBadge };
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -63,7 +65,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     <section className="intake-card" aria-labelledby="intake-title">
       <div className="intake-head">
         <div>
-          <p className="lp-kicker">Start a check</p>
+          <p className="lp-kicker">{tr("Start a check")}</p>
           <h2 id="intake-title">{t.upload.title}</h2>
           <p>{t.upload.subtitle}</p>
         </div>
@@ -85,7 +87,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           accept={DOCUMENT_ACCEPT}
           style={{ display: "none" }}
           id="file-upload-input"
-          aria-label="Upload document file"
+          aria-label={tr("Upload document file")}
         />
         <input
           type="file"
@@ -95,7 +97,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           capture="environment"
           style={{ display: "none" }}
           id="camera-capture-input"
-          aria-label="Snap photo with camera"
+          aria-label={tr("Snap photo with camera")}
         />
 
         <div
@@ -107,15 +109,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handleTriggerBrowse();
-            }
-          }}
-          aria-label="Document upload dropzone"
         >
           <span className="dropzone-icon" aria-hidden="true">
             <svg width="26" height="26" viewBox="0 0 24 24" className="lp-icon">
@@ -130,19 +123,19 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           <p className="dropzone-title">
             {selectedFile ? (
               <>
-                <span className="dropzone-selected-label">Selected</span>
+                <span className="dropzone-selected-label">{tr("Selected")}</span>
                 <span className="dropzone-filename">{selectedFile.name}</span>
               </>
             ) : (
               t.upload.dragDrop
             )}
           </p>
-          <p className="dropzone-hint">Hospital bills, discharge summaries, insurer letters or prescriptions</p>
+          <p className="dropzone-hint">{tr("Hospital bills, discharge summaries, insurer letters or prescriptions")}</p>
 
-          <ul className="lp-chips dropzone-facts" aria-label="Accepted files">
-            <li>PDF · JPG · PNG · TXT · CSV</li>
-            <li>Up to 10 MB</li>
-            <li>English text recognition for scans</li>
+          <ul className="lp-chips dropzone-facts" aria-label={tr("Accepted files")}>
+            <li>{tr("PDF · JPG · PNG · TXT · CSV")}</li>
+            <li>{tr("Up to 10 MB")}</li>
+            <li>{tr("English text recognition for scans")}</li>
           </ul>
 
           <div className="dropzone-actions" onClick={(e) => e.stopPropagation()}>

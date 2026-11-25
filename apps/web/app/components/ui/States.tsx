@@ -3,6 +3,7 @@ import CircleAlert from "lucide-react/icons/circle-alert";
 import FileQuestion from "lucide-react/icons/file-question-mark";
 import Inbox from "lucide-react/icons/inbox";
 import PuzzleIcon from "lucide-react/icons/puzzle";
+import { T } from "../../i18n/T";
 
 /**
  * The five page/panel states every Wave 3 screen must have (plan section 4). Server-safe. Each
@@ -32,7 +33,7 @@ export function EmptyState({ title, children, action }: { title: string; childre
   );
 }
 
-export function ErrorState({ title = "Something went wrong", children, action }: { title?: string; children?: React.ReactNode; action?: React.ReactNode }) {
+export function ErrorState({ title = <T k="Something went wrong" />, children, action }: { title?: React.ReactNode; children?: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="ui-state ui-state-error" role="alert">
       <CircleAlert size={22} aria-hidden="true" />
@@ -47,11 +48,11 @@ export function ErrorState({ title = "Something went wrong", children, action }:
 
 /** Some parts of a result are present and some are not; lists what is missing so it is not mistaken for complete. */
 export function PartialResultState({
-  title = "Partial result",
+  title = <T k="Partial result" />,
   missing,
   children,
 }: {
-  title?: string;
+  title?: React.ReactNode;
   /** What could not be produced, in plain words. Required: a partial state must say what is partial. */
   missing: readonly string[];
   children?: React.ReactNode;
@@ -62,7 +63,9 @@ export function PartialResultState({
       <div>
         <p className="ui-state-title">{title}</p>
         {children && <div className="ui-state-body">{children}</div>}
-        <p className="ui-state-body">Not available:</p>
+        <p className="ui-state-body">
+          <T k="Not available:" />
+        </p>
         <ul className="ui-state-list">
           {missing.map((m) => (
             <li key={m}>{m}</li>
@@ -75,11 +78,11 @@ export function PartialResultState({
 
 /** The engines did not have enough evidence to conclude. Says so instead of showing a guess. */
 export function InsufficientEvidenceState({
-  title = "Not enough evidence to conclude",
+  title = <T k="Not enough evidence to conclude" />,
   reason,
   children,
 }: {
-  title?: string;
+  title?: React.ReactNode;
   /** Why, in plain words (e.g. "No CGHS row matches this line"). */
   reason: string;
   children?: React.ReactNode;
@@ -91,7 +94,9 @@ export function InsufficientEvidenceState({
         <p className="ui-state-title">{title}</p>
         <p className="ui-state-body">{reason}</p>
         {children && <div className="ui-state-body">{children}</div>}
-        <p className="ui-state-note">No figure is shown, and nothing is guessed.</p>
+        <p className="ui-state-note">
+          <T k="No figure is shown, and nothing is guessed." />
+        </p>
       </div>
     </div>
   );

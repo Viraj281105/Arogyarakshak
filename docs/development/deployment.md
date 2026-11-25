@@ -33,7 +33,8 @@ Uploaded documents are never stored (ADR-003); `down -v` removes the case databa
 
 ## 4. Before any non-local hosting (not supported today)
 
-- Replace ADR-008 (no authentication) with real authentication.
+- Accounts exist and are required (ADR-029). Configure email delivery (ADR-030) so people can
+  verify addresses and recover passwords, and set `CORS_ORIGINS` and `WEB_APP_BASE_URL`.
 - Terminate TLS in front of the API and set `TRUSTED_PROXY_COUNT` to the real proxy hops.
 - `APP_ENV=production`, `CLINICAL_DEMO_MODE=false`, unique Postgres credentials, a real
   `DOCUMENT_SIGNING_SECRET`, and no host port mapping for Postgres.

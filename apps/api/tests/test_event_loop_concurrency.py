@@ -20,7 +20,11 @@ from httpx import ASGITransport, AsyncClient
 import app.api.v1.endpoints.kadi as kadi_module
 
 from app.services import case_ingestion  # ingestion pipeline (ADR-018)
+from app.background import get_background_session
 from app.main import app
+from app.services import accounts
+from app.services.mail import DisabledMailTransport
+from tests.account_helpers import PASSWORD
 
 _started = threading.Event()
 _release = threading.Event()
@@ -39,6 +43,14 @@ def _blocking_parse_document(file_bytes, filename):
     }
 
 
+async def async_session_headers() -> dict:
+    """A signed-in account for a test that is already inside an event loop."""
+    async with get_background_session() as db:
+        await accounts.register(db, "loop@example.org", PASSWORD, DisabledMailTransport())
+        issued = await accounts.login(db, "loop@example.org", PASSWORD, "bearer", client="test")
+    return {"Authorization": f"Bearer {issued.token}"}
+
+
 @pytest.mark.asyncio
 async def test_health_stays_responsive_while_document_processing_blocks(monkeypatch):
     _started.clear()
@@ -49,16 +61,15 @@ async def test_health_stays_responsive_while_document_processing_blocks(monkeypa
     transport = ASGITransport(app=app)
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            ac.headers.update(await async_session_headers())
             case_res = await ac.post("/api/v1/kadi/cases", json={"consent_opt_in": True})
             assert case_res.status_code == 201
             case_id = case_res.json()["id"]
-            token = case_res.json()["access_token"]
 
             upload_task = asyncio.create_task(
                 ac.post(
                     f"/api/v1/kadi/cases/{case_id}/upload",
                     files={"file": ("bill.txt", b"Consultation: 500\nTotal Amount: 500\n")},
-                    headers={"X-Case-Access-Token": token},
                 )
             )
 

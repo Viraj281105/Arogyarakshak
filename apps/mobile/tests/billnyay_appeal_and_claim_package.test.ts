@@ -71,20 +71,12 @@ describe('BillNyay appeal pipeline is wired to the mobile client (#18/#39/#65/#6
   });
 });
 
-describe('BillNyay appeal PDF download reuses the authenticated query-token pattern (SEC-08)', () => {
-  it('handleDownloadAppealPdf looks up the real case access token, not an unauthenticated request', () => {
+describe('BillNyay appeal PDF download is authenticated (SEC-08)', () => {
+  it('handleDownloadAppealPdf fetches the real appeal/pdf route through the authenticated helper', () => {
     const fnMatch = billNyayScreenSrc.match(/const handleDownloadAppealPdf[\s\S]*?\n  };/);
     assert.ok(fnMatch, 'handleDownloadAppealPdf not found');
-    assert.ok(/getCaseAccessToken\(caseId\)/.test(fnMatch![0]));
-    assert.ok(/if \(!token\)/.test(fnMatch![0]), 'must guard on a missing token');
-    assert.ok(
-      /appeal\/pdf\?access_token=\$\{encodeURIComponent\(token\)\}/.test(fnMatch![0]),
-      'must hit the real appeal/pdf route with the token attached'
-    );
-    assert.ok(
-      !/console\.(log|warn|error)\([^)]*token/i.test(fnMatch![0]),
-      'the access token must never be logged'
-    );
+    assert.ok(/downloadCaseFile\([\s\S]*?appeal\/pdf/.test(fnMatch![0]));
+    assert.ok(!/token/i.test(fnMatch![0]), 'no credential is handled in the screen');
   });
 
   it('handleShareAppeal shares the actual drafted letter text via the native Share sheet', () => {
@@ -93,15 +85,9 @@ describe('BillNyay appeal PDF download reuses the authenticated query-token patt
 });
 
 describe('DaaviSetu claim package ZIP download is wired to the mobile client (#81)', () => {
-  it('handleDownloadPackage hits the real claim/package route with the case access token', () => {
-    const fnMatch = daaviSetuScreenSrc.match(/const handleDownloadPackage[\s\S]*?\n  };/);
-    assert.ok(fnMatch, 'handleDownloadPackage not found');
-    assert.ok(/getCaseAccessToken\(caseId\)/.test(fnMatch![0]));
-    assert.ok(/if \(!token\)/.test(fnMatch![0]), 'must guard on a missing token');
-    assert.ok(
-      /claim\/package\?access_token=\$\{encodeURIComponent\(token\)\}/.test(fnMatch![0]),
-      'must hit the real ZIP package route, not the single PDF route'
-    );
+  it('handleDownloadPackage hits the real claim/package route, not the single PDF route', () => {
+    assert.ok(/handleDownloadPackage = \(\) => download\('\/claim\/package'/.test(daaviSetuScreenSrc));
+    assert.ok(/downloadCaseFile\(/.test(daaviSetuScreenSrc));
   });
 
   it('the download-package button is rendered alongside the existing PDF download, not instead of it', () => {

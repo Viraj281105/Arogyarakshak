@@ -8,13 +8,15 @@ import { ExplainTrail } from "../../ExplainTrail";
 import { StatePanel } from "../../clinical/StatePanel";
 import { TimelineChart } from "../../ui/Charts";
 import type { GrievanceTrackerResponse } from "./types";
+import { useT } from "../../../i18n/useT";
+import { LOCALE, msg } from "../../../i18n/format";
 
 // Statutory SLA tier states (bimanyay.tracker) in plain language.
 const SLA_STATUS_LABEL: Record<string, string> = {
-  ACTIVE: "Current step",
-  OVERDUE: "Deadline passed",
+  ACTIVE: msg("Current step"),
+  OVERDUE: msg("Deadline passed"),
   COMPLETED: "Done",
-  PENDING: "Later step",
+  PENDING: msg("Later step"),
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -32,9 +34,9 @@ function daysUntil(iso: string): number | null {
   return Math.round((d.getTime() - today.getTime()) / 86_400_000);
 }
 
-const formatDate = (iso: string) => {
+const formatDate = (iso: string, lang: Language) => {
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(LOCALE[lang], { day: "numeric", month: "short", year: "numeric" });
 };
 
 /** The statutory grievance deadlines (bimanyay.tracker), each with its explanation trail;
@@ -54,6 +56,7 @@ export function SlaTimeline({
   insurerName: string;
   currentLang: Language;
 }) {
+  const tr = useT();
   const t = translations[currentLang].modules.bimanyay;
   const events = timeline?.timeline_events ?? [];
 
@@ -63,27 +66,25 @@ export function SlaTimeline({
         <h3 id="bm-deadlines-title">{t.timelineTitle}</h3>
       </div>
       {countedFrom && events.length > 0 && (
-        <p className="bn-fine">
-          Counted from today ({formatDate(countedFrom)}), assuming you send the step-1 appeal today. Calendar days;
-          holidays are not applied.
-        </p>
+        <p className="bn-fine">{tr("Counted from today ({value}), assuming you send the step-1 appeal today. Calendar days; holidays are not applied.", { value: formatDate(countedFrom, currentLang) })}</p>
       )}
       {events.length > 0 && (
         <ListenSummary lang={currentLang} panel="deadline" summary={buildDeadlineSummary(events, currentLang)} />
       )}
-      {error && <StatePanel kind="error">Could not calculate the deadlines: {error}</StatePanel>}
+      {error && <StatePanel kind="error">{tr("Could not calculate the deadlines: {error}", { error: error })}</StatePanel>}
 
       {events.length > 0 ? (
         <>
           <TimelineChart
-            title="Statutory escalation deadlines"
-            source="IRDAI Master Circular (29 May 2024)"
-            units="Calendar date"
-            period={countedFrom ? `Counted from ${formatDate(countedFrom)}` : "3-tier progression"}
+            title={tr("Statutory escalation deadlines")}
+            locale={LOCALE[currentLang]}
+            source={tr("IRDAI Master Circular (29 May 2024)")}
+            units={tr("Calendar date")}
+            period={countedFrom ? tr("Counted from {value}", { value: formatDate(countedFrom, currentLang) }) : tr("3-tier progression")}
             events={events.map((ev) => ({
               date: ev.deadline_date,
               label: ev.title,
-              detail: SLA_STATUS_LABEL[ev.status] ?? ev.status,
+              detail: SLA_STATUS_LABEL[ev.status] ? tr(SLA_STATUS_LABEL[ev.status]) : ev.status,
             }))}
           />
           <ol className="timeline bm-deadlines">
@@ -95,16 +96,24 @@ export function SlaTimeline({
                 <div className="bm-deadline-head">
                   <strong className="timeline-label">{event.title}</strong>
                   <span className={`badge ${event.status === "ACTIVE" ? "badge-info" : event.status === "OVERDUE" ? "badge-danger" : "badge-demo"}`}>
-                    {SLA_STATUS_LABEL[event.status] ?? event.status}
+                    {SLA_STATUS_LABEL[event.status] ? tr(SLA_STATUS_LABEL[event.status]) : event.status}
                   </span>
                 </div>
                 <div className="bm-deadline-date">
                   <time dateTime={event.deadline_date} className="code-tabular">
-                    {formatDate(event.deadline_date)}
+                    {formatDate(event.deadline_date, currentLang)}
                   </time>
                   {days !== null && (
                     <span className={days < 0 ? "is-past" : ""}>
-                      {days > 0 ? `in ${days} day${days === 1 ? "" : "s"}` : days === 0 ? "today" : `${-days} day${days === -1 ? "" : "s"} ago`}
+                      {days > 1
+                        ? tr("in {days} days", { days })
+                        : days === 1
+                          ? tr("in 1 day")
+                          : days === 0
+                            ? tr("today")
+                            : days === -1
+                              ? tr("1 day ago")
+                              : tr("{days} days ago", { days: -days })}
                     </span>
                   )}
                 </div>
@@ -116,7 +125,7 @@ export function SlaTimeline({
         </ol>
         </>
       ) : loading ? (
-        <StatePanel kind="loading">Calculating the escalation deadlines…</StatePanel>
+        <StatePanel kind="loading">{tr("Calculating the escalation deadlines…")}</StatePanel>
       ) : (
         <ol className="timeline bm-deadlines">
           {[

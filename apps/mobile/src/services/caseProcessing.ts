@@ -1,4 +1,5 @@
-/**
+
+import { msg } from '../translations/tr';/**
  * Case processing lifecycle (patient mobile flow).
  *
  *   scan -> upload 202 -> processing -> SSE -> extraction complete -> case ready
@@ -35,7 +36,7 @@ export type ProcessingEvent =
 /** Default client-side ceiling for a silent/hung stream. */
 export const PROCESSING_TIMEOUT_MS = 90_000;
 
-export const TIMEOUT_MESSAGE = 'Processing is taking longer than expected.';
+export const TIMEOUT_MESSAGE = msg('Processing is taking longer than expected.');
 
 export function initialProcessingState(caseId: string | null): ProcessingState {
   return { caseId, phase: caseId ? 'processing' : 'idle', message: null, progress: 0 };

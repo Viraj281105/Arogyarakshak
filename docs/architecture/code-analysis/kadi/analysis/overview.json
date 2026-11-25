@@ -18,13 +18,9 @@
       "notDetected": [],
       "fixed": [],
       "evidenceChanged": [
-        "COUP-010095ea6236",
-        "COUP-124374328f34",
-        "COUP-2b971a639d90",
-        "COUP-a4b3d1d87d1e",
-        "COUP-d6deb4af3ce5"
+        "COUP-010095ea6236"
       ],
-      "unchanged": 27
+      "unchanged": 31
     }
   },
   "groups": [
@@ -114,7 +110,7 @@
           "modules": 2,
           "size": 0,
           "fanIn": 3,
-          "files": 13
+          "files": 14
         }
       },
       {
@@ -128,7 +124,7 @@
           "modules": 1,
           "size": 54,
           "fanIn": 2,
-          "files": 11
+          "files": 12
         }
       },
       {
@@ -153,8 +149,8 @@
         {
           "id": "kadi",
           "path": "kadi",
-          "files": 11,
-          "loc": 2285,
+          "files": 12,
+          "loc": 2403,
           "fanIn": 2,
           "fanOut": 4,
           "instability": 0.667,
@@ -163,7 +159,7 @@
             "kadi/explanation.py",
             "kadi/line_items.py"
           ],
-          "readingWeight": 5906.639
+          "readingWeight": 6211.665
         },
         {
           "id": "kadi-resolution",
@@ -282,7 +278,7 @@
             "modules": 1,
             "size": 0,
             "fanIn": 2,
-            "files": 11
+            "files": 12
           }
         },
         {
@@ -341,7 +337,7 @@
         "modules": 2,
         "size": 0,
         "fanIn": 3,
-        "files": 13
+        "files": 14
       },
       "relatedIds": [],
       "status": "open",
@@ -359,7 +355,7 @@
         "modules": 1,
         "size": 54,
         "fanIn": 2,
-        "files": 11
+        "files": 12
       },
       "relatedIds": [],
       "status": "open",
@@ -377,7 +373,7 @@
         "modules": 1,
         "size": 51,
         "fanIn": 2,
-        "files": 11
+        "files": 12
       },
       "relatedIds": [],
       "status": "open",
@@ -395,7 +391,7 @@
         "modules": 1,
         "size": 35,
         "fanIn": 2,
-        "files": 11
+        "files": 12
       },
       "relatedIds": [],
       "status": "open",
@@ -521,7 +517,7 @@
         "modules": 1,
         "size": 20,
         "fanIn": 2,
-        "files": 11
+        "files": 12
       },
       "relatedIds": [],
       "status": "open",
@@ -719,7 +715,7 @@
         "modules": 1,
         "size": 15,
         "fanIn": 2,
-        "files": 11
+        "files": 12
       },
       "relatedIds": [],
       "status": "open",
@@ -809,11 +805,11 @@
         "modules": 1,
         "size": 0,
         "fanIn": 2,
-        "files": 11
+        "files": 12
       },
       "relatedIds": [],
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     {
       "id": "COUP-2b971a639d90",
@@ -831,7 +827,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     {
       "id": "COUP-a4b3d1d87d1e",
@@ -849,7 +845,7 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     },
     {
       "id": "COUP-bdf1ec6dd471",
@@ -903,15 +899,15 @@
       },
       "relatedIds": [],
       "status": "open",
-      "since": "evidence-changed"
+      "since": "unchanged"
     }
   ],
   "coverage": {
     "language": "py",
     "adapter": "pyright-parser@1.1.414/python-3.14",
     "files": {
-      "analyzed": 50,
-      "excludedByRole": 38,
+      "analyzed": 51,
+      "excludedByRole": 39,
       "excludedRoles": [
         "generated",
         "test"
@@ -936,7 +932,7 @@
     },
     "otherLanguages": [],
     "unresolved": {
-      "external": 278,
+      "external": 285,
       "outside": 0,
       "unknown": 0,
       "opaque": 0

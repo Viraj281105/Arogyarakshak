@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { ArrowIcon, CtaBand, PublicHero, PublicPage, Section } from "../components/public/PublicParts";
-import { pageTitle, publicCopy } from "../components/public/publicCopy";
+import { localisedPublicCopy, pageTitle } from "../components/public/publicCopy";
 import { PUBLIC_ROUTES } from "../components/public/publicNav";
+import { requestLanguage } from "../i18n/server";
 
-const c = publicCopy();
-const s = c.security;
 
-export const metadata: Metadata = { title: pageTitle(s.meta.title), description: s.meta.description };
+export async function generateMetadata(): Promise<Metadata> {
+  const { meta } = (await localisedPublicCopy(await requestLanguage())).security;
+  return { title: pageTitle(meta.title), description: meta.description };
+}
 
 /** /security (Server Component): implemented controls only, each with where to check it; then the limits. */
-export default function SecurityPage() {
+export default async function SecurityPage() {
+  const c = await localisedPublicCopy(await requestLanguage());
+  const s = c.security;
   return (
     <PublicPage module="bimanyay">
       <PublicHero

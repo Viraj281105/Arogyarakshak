@@ -2,14 +2,14 @@
   "schema_version": 1,
   "repository": {
     "revision": null,
-    "baseRevision": "ddef7e5c01d16c209da01609514840361e7f81e8",
+    "baseRevision": "4b37e4eb9d84dbf37cda5828aa3f949d2324cd27",
     "sourceKind": "working-tree",
     "root": "packages/kadi",
     "url": "https://github.com/Viraj281105/Arogyarakshak.git",
     "language": "py",
     "adapter": "pyright-parser@1.1.414/python-3.14",
     "adapterRevision": 17,
-    "snapshotId": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f"
+    "snapshotId": "77cf0b1323ee350267a57b5187c6eaf398b63e78bdfa08d59c40190096f1eb3b"
   },
   "rules": [
     "coupling/import-cycle",
@@ -43,7 +43,7 @@
       "coupling/internal-leak": 1
     },
     "coverage": {
-      "files": 50,
+      "files": 51,
       "excludedRoles": [
         "generated",
         "test"
@@ -1436,10 +1436,11 @@
           "kadi/ocr/ocr_parser.py",
           "kadi/pdf_text_quality.py",
           "kadi/redaction.py",
+          "kadi/resolution_tracking.py",
           "kadi/timeline.py",
           "kadi/triggers.py"
         ],
-        "sha256": "59b7414c39657634664537ad8e431e5481a7c3d00ee2dc5448cd0ef88af96a94"
+        "sha256": "1cfaa901f1a7d733ea387d368a77fe9c416fe3ccaa2a9cf86556503e7c223eac"
       }
     },
     {
@@ -1540,7 +1541,7 @@
           "kadi/pdf_text_quality.py",
           "kadi/redaction.py"
         ],
-        "moduleFiles": 11,
+        "moduleFiles": 12,
         "consumers": [
           "kadi-clinical_review",
           "kadi-ocr"

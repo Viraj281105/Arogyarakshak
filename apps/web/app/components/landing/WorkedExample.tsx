@@ -9,34 +9,51 @@ import {
   formatINR,
 } from "../../lib/illustrativeBill";
 import { CGHS_VERSION } from "../../lib/referenceSnapshot";
+import { useT } from "../../i18n/useT";
+import { msg, type Translate } from "../../i18n/format";
 
 const STATUS_LABEL: Record<LineStatus, string> = {
-  overcharged: "Above reference",
-  within_benchmark: "Within reference",
-  bundled: "Usually included elsewhere",
-  not_benchmarked: "Not compared",
+  overcharged: msg("Above reference"),
+  within_benchmark: msg("Within reference"),
+  bundled: msg("Usually included elsewhere"),
+  not_benchmarked: msg("Not compared"),
 };
 
 const UNIT_LABEL: Record<string, string> = {
-  per_day: "per day",
-  per_visit: "per visit",
-  per_service: "per test",
-  per_session: "per session",
-  per_shift: "per shift",
-  per_bottle: "per bottle",
+  per_day: msg("per day"),
+  per_visit: msg("per visit"),
+  per_service: msg("per test"),
+  per_session: msg("per session"),
+  per_shift: msg("per shift"),
+  per_bottle: msg("per bottle"),
 };
 
-function explain(line: IllustrativeLine): string {
+function explain(line: IllustrativeLine, tr: Translate): string {
   const rate = line.rate;
   switch (line.status) {
     case "overcharged":
-      return `Billed ${formatINR(line.billed)} against a CGHS reference of ${formatINR(line.reference ?? 0)} (${formatINR(rate?.rate ?? 0)} ${UNIT_LABEL[rate?.unit ?? ""] ?? ""}). The ${formatINR(line.billed - (line.reference ?? 0))} above it is what a BillNyay finding would point to — with the reference row shown, so you can check it.`;
+      return tr(
+        "Billed {billed} against a CGHS reference of {reference} ({rate} {unit}). The {excess} above it is what a BillNyay finding would point to — with the reference row shown, so you can check it.",
+        {
+          billed: formatINR(line.billed),
+          reference: formatINR(line.reference ?? 0),
+          rate: formatINR(rate?.rate ?? 0),
+          unit: tr(UNIT_LABEL[rate?.unit ?? ""] ?? ""),
+          excess: formatINR(line.billed - (line.reference ?? 0)),
+        },
+      );
     case "within_benchmark":
-      return `Billed at or below the CGHS reference of ${formatINR(line.reference ?? 0)}. No finding is raised.`;
+      return tr("Billed at or below the CGHS reference of {reference}. No finding is raised.", { reference: formatINR(line.reference ?? 0) });
     case "bundled":
-      return `The reference marks “${rate?.name ?? line.label}” as part of a larger charge (here, the room). Whether this hospital's package really includes it needs checking, so it is raised as a question to ask — not as a verdict.`;
+      return tr(
+        "The reference marks “{name}” as part of a larger charge (here, the room). Whether this hospital's package really includes it needs checking, so it is raised as a question to ask — not as a verdict.",
+        { name: rate?.name ?? line.label },
+      );
     default:
-      return `No row in the CGHS reference matches this line, so it is not compared at all. ${formatINR(line.billed)} is neither fair nor unfair as far as the tool can tell, and it is never compared against a guessed rate.`;
+      return tr(
+        "No row in the CGHS reference matches this line, so it is not compared at all. {billed} is neither fair nor unfair as far as the tool can tell, and it is never compared against a guessed rate.",
+        { billed: formatINR(line.billed) },
+      );
   }
 }
 
@@ -60,34 +77,32 @@ const LineBar: React.FC<{ line: IllustrativeLine }> = ({ line }) => {
 };
 
 export const WorkedExample: React.FC = () => {
+  const tr = useT();
   const [selected, setSelected] = useState<string>("ward");
   const line = ILLUSTRATIVE_LINES.find((l) => l.id === selected) ?? ILLUSTRATIVE_LINES[0];
   const c = composeBill(ILLUSTRATIVE_LINES);
   const segments = [
-    { key: "within", label: "Within reference", value: c.withinReference },
-    { key: "over", label: "Above reference", value: c.aboveReference },
-    { key: "bundled", label: "Usually included elsewhere", value: c.bundled },
-    { key: "unmatched", label: "Not compared", value: c.notCompared },
+    { key: "within", label: tr("Within reference"), value: c.withinReference },
+    { key: "over", label: tr("Above reference"), value: c.aboveReference },
+    { key: "bundled", label: tr("Usually included elsewhere"), value: c.bundled },
+    { key: "unmatched", label: tr("Not compared"), value: c.notCompared },
   ];
 
   return (
     <section id="lp-example" className="lp-section lp-example" aria-labelledby="lp-example-title">
       <header className="lp-section-head" data-reveal>
-        <p className="lp-kicker">A worked example</p>
-        <h2 id="lp-example-title" className="lp-heading">One bill, five lines, four possible answers.</h2>
-        <p className="lp-section-lede">
-          This bill is made up. The reference rates are the real {CGHS_VERSION} rows BillNyay uses, and each line gets
-          the status the real audit would give it. Choose a line to see why.
-        </p>
-        <span className="lp-illustrative-pill">Synthetic example — not a real patient&apos;s bill</span>
+        <p className="lp-kicker">{tr("A worked example")}</p>
+        <h2 id="lp-example-title" className="lp-heading">{tr("One bill, five lines, four possible answers.")}</h2>
+        <p className="lp-section-lede">{tr("This bill is made up. The reference rates are the real {CGHS_VERSION} rows BillNyay uses, and each line gets the status the real audit would give it. Choose a line to see why.", { CGHS_VERSION: CGHS_VERSION })}</p>
+        <span className="lp-illustrative-pill">{tr("Synthetic example — not a real patient's bill")}</span>
       </header>
 
       <div className="lp-example-grid" data-reveal>
-        <div className="lp-example-lines" role="group" aria-label="Bill lines — choose one to see why">
+        <div className="lp-example-lines" role="group" aria-label={tr("Bill lines — choose one to see why")}>
           <div className="lp-example-legend" aria-hidden="true">
-            <span><i className="lp-swatch lp-swatch-within" /> billed up to reference</span>
-            <span><i className="lp-swatch lp-swatch-over" /> above reference</span>
-            <span><i className="lp-swatch lp-swatch-ref" /> reference</span>
+            <span><i className="lp-swatch lp-swatch-within" />{" "}{tr("billed up to reference")}</span>
+            <span><i className="lp-swatch lp-swatch-over" />{" "}{tr("above reference")}</span>
+            <span><i className="lp-swatch lp-swatch-ref" />{" "}{tr("reference")}</span>
           </div>
           {ILLUSTRATIVE_LINES.map((l) => (
             <button
@@ -105,40 +120,39 @@ export const WorkedExample: React.FC = () => {
                 <span className="lp-line-amount code-tabular">{formatINR(l.billed)}</span>
               </span>
               <LineBar line={l} />
-              <span className={`lp-status lp-status-${l.status}`}>{STATUS_LABEL[l.status]}</span>
+              <span className={`lp-status lp-status-${l.status}`}>{tr(STATUS_LABEL[l.status])}</span>
             </button>
           ))}
         </div>
 
         <aside className="lp-example-detail" aria-live="polite">
-          <p className="lp-kicker">Why this line</p>
+          <p className="lp-kicker">{tr("Why this line")}</p>
           <h3>{line.label}</h3>
           <dl className="lp-detail-facts">
             <div>
-              <dt>Billed</dt>
+              <dt>{tr("Billed")}</dt>
               <dd className="code-tabular">{formatINR(line.billed)}</dd>
             </div>
             <div>
-              <dt>CGHS reference</dt>
+              <dt>{tr("CGHS reference")}</dt>
               <dd className="code-tabular">
                 {line.status === "not_benchmarked"
-                  ? "no matching row"
+                  ? tr("no matching row")
                   : line.status === "bundled"
-                    ? "included in room"
+                    ? tr("included in room")
                     : formatINR(line.reference ?? 0)}
               </dd>
             </div>
             <div>
-              <dt>Status</dt>
+              <dt>{tr("Status")}</dt>
               <dd>
-                <span className={`lp-status lp-status-${line.status}`}>{STATUS_LABEL[line.status]}</span>
+                <span className={`lp-status lp-status-${line.status}`}>{tr(STATUS_LABEL[line.status])}</span>
               </dd>
             </div>
           </dl>
-          <p className="lp-detail-body">{explain(line)}</p>
+          <p className="lp-detail-body">{explain(line, tr)}</p>
           {line.rate && (
-            <p className="lp-detail-source">
-              Reference row: <span className="code-tabular">{line.rate.name}</span>
+            <p className="lp-detail-source">{tr("Reference row:")}{" "}<span className="code-tabular">{line.rate.name}</span>
             </p>
           )}
         </aside>
@@ -146,8 +160,8 @@ export const WorkedExample: React.FC = () => {
 
       <figure className="lp-composition" data-reveal>
         <figcaption>
-          <span>Where the {formatINR(c.billed)} goes</span>
-          <span className="lp-composition-note">Share of the total billed amount</span>
+          <span>{tr("Where the {value} goes", { value: formatINR(c.billed) })}</span>
+          <span className="lp-composition-note">{tr("Share of the total billed amount")}</span>
         </figcaption>
         <div
           className="lp-composition-bar"
@@ -172,10 +186,7 @@ export const WorkedExample: React.FC = () => {
             </li>
           ))}
         </ul>
-        <p className="lp-composition-takeaway">
-          On this bill, {formatINR(c.aboveReference)} sits above the CGHS reference, {formatINR(c.bundled)} is worth a
-          question, and {formatINR(c.notCompared)} could not be checked — the tool says so instead of guessing.
-        </p>
+        <p className="lp-composition-takeaway">{tr("On this bill, {value} sits above the CGHS reference, {value2} is worth a question, and {value3} could not be checked — the tool says so instead of guessing.", { value: formatINR(c.aboveReference), value2: formatINR(c.bundled), value3: formatINR(c.notCompared) })}</p>
       </figure>
     </section>
   );

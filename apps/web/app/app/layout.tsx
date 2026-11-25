@@ -1,7 +1,8 @@
 import "../components/workspace/workspace.css";
 import "../components/auth/auth.css";
+import { RequireAccount } from "../components/auth/RequireAccount";
 
-/** Workspace routes (`/app/**`): styles only; every page brings its own client part. */
+/** Workspace routes (`/app/**`): for signed-in accounts only (ADR-029). The API enforces it. */
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <RequireAccount>{children}</RequireAccount>;
 }

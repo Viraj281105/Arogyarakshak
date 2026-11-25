@@ -13,10 +13,29 @@ export type OwnedCaseSummary = components["schemas"]["OwnedCaseSummary"];
 export type OwnedCaseList = components["schemas"]["OwnedCaseList"];
 export type ClaimResponse = components["schemas"]["ClaimResponse"];
 export type DeleteAccountResponse = components["schemas"]["DeleteAccountResponse"];
+export type AuthConfig = components["schemas"]["AuthConfigResponse"];
+export type CaseAction = components["schemas"]["CaseAction"];
+export type CaseActionList = components["schemas"]["CaseActionList"];
+export type ActionCreate = components["schemas"]["ActionCreate"];
+export type ActionEventCreate = components["schemas"]["ActionEventCreate"];
+export type ActionStatus = components["schemas"]["ActionStatus"];
+export type ActionModule = components["schemas"]["ActionModule"];
+export type ActionKind = components["schemas"]["ActionKind"];
+export type ContactMethod = components["schemas"]["ContactMethod"];
 
 const K = "/api/v1/kadi";
 
+/** Action and resolution records of a case (ADR-031): the user's own record, never a submission. */
+export const caseActionPaths = {
+  list: (caseId: string) => `${K}/cases/${encodeURIComponent(caseId)}/actions`,
+  events: (caseId: string, actionId: string) =>
+    `${K}/cases/${encodeURIComponent(caseId)}/actions/${encodeURIComponent(actionId)}/events`,
+  one: (caseId: string, actionId: string) =>
+    `${K}/cases/${encodeURIComponent(caseId)}/actions/${encodeURIComponent(actionId)}`,
+} as const;
+
 export const accountPaths = {
+  config: `${K}/auth/config`,
   register: `${K}/auth/register`,
   login: `${K}/auth/login`,
   logout: `${K}/auth/logout`,

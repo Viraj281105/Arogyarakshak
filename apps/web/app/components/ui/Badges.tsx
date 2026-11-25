@@ -1,6 +1,11 @@
+"use client";
+
 import React from "react";
 import { EVIDENCE_ICONS } from "../../shell/icons/evidenceIcons";
 import { EVIDENCE_COPY, type EvidenceState } from "./evidence";
+import { T } from "../../i18n/T";
+import { useT } from "../../i18n/useT";
+import { msg } from "../../i18n/format";
 
 /**
  * The one evidence badge (eight states). Always shows a text label next to its icon, never colour
@@ -19,15 +24,16 @@ export function EvidenceBadge({
   /** Render the meaning as visible text after the badge (for legends). */
   showMeaning?: boolean;
 }) {
+  const tr = useT();
   const Icon = EVIDENCE_ICONS[state];
   const copy = EVIDENCE_COPY[state];
   return (
     <span className="ui-evidence-wrap">
-      <span className={`ui-badge ui-evidence ui-evidence-${state} ui-badge-${size}`} title={copy.meaning} data-evidence={state}>
+      <span className={`ui-badge ui-evidence ui-evidence-${state} ui-badge-${size}`} title={tr(copy.meaning)} data-evidence={state}>
         <Icon size={size === "sm" ? 12 : 14} aria-hidden="true" />
-        <span>{label ?? copy.label}</span>
+        <span>{label ?? <T k={copy.label} />}</span>
       </span>
-      {showMeaning && <span className="ui-evidence-meaning">{copy.meaning}</span>}
+      {showMeaning && <span className="ui-evidence-meaning">{<T k={copy.meaning} />}</span>}
     </span>
   );
 }
@@ -57,7 +63,7 @@ export function confidenceBucket(value: number): { pct: number; word: "High" | "
  */
 export function ConfidenceIndicator({
   value,
-  label = "Confidence",
+  label = msg("Confidence"),
   source,
 }: {
   /** 0..1, as returned by the API. */
@@ -69,7 +75,9 @@ export function ConfidenceIndicator({
   const { pct, word } = confidenceBucket(value);
   return (
     <span className={`ui-confidence ui-confidence-${word.toLowerCase()}`}>
-      <span className="ui-confidence-label">{label}</span>
+      <span className="ui-confidence-label">
+        <T k={label} />
+      </span>
       <meter className="ui-confidence-meter" min={0} max={100} low={60} high={85} optimum={100} value={pct} aria-label={`${label}: ${pct}%`} />
       <span className="ui-confidence-value code-tabular">
         {pct}% · {word}
@@ -109,9 +117,13 @@ export function MetricCard({
         {basis === "verified" ? (
           <EvidenceBadge state="verified" size="sm" />
         ) : basis === "document" ? (
-          <span className="ui-badge ui-badge-sm ui-document-badge">From your document</span>
+          <span className="ui-badge ui-badge-sm ui-document-badge">
+            <T k="From your document" />
+          </span>
         ) : (
-          <span className="ui-badge ui-badge-sm ui-estimate-badge">Estimate</span>
+          <span className="ui-badge ui-badge-sm ui-estimate-badge">
+            <T k="Estimate" />
+          </span>
         )}
       </div>
       <p className="ui-metric-value code-tabular">
@@ -119,7 +131,7 @@ export function MetricCard({
         {unit && <span className="ui-metric-unit"> {unit}</span>}
       </p>
       <p className="ui-metric-meta">
-        Source: {source}
+        <T k="Source:" /> {source}
         {period && <> · {period}</>}
       </p>
       {note && <div className="ui-metric-note">{note}</div>}

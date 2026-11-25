@@ -2,14 +2,14 @@
   "schema_version": 1,
   "repository": {
     "revision": null,
-    "baseRevision": "ddef7e5c01d16c209da01609514840361e7f81e8",
+    "baseRevision": "4b37e4eb9d84dbf37cda5828aa3f949d2324cd27",
     "sourceKind": "working-tree",
     "root": "packages/kadi",
     "url": "https://github.com/Viraj281105/Arogyarakshak.git",
     "language": "py",
     "adapter": "pyright-parser@1.1.414/python-3.14",
     "adapterRevision": 17,
-    "snapshotId": "df6cafb2f640b2ca1c1d919dd8a3c6035e9aa94085b404a13f3e1fe3df26244f"
+    "snapshotId": "77cf0b1323ee350267a57b5187c6eaf398b63e78bdfa08d59c40190096f1eb3b"
   },
   "grouping": {
     "depth": 2,
@@ -21,15 +21,15 @@
       "generated",
       "test"
     ],
-    "files": 38
+    "files": 39
   },
   "modules": [
     {
       "id": "kadi",
       "label": "kadi",
       "path": "kadi",
-      "files": 11,
-      "loc": 2285,
+      "files": 12,
+      "loc": 2403,
       "fanIn": 2,
       "fanOut": 4,
       "instability": 0.667,
@@ -172,6 +172,7 @@
     "kadi/resolution/similarity.py": "kadi-resolution",
     "kadi/resolution/transliteration.py": "kadi-resolution",
     "kadi/resolution/types.py": "kadi-resolution",
+    "kadi/resolution_tracking.py": "kadi",
     "kadi/retrieval/__init__.py": "kadi-retrieval",
     "kadi/retrieval/bm25.py": "kadi-retrieval",
     "kadi/retrieval/case_index.py": "kadi-retrieval",
@@ -358,7 +359,7 @@
     }
   ],
   "unresolved": {
-    "external": 278,
+    "external": 285,
     "outside": 0,
     "unknown": 0,
     "opaque": 0

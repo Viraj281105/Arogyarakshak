@@ -84,6 +84,7 @@ type = forbidden
 source_modules =
     app.services
     app.account_auth
+    app.auth_gate
     app.auto_triggers
     app.background
     app.config

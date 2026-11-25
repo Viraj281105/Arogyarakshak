@@ -274,3 +274,6 @@ data/raw/devanagari_public_docs/**/*.pdf
 docs/architecture/code-analysis/**/repo.analysis.html
 docs/architecture/code-analysis/**/view-context.json
 docs/architecture/code-analysis/**/raw-facts.json
+
+# Demo account password written by scripts/demo_account.py --save. Never commit.
+demo/.demo-credentials.json

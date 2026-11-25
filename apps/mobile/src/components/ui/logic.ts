@@ -1,12 +1,13 @@
 // Pure logic for the mobile primitives (no react-native import), unit-tested under tsx.
 // Shapes and wording follow the web primitives (apps/web/app/components/ui) where sensible.
 import type { ChecklistStatus, ConfidenceWord, StepState, ToastTone } from './tones';
+import { tr, msg } from '../../translations/tr';
 
 /** Bucket a 0..1 confidence for its visible word. Values outside 0..1 (or NaN) are clamped. Same as web. */
 export function confidenceBucket(value: number): { pct: number; word: ConfidenceWord } {
   const v = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
   const pct = Math.round(v * 100);
-  return { pct, word: v >= 0.85 ? 'High' : v >= 0.6 ? 'Medium' : 'Low' };
+  return { pct, word: v >= 0.85 ? msg('High') : v >= 0.6 ? msg('Medium') : msg('Low') };
 }
 
 export function stepState(index: number, current: number): StepState {
@@ -15,26 +16,26 @@ export function stepState(index: number, current: number): StepState {
 
 /** Words read by a screen reader for a step (state is never colour-only). */
 export const STEP_WORD: Record<StepState, string> = {
-  done: 'completed',
-  current: 'current step',
-  upcoming: 'not started',
+  done: msg('completed'),
+  current: msg('current step'),
+  upcoming: msg('not started'),
 };
 
 export function stepCountText(current: number, total: number): string {
-  if (total <= 0) return 'No steps';
-  return `Step ${Math.min(Math.max(current, 0) + 1, total)} of ${total}`;
+  if (total <= 0) return tr('No steps');
+  return tr('Step {current} of {total}', { current: Math.min(Math.max(current, 0) + 1, total), total });
 }
 
 export const CHECKLIST_WORD: Record<ChecklistStatus, string> = {
-  done: 'Done',
-  todo: 'To do',
-  blocked: 'Blocked',
-  unknown: 'Not checked',
+  done: msg('Done'),
+  todo: msg('To do'),
+  blocked: msg('Blocked'),
+  unknown: msg('Not checked'),
 };
 
 export function checklistSummary(items: readonly { status: ChecklistStatus }[]): string {
   const done = items.filter((i) => i.status === 'done').length;
-  return `${done} of ${items.length} done`;
+  return tr('{done} of {total} done', { done, total: items.length });
 }
 
 // ---- Toast queue -------------------------------------------------------------------------------

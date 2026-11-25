@@ -12,9 +12,12 @@ import type { Explanation } from "../../lib/explanation";
 import { ListenSummary } from "../ListenSummary";
 import { buildMedicineSummary } from "../../lib/listenSummaries";
 import { StatePanel } from "../clinical/StatePanel";
+import { LazyModulePlan } from "../actions/LazyModulePlan";
 import { PriceBar } from "./dawacheck/PriceBar";
 import { CapsuleIllustration, TabletsIllustration } from "../illustrations/Illustrations";
 import { StatusBadge } from "../ui/Badges";
+import { useT } from "../../i18n/useT";
+import { msg } from "../../i18n/format";
 
 // --- API Response Type (matching backend MedicineBenchmark schema) ---
 interface MedicineBenchmarkResponse extends PriceCheck {
@@ -30,10 +33,10 @@ interface MedicineBenchmarkResponse extends PriceCheck {
 // What the amount the person paid buys. Required, so a strip price is never sent as a
 // price per tablet by accident.
 const BASIS_OPTIONS: { value: PriceBasis; label: string; needs: "none" | "pack" | "quantity" }[] = [
-  { value: "PER_UNIT", label: "One tablet / capsule / vial", needs: "none" },
-  { value: "PER_STRIP", label: "One strip", needs: "pack" },
-  { value: "PER_PACK", label: "One pack / box / bottle", needs: "pack" },
-  { value: "LINE_TOTAL", label: "Several units (a bill line total)", needs: "quantity" },
+  { value: "PER_UNIT", label: msg("One tablet / capsule / vial"), needs: "none" },
+  { value: "PER_STRIP", label: msg("One strip"), needs: "pack" },
+  { value: "PER_PACK", label: msg("One pack / box / bottle"), needs: "pack" },
+  { value: "LINE_TOTAL", label: msg("Several units (a bill line total)"), needs: "quantity" },
 ];
 
 interface TranslatedInstruction {
@@ -57,6 +60,7 @@ interface DawaCheckViewProps {
 }
 
 export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseId, caseToken }) => {
+  const tr = useT();
   const t = translations[currentLang].modules.dawacheck;
   const api = useApi<MedicineBenchmarkResponse>();
   // The MRP drives an "overcharged" verdict, so it must be the price the user actually
@@ -107,18 +111,18 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
   };
 
   const result = api.data;
-  const price = result ? describePriceCheck(result) : null;
+  const price = result ? describePriceCheck(result, tr) : null;
 
   return (
     <div className="module-panel">
       <header className="ws-mod-hero ws-mod-dawacheck">
         <div className="ws-mod-hero-copy">
-          <p className="lp-kicker">DawaCheck · NPPA ceiling prices</p>
+          <p className="lp-kicker">{tr("DawaCheck · NPPA ceiling prices")}</p>
           <h2>{t.title}</h2>
           <p>{t.desc}</p>
           <div className="ws-kadi-badges">
-            <StatusBadge tone="neutral">Compared per tablet, capsule or vial</StatusBadge>
-            <StatusBadge tone="neutral">Unclear prescriptions go to a human reader</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Compared per tablet, capsule or vial")}</StatusBadge>
+            <StatusBadge tone="neutral">{tr("Unclear prescriptions go to a human reader")}</StatusBadge>
           </div>
         </div>
         <div className="ws-mod-hero-art" aria-hidden="true">
@@ -137,19 +141,16 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
       {/* Search Form */}
       <section className="case-panel bn-card" aria-labelledby="dc-form-title">
         <div className="case-panel-head">
-          <h3 id="dc-form-title">Check any medicine by name</h3>
+          <h3 id="dc-form-title">{tr("Check any medicine by name")}</h3>
           <TabletsIllustration size={56} />
         </div>
         <p className="bn-fine">
-          NPPA ceiling prices are <strong>per tablet, capsule or vial</strong>. Say what your amount paid for — one unit, a
-          strip, a pack, or several units — and DawaCheck converts it to a price per unit before comparing. If the number of
-          units is not known, it says so instead of guessing.
+          <strong>{tr("NPPA ceiling prices are per tablet, capsule or vial.")}</strong>{" "}
+          {tr("Say what your amount paid for — one unit, a strip, a pack, or several units — and DawaCheck converts it to a price per unit before comparing. If the number of units is not known, it says so instead of guessing.")}
         </p>
         <div className="dc-form">
           <div className="ds-field dc-field-name">
-            <label className="input-label" htmlFor="dc-name">
-              Medicine name and strength
-              <span className="ds-required">required</span>
+            <label className="input-label" htmlFor="dc-name">{tr("Medicine name and strength")}<span className="ds-required">{tr("required")}</span>
             </label>
             <input
               id="dc-name"
@@ -162,16 +163,14 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
             />
           </div>
           <div className="ds-field">
-            <label className="input-label" htmlFor="dc-amount">
-              Amount paid (₹)
-              <span className="ds-required">required</span>
+            <label className="input-label" htmlFor="dc-amount">{tr("Amount paid (₹)")}<span className="ds-required">{tr("required")}</span>
             </label>
             <input
               id="dc-amount"
               type="number"
               inputMode="decimal"
               className="input-field"
-              aria-label="Amount paid in rupees"
+              aria-label={tr("Amount paid in rupees")}
               step="0.01"
               min="0"
               value={mrp}
@@ -180,24 +179,22 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
             />
           </div>
           <div className="ds-field">
-            <label className="input-label" htmlFor="dc-basis">
-              The amount is for
-              <span className="ds-required">required</span>
+            <label className="input-label" htmlFor="dc-basis">{tr("The amount is for")}<span className="ds-required">{tr("required")}</span>
             </label>
             <select
               id="dc-basis"
               className="select-field"
-              aria-label="What the amount paid is for"
+              aria-label={tr("What the amount paid is for")}
               value={basis}
               onChange={(e) => {
                 setBasis(e.target.value as PriceBasis | "");
                 setCount("");
               }}
             >
-              <option value="">The amount is for…</option>
+              <option value="">{tr("The amount is for…")}</option>
               {BASIS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {tr(o.label)}
                 </option>
               ))}
             </select>
@@ -205,8 +202,8 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
           {needsCount && (
             <div className="ds-field">
               <label className="input-label" htmlFor="dc-count">
-                {basisOption?.needs === "pack" ? "Units in it" : "Number of units"}
-                <span className="ds-required">required</span>
+                {basisOption?.needs === "pack" ? tr("Units in it") : tr("Number of units")}
+                <span className="ds-required">{tr("required")}</span>
               </label>
               <input
                 id="dc-count"
@@ -214,7 +211,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
                 inputMode="numeric"
                 className="input-field"
                 placeholder={basisOption?.needs === "pack" ? "e.g. 15" : "e.g. 10"}
-                aria-label={basisOption?.needs === "pack" ? "Number of tablets or capsules in one strip or pack" : "Number of units the amount covers"}
+                aria-label={basisOption?.needs === "pack" ? tr("Number of tablets or capsules in one strip or pack") : tr("Number of units the amount covers")}
                 step="1"
                 min="1"
                 value={count}
@@ -228,21 +225,17 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
           <button type="button" className="btn btn-primary" onClick={handleSearch} disabled={api.loading || !formReady}>
             {api.loading ? (
               <>
-                <span className="spinner" aria-hidden="true" />
-                Checking…
-              </>
+                <span className="spinner" aria-hidden="true" />{tr("Checking…")}</>
             ) : (
               t.searchBtn
             )}
           </button>
-          {!formReady && <span className="ds-hint">Enter the name, the amount, and what the amount was for.</span>}
+          {!formReady && <span className="ds-hint">{tr("Enter the name, the amount, and what the amount was for.")}</span>}
         </div>
 
         {/* Error State */}
         {api.error && (
-          <StatePanel kind="error" onRetry={handleSearch}>
-            Could not check the price: {api.error}
-          </StatePanel>
+          <StatePanel kind="error" onRetry={handleSearch}>{tr("Could not check the price: {error}", { error: api.error })}</StatePanel>
         )}
       </section>
 
@@ -274,9 +267,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
           {price.reason && <p className="bn-notice is-warning">{price.reason}</p>}
           {price.basisNote && <p className="bn-fine">{price.basisNote}</p>}
           {result.match_method === "fuzzy_phonetic" && (
-            <p className="bn-notice is-warning">
-              Matched by spelling similarity to “{result.active_ingredient}” — check this is the same medicine.
-            </p>
+            <p className="bn-notice is-warning">{tr("Matched by spelling similarity to “{active_ingredient}” — check this is the same medicine.", { active_ingredient: result.active_ingredient })}</p>
           )}
 
           <ListenSummary
@@ -299,7 +290,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
           {/* Generic Substitute Info */}
           {result.generic_substitute_available && (
             <div className="dc-generic">
-              <strong>Generic alternative (from DawaCheck&apos;s reference data):</strong> {result.generic_substitute_store_info}
+              <strong>{tr("Generic alternative (from DawaCheck's reference data):")}</strong> {result.generic_substitute_store_info}
             </div>
           )}
 
@@ -308,19 +299,16 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
         </section>
       )}
 
+      {result && <LazyModulePlan module="dawacheck" result={result} caseId={caseId} />}
+
       {/* law_library.json lists DPCO 2013 Para 14(1) as not verified against a primary source. */}
       <p className="dc-legal">
-        <strong>Legal basis:</strong> NPPA notifies these ceilings under the Drugs (Prices Control) Order, 2013. This project
-        has not yet verified the Order&apos;s text against the Gazette, so it makes no claim here about what follows when a
-        price is above the ceiling.
-      </p>
+        <strong>{tr("Legal basis:")}</strong>{" "}{tr("NPPA notifies these ceilings under the Drugs (Prices Control) Order, 2013. This project has not yet verified the Order's text against the Gazette, so it makes no claim here about what follows when a price is above the ceiling.")}</p>
 
       <section className="case-panel bn-card" aria-labelledby="dc-rx-title">
         <h3 id="dc-rx-title">{t.prescriptionTranslatorTitle}</h3>
-        <p className="bn-fine">Turns dosing abbreviations such as “OD”, “TDS” or “SOS” into plain words. Anything it does not know is listed, not guessed.</p>
-        <label className="sr-only" htmlFor="dc-rx">
-          Prescription instructions
-        </label>
+        <p className="bn-fine">{tr("Turns dosing abbreviations such as “OD”, “TDS” or “SOS” into plain words. Anything it does not know is listed, not guessed.")}</p>
+        <label className="sr-only" htmlFor="dc-rx">{tr("Prescription instructions")}</label>
         <textarea
           id="dc-rx"
           className="textarea-field"
@@ -331,10 +319,10 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
         />
         <div className="ds-form-actions">
           <button type="button" className="btn btn-secondary" onClick={handleTranslate} disabled={translateApi.loading || !instructionsText.trim()}>
-            {translateApi.loading ? "Translating…" : t.translateBtn}
+            {translateApi.loading ? tr("Translating…") : t.translateBtn}
           </button>
         </div>
-        {translateApi.error && <StatePanel kind="error">Could not translate: {translateApi.error}</StatePanel>}
+        {translateApi.error && <StatePanel kind="error">{tr("Could not translate: {error}", { error: translateApi.error })}</StatePanel>}
 
         {translateApi.data && (
           <div className="dc-rx-result">
@@ -347,7 +335,7 @@ export const DawaCheckView: React.FC<DawaCheckViewProps> = ({ currentLang, caseI
                     <span className="dc-token code-tabular">{instr.token}</span>
                     <span className="dc-token-arrow" aria-hidden="true">→</span>
                     <span className="dc-token-meaning">
-                      {instr.recognized ? instr.translated : "not recognised"}
+                      {instr.recognized ? instr.translated : tr("not recognised")}
                       {instr.recognized && <span className="sr-only"> ({t.recognizedBadge})</span>}
                     </span>
                   </li>

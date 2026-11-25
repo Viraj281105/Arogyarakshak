@@ -61,7 +61,6 @@ export interface DemoScenarioResult {
   scenario: DemoScenario["id"];
   title: string;
   case_id: string;
-  access_token: string;
   documents: string[];
   processing: { filename: string; status: string | null; log: string | null }[];
   credentials: DemoCredentials | null;

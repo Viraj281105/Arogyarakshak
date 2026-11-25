@@ -21,7 +21,7 @@ from app.account_auth import (
     require_principal,
     set_session_cookie,
 )
-from app.case_auth import CASE_ACCESS_TOKEN_HEADER, require_case_access
+from app.case_auth import CASE_ACCESS_TOKEN_HEADER, require_claimable_case
 from app.config import settings
 from app.database import get_db
 from app.models import KadiCase, KadiUser
@@ -42,15 +42,23 @@ router = APIRouter()
 
 AUTH_PREFIX = "/auth"
 
-ACCEPTED_REGISTRATION = (
+_ACCEPTED_REGISTRATION = (
     "If this email address can be registered, the account is ready: sign in with it. "
-    "If it is already registered, sign in with its existing password. Password reset needs email, "
-    "which this server cannot send yet (ADR-026)."
+    "If it is already registered, sign in with its existing password."
 )
-ACCEPTED_EMAIL_REQUEST = (
-    "If an account matches, a message is on its way. Email delivery is not configured on this "
-    "server yet (ADR-026), so no message will arrive."
-)
+_NO_RESET_YET = " Password reset needs email, which this server is not configured to send (ADR-030)."
+_ACCEPTED_EMAIL_REQUEST = "If an account matches, a message is on its way."
+_NO_MESSAGE_YET = " Email delivery is not configured on this server (ADR-030), so no message will arrive."
+
+
+def accepted_registration() -> str:
+    return _ACCEPTED_REGISTRATION + ("" if settings.email_delivery_enabled else _NO_RESET_YET)
+
+
+def accepted_email_request() -> str:
+    return _ACCEPTED_EMAIL_REQUEST + ("" if settings.email_delivery_enabled else _NO_MESSAGE_YET)
+
+
 INVALID_CREDENTIALS_DETAIL = (
     "Email or password is incorrect. After repeated failures, sign-in from this device is slowed down for a few minutes."
 )
@@ -128,6 +136,8 @@ class UserResponse(BaseModel):
     email_verified: bool
     email_verified_at: Optional[datetime] = None
     created_at: datetime
+    is_demo: bool = Field(False, description="The synthetic demonstration account: its data is not real.")
+    display_name: Optional[str] = Field(None, description="Set only for the demonstration account.")
 
 
 class SessionInfo(BaseModel):
@@ -183,6 +193,8 @@ def _user_view(user: KadiUser) -> UserResponse:
         email_verified=user.email_verified_at is not None,
         email_verified_at=user.email_verified_at,
         created_at=user.created_at,
+        is_demo=accounts.is_demo_address(user.email),
+        display_name=accounts.DEMO_ACCOUNT_NAME if accounts.is_demo_address(user.email) else None,
     )
 
 
@@ -210,6 +222,16 @@ def _unprocessable(detail: str) -> HTTPException:
 # --- routes --------------------------------------------------------------------------------
 
 
+class AuthConfigResponse(BaseModel):
+    email_delivery: bool = Field(..., description="Whether this server can send account email.")
+
+
+@router.get(f"{AUTH_PREFIX}/config", response_model=AuthConfigResponse)
+async def auth_config():
+    """What the signed-out pages need to say honestly: can this server send email?"""
+    return AuthConfigResponse(email_delivery=settings.email_delivery_enabled)
+
+
 @router.post(
     f"{AUTH_PREFIX}/register",
     response_model=AcceptedResponse,
@@ -227,7 +249,7 @@ async def register(
         raise _unprocessable(INVALID_EMAIL_DETAIL)
     except PasswordPolicyError as exc:
         raise _unprocessable(str(exc))
-    return AcceptedResponse(message=ACCEPTED_REGISTRATION)
+    return AcceptedResponse(message=accepted_registration())
 
 
 @router.post(f"{AUTH_PREFIX}/login", response_model=SessionResponse, dependencies=[Depends(auth_attempt_guard)])
@@ -289,7 +311,7 @@ async def request_verification(
     req: EmailRequest, db: AsyncSession = Depends(get_db), mail: MailTransport = Depends(get_mail_transport)
 ):
     await accounts.request_verification(db, req.email, mail)
-    return AcceptedResponse(message=ACCEPTED_EMAIL_REQUEST)
+    return AcceptedResponse(message=accepted_email_request())
 
 
 @router.post(
@@ -315,7 +337,7 @@ async def request_password_reset(
     req: EmailRequest, db: AsyncSession = Depends(get_db), mail: MailTransport = Depends(get_mail_transport)
 ):
     await accounts.request_password_reset(db, req.email, mail)
-    return AcceptedResponse(message=ACCEPTED_EMAIL_REQUEST)
+    return AcceptedResponse(message=accepted_email_request())
 
 
 @router.post(
@@ -365,12 +387,12 @@ async def list_my_cases(principal: Principal = Depends(require_principal), db: A
 async def claim_case(
     case_id: str,
     principal: Principal = Depends(require_principal),
-    case: KadiCase = Depends(require_case_access),
+    case: KadiCase = Depends(require_claimable_case),
     db: AsyncSession = Depends(get_db),
     x_case_access_token: Optional[str] = Header(None, alias=CASE_ACCESS_TOKEN_HEADER),
 ):
-    """Moves a guest case into the signed-in account. Needs the session AND the case's
-    X-Case-Access-Token; afterwards that token no longer opens the case."""
+    """Moves a case started before sign-in was required into the signed-in account. Needs
+    the session AND the case's X-Case-Access-Token; afterwards the token is discarded."""
     try:
         claimed = await accounts.claim_case(db, case, principal.user, x_case_access_token)
     except CaseOwnedElsewhere:

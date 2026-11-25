@@ -12,6 +12,7 @@ import {
   statusBadgeSwatch,
   type StatusTone,
 } from './tones';
+import { tr, msg, useTranslation } from '../../translations/tr';
 
 /**
  * The one evidence badge (eight states, same vocabulary and citation mapping as web). Always a
@@ -32,18 +33,19 @@ export function EvidenceBadge({
   showMeaning?: boolean;
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, spacing, radii } = useTheme();
   const s = evidenceSwatch(colors, state);
   const copy = EVIDENCE_COPY[state];
-  const text = label ?? copy.label;
+  const text = label ?? tr(copy.label);
   const preset = size === 'sm' ? textStyles.caption : textStyles.labelSmall;
   return (
     <View style={[styles.wrap, style]}>
       <View
         accessible
         accessibilityRole="text"
-        accessibilityLabel={`Evidence: ${text}`}
-        accessibilityHint={copy.meaning}
+        accessibilityLabel={tr('Evidence: {label}', { label: text })}
+        accessibilityHint={tr(copy.meaning)}
         testID={`evidence-${state}`}
         style={[
           styles.badge,
@@ -60,7 +62,7 @@ export function EvidenceBadge({
         <Text style={[textStyleFor(preset, text, '600'), { color: s.fg, marginLeft: 4 }]}>{text}</Text>
       </View>
       {showMeaning ? (
-        <Text style={[textStyles.caption, { color: colors.textSecondary, marginTop: 2 }]}>{copy.meaning}</Text>
+        <Text style={[textStyles.caption, { color: colors.textSecondary, marginTop: 2 }]}>{tr(copy.meaning)}</Text>
       ) : null}
     </View>
   );
@@ -99,7 +101,7 @@ export function StatusBadge({ tone, label, style }: { tone: StatusTone; label: s
  */
 export function ConfidenceIndicator({
   value,
-  label = 'Confidence',
+  label = msg('Confidence'),
   source,
   style,
 }: {
@@ -110,22 +112,25 @@ export function ConfidenceIndicator({
   source: string;
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, radii } = useTheme();
   const { pct, word } = confidenceBucket(value);
+  const name = tr(label);
+  const shownWord = tr(word);
   return (
     <View
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`${label}: ${pct}%, ${word}, from ${source}`}
-      accessibilityValue={{ min: 0, max: 100, now: pct, text: `${pct}% ${word}` }}
+      accessibilityLabel={tr('{label}: {percent}%, {word}, from {source}', { label: name, percent: pct, word: shownWord, source })}
+      accessibilityValue={{ min: 0, max: 100, now: pct, text: `${pct}% ${shownWord}` }}
       style={style}
     >
       <View style={styles.row}>
-        <Text style={[textStyleFor(textStyles.labelSmall, label, '600'), { color: colors.textSecondary, flexShrink: 1 }]}>
-          {label}
+        <Text style={[textStyleFor(textStyles.labelSmall, name, '600'), { color: colors.textSecondary, flexShrink: 1 }]}>
+          {name}
         </Text>
         <Text style={[textStyles.mono, { color: colors.textPrimary, marginLeft: 8 }]}>
-          {pct}% · {word}
+          {pct}% · {shownWord}
         </Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.bgSurfaceSecondary, borderRadius: radii.full }]}>
@@ -136,7 +141,7 @@ export function ConfidenceIndicator({
           ]}
         />
       </View>
-      <Text style={[textStyles.caption, { color: colors.textSecondary }]}>Source: {source}</Text>
+      <Text style={[textStyles.caption, { color: colors.textSecondary }]}>{tr('Source: {source}', { source })}</Text>
     </View>
   );
 }
@@ -165,15 +170,21 @@ export function MetricCard({
   note?: string;
   style?: ViewStyle;
 }) {
+  useTranslation();
   const { colors, spacing, radii } = useTheme();
   const est = estimateSwatch(colors);
-  const basisWord = basis === 'verified' ? 'Verified' : 'Estimate';
+  const basisWord = basis === 'verified' ? tr('Verified') : tr('Estimate');
   return (
     <Card
       reveal={false}
       style={style}
       accessible
-      accessibilityLabel={`${label}: ${value}${unit ? ` ${unit}` : ''}. ${basisWord}. Source: ${source}${period ? `, ${period}` : ''}.`}
+      accessibilityLabel={tr('{label}: {value}. {basis}. Source: {source}.', {
+        label,
+        value: unit ? `${value} ${unit}` : value,
+        basis: basisWord,
+        source: period ? `${source}, ${period}` : source,
+      })}
     >
       <View style={styles.row}>
         <Text style={[textStyleFor(textStyles.labelSmall, label, '600'), { color: colors.textSecondary, flexShrink: 1 }]}>
@@ -195,7 +206,7 @@ export function MetricCard({
               },
             ]}
           >
-            <Text style={[textStyles.caption, { color: est.fg }]}>Estimate</Text>
+            <Text style={[textStyles.caption, { color: est.fg }]}>{tr('Estimate')}</Text>
           </View>
         )}
       </View>
@@ -204,7 +215,7 @@ export function MetricCard({
         {unit ? <Text style={[textStyles.bodySmall, { color: colors.textSecondary }]}> {unit}</Text> : null}
       </Text>
       <Text style={[textStyles.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-        Source: {source}
+        {tr('Source: {source}', { source })}
         {period ? ` · ${period}` : ''}
       </Text>
       {note ? (

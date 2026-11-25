@@ -1,5 +1,6 @@
 import { api } from '../api';
 import { UploadResponse } from '../api/types';
+import { tr } from '../translations/tr';
 
 /**
  * ArogyaRakshak Document Scanner Foundation Service
@@ -29,7 +30,7 @@ export const scannerService = {
    */
   validateScan: (doc: ScannedDocument): { valid: boolean; reason?: string } => {
     if (!doc.uri) {
-      return { valid: false, reason: 'Invalid or missing image URI' };
+      return { valid: false, reason: tr('Invalid or missing image URI') };
     }
     return { valid: true };
   },
@@ -62,12 +63,12 @@ export const scannerService = {
   ): Promise<{ caseId: string; uploadResponse: UploadResponse }> => {
     const validation = scannerService.validateScan(doc);
     if (!validation.valid) {
-      throw new Error(validation.reason || 'Invalid scan document');
+      throw new Error(validation.reason || tr('Invalid scan document'));
     }
 
     if (!options?.consent) {
       throw new Error(
-        'Consent is required before a document can be analysed. The case was not created.'
+        tr('Consent is required before a document can be analysed. The case was not created.')
       );
     }
 
@@ -77,7 +78,7 @@ export const scannerService = {
     });
     const caseId = caseRes.id;
     if (!caseId) {
-      throw new Error('Failed to retrieve case ID from Kadi layer');
+      throw new Error(tr('Failed to retrieve case ID from Kadi layer'));
     }
 
     const payload = scannerService.createUploadPayload(doc);

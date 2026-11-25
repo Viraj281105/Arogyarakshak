@@ -14,7 +14,7 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `POSTGRES_USER` | No | `arogyarakshak` | Username for PostgreSQL container. |
 | `POSTGRES_PASSWORD` | No | `arogyarakshak` | Password for PostgreSQL container. Change in production! |
 | `POSTGRES_DB` | No | `arogyarakshak` | Database name for PostgreSQL. |
-| `CORS_ORIGINS` | No | `*` | Comma-separated list of allowed CORS origins. Example: `http://localhost:3000,https://arogyarakshak.in` |
+| `CORS_ORIGINS` | No (production: **Yes**) | `http://localhost:3000` | Comma-separated web origins allowed to call the API with the sign-in cookie. Example: `https://arogyarakshak.in`. A wildcard `*` disables sign-in from browsers. Production refuses to start on a wildcard or when the variable is unset. |
 | `MAX_UPLOAD_BYTES` | No | `10485760` (10 MB) | Maximum accepted document upload size. Larger uploads return `413`. |
 | `SSE_TIMEOUT_SECONDS` | No | `120` | Maximum lifetime of a `/stream` connection before it closes with a `timeout` event. |
 | `RATE_LIMIT_PER_MINUTE` | No | `120` | Requests allowed per client IP per 60-second window before `429 Too Many Requests`. See ADR-008 — this exists for unauthenticated (guest) traffic; account routes have their own stricter `AUTH_RATE_LIMIT_PER_MINUTE` bucket (ADR-026). |
@@ -33,7 +33,12 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `LOGIN_MAX_DELAY_SECONDS` | No | `900` | Cap of the doubling delay (1 s, 2 s, 4 s, …). |
 | `ACCOUNT_VERIFICATION_TOKEN_TTL_HOURS` | No | `24` | Email-verification token lifetime (single use, hash stored). |
 | `PASSWORD_RESET_TOKEN_TTL_MINUTES` | No | `30` | Password-reset token lifetime (single use, hash stored). |
-| `MAIL_TRANSPORT` | No | `disabled` | The only accepted value. Email delivery is an OPEN decision (ADR-026 §11, a new network boundary): verification and reset requests create the token and log that nothing was delivered (never the address or token). |
+| `MAIL_TRANSPORT` | No | `disabled` | `disabled` sends nothing: verification and reset requests create the token and log that nothing was delivered (never the address or token). `gmail_api` sends through one Gmail mailbox over HTTPS (ADR-030, setup in [email-gmail.md](email-gmail.md)). |
+| `GMAIL_SENDER` | With `gmail_api` | `""` | Address of the dedicated sender mailbox. |
+| `GMAIL_CLIENT_ID` | With `gmail_api` | `""` | OAuth 2.0 client id. |
+| `GMAIL_CLIENT_SECRET` | With `gmail_api` | `""` | OAuth 2.0 client secret. Secret: never commit it. |
+| `GMAIL_REFRESH_TOKEN` | With `gmail_api` | `""` | Refresh token with the `gmail.send` scope. Secret: never commit it. |
+| `WEB_APP_BASE_URL` | With `gmail_api` | `""` | Web app address used in account links. Must be `https://` under `APP_ENV=production`. |
 | `DOCUMENT_SIGNING_SECRET` | Production: **Yes** | `dev-insecure-signing-secret-change-in-production` | HMAC key for appeal-PDF integrity signatures (#66). Proves a PDF is byte-for-byte what this server generated; **not** a licensed digital signature certificate. Override with a long random value in any real deployment. |
 | `CLINICAL_GOVERNANCE_ADMIN_KEY` | No | `""` (disabled) | Operator secret (sent as `X-Governance-Admin-Key`) for seating safety-board members, recording verification attempts and seeding demo fixtures (ADR-011). **Empty disables those actions (503)** — it never means "open". Use a long random value. |
 | `CLINICAL_DEMO_MODE` | No | `false` | Enables the demo kit: `POST /api/v1/kadi/clinical-demo/seed`, `/reset`, `/scenarios/{A-E}`, the `DEMO_VERIFIED` reviewer status, the Scenario C OCR replay and the clients' DEMO MODE banner. Logged as a warning at startup. **Never enable in a real deployment** — refused with `APP_ENV=production`. |
@@ -56,10 +61,11 @@ All runtime parameters in **ArogyaRakshak** are controlled via environment varia
 | `OTEL_TRACES_SAMPLER_RATIO` | No | `1.0` | Head sampling ratio between 0 and 1 (parent-based). |
 | `GRAFANA_ADMIN_PASSWORD` | Production: **Yes** (when the stack is used) | `arogyarakshak-dev-only` | Grafana admin password for the observability stack. The Grafana container refuses to start under `APP_ENV=production` while this is the development default or shorter than 12 characters; `python scripts/observability_preflight.py` performs the same check first. Anonymous access is always off. |
 
-> **Note on CORS:** when `CORS_ORIGINS` is a wildcard (the default), credentialed cross-origin
-> requests are disabled automatically — a wildcard origin combined with credentials would let
-> any site issue authenticated requests. Set an explicit comma-separated origin list to enable
-> credentials.
+> **Note on CORS:** the web client signs in with a cookie, so its origin must be listed. When
+> `CORS_ORIGINS` is a wildcard, credentialed cross-origin requests are disabled automatically (a
+> wildcard origin combined with credentials would let any site issue authenticated requests) and
+> nobody can sign in from a browser. Use `localhost` for both the web and the API locally:
+> `127.0.0.1` and `localhost` are different sites to the cookie.
 
 > Every response carries an `X-Request-ID` header (a well-formed incoming one is reused) that also
 > appears on every log line for that request.

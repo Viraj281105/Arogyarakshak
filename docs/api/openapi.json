@@ -133,6 +133,307 @@
         "title": "AcceptedResponse",
         "type": "object"
       },
+      "ActionCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_disputed": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rupees, as recorded by the user. Not verified.",
+            "title": "Amount Disputed"
+          },
+          "contact_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finding_ref": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which finding this answers.",
+            "title": "Finding Ref"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActionKind"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ActionModule"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Step"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module",
+          "kind",
+          "title"
+        ],
+        "title": "ActionCreate",
+        "type": "object"
+      },
+      "ActionEvent": {
+        "properties": {
+          "evidence_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Sha256"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "occurred_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred On"
+          },
+          "provenance": {
+            "description": "'user_recorded': entered by the user, not independently verified.",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ActionStatus"
+          }
+        },
+        "required": [
+          "status",
+          "occurred_on",
+          "note",
+          "evidence_sha256",
+          "provenance",
+          "recorded_at"
+        ],
+        "title": "ActionEvent",
+        "type": "object"
+      },
+      "ActionEventCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_corrected": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rupees, as recorded by the user. Not verified.",
+            "title": "Amount Corrected"
+          },
+          "amount_disputed": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rupees, as recorded by the user. Not verified.",
+            "title": "Amount Disputed"
+          },
+          "contact_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A document already in this case.",
+            "title": "Evidence Sha256"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Step"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "occurred_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The day it happened, as the user remembers it.",
+            "title": "Occurred On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ActionStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ActionEventCreate",
+        "type": "object"
+      },
+      "ActionKind": {
+        "enum": [
+          "clarification_request",
+          "appeal_or_grievance",
+          "collect_documents",
+          "confirm_with_doctor",
+          "ask_pharmacist",
+          "check_eligibility",
+          "other"
+        ],
+        "title": "ActionKind",
+        "type": "string"
+      },
+      "ActionModule": {
+        "enum": [
+          "billnyay",
+          "bimanyay",
+          "dawacheck",
+          "daavisetu",
+          "schemesetu",
+          "kadi"
+        ],
+        "title": "ActionModule",
+        "type": "string"
+      },
+      "ActionStatus": {
+        "enum": [
+          "planned",
+          "draft_prepared",
+          "sent",
+          "awaiting_response",
+          "response_received",
+          "further_action_needed",
+          "resolved",
+          "partially_resolved",
+          "unresolved",
+          "closed",
+          "withdrawn"
+        ],
+        "title": "ActionStatus",
+        "type": "string"
+      },
       "AppealResponse": {
         "properties": {
           "appeal_letter": {
@@ -393,6 +694,20 @@
         "title": "AuditResultItem",
         "type": "object"
       },
+      "AuthConfigResponse": {
+        "properties": {
+          "email_delivery": {
+            "description": "Whether this server can send account email.",
+            "title": "Email Delivery",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email_delivery"
+        ],
+        "title": "AuthConfigResponse",
+        "type": "object"
+      },
       "BenchRequest": {
         "properties": {
           "brand_name": {
@@ -552,6 +867,151 @@
           "reasons"
         ],
         "title": "CalibrationAttempt",
+        "type": "object"
+      },
+      "CaseAction": {
+        "properties": {
+          "allowed_next": {
+            "items": {
+              "$ref": "#/components/schemas/ActionStatus"
+            },
+            "title": "Allowed Next",
+            "type": "array"
+          },
+          "amount_corrected": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Corrected"
+          },
+          "amount_disputed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Disputed"
+          },
+          "contact_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ActionEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "finding_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Ref"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActionKind"
+          },
+          "module": {
+            "$ref": "#/components/schemas/ActionModule"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Step"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ActionStatus"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "kind",
+          "title",
+          "finding_ref",
+          "status",
+          "allowed_next",
+          "institution",
+          "contact_method",
+          "next_step",
+          "amount_disputed",
+          "amount_corrected",
+          "created_at",
+          "updated_at",
+          "events"
+        ],
+        "title": "CaseAction",
+        "type": "object"
+      },
+      "CaseActionList": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/CaseAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "actions"
+        ],
+        "title": "CaseActionList",
         "type": "object"
       },
       "CaseCreate": {
@@ -1212,6 +1672,18 @@
         },
         "title": "ConfirmRequest",
         "type": "object"
+      },
+      "ContactMethod": {
+        "enum": [
+          "in_person",
+          "phone",
+          "email",
+          "letter",
+          "online_portal",
+          "other"
+        ],
+        "title": "ContactMethod",
+        "type": "string"
       },
       "DatasetProvenance": {
         "properties": {
@@ -4581,6 +5053,18 @@
             "title": "Created At",
             "type": "string"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only for the demonstration account.",
+            "title": "Display Name"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -4604,6 +5088,12 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "is_demo": {
+            "default": false,
+            "description": "The synthetic demonstration account: its data is not real.",
+            "title": "Is Demo",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4720,38 +5210,6 @@
               "title": "Language",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -4795,38 +5253,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -4868,38 +5294,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -4940,38 +5334,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -5016,38 +5378,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -5088,38 +5418,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -5163,38 +5461,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -5345,22 +5611,6 @@
               "description": "Optional: link this dispute record to an existing Kadi case (SEC-04).",
               "title": "Case Id"
             }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "requestBody": {
@@ -5414,38 +5664,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -5495,22 +5713,6 @@
               ],
               "description": "Optional: link this grievance record to an existing Kadi case (SEC-04).",
               "title": "Case Id"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -5565,38 +5767,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "requestBody": {
@@ -5650,38 +5820,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "requestBody": {
@@ -5733,38 +5871,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -5805,38 +5911,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -5881,22 +5955,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
             "in": "header",
             "name": "X-Institution-Token",
             "required": false,
@@ -5910,22 +5968,6 @@
                 }
               ],
               "title": "X-Institution-Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -5980,22 +6022,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
             "in": "header",
             "name": "X-Institution-Token",
             "required": false,
@@ -6009,22 +6035,6 @@
                 }
               ],
               "title": "X-Institution-Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -6619,38 +6629,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -6724,6 +6702,28 @@
         "summary": "Translate Instructions",
         "tags": [
           "DawaCheck (Medicine Pricing)"
+        ]
+      }
+    },
+    "/api/v1/kadi/auth/config": {
+      "get": {
+        "description": "What the signed-out pages need to say honestly: can this server send email?",
+        "operationId": "auth_config_api_v1_kadi_auth_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Auth Config",
+        "tags": [
+          "Kadi — Accounts"
         ]
       }
     },
@@ -7116,7 +7116,7 @@
         ]
       },
       "post": {
-        "description": "Creates a new patient case session and its one-time access token (ADR-009).\nSigned in (ADR-026): the case is owned by the account and no case token is issued.",
+        "description": "Creates a new case owned by the signed-in account (ADR-029). No case token is issued.",
         "operationId": "create_case_api_v1_kadi_cases_post",
         "requestBody": {
           "content": {
@@ -7169,38 +7169,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -7234,38 +7202,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -7310,38 +7246,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -7372,10 +7276,103 @@
         ]
       }
     },
-    "/api/v1/kadi/cases/{case_id}/claim": {
+    "/api/v1/kadi/cases/{case_id}/actions": {
+      "get": {
+        "description": "Every tracked action of the case with its history, oldest first.",
+        "operationId": "list_case_actions_api_v1_kadi_cases__case_id__actions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseActionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Case Actions",
+        "tags": [
+          "Kadi (Shared Layer)"
+        ]
+      },
       "post": {
-        "description": "Moves a guest case into the signed-in account. Needs the session AND the case's\nX-Case-Access-Token; afterwards that token no longer opens the case.",
-        "operationId": "claim_case_api_v1_kadi_cases__case_id__claim_post",
+        "description": "Starts tracking a next step. It is 'planned' until the user records more.",
+        "operationId": "create_case_action_api_v1_kadi_cases__case_id__actions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseAction"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Case Action",
+        "tags": [
+          "Kadi (Shared Layer)"
+        ]
+      }
+    },
+    "/api/v1/kadi/cases/{case_id}/actions/{action_id}": {
+      "delete": {
+        "operationId": "delete_case_action_api_v1_kadi_cases__case_id__actions__action_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -7387,19 +7384,110 @@
             }
           },
           {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
+            "in": "path",
+            "name": "action_id",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
-              ],
-              "title": "Access Token"
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Case Action",
+        "tags": [
+          "Kadi (Shared Layer)"
+        ]
+      }
+    },
+    "/api/v1/kadi/cases/{case_id}/actions/{action_id}/events": {
+      "post": {
+        "description": "Records what the user says happened. Refused (409) when it could not be true, for\nexample a response to something never sent.",
+        "operationId": "record_case_action_event_api_v1_kadi_cases__case_id__actions__action_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionEventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseAction"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Case Action Event",
+        "tags": [
+          "Kadi (Shared Layer)"
+        ]
+      }
+    },
+    "/api/v1/kadi/cases/{case_id}/claim": {
+      "post": {
+        "description": "Moves a case started before sign-in was required into the signed-in account. Needs\nthe session AND the case's X-Case-Access-Token; afterwards the token is discarded.",
+        "operationId": "claim_case_api_v1_kadi_cases__case_id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
             }
           },
           {
@@ -7460,38 +7548,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -7532,38 +7588,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -7621,38 +7645,6 @@
               ],
               "title": "Source Module"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -7691,38 +7683,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -7783,38 +7743,6 @@
               "title": "Review Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -7863,38 +7791,6 @@
             "schema": {
               "title": "Review Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -7955,38 +7851,6 @@
               "title": "Review Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8037,38 +7901,6 @@
               "title": "Review Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8109,38 +7941,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -8184,38 +7984,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -8275,38 +8043,6 @@
               ],
               "title": "Status"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8363,38 +8099,6 @@
               "title": "Decision Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "requestBody": {
@@ -8448,38 +8152,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8520,38 +8192,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -8594,38 +8234,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8666,38 +8274,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8736,38 +8312,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -8828,38 +8372,6 @@
               "title": "Task Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "requestBody": {
@@ -8919,38 +8431,6 @@
               "title": "Task Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -8991,38 +8471,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -9122,7 +8570,7 @@
     },
     "/api/v1/kadi/clinical-demo/scenarios/{scenario_id}": {
       "post": {
-        "description": "Starts a scenario: a fresh consented case whose synthetic documents have been run\nthrough the real upload pipeline. Returns the case id and its one-time access token.",
+        "description": "Starts a scenario: a fresh consented case, owned by the signed-in account, whose\nsynthetic documents have been run through the real upload pipeline.",
         "operationId": "load_clinical_demo_scenario_api_v1_kadi_clinical_demo_scenarios__scenario_id__post",
         "parameters": [
           {
@@ -11445,38 +10893,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "requestBody": {
@@ -11534,38 +10950,6 @@
               "title": "Case Id",
               "type": "string"
             }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
-            }
           }
         ],
         "responses": {
@@ -11598,38 +10982,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],
@@ -11671,38 +11023,6 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Case-Access-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Case-Access-Token"
             }
           }
         ],

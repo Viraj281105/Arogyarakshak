@@ -1,8 +1,8 @@
-"""Account email transport (ADR-026 section 8).
+"""Account email transport (ADR-026 section 8, ADR-030).
 
-Sending email is a new network boundary and the delivery channel is an OPEN decision, so
-the only shipped transport is ``disabled``: it delivers nothing and logs only that a
-message of a given purpose was not delivered. It never logs the address or the token.
+``disabled`` (the default) delivers nothing and logs only that a message of a given purpose
+was not delivered. ``gmail_api`` (app.services.mail_gmail) is used only when an operator
+configures it. No transport logs the address or the token.
 
 Tests inject ``InMemoryMailTransport`` through the ``get_mail_transport`` dependency to
 exercise the full verification and reset flows.
@@ -44,7 +44,7 @@ class DisabledMailTransport:
 
     def send(self, message: AccountMail) -> bool:
         logger.info(
-            "Account email (%s) not delivered: MAIL_TRANSPORT=disabled (ADR-026, delivery channel undecided).",
+            "Account email (%s) not delivered: MAIL_TRANSPORT=disabled.",
             message.purpose,
         )
         return False
@@ -63,9 +63,10 @@ class InMemoryMailTransport:
         return True
 
 
-_TRANSPORTS = {"disabled": DisabledMailTransport}
-
-
 def get_mail_transport() -> MailTransport:
-    """FastAPI dependency (tests override it). Only ``disabled`` exists."""
-    return _TRANSPORTS[settings.mail_transport]()
+    """FastAPI dependency (tests override it)."""
+    if settings.mail_transport == "gmail_api":
+        from app.services.mail_gmail import gmail_transport_from_settings  # it imports this module
+
+        return gmail_transport_from_settings()
+    return DisabledMailTransport()

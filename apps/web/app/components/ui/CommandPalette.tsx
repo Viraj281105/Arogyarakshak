@@ -6,6 +6,7 @@ import CornerDownLeft from "lucide-react/icons/corner-down-left";
 import Search from "lucide-react/icons/search";
 import { useLanguage } from "../../shell/ShellProvider";
 import { filterCommands, paletteCommands, type Command } from "../../shell/commands";
+import { useT } from "../../i18n/useT";
 
 /**
  * Ctrl/Cmd+K palette: a modal <dialog> with a combobox filtering a listbox of the app's existing
@@ -13,6 +14,7 @@ import { filterCommands, paletteCommands, type Command } from "../../shell/comma
  * closes and focus returns to where it was (native dialog behaviour).
  */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const tr = useT();
   const [lang] = useLanguage();
   const router = useRouter();
   const id = useId();
@@ -59,7 +61,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     <dialog
       ref={dialog}
       className="ui-dialog ui-palette"
-      aria-label="Go to a page"
+      aria-label={tr("Go to a page")}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="ui-dialog-panel">
@@ -72,8 +74,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             aria-controls={`${id}-list`}
             aria-activedescendant={activeId}
             aria-autocomplete="list"
-            aria-label="Go to a page"
-            placeholder="Go to a page…"
+            aria-label={tr("Go to a page")}
+            placeholder={tr("Go to a page…")}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -92,13 +94,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               }
             }}
           />
-          <kbd className="ui-kbd">Esc</kbd>
+          <kbd className="ui-kbd">{tr("Esc")}</kbd>
         </div>
-        <ul id={`${id}-list`} role="listbox" aria-label="Pages" className="ui-palette-list">
+        <ul id={`${id}-list`} role="listbox" aria-label={tr("Pages")} className="ui-palette-list">
           {results.length === 0 && (
-            <li role="option" aria-selected="false" aria-disabled="true" className="ui-palette-empty">
-              No page matches “{query}”. The palette only lists pages that exist.
-            </li>
+            <li role="option" aria-selected="false" aria-disabled="true" className="ui-palette-empty">{tr("No page matches “{query}”. The palette only lists pages that exist.", { query: query })}</li>
           )}
           {results.map((cmd, i) => (
             <li
@@ -119,8 +119,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           ))}
         </ul>
         <p className="ui-palette-hint">
-          <kbd className="ui-kbd">↑</kbd> <kbd className="ui-kbd">↓</kbd> to move, <kbd className="ui-kbd">Enter</kbd> to open
-        </p>
+          <kbd className="ui-kbd">↑</kbd> <kbd className="ui-kbd">↓</kbd>{" "}{tr("to move,")}{" "}<kbd className="ui-kbd">Enter</kbd>{" "}{tr("to open")}</p>
       </div>
     </dialog>
   );

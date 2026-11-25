@@ -9,6 +9,7 @@ import { Button } from '../Button';
 import { Icon } from './Icon';
 import { SHEET_MAX_HEIGHT_RATIO, sheetOffset } from './logic';
 import { sheetHandleColor } from './tones';
+import { tr, msg, useTranslation } from '../../translations/tr';
 
 /**
  * Modal overlays on React Native's own Modal + Animated (no gesture library: Gesture Handler is
@@ -133,7 +134,7 @@ export function ConfirmationDialog({
   title,
   consequence,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel = msg('Cancel'),
   destructive = false,
 }: {
   open: boolean;
@@ -145,6 +146,7 @@ export function ConfirmationDialog({
   cancelLabel?: string;
   destructive?: boolean;
 }) {
+  useTranslation();
   const { colors, spacing, radii } = useTheme();
   const { mounted, progress, reduced } = useOverlayProgress(open);
   if (!mounted) return null;
@@ -153,7 +155,7 @@ export function ConfirmationDialog({
   return (
     <Modal visible transparent animationType="none" onRequestClose={onCancel} statusBarTranslucent>
       <View style={[styles.fill, styles.center, { padding: spacing.lg }]}>
-        <Scrim progress={progress} onPress={onCancel} label={cancelLabel} />
+        <Scrim progress={progress} onPress={onCancel} label={tr(cancelLabel)} />
         <Animated.View
           accessibilityViewIsModal
           aria-modal
@@ -178,7 +180,7 @@ export function ConfirmationDialog({
             {consequence}
           </Text>
           <View style={[styles.actions, { marginTop: spacing.lg }]}>
-            <Button title={cancelLabel} onPress={onCancel} variant="secondary" style={styles.action} />
+            <Button title={tr(cancelLabel)} onPress={onCancel} variant="secondary" style={styles.action} />
             <Button
               title={confirmLabel}
               onPress={onConfirm}

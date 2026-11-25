@@ -5,6 +5,7 @@ import { Card } from './Card';
 import { Button } from './Button';
 import { AgentStreamVisualizer } from './AgentStreamVisualizer';
 import { CaseProcessing } from '../hooks/useCaseProcessing';
+import { tr, useTranslation } from '../translations/tr';
 
 /**
  * The one place a module screen shows where its case is in processing: live progress,
@@ -13,6 +14,7 @@ import { CaseProcessing } from '../hooks/useCaseProcessing';
  * server did not report.
  */
 export const ProcessingStatusCard: React.FC<{ proc: CaseProcessing }> = ({ proc }) => {
+  useTranslation();
   const { colors, spacing, typography } = useTheme();
   if (!proc.caseId || proc.phase === 'idle') return null;
 
@@ -20,13 +22,12 @@ export const ProcessingStatusCard: React.FC<{ proc: CaseProcessing }> = ({ proc 
     return (
       <Card style={{ marginVertical: spacing.sm, borderColor: colors.statusWarning, borderWidth: 1 }}>
         <Text style={{ color: colors.statusWarning, fontWeight: '700', fontSize: typography.sizes.sm }}>
-          ⏳ Processing is taking longer than expected.
+          {tr('⏳ Processing is taking longer than expected.')}
         </Text>
         <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginVertical: spacing.xs }}>
-          Your document may still be being read. Nothing below has been checked yet — refresh the status before relying on
-          any result.
+          {tr('Your document may still be being read. Nothing below has been checked yet — refresh the status before relying on any result.')}
         </Text>
-        <Button title="Refresh status" onPress={proc.refreshStatus} variant="outline" size="sm" />
+        <Button title={tr('Refresh status')} onPress={proc.refreshStatus} variant="outline" size="sm" />
       </Card>
     );
   }
@@ -35,15 +36,15 @@ export const ProcessingStatusCard: React.FC<{ proc: CaseProcessing }> = ({ proc 
     return (
       <Card style={{ marginVertical: spacing.sm, borderColor: colors.statusDanger, borderWidth: 1 }}>
         <Text style={{ color: colors.statusDanger, fontWeight: '700', fontSize: typography.sizes.sm }}>
-          ⚠️ This document could not be processed.
+          {tr('⚠️ This document could not be processed.')}
         </Text>
         {proc.message ? (
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginVertical: spacing.xs }}>
-            {proc.message}
+            {tr(proc.message)}
           </Text>
         ) : null}
         <View style={{ gap: spacing.xs }}>
-          <Button title="Refresh status" onPress={proc.refreshStatus} variant="outline" size="sm" />
+          <Button title={tr('Refresh status')} onPress={proc.refreshStatus} variant="outline" size="sm" />
         </View>
       </Card>
     );

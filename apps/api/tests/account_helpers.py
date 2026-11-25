@@ -64,6 +64,11 @@ def bearer_for(email: "str | None" = None) -> "tuple[dict, str]":
     return {"Authorization": f"Bearer {res.json()['token']}"}, email
 
 
+def other_account() -> "dict":
+    """Headers of a second, unrelated signed-in account."""
+    return bearer_for()[0]
+
+
 def run_db(fn):
     async def runner():
         async with get_background_session() as session:
@@ -90,6 +95,7 @@ __all__ = [
     "bearer_for",
     "fresh_email",
     "login",
+    "other_account",
     "plain_client",
     "register",
     "run_db",

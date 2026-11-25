@@ -1,3 +1,4 @@
+import { msg } from "../i18n/format";
 // Client-side password protection for downloaded document packages (issue #101).
 //
 // The server never sees the password or the ciphertext: the package is fetched, encrypted
@@ -33,7 +34,7 @@ export class PackageCryptoError extends Error {}
 
 function subtle(): SubtleCrypto {
   const s = globalThis.crypto?.subtle;
-  if (!s) throw new PackageCryptoError("This browser does not support the Web Crypto API.");
+  if (!s) throw new PackageCryptoError(msg("This browser does not support the Web Crypto API."));
   return s;
 }
 
@@ -60,7 +61,7 @@ function buildHeader(iterations: number, salt: Uint8Array, iv: Uint8Array): Uint
 
 export function passwordProblem(password: string): string | null {
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
+    return msg("Use at least 8 characters.");
   }
   return null;
 }
@@ -93,14 +94,14 @@ export async function encryptPackage(
 export async function decryptPackage(file: ArrayBuffer | Uint8Array, password: string): Promise<Uint8Array> {
   const bytes = file instanceof Uint8Array ? file : new Uint8Array(file);
   if (bytes.length < HEADER_BYTES + GCM_TAG_BYTES || !MAGIC.every((b, i) => bytes[i] === b)) {
-    throw new PackageCryptoError("This is not an ArogyaRakshak protected file.");
+    throw new PackageCryptoError(msg("This is not an ArogyaRakshak protected file."));
   }
   if (bytes[MAGIC.length] !== VERSION) {
-    throw new PackageCryptoError("This file was made by an unsupported version.");
+    throw new PackageCryptoError(msg("This file was made by an unsupported version."));
   }
   const iterations = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(ITER_OFFSET, false);
   if (iterations < 1 || iterations > MAX_ITERATIONS) {
-    throw new PackageCryptoError("This file has invalid protection settings.");
+    throw new PackageCryptoError(msg("This file has invalid protection settings."));
   }
   const header = bytes.slice(0, HEADER_BYTES);
   const salt = bytes.slice(SALT_OFFSET, SALT_OFFSET + SALT_BYTES);
@@ -116,6 +117,6 @@ export async function decryptPackage(file: ArrayBuffer | Uint8Array, password: s
     );
   } catch {
     // AES-GCM cannot tell a wrong password from a damaged file; say both.
-    throw new PackageCryptoError("Wrong password, or the file has been changed or damaged.");
+    throw new PackageCryptoError(msg("Wrong password, or the file has been changed or damaged."));
   }
 }

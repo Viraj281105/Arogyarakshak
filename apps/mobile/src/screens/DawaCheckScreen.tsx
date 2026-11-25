@@ -14,6 +14,7 @@ import { useActiveCaseId } from '../hooks/useActiveCase';
 import { resolveCaseId } from '../services/activeCase';
 import { createRequestGuard } from '../services/caseProcessing';
 import { BASIS_OPTIONS, PriceBasis, buildBenchmarkRequest, describePriceCheck } from '../services/priceCheck';
+import { tr, msg } from '../translations/tr';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -28,10 +29,10 @@ interface QuickSample {
 // Synthetic sample prices. Each states what the amount buys, so a strip price is never
 // compared with a per-tablet ceiling (the old samples produced "+1356%").
 const QUICK_SAMPLES: QuickSample[] = [
-  { name: 'Dolo 650', mrp: '33', basis: 'PER_STRIP', count: '15', caption: '₹33 / strip of 15' },
-  { name: 'Augmentin 625 Duo', mrp: '220', basis: 'PER_PACK', count: '10', caption: '₹220 / pack of 10' },
-  { name: 'Metformin 500mg SR', mrp: '18', basis: 'PER_STRIP', count: '10', caption: '₹18 / strip of 10' },
-  { name: 'Meropenem 1g Injection', mrp: '900', basis: 'PER_UNIT', count: '', caption: '₹900 / vial' },
+  { name: 'Dolo 650', mrp: '33', basis: 'PER_STRIP', count: '15', caption: msg('₹33 / strip of 15') },
+  { name: 'Augmentin 625 Duo', mrp: '220', basis: 'PER_PACK', count: '10', caption: msg('₹220 / pack of 10') },
+  { name: 'Metformin 500mg SR', mrp: '18', basis: 'PER_STRIP', count: '10', caption: msg('₹18 / strip of 10') },
+  { name: 'Meropenem 1g Injection', mrp: '900', basis: 'PER_UNIT', count: '', caption: msg('₹900 / vial') },
 ];
 
 export const DawaCheckScreen: React.FC = () => {
@@ -132,12 +133,12 @@ export const DawaCheckScreen: React.FC = () => {
         setOfflineQueued(true);
         setError(
           !isOnline
-            ? 'Device is offline. Medicine audit queued; will sync automatically when reconnected.'
-            : `${apiErr.message || 'Failed to check medicine pricing.'} (Queued for offline retry)`
+            ? tr('Device is offline. Medicine audit queued; will sync automatically when reconnected.')
+            : tr('{message} (Queued for offline retry)', { message: apiErr.message || tr('Failed to check medicine pricing.') })
         );
       } else {
         setOfflineQueued(false);
-        setError('Could not save this for offline retry — please try again when back online.');
+        setError(tr('Could not save this for offline retry — please try again when back online.'));
       }
     } finally {
       setLoading(false);
@@ -183,7 +184,7 @@ export const DawaCheckScreen: React.FC = () => {
         </Text>
         <TextInput
           style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
-          placeholder="e.g. Paracetamol 650mg, Augmentin 625"
+          placeholder={tr('e.g. Paracetamol 650mg, Augmentin 625')}
           placeholderTextColor={colors.textMuted}
           value={brandName}
           onChangeText={setBrandName}
@@ -194,7 +195,7 @@ export const DawaCheckScreen: React.FC = () => {
         </Text>
         <TextInput
           style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
-          placeholder="Amount paid, e.g. 33"
+          placeholder={tr('Amount paid, e.g. 33')}
           placeholderTextColor={colors.textMuted}
           keyboardType="numeric"
           value={mrp}
@@ -202,7 +203,7 @@ export const DawaCheckScreen: React.FC = () => {
         />
 
         <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 4 }]}>
-          The amount paid is for… (NPPA ceilings are per tablet/capsule/vial)
+          {tr('The amount paid is for… (NPPA ceilings are per tablet/capsule/vial)')}
         </Text>
         <View style={styles.samplesContainer}>
           {BASIS_OPTIONS.map((o) => (
@@ -220,7 +221,7 @@ export const DawaCheckScreen: React.FC = () => {
               ]}
             >
               <Text style={{ color: basis === o.value ? colors.brandCyan : colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
-                {o.label}
+                {tr(o.label)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -228,7 +229,7 @@ export const DawaCheckScreen: React.FC = () => {
         {basisOption && basisOption.needs !== 'none' && (
           <TextInput
             style={[styles.input, { color: colors.textPrimary, borderColor: colors.borderSubtle }]}
-            placeholder={basisOption.needs === 'pack' ? 'Units in the strip/pack, e.g. 15' : 'Number of units, e.g. 10'}
+            placeholder={basisOption.needs === 'pack' ? tr('Units in the strip/pack, e.g. 15') : tr('Number of units, e.g. 10')}
             placeholderTextColor={colors.textMuted}
             keyboardType="number-pad"
             value={count}
@@ -248,7 +249,7 @@ export const DawaCheckScreen: React.FC = () => {
               style={[styles.sampleChip, { borderColor: colors.borderSubtle, backgroundColor: 'rgba(255,255,255,0.04)' }]}
             >
               <Text style={{ color: colors.brandCyan, fontSize: 11, fontWeight: '600' }}>
-                {sample.name.split(' ')[0]} · {sample.caption}
+                {sample.name.split(' ')[0]} · {tr(sample.caption)}
               </Text>
             </TouchableOpacity>
           ))}

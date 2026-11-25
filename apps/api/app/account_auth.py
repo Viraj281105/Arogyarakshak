@@ -9,8 +9,9 @@ is this API's own origin or a trusted one (``AUTH_TRUSTED_ORIGINS``, default the
 ``CORS_ORIGINS``). SameSite=Strict already blocks cross-site cookies; this is the second,
 independent layer.
 
-On routes where signing in is optional, an unknown, expired or revoked credential is
-treated as no credential, so a stale cookie never breaks the guest flow.
+An unknown, expired or revoked credential is treated as no credential, so a stale cookie
+never breaks the public account routes. Every other route then answers 401 (ADR-029,
+app.auth_gate).
 """
 
 from dataclasses import dataclass
