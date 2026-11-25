@@ -239,7 +239,7 @@ screen-reader pass, the email-provider decision (Q1), and the maintainer's visua
 
 ---
 
-## 6. Product evolution: sign-in, outcomes, localisation, accessibility (2026-11-25; committed locally, not pushed)
+## 6. Product evolution: sign-in, outcomes, localisation, accessibility (2026-11-25; merged to `main` by PR #180)
 
 Supersedes the guest-flow statements in sections 1 to 5.
 

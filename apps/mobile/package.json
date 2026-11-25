@@ -45,6 +45,9 @@
   },
   "private": true,
   "overrides": {
-    "postcss": "^8.5.28"
+    "postcss": "^8.5.28",
+    "@expo/plist": {
+      "@xmldom/xmldom": "^0.8.15"
+    }
   }
 }

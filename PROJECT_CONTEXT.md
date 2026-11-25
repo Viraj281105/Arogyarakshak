@@ -20,7 +20,8 @@
 - **Current Phase:** Phase 4 (Multilingual, QA & Production Hardening) in progress, with the post-foundation roadmap ("Wave 1": WS1 observability, WS2 LLM reliability, WS4-shell web shell, WS5-shell mobile shell) merged on branch `wave1/integration` (2026-11-19, not yet merged to `main`; see the 2026-11-20 bullet below and section 18). WS0 Foundation was merged to `main` via PR #161 (2026-11-15). Phases 1–3 complete: all assigned Phase-1/2/3 GitHub issues closed as of 2026-09-13; see `docs/academic/presentations/ArogyaRakshak_Current_State_Audit.md` for the full audit trail.
 - **Overall Status:** Production Engineering & System Hardening.
 - **System Stability:** Functional Production Alpha (All 5 user-facing domain modules wired to real backend endpoints on both Web and Mobile — with the disclosed exception that `POST /billnyay/.../appeal` and `/grievance` are not yet called by either client, tracked separately as #20; figures as of 2026-10-20 were 1,119 backend pytest tests passing, 7 skipped; 126 mobile; 133 web; those are superseded by the totals measured on `wave1/integration` on 2026-11-20, in the bullet below: apps/api 609 passed / 1 failed / 3 skipped, packages 709 passed / 6 skipped, web 233, mobile 194, import-linter 5/5 kept, guardrails passing).
-- **Newest (2026-11-25, product evolution — branch `wave3/transformation`, committed locally, not pushed):** sign-in is now required for every case and module (ADR-029; the guest flow is gone, old guest cases can only be claimed); optional Gmail delivery for account email (ADR-030, never run against Google); a synthetic demo account (`docs/DEMO_GUIDE.md`); user-recorded action and outcome tracking (ADR-031, migration `0004_case_actions`) with an outcome-led result layout on the web; Hindi and Marathi for all marked web and mobile strings (**machine translation, unreviewed**); accessibility fixes from automated checks (**screen reader not tested**). Not production-ready: see section 18.
+- **Newest (2026-11-25, dependency triage — branch `security/dependency-triage`):** fixed the dependency findings that have compatible upgrades; `npm audit` shows root 0, web 0, mobile 17 (all build tooling, none in the shipped app, waiting on an Expo SDK upgrade). Do not merge Dependabot PR 177: it moves `react-native` out of SDK 52. Record: `docs/operations/dependency-triage-2026-11-25.md`.
+- **Previous (2026-11-25, product evolution — merged to `main` by PR #180):** sign-in is now required for every case and module (ADR-029; the guest flow is gone, old guest cases can only be claimed); optional Gmail delivery for account email (ADR-030, never run against Google); a synthetic demo account (`docs/DEMO_GUIDE.md`); user-recorded action and outcome tracking (ADR-031, migration `0004_case_actions`) with an outcome-led result layout on the web; Hindi and Marathi for all marked web and mobile strings (**machine translation, unreviewed**); accessibility fixes from automated checks (**screen reader not tested**). Not production-ready: see section 18.
 - **Latest (2026-11-25, review follow-ups — branch `wave3/transformation`):** fixed the open items from the review: (1) the API's 429 responses now carry CORS headers and expose `Retry-After` (rate limiter registered before `CORSMiddleware`; preflights no longer rate-limited; 2 tests, both fail on the old order); (2) `MetricCard` has a third basis, `"document"` ("From your document"), used for BillNyay's "Total billed". Also exercised what the first pass had not: DaaviSetu PDF and ZIP downloads (ZIP holds manifest, form, redacted summary, readiness; no original document; wrong token 403); `/reset-password` and `/verify` with a `#token=` link (token removed from the address bar; invalid link reported; "email cannot be sent" notice); `/review` refuses a wrong credential; and every account/ownership/deletion/no-retention check plus the ICD, CGHS and reasoning endpoints against **PostgreSQL 16 with Alembic migrations** (`0003_accounts`) in a throwaway local container. Still needs people: native-speaker hi/mr copy for the new strings, a screen-reader pass, Stitch parity (needs the maintainer's sign-in). Details: `docs/transformation/IMPLEMENTATION_STATUS.md` section 5.
 - **Previous (2026-11-25, post-Antigravity independent review and hardening — branch `wave3/transformation`, uncommitted):** Antigravity built the pages (24 files on top of foundation commit `1080110`); Claude Code reviewed every change and fixed what it found. Full record: `docs/transformation/IMPLEMENTATION_STATUS.md` section 4.
   - **Fixed:** two critical contract defects (the ICD-10 audit and SchemeSetu reasoning views read invented response fields, so a "mismatched" result and the whole reasoning trace never showed); false evidence labels (static "human-reviewed"/"provisional"/"AI-generated" badges on page headers and on every extracted field); overstated privacy copy on the sign-in panel; a duplicate DaaviSetu step strip that marked a step done too early; sidebar label overflow; dark-mode header/footer emblem (foundation defect); a bundle regression (brand code in client modules), now every route is 1.2–2.6 KB smaller (`/app` 167.14, `/app/settings` 166.04).
@@ -221,7 +222,7 @@ arogyarakshak/
 
 ## 8. Current Work
 
-### Task (2026-11-25) — Product evolution: sign-in, demo, tracking, localisation, accessibility (committed locally, not pushed)
+### Task (2026-11-25) — Product evolution: sign-in, demo, tracking, localisation, accessibility (merged, PR #180)
 - [x] Mandatory sign-in on the API, web and mobile (ADR-029); Gmail transport (ADR-030); demo account; action tracking (ADR-031); outcome-led result pages.
 - [x] Web localisation with completeness tests (`docs/localization.md`); automated accessibility audit and fixes (`docs/accessibility/audit-2026-11-25.md`); `docs/BUSINESS_MODEL.md` (proposal only, no payments).
 - [ ] Human work: native Hindi and Marathi review; NVDA + Chrome pass; Gmail credentials and first real send; visual sign-off.
@@ -367,7 +368,8 @@ None. Ready for Product Phase 2 when directed by user.
 ## 9. Next Tasks
 
 ### After the 2026-11-25 product evolution
-- [ ] Decide on pushing and opening the pull request (committed locally on 2026-11-25, not pushed).
+- [x] Pushed and merged to `main` by PR #180 (15 checks passing).
+- [ ] Plan the Expo SDK upgrade that clears the 17 remaining mobile advisories.
 - [ ] Native-speaker review of Hindi and Marathi (web and mobile).
 - [ ] NVDA pass using the script in the accessibility audit; run the mobile app on a device.
 - [ ] Configure Gmail (`docs/configuration/email-gmail.md`) and add the `GMAIL_*` variables to the Kubernetes manifests.
@@ -498,6 +500,12 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ---
 
 ## 11. Known Issues
+
+### 4. Mobile build tooling carries 17 unfixable advisories (open, 2026-11-25)
+- **Problem:** `tar`, `image-size`, `glob`, `minimatch` and `uuid` inside Expo SDK 52 have fixes only in incompatible major versions.
+- **Impact:** Developer machines and CI, including the Expo development server; nothing of it is in the shipped app.
+- **Workaround:** Bundle and unpack only trusted files; run `expo start` on a trusted network. Fix: Expo SDK upgrade.
+- **Details:** `docs/operations/dependency-triage-2026-11-25.md`.
 
 ### 1. Global Python 3.14 Path Priority on Windows Host
 - **Problem:** Running `python` without activating the virtual environment invokes Python 3.14, which lacks `pytest` and `fastapi`.
@@ -922,7 +930,7 @@ Phase 5: Submission & Demo Polish (FUTURE)
 ## 18. Agent Handoff Notes
 
 ### Latest handoff (2026-11-25, product evolution)
-- **State**: committed locally on `wave3/transformation` (the maintainer asked for the commit on 2026-11-25); not pushed or merged. Push, pull request and merge each need an explicit request. Record: `docs/transformation/IMPLEMENTATION_STATUS.md` section 6.
+- **State**: merged to `main` by PR #180. Follow-up dependency triage is on `security/dependency-triage`. Commit, push, pull request and merge each need an explicit request. Record: `docs/transformation/IMPLEMENTATION_STATUS.md` section 6.
 - **Rules for the next agent**: every new API route is protected by default; add to `PUBLIC_API_PATHS` only for pre-session routes. New web strings go through `tr()` with `hi` and `mr` entries. Never describe Hindi or Marathi as reviewed, or the screen reader as tested. No status may claim something was submitted or received unless the person recorded it.
 - **Release view**: usable for development and a supervised synthetic-data demo; a pull request needs the maintainer's go-ahead and CI; **not** production-ready.
 
