@@ -1,6 +1,6 @@
 # Product evolution: final report (2026-11-25)
 
-Branch `wave3/transformation`, base commit `4b37e4e`. **Committed locally on 2026-11-25 at the maintainer's request; not pushed or merged.**
+Branch `wave3/transformation`, base commit `4b37e4e`. **Merged to `main` on 2026-11-25 by PR #180.**
 
 ## A. Summary
 The existing app now follows one path from an issue to a recorded outcome, requires sign-in, ships a

@@ -414,6 +414,10 @@ Marathi to `src/translations/ui.ts`. A component that renders `tr()` text must c
 `useTranslation()`. If the string is not user-facing, add it to the scanner's exclusions with a
 reason rather than wrapping it.
 
+### A Dependabot group update proposes a new `react-native` or `expo` version
+Do not merge it. Every `expo-*` package and `react-native` move together with the Expo SDK. Take the
+safe updates by hand (`npm update <name>` in the app) and close the rest.
+
 ### `npm test` in `apps/mobile` passes but `tsc` fails on a file under `apps/web`
 Mobile parity tests import web modules, so those modules are type-checked with the mobile settings.
 Keep dynamic `import()` out of them (that is why `i18n/load.ts` is separate from `i18n/format.ts`).

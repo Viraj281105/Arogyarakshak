@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependency security updates (2026-11-25, branch `security/dependency-triage`)
+
+- Mobile build tooling: `shell-quote`, `node-forge`, `@xmldom/xmldom` (override), `brace-expansion`, `undici`, `compression`.
+- Root and web development tools: `basic-ftp` proxy chain, `typescript-eslint`, `zod`.
+- Still open: 17 mobile advisories that need an Expo SDK upgrade (`docs/operations/dependency-triage-2026-11-25.md`).
+
 ### Wave 3, Milestones 3 and 4: public site, workspace and sign-in (2026-11-24, branch `wave3/m3m4-integration`)
 
 Both milestones were signed off by the maintainer. Handoffs: `docs/superpowers/handoff/wave3-m3-public.md`, `wave3-m4-workspace.md`.
